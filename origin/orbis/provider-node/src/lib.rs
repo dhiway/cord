@@ -96,8 +96,8 @@ pub use three_provider_evidence::{
 };
 pub use workers::{
 	poll_checkpoint_duties_once, poll_manifest_deletions_once, run_workers,
-	JsonlManifestDeletionOutbox, ManifestDeletionSubmission, ManifestDeletionSubmitter,
-	ProviderSubmission, WorkerConfig,
+	JsonlManifestDeletionOutbox, ManifestDeletionStartupPlan, ManifestDeletionSubmission,
+	ManifestDeletionSubmitter, ProviderSubmission, WorkerConfig,
 };
 
 /// Protocol version shared by persisted records and HTTP responses.

@@ -19,6 +19,8 @@
 //! Canonical checkpoint-v2 and manifest-deletion background coordination.
 
 use std::{
+	fs,
+	io::{Read as _, Seek as _},
 	path::{Path, PathBuf},
 	sync::Arc,
 	time::Duration,
@@ -117,12 +119,65 @@ pub enum ProviderSubmission {
 /// Canonical manifest-deletion seam consumed by the metadata-derived Orbis finality lane.
 #[async_trait]
 pub trait ManifestDeletionSubmitter: Send + Sync + 'static {
+	/// Validate any local durable recovery owned by this submitter without mutating it.
+	fn prepare_startup(&self) -> Result<ManifestDeletionStartupPlan, String> {
+		Ok(ManifestDeletionStartupPlan::default())
+	}
+
 	/// Durably accept one idempotent canonical manifest-deletion acknowledgement.
 	async fn submit_manifest_deletion(
 		&self,
 		_request: ManifestDeletionSubmission,
 	) -> Result<(), String> {
 		Err("canonical manifest deletion outbox unavailable".into())
+	}
+}
+
+/// Type-erased startup recovery for a manifest-deletion submitter.
+#[derive(Default)]
+pub struct ManifestDeletionStartupPlan {
+	jsonl_tail: Option<PreparedJsonlTailRecovery>,
+}
+
+impl ManifestDeletionStartupPlan {
+	pub(crate) fn apply(self) -> Result<(), String> {
+		if let Some(recovery) = self.jsonl_tail {
+			recovery.apply()?;
+		}
+		Ok(())
+	}
+}
+
+struct PreparedJsonlTailRecovery {
+	path: PathBuf,
+	expected_length: u64,
+	truncate_to: u64,
+}
+
+impl PreparedJsonlTailRecovery {
+	fn apply(self) -> Result<(), String> {
+		let metadata = fs::symlink_metadata(&self.path).map_err(|error| error.to_string())?;
+		if !metadata.file_type().is_file() || metadata.len() != self.expected_length {
+			return Err("manifest deletion outbox changed after startup validation".into());
+		}
+		let file = fs::OpenOptions::new()
+			.read(true)
+			.write(true)
+			.open(&self.path)
+			.map_err(|error| error.to_string())?;
+		if file.metadata().map_err(|error| error.to_string())?.len() != self.expected_length {
+			return Err("manifest deletion outbox changed after startup validation".into());
+		}
+		file.set_len(self.truncate_to).map_err(|error| error.to_string())?;
+		file.sync_all().map_err(|error| error.to_string())?;
+		let parent = self
+			.path
+			.parent()
+			.filter(|parent| !parent.as_os_str().is_empty())
+			.unwrap_or(Path::new("."));
+		fs::File::open(parent)
+			.and_then(|directory| directory.sync_all())
+			.map_err(|error| error.to_string())
 	}
 }
 
@@ -158,11 +213,16 @@ impl JsonlManifestDeletionOutbox {
 
 #[async_trait]
 impl ManifestDeletionSubmitter for JsonlManifestDeletionOutbox {
+	fn prepare_startup(&self) -> Result<ManifestDeletionStartupPlan, String> {
+		prepare_jsonl_manifest_deletion_outbox(&self.path)
+	}
+
 	async fn submit_manifest_deletion(
 		&self,
 		request: ManifestDeletionSubmission,
 	) -> Result<(), String> {
 		let _guard = self.write_lock.lock().await;
+		validate_optional_regular_file(&self.path, "manifest deletion outbox")?;
 		let _process_lock = self.lock_outbox().await?;
 		repair_incomplete_jsonl_tail(&self.path).await?;
 		let existing =
@@ -184,6 +244,59 @@ impl ManifestDeletionSubmitter for JsonlManifestDeletionOutbox {
 		let mut encoded = serde_json::to_vec(&ProviderSubmission::ManifestDeletion(request))
 			.map_err(|error| error.to_string())?;
 		self.append_locked(&mut encoded).await
+	}
+}
+
+fn prepare_jsonl_manifest_deletion_outbox(
+	path: &Path,
+) -> Result<ManifestDeletionStartupPlan, String> {
+	validate_optional_regular_file(path, "manifest deletion outbox")?;
+	validate_optional_regular_file(&suffixed_path(path, ".lock"), "manifest deletion outbox lock")?;
+	let metadata = match fs::symlink_metadata(path) {
+		Ok(metadata) => metadata,
+		Err(error) if error.kind() == std::io::ErrorKind::NotFound =>
+			return Ok(ManifestDeletionStartupPlan::default()),
+		Err(error) => return Err(error.to_string()),
+	};
+	let expected_length = metadata.len();
+	if expected_length == 0 {
+		return Ok(ManifestDeletionStartupPlan::default());
+	}
+	let mut file = fs::File::open(path).map_err(|error| error.to_string())?;
+	file.seek(std::io::SeekFrom::Start(expected_length - 1))
+		.map_err(|error| error.to_string())?;
+	let mut last = [0u8; 1];
+	file.read_exact(&mut last).map_err(|error| error.to_string())?;
+	if last[0] == b'\n' {
+		return Ok(ManifestDeletionStartupPlan::default());
+	}
+	let start = expected_length.saturating_sub(MAX_JSONL_RECORD_BYTES.saturating_add(1));
+	let width: usize = (expected_length - start)
+		.try_into()
+		.map_err(|_| "manifest deletion outbox tail exceeds the platform bound")?;
+	let mut tail = vec![0u8; width];
+	file.seek(std::io::SeekFrom::Start(start)).map_err(|error| error.to_string())?;
+	file.read_exact(&mut tail).map_err(|error| error.to_string())?;
+	let truncate_to = match tail.iter().rposition(|byte| *byte == b'\n') {
+		Some(index) => start + index as u64 + 1,
+		None if start == 0 => 0,
+		None => return Err("incomplete outbox record exceeds the bounded line limit".into()),
+	};
+	Ok(ManifestDeletionStartupPlan {
+		jsonl_tail: Some(PreparedJsonlTailRecovery {
+			path: path.to_path_buf(),
+			expected_length,
+			truncate_to,
+		}),
+	})
+}
+
+fn validate_optional_regular_file(path: &Path, label: &str) -> Result<(), String> {
+	match fs::symlink_metadata(path) {
+		Ok(metadata) if metadata.file_type().is_file() => Ok(()),
+		Ok(_) => Err(format!("{label} is not a regular file")),
+		Err(error) if error.kind() == std::io::ErrorKind::NotFound => Ok(()),
+		Err(error) => Err(error.to_string()),
 	}
 }
 
@@ -219,6 +332,7 @@ impl JsonlManifestDeletionOutbox {
 			tokio::fs::create_dir_all(parent).await.map_err(|error| error.to_string())?;
 		}
 		let lock_path = suffixed_path(&self.path, ".lock");
+		validate_optional_regular_file(&lock_path, "manifest deletion outbox lock")?;
 		tokio::task::spawn_blocking(move || {
 			let lock = std::fs::OpenOptions::new()
 				.create(true)
@@ -271,37 +385,10 @@ async fn sync_parent_directory(path: &Path) -> Result<(), String> {
 }
 
 async fn repair_incomplete_jsonl_tail(path: &Path) -> Result<(), String> {
-	let mut file = match tokio::fs::OpenOptions::new().read(true).write(true).open(path).await {
-		Ok(file) => file,
-		Err(error) if error.kind() == std::io::ErrorKind::NotFound => return Ok(()),
-		Err(error) => return Err(error.to_string()),
-	};
-	let len = file.metadata().await.map_err(|error| error.to_string())?.len();
-	if len == 0 {
-		return Ok(());
-	}
-	file.seek(std::io::SeekFrom::Start(len - 1))
+	let path = path.to_path_buf();
+	tokio::task::spawn_blocking(move || prepare_jsonl_manifest_deletion_outbox(&path)?.apply())
 		.await
-		.map_err(|error| error.to_string())?;
-	let mut last = [0u8; 1];
-	file.read_exact(&mut last).await.map_err(|error| error.to_string())?;
-	if last[0] == b'\n' {
-		return Ok(());
-	}
-	let start = len.saturating_sub(MAX_JSONL_RECORD_BYTES.saturating_add(1));
-	let width = (len - start) as usize;
-	let mut tail = vec![0u8; width];
-	file.seek(std::io::SeekFrom::Start(start))
-		.await
-		.map_err(|error| error.to_string())?;
-	file.read_exact(&mut tail).await.map_err(|error| error.to_string())?;
-	let keep = match tail.iter().rposition(|byte| *byte == b'\n') {
-		Some(index) => start + index as u64 + 1,
-		None if start == 0 => 0,
-		None => return Err("incomplete outbox record exceeds the bounded line limit".into()),
-	};
-	file.set_len(keep).await.map_err(|error| error.to_string())?;
-	file.sync_all().await.map_err(|error| error.to_string())
+		.map_err(|error| error.to_string())?
 }
 
 /// Bounded canonical runtime-duty cadence.
@@ -568,6 +655,40 @@ mod tests {
 			signature: format!("0x{}", "66".repeat(64)),
 			duty_fingerprint: format!("0x{}", "77".repeat(32)),
 		}
+	}
+
+	#[test]
+	fn jsonl_startup_prepare_is_read_only_and_apply_truncates_only_the_torn_tail() {
+		let temp = tempfile::tempdir().unwrap();
+		let path = temp.path().join("provider-submissions-v3.jsonl");
+		let durable = b"complete-record\n";
+		let mut original = durable.to_vec();
+		original.extend_from_slice(b"torn-tail");
+		fs::write(&path, &original).unwrap();
+
+		let plan = prepare_jsonl_manifest_deletion_outbox(&path).unwrap();
+
+		assert_eq!(fs::read(&path).unwrap(), original);
+		plan.apply().unwrap();
+		assert_eq!(fs::read(path).unwrap(), durable);
+	}
+
+	#[cfg(unix)]
+	#[test]
+	fn jsonl_startup_prepare_rejects_symlink_and_nonregular_paths() {
+		use std::os::unix::fs::symlink;
+
+		let temp = tempfile::tempdir().unwrap();
+		let target = temp.path().join("target.jsonl");
+		fs::write(&target, b"durable\n").unwrap();
+		let link = temp.path().join("provider-submissions-v3.jsonl");
+		symlink(&target, &link).unwrap();
+		assert!(prepare_jsonl_manifest_deletion_outbox(&link).is_err());
+		assert_eq!(fs::read(target).unwrap(), b"durable\n");
+
+		let directory = temp.path().join("nonregular");
+		fs::create_dir(&directory).unwrap();
+		assert!(prepare_jsonl_manifest_deletion_outbox(&directory).is_err());
 	}
 
 	#[test]

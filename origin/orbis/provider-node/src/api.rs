@@ -62,6 +62,9 @@ pub enum ProviderOpenError {
 	/// A private checkpoint kernel rejected its persisted state or recovery plan.
 	#[error(transparent)]
 	Content(#[from] ContentError),
+	/// The configured manifest-deletion submitter rejected its startup recovery view.
+	#[error("manifest-deletion submitter startup failed: {0}")]
+	Outbox(String),
 }
 
 /// HTTP listener limits and authentication policy.
@@ -99,12 +102,14 @@ impl<A: ChainAuthority> ProviderService<A> {
 		outbox: Arc<dyn ManifestDeletionSubmitter>,
 	) -> Result<Self, ProviderOpenError> {
 		let root = root.as_ref();
+		let outbox_startup = outbox.prepare_startup().map_err(ProviderOpenError::Outbox)?;
 		let store = DiskStore::prepare_open(root, profile, capacity_bytes)?;
 		let checkpoint_stack = CheckpointStack::prepare_open(root)?;
 		let checkpoint_quorum_scheduler = CheckpointQuorumScheduler::prepare_open(root)?;
 		let store = Arc::new(store.apply()?);
 		let checkpoint_stack = Arc::new(checkpoint_stack.apply()?);
 		let checkpoint_quorum_scheduler = Arc::new(checkpoint_quorum_scheduler.apply()?);
+		outbox_startup.apply().map_err(ProviderOpenError::Outbox)?;
 		Ok(Self {
 			store,
 			checkpoint_stack,
@@ -704,8 +709,13 @@ mod lifecycle_tests {
 		let staging_orphan = streaming.join("staging").join("unowned-part");
 		let staging_bytes = b"unowned-staging-evidence";
 		fs::write(&staging_orphan, staging_bytes).unwrap();
-		fs::write(temp.path().join("checkpoint-proposals-v2").join("invalid.json"), b"not-json")
-			.unwrap();
+		let outbox_path = temp.path().join("outbox.jsonl");
+		let complete_outbox = b"complete-record\n";
+		let mut torn_outbox = complete_outbox.to_vec();
+		torn_outbox.extend_from_slice(b"torn-tail");
+		fs::write(&outbox_path, &torn_outbox).unwrap();
+		let invalid = temp.path().join("checkpoint-proposals-v2").join("invalid.json");
+		fs::write(&invalid, b"not-json").unwrap();
 
 		assert!(matches!(
 			ProviderService::open(
@@ -714,13 +724,72 @@ mod lifecycle_tests {
 				1024,
 				Arc::new(RouteAuthority),
 				ed25519::Pair::from_seed(&[0x31; 32]),
-				Arc::new(JsonlManifestDeletionOutbox::new(temp.path().join("outbox.jsonl"))),
+				Arc::new(JsonlManifestDeletionOutbox::new(&outbox_path)),
 			),
 			Err(ProviderOpenError::Content(ContentError::IntegrityFailed))
 		));
 		assert_eq!(fs::read(disk_temp).unwrap(), disk_temp_bytes);
 		assert_eq!(fs::read(journal_temp).unwrap(), journal_temp_bytes);
 		assert_eq!(fs::read(staging_orphan).unwrap(), staging_bytes);
+		assert_eq!(fs::read(&outbox_path).unwrap(), torn_outbox);
+
+		fs::remove_file(invalid).unwrap();
+		let service = ProviderService::open(
+			temp.path(),
+			profile(),
+			1024,
+			Arc::new(RouteAuthority),
+			ed25519::Pair::from_seed(&[0x31; 32]),
+			Arc::new(JsonlManifestDeletionOutbox::new(&outbox_path)),
+		)
+		.unwrap();
+		drop(service);
+		assert_eq!(fs::read(outbox_path).unwrap(), complete_outbox);
+	}
+
+	#[cfg(unix)]
+	#[test]
+	fn production_open_rejects_symlink_outbox_before_prepared_cleanup() {
+		use std::os::unix::fs::symlink;
+
+		let temp = tempfile::tempdir().unwrap();
+		let profile = || NodeProfile {
+			provider: hex::encode([0x21; 32]),
+			endpoint: "http://127.0.0.1:8080".into(),
+			service_key: hex::encode(ed25519::Pair::from_seed(&[0x31; 32]).public().0),
+			region: None,
+		};
+		let store = Arc::new(DiskStore::open(temp.path(), profile(), 1024).unwrap());
+		drop(
+			ProviderService::new_preopened(
+				store,
+				Arc::new(RouteAuthority),
+				ed25519::Pair::from_seed(&[0x31; 32]),
+				Arc::new(JsonlManifestDeletionOutbox::new(temp.path().join("unused.jsonl"))),
+			)
+			.unwrap(),
+		);
+		let disk_temp = temp.path().join("provider-index-v6.tmp-777");
+		let evidence = b"preserved-disk-temp";
+		fs::write(&disk_temp, evidence).unwrap();
+		let target = temp.path().join("external.jsonl");
+		fs::write(&target, b"external\n").unwrap();
+		let outbox = temp.path().join("provider-submissions-v3.jsonl");
+		symlink(&target, &outbox).unwrap();
+
+		assert!(matches!(
+			ProviderService::open(
+				temp.path(),
+				profile(),
+				1024,
+				Arc::new(RouteAuthority),
+				ed25519::Pair::from_seed(&[0x31; 32]),
+				Arc::new(JsonlManifestDeletionOutbox::new(outbox)),
+			),
+			Err(ProviderOpenError::Outbox(_))
+		));
+		assert_eq!(fs::read(disk_temp).unwrap(), evidence);
+		assert_eq!(fs::read(target).unwrap(), b"external\n");
 	}
 
 	#[test]
