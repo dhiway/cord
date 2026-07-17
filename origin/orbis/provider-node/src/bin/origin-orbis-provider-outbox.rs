@@ -781,22 +781,6 @@ fn read_bounded_line<R: BufRead>(
 	}
 }
 
-fn repair_incomplete_tail(path: &Path) -> Result<(), Box<dyn std::error::Error>> {
-	let mut file = OpenOptions::new().read(true).open(path).map_err(|error| {
-		if error.kind() == std::io::ErrorKind::NotFound {
-			std::io::Error::new(error.kind(), "provider outbox unavailable")
-		} else {
-			error
-		}
-	})?;
-	let metadata = file.metadata()?;
-	let source = source_id(&metadata)?;
-	let len = metadata.len();
-	let keep = complete_tail_len(&mut file, len)?;
-	drop(file);
-	repair_incomplete_tail_exact(path, source, len, keep)
-}
-
 fn complete_tail_len(file: &mut File, len: u64) -> Result<u64, Box<dyn std::error::Error>> {
 	if len == 0 {
 		return Ok(0);
