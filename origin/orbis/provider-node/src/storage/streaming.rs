@@ -49,6 +49,9 @@ const STREAM_ROOT: &str = "streaming-v1";
 const JOURNAL: &str = "journal.json";
 const STAGING: &str = "staging";
 const OBJECTS: &str = "objects";
+// A serialized transition can leave at most one renamed or newly-created file outside the last
+// durable journal. Recovery validates the complete directory before deleting that artifact.
+const MAX_UNOWNED_DIRECTORY_ARTIFACTS: usize = 1;
 // Large records are bounded by the maximum 256 chunk records at 128 compact-JSON bytes each.
 // Small records have tighter schema-derived bounds. The journal limit accounts independently for
 // every durable map plus its canonical key and JSON framing; private-query response bodies remain
@@ -2660,19 +2663,36 @@ fn install_file(
 }
 
 fn remove_unowned(directory: &Path, owned: &BTreeSet<String>) -> Result<bool, ContentError> {
-	let mut changed = false;
+	let max_entries = owned
+		.len()
+		.checked_add(MAX_UNOWNED_DIRECTORY_ARTIFACTS)
+		.ok_or(ContentError::IntegrityFailed)?;
+	let mut visited = 0usize;
+	let mut unowned = Vec::new();
 	for entry in fs::read_dir(directory).map_err(io_error)? {
+		visited = visited.checked_add(1).ok_or(ContentError::IntegrityFailed)?;
+		if visited > max_entries {
+			return Err(ContentError::IntegrityFailed);
+		}
 		let entry = entry.map_err(io_error)?;
+		if !entry.file_type().map_err(io_error)?.is_file() {
+			return Err(ContentError::IntegrityFailed);
+		}
 		let name = entry.file_name().to_string_lossy().into_owned();
 		if !owned.contains(&name) {
-			fs::remove_file(entry.path()).map_err(io_error)?;
-			changed = true;
+			unowned.push(entry.path());
+			if unowned.len() > MAX_UNOWNED_DIRECTORY_ARTIFACTS {
+				return Err(ContentError::IntegrityFailed);
+			}
 		}
 	}
-	if changed {
+	for path in &unowned {
+		fs::remove_file(path).map_err(io_error)?;
+	}
+	if !unowned.is_empty() {
 		sync_dir(directory)?;
 	}
-	Ok(changed)
+	Ok(!unowned.is_empty())
 }
 
 fn persist_state(root: &Path, state: &JournalState) -> Result<(), ContentError> {
@@ -2734,6 +2754,30 @@ mod exact_lookup_tests {
 			validate_journal_cardinality(one_over, MAX_STREAMING_OPERATIONS),
 			Err(ContentError::IntegrityFailed)
 		);
+	}
+
+	#[test]
+	fn recovery_scrubs_one_unowned_file_and_rejects_staging_or_object_floods() {
+		for directory in [STAGING, OBJECTS] {
+			let exact = tempfile::tempdir().unwrap();
+			drop(StreamingStore::open(exact.path()).unwrap());
+			let target = exact.path().join(STREAM_ROOT).join(directory);
+			let orphan = target.join("orphan");
+			fs::write(&orphan, b"partial").unwrap();
+			drop(StreamingStore::open(exact.path()).unwrap());
+			assert!(!orphan.exists(), "{directory}");
+
+			let flooded = tempfile::tempdir().unwrap();
+			drop(StreamingStore::open(flooded.path()).unwrap());
+			let target = flooded.path().join(STREAM_ROOT).join(directory);
+			fs::write(target.join("orphan-a"), b"partial").unwrap();
+			fs::write(target.join("orphan-b"), b"partial").unwrap();
+			assert!(matches!(
+				StreamingStore::open(flooded.path()),
+				Err(ContentError::IntegrityFailed)
+			));
+			assert_eq!(fs::read_dir(target).unwrap().count(), 2, "{directory}");
+		}
 	}
 
 	#[test]
