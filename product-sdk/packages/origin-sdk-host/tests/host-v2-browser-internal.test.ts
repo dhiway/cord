@@ -97,9 +97,9 @@ async function transports(hostPeer?: PeerKey, providerPeer?: PeerKey): Promise<{
 }
 class StrictMemoryBackend implements StrictBrowserOutboxBackend {
   readonly records = new Map<string, BrowserOutboxEncryptedRow>(); readonly quarantine = new Map<string, BrowserOutboxEncryptedRow>();
-  failBeforeCommit = false; failAfterCommit = false; strictCommits = 0;
+  failBeforeCommit = false; failAfterCommit = false; strictCommits = 0; putDelayMs = 0; putStarts = 0;
   async load() { return [...this.records.values()].map(copyRow); }
-  async putStrict(row: BrowserOutboxEncryptedRow) { if (this.failBeforeCommit) { this.failBeforeCommit = false; throw new Error("abort"); } this.records.set(row.id, copyRow(row)); this.strictCommits += 1; if (this.failAfterCommit) { this.failAfterCommit = false; throw new Error("after commit"); } }
+  async putStrict(row: BrowserOutboxEncryptedRow) { this.putStarts += 1; if (this.putDelayMs > 0) await new Promise((resolve) => setTimeout(resolve, this.putDelayMs)); if (this.failBeforeCommit) { this.failBeforeCommit = false; throw new Error("abort"); } this.records.set(row.id, copyRow(row)); this.strictCommits += 1; if (this.failAfterCommit) { this.failAfterCommit = false; throw new Error("after commit"); } }
   async deleteStrict(id: string) { this.records.delete(id); this.strictCommits += 1; }
   async quarantineStrict(row: BrowserOutboxEncryptedRow) { this.quarantine.set(row.id, copyRow(row)); this.records.delete(row.id); this.strictCommits += 1; }
 }
@@ -212,6 +212,41 @@ test("outbox IDs are independent while concurrent provider reads do not collide 
   const writeB = await preparedEntry(connected.host, 1, { outbox: 0x72, request: 0x72, operation: 0x41 });
   const results = await Promise.allSettled([outbox.prepare({ entry: writeA }), outbox.prepare({ entry: writeB })]);
   assert.equal(results.filter(({ status }) => status === "fulfilled").length, 1); assert.equal(results.filter(({ status }) => status === "rejected").length, 1);
+  connected.host.close(); connected.provider.close();
+});
+
+test("concurrent prepares reserve record and encrypted-byte capacity and release it after failure", async () => {
+  const connected = await transports();
+  const entries = await Promise.all([
+    preparedEntry(connected.host, 1, { vector: "1011-positive", outbox: 0x31, request: 0x31, expected: 2 }),
+    preparedEntry(connected.host, 1, { vector: "1011-positive", outbox: 0x32, request: 0x32, expected: 2 }),
+  ]);
+
+  const recordBackend = new StrictMemoryBackend(); recordBackend.putDelayMs = 20;
+  const recordBound = await BrowserHostOutboxV1.open(recordBackend, context(connected.host), keyring(), { records: 1, random: nonceSource() });
+  const recordResults = await Promise.allSettled(entries.map((entry) => recordBound.prepare({ entry })));
+  assert.equal(recordResults.filter(({ status }) => status === "fulfilled").length, 1);
+  assert.equal(recordResults.filter(({ status }) => status === "rejected").length, 1);
+  assert.equal(recordBackend.putStarts, 1, "a record-limit loser reached durable commit");
+  assert.equal(recordBackend.records.size, 1);
+
+  const probeBackend = new StrictMemoryBackend();
+  const probe = await BrowserHostOutboxV1.open(probeBackend, context(connected.host), keyring(), { random: nonceSource() });
+  await probe.prepare({ entry: entries[0]! });
+  const oneRecordBytes = [...probeBackend.records.values()][0]!.ciphertext.length;
+  const byteBackend = new StrictMemoryBackend(); byteBackend.putDelayMs = 20;
+  const byteBound = await BrowserHostOutboxV1.open(byteBackend, context(connected.host), keyring(), { records: 2, bytes: oneRecordBytes, random: nonceSource() });
+  const byteResults = await Promise.allSettled(entries.map((entry) => byteBound.prepare({ entry })));
+  assert.equal(byteResults.filter(({ status }) => status === "fulfilled").length, 1);
+  assert.equal(byteResults.filter(({ status }) => status === "rejected").length, 1);
+  assert.equal(byteBackend.putStarts, 1, "an encrypted-byte-limit loser reached durable commit");
+  assert.equal(byteBackend.records.size, 1);
+
+  const failureBackend = new StrictMemoryBackend(); failureBackend.failBeforeCommit = true;
+  const afterFailure = await BrowserHostOutboxV1.open(failureBackend, context(connected.host), keyring(), { records: 1, random: nonceSource() });
+  await assert.rejects(afterFailure.prepare({ entry: entries[0]! }), (error) => error instanceof BrowserOutboxError && error.code === "HOST_OUTBOX_UNAVAILABLE");
+  await afterFailure.prepare({ entry: entries[1]! });
+  assert.equal(failureBackend.putStarts, 2); assert.equal(failureBackend.records.size, 1);
   connected.host.close(); connected.provider.close();
 });
 

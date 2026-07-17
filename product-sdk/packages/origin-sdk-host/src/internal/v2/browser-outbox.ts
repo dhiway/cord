@@ -88,6 +88,7 @@ export class BrowserHostOutboxV1 {
   readonly #context: BrowserHostOutboxContextV1; readonly #records = new Map<string, LoadedRecord>();
   readonly #preparingOutboxIds = new Set<string>(); readonly #preparingOperationGenerations = new Set<string>();
   readonly #recordLimit: number; readonly #byteLimit: number;
+  #commitTail = Promise.resolve();
   private constructor(backend: StrictBrowserOutboxBackend, crypto: BrowserXChaCha20Poly1305, context: BrowserHostOutboxContextV1, recordLimit: number, byteLimit: number) {
     this.#backend = backend; this.#crypto = crypto; this.#context = copyContext(context); this.#recordLimit = recordLimit; this.#byteLimit = byteLimit;
   }
@@ -236,9 +237,25 @@ export class BrowserHostOutboxV1 {
     const idBytes = recordId(record); const id = toHex(idBytes); const plaintext = encodeRecord(record);
     let sealed: { readonly keyVersion: number; readonly ciphertext: Uint8Array }; try { sealed = await this.#crypto.seal(idBytes, plaintext); } catch { throw new BrowserOutboxError("HOST_OUTBOX_UNAVAILABLE", "browser outbox encryption failed"); }
     if (sealed.ciphertext.length > MAX_RECORD_BYTES) throw new BrowserOutboxError("HOST_OUTBOX_FULL", "encrypted browser outbox record is too large");
-    const previous = this.#records.get(id); if ((create && (previous || this.#records.size >= this.#recordLimit)) || this.#totalBytes() - (previous?.encryptedBytes ?? 0) + sealed.ciphertext.length > this.#byteLimit) throw new BrowserOutboxError("HOST_OUTBOX_FULL", "browser outbox capacity is full");
-    const row = { id, keyVersion: sealed.keyVersion, ciphertext: sealed.ciphertext.slice() }; try { await this.#backend.putStrict(row); } catch { throw new BrowserOutboxError("HOST_OUTBOX_UNAVAILABLE", "strict IndexedDB commit failed"); }
-    this.#records.set(id, { record, encryptedBytes: row.ciphertext.length });
+    await this.#withCommitCapacity(async () => {
+      const previous = this.#records.get(id);
+      if ((create && (previous || this.#records.size >= this.#recordLimit))
+        || this.#totalBytes() - (previous?.encryptedBytes ?? 0) + sealed.ciphertext.length > this.#byteLimit) {
+        throw new BrowserOutboxError("HOST_OUTBOX_FULL", "browser outbox capacity is full");
+      }
+      const row = { id, keyVersion: sealed.keyVersion, ciphertext: sealed.ciphertext.slice() };
+      try { await this.#backend.putStrict(row); }
+      catch { throw new BrowserOutboxError("HOST_OUTBOX_UNAVAILABLE", "strict IndexedDB commit failed"); }
+      this.#records.set(id, { record, encryptedBytes: row.ciphertext.length });
+    });
+  }
+  async #withCommitCapacity<T>(operation: () => Promise<T>): Promise<T> {
+    const previous = this.#commitTail;
+    let release!: () => void;
+    this.#commitTail = new Promise<void>((resolve) => { release = resolve; });
+    await previous;
+    try { return await operation(); }
+    finally { release(); }
   }
   #get(outboxId: Uint8Array): LoadedRecord { const loaded = this.#records.get(toHex(outboxId)); if (!loaded) throw new BrowserOutboxError("HOST_OUTBOX_STATE_INVALID", "browser outbox entry is absent"); return loaded; }
   #live(outboxId: Uint8Array): LiveRecord { const record = this.#get(outboxId).record; if (record.kind !== 0) throw new BrowserOutboxError("HOST_OUTBOX_STATE_INVALID", "browser outbox authority is retired"); return record; }
