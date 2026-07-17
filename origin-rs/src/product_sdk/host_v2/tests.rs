@@ -779,7 +779,7 @@ fn festival_mobile_projection_matches_rust_host_v2_bytes_hashes_and_values() {
 	}
 	assert_eq!(
 		fixture["excluded_legacy_surfaces"],
-		serde_json::json!(["personhood", "PeopleLite", "preimage", "TransactionStorage"]),
+		serde_json::json!(["personhood", "PeopleLite", "preimage"]),
 	);
 
 	let request_vector = vectors.iter().find(|vector| vector["code"] == 1000).unwrap();

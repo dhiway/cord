@@ -19,16 +19,16 @@
 use crate::{
 	xcm_config::LocationToAccountId, AssetConversion, AssetRate, AssetTxPayment, Assets,
 	AssetsFreezer, AssetsHolder, Attestation, Balances, Broker, ChunksManager, Drive, Entity,
-	Feeless, ForeignAssets, ForeignAssetsFreezer, Hash, HopPromotion, Members, MembersNotifier,
+	Feeless, ForeignAssets, ForeignAssetsFreezer, Hash, Members, MembersNotifier,
 	Names, Nfts, People, PeopleLite, Period, Personhood, PoolAssets, PoolAssetsFreezer, Revive,
-	Runtime, RuntimeCall, RuntimeOrigin, System, TransactionStorage, Uniques, S3,
+	ProviderMaxBucketOperationReceipts, Runtime, RuntimeCall, RuntimeOrigin, System, Uniques, S3,
 };
 use codec::{Decode, Encode};
 use cumulus_primitives_core::ParaId;
 use frame_support::{
 	assert_noop, assert_ok,
 	dispatch::CheckIfFeeless,
-	traits::{fungible::Mutate, Contains, Get, Hooks, PalletInfoAccess},
+	traits::{fungible::Mutate, Get, Hooks, PalletInfoAccess},
 };
 use pallet_broker::{CoreAssignment, CoreMask, Reservations, Schedule, ScheduleItem};
 use pallet_orbis_attestation_runtime_api as attestation_api;
@@ -902,10 +902,7 @@ mod transaction_policy_fixture {
 		)>,
 		FrozenPayment,
 		Implemented<
-			pallet_orbis_transaction_storage::extension::ValidateStorageCalls<
-				Runtime,
-				crate::OrbisStorageCallInspector,
-			>,
+			(),
 		>,
 		Implemented<frame_metadata_hash_extension::CheckMetadataHash<Runtime>>,
 		Implemented<pallet_revive::evm::tx_extension::SetOrigin<Runtime>>,
@@ -1329,93 +1326,6 @@ fn account_aware_resources_delegates_only_origin_payer() {
 		assert_eq!(none_origin.as_system_origin_signer(), Some(&payer));
 	});
 }
-
-#[test]
-fn resources_people_and_lite_reservations_use_isolated_storage_capacity() {
-	use crate::{Resources, Timestamp};
-	use indiv_pallet_resources::types::{MembershipCollection, ReservationPurpose};
-	use orbis_transaction_storage_primitives::ResourceReservationView;
-
-	sp_io::TestExternalities::new_empty().execute_with(|| {
-		System::set_block_number(1);
-		pallet_timestamp::Now::<Runtime>::put(3 * 24 * 60 * 60 * 1_000u64);
-		let owner = AccountId::from(ALICE);
-		let period = Resources::long_term_storage_period_from_timestamp(
-			<Timestamp as frame_support::traits::UnixTime>::now().as_secs(),
-		);
-		let people_alias = [7u8; 32];
-		let lite_alias = [8u8; 32];
-		assert_ok!(Resources::claim_long_term_storage(
-			indiv_pallet_resources::Origin::LongTermStorageClaim {
-				alias: people_alias,
-				collection: MembershipCollection::People,
-				payer: owner.clone(),
-			}
-			.into(),
-			period,
-			0,
-			owner.clone(),
-		));
-		assert_ok!(Resources::claim_long_term_storage(
-			indiv_pallet_resources::Origin::LongTermStorageClaim {
-				alias: lite_alias,
-				collection: MembershipCollection::LitePeople,
-				payer: owner.clone(),
-			}
-			.into(),
-			period,
-			0,
-			owner.clone(),
-		));
-
-		let ResourceReservationView::Active(people) =
-			TransactionStorage::resource_reservation(0).unwrap()
-		else {
-			panic!("people reservation must be active")
-		};
-		let ResourceReservationView::Active(lite) =
-			TransactionStorage::resource_reservation(1).unwrap()
-		else {
-			panic!("lite reservation must be active")
-		};
-		assert_eq!(people.owner, owner);
-		assert_eq!(people.bytes_remaining, 8 * 1024 * 1024);
-		assert_eq!(people.transactions_remaining, 100);
-		assert_eq!(lite.bytes_remaining, 4 * 1024 * 1024);
-		assert_eq!(lite.transactions_remaining, 10);
-		assert_eq!(
-			pallet_orbis_transaction_storage::ReservedPermanentCapacity::<Runtime>::get(),
-			people.bytes_remaining + lite.bytes_remaining
-		);
-
-		let duplicate = ReservationPurpose::Membership {
-			period,
-			alias: people_alias,
-			counter: 0,
-			collection: MembershipCollection::People,
-		};
-		assert_eq!(
-			indiv_pallet_resources::StorageReservationByPurpose::<Runtime>::get(duplicate),
-			Some(0)
-		);
-		assert_noop!(
-			Resources::cancel_long_term_storage_reservation(
-				RuntimeOrigin::signed(AccountId::from([2u8; 32])),
-				0,
-			),
-			indiv_pallet_resources::Error::<Runtime>::NotReservationOwner
-		);
-		assert_ok!(Resources::cancel_long_term_storage_reservation(
-			RuntimeOrigin::signed(owner),
-			0,
-		));
-		assert!(matches!(
-			TransactionStorage::resource_reservation(0),
-			Some(ResourceReservationView::Tombstone(_))
-		));
-	});
-}
-
 #[test]
 fn payment_skip_requires_authorized_origin_and_signed_origin_still_pays() {
 	use frame_support::dispatch::GetDispatchInfo;
@@ -1491,9 +1401,7 @@ fn enterprise_asset_can_be_created_and_managed() {
 fn enterprise_assets_support_native_holds_and_freezes() {
 	use frame_support::traits::tokens::fungibles::{
 		freeze::{Inspect, Mutate},
-		UnbalancedHold,
 	};
-	use pallet_assets::BalanceOnHold;
 
 	sp_io::TestExternalities::new_empty().execute_with(|| {
 		let owner = AccountId::from(ALICE);
@@ -1512,12 +1420,6 @@ fn enterprise_assets_support_native_holds_and_freezes() {
 			beneficiary.clone().into(),
 			1_000,
 		));
-
-		let hold_reason = crate::RuntimeHoldReason::TransactionStorage(
-			pallet_orbis_transaction_storage::HoldReason::StorageFeeHold,
-		);
-		assert_ok!(AssetsHolder::set_balance_on_hold(asset_id, &hold_reason, &beneficiary, 400,));
-		assert_eq!(AssetsHolder::balance_on_hold(asset_id, &beneficiary), Some(400));
 
 		let freeze_reason =
 			crate::RuntimeFreezeReason::Revive(pallet_revive::FreezeReason::PGasMinBalance);
@@ -1900,8 +1802,6 @@ fn revive_uses_reserved_orbis_evm_chain_id() {
 	assert_eq!(<Broker as PalletInfoAccess>::index(), 50);
 	assert_eq!(<Entity as PalletInfoAccess>::index(), 53);
 	assert_eq!(<People as PalletInfoAccess>::index(), 90);
-	assert_eq!(<TransactionStorage as PalletInfoAccess>::index(), 110);
-	assert_eq!(<crate::HopPromotion as PalletInfoAccess>::index(), 111);
 	assert_eq!(<crate::WeightReclaim as PalletInfoAccess>::index(), 4);
 	assert_eq!(<ChunksManager as PalletInfoAccess>::index(), 91);
 	assert_eq!(<Members as PalletInfoAccess>::index(), 92);
@@ -2536,318 +2436,6 @@ fn identity_personhood_runtime_api_returns_bounded_status_without_private_identi
 		assert_eq!(Runtime::attestation_allowance(account).value.remaining, 7);
 	});
 }
-
-#[test]
-fn orbis_storage_is_authorized_indexed_and_content_addressed() {
-	sp_io::TestExternalities::new_empty().execute_with(|| {
-		System::set_block_number(1);
-		System::set_extrinsic_index(0);
-		let account = AccountId::from(ALICE);
-		let data = b"identity-bound audit record".to_vec();
-
-		assert_ok!(TransactionStorage::authorize_account(
-			RuntimeOrigin::root(),
-			account.clone(),
-			2,
-			1024,
-		));
-		let authorization = TransactionStorage::account_authorization(account.clone()).unwrap();
-		assert_eq!(authorization.transactions_allowance, 2);
-		assert_eq!(authorization.bytes_allowance, 1024);
-		assert!(TransactionStorage::can_store(&account, data.len() as u32));
-
-		assert_ok!(TransactionStorage::store(RuntimeOrigin::root(), data.clone()));
-		let content_hash = sp_io::hashing::blake2_256(&data);
-		assert!(TransactionStorage::contains_transaction(content_hash));
-		<TransactionStorage as Hooks<u32>>::on_finalize(1);
-		let indexed = TransactionStorage::transactions_at(1).unwrap();
-		assert_eq!(indexed.len(), 1);
-		assert_eq!(indexed[0].content_hash, content_hash);
-	});
-}
-
-#[test]
-fn hop_promotion_accepts_authorized_signed_submit_intent() {
-	use frame_support::traits::BuildGenesisConfig;
-	use sp_core::{sr25519, Pair};
-	use sp_runtime::{traits::IdentifyAccount, MultiSignature, MultiSigner};
-
-	sp_io::TestExternalities::new_empty().execute_with(|| {
-		frame_system::GenesisConfig::<Runtime>::default().build();
-		System::set_block_number(1);
-		let now = 1_750_000_000_000u64;
-		pallet_timestamp::Now::<Runtime>::put(now);
-
-		let pair = sr25519::Pair::from_string("//Alice", None).unwrap();
-		let signer = MultiSigner::from(pair.public());
-		let account = signer.clone().into_account();
-		<Balances as Mutate<AccountId>>::set_balance(&account, 1_000_000_000_000);
-		assert_ok!(
-			TransactionStorage::authorize_account(RuntimeOrigin::root(), account, 1, 1_024,)
-		);
-
-		let data = b"orbis hop promotion".to_vec();
-		let hash = sp_io::hashing::blake2_256(&data);
-		let payload = pallet_orbis_hop_promotion::signing_payload(&hash, now);
-		let signature = MultiSignature::Sr25519(pair.sign(&payload));
-		assert!(HopPromotion::authorize_promote(
-			sp_runtime::transaction_validity::TransactionSource::Local,
-			&signer,
-			&signature,
-			&now,
-			&data,
-		)
-		.is_ok());
-		assert!(!HopPromotion::is_promoted_on_chain(hash));
-	});
-}
-
-#[test]
-fn authorized_pipeline_retains_validation_and_explicitly_skips_payment_and_quota() {
-	use frame_support::{dispatch::GetDispatchInfo, traits::BuildGenesisConfig};
-	use sp_core::{sr25519, Pair};
-	use sp_runtime::{
-		traits::{AsTransactionAuthorizedOrigin, IdentifyAccount, TransactionExtension},
-		MultiSignature, MultiSigner,
-	};
-
-	sp_io::TestExternalities::new_empty().execute_with(|| {
-		frame_system::GenesisConfig::<Runtime>::default().build();
-		System::set_block_number(1);
-		System::set_extrinsic_index(0);
-		let now = 1_750_000_000_000u64;
-		pallet_timestamp::Now::<Runtime>::put(now);
-
-		let pair = sr25519::Pair::from_string("//Alice", None).unwrap();
-		let signer = MultiSigner::from(pair.public());
-		let account = signer.clone().into_account();
-		let initial_balance = 1_000_000_000_000;
-		<Balances as Mutate<AccountId>>::set_balance(&account, initial_balance);
-		assert_ok!(TransactionStorage::authorize_account(
-			RuntimeOrigin::root(),
-			account.clone(),
-			1,
-			1_024,
-		));
-
-		let data = b"authorized pipeline promotion".to_vec();
-		let hash = sp_io::hashing::blake2_256(&data);
-		let signature = MultiSignature::Sr25519(
-			pair.sign(&pallet_orbis_hop_promotion::signing_payload(&hash, now)),
-		);
-		let call = RuntimeCall::HopPromotion(pallet_orbis_hop_promotion::Call::promote {
-			signer: signer.clone(),
-			signature: signature.clone(),
-			submit_timestamp: now,
-			data: data.clone(),
-		});
-		let encoded = <Runtime as frame_system::offchain::CreateAuthorizedTransaction<
-			RuntimeCall,
-		>>::create_authorized_transaction(call.clone())
-		.encode();
-		let decoded = crate::UncheckedExtrinsic::decode(&mut &encoded[..])
-			.expect("authorized extrinsic round trips through its wire encoding");
-		let decoded = decoded.0;
-		assert_eq!(decoded.function, call);
-		let extension = match decoded.preamble {
-			sp_runtime::generic::Preamble::General(sp_runtime::traits::ExtensionVariant::V0(
-				extension,
-			)) => extension,
-			_ => panic!("authorized calls use a version-zero general transaction"),
-		};
-		let call = decoded.function;
-		let info = call.get_dispatch_info();
-		let implicit = extension.implicit().unwrap();
-		let (_, val, origin) = extension
-			.validate(
-				RuntimeOrigin::none(),
-				&call,
-				&info,
-				call.encoded_size(),
-				implicit,
-				&sp_runtime::traits::TxBaseImplication((0u8, &call)),
-				sp_runtime::transaction_validity::TransactionSource::Local,
-			)
-			.expect("the annotated call and its Orbis Storage authorization are valid");
-		assert!(origin.is_transaction_authorized());
-		let pre = extension
-			.prepare(val, &origin, &call, &info, call.encoded_size())
-			.expect("authorized preparation explicitly skips payment");
-		assert_eq!(Balances::free_balance(&account), initial_balance);
-		assert_eq!(pallet_origin_feeless::FeelessUsage::<Runtime>::get(&account), None);
-
-		assert_ok!(HopPromotion::promote(origin, signer, signature, now, data,));
-		assert!(TransactionStorage::contains_transaction(hash));
-		assert_ok!(crate::TxExtensions::post_dispatch_details(
-			pre,
-			&info,
-			&Default::default(),
-			call.encoded_size(),
-			&Ok(()),
-		));
-		assert_eq!(Balances::free_balance(&account), initial_balance);
-		assert_eq!(pallet_origin_feeless::FeelessUsage::<Runtime>::get(&account), None);
-	});
-}
-
-#[test]
-#[cfg(not(feature = "runtime-benchmarks"))]
-fn orbis_storage_mutations_are_rejected_when_wrapped_or_sent_by_xcm() {
-	use codec::Encode;
-	use frame_support::dispatch::GetDispatchInfo;
-	use sp_runtime::traits::TransactionExtension;
-
-	type XcmSafeCalls = <crate::xcm_config::XcmConfig as xcm_executor::Config>::SafeCallFilter;
-	let store = RuntimeCall::TransactionStorage(pallet_orbis_transaction_storage::Call::store {
-		data: b"audit".to_vec(),
-	});
-	assert!(crate::OrbisStorageCallInspector::contains(&store));
-	assert!(!XcmSafeCalls::contains(&store));
-
-	let wrapped = RuntimeCall::Utility(pallet_utility::Call::batch { calls: vec![store] });
-	assert!(crate::OrbisStorageCallInspector::contains(&wrapped));
-	assert!(!XcmSafeCalls::contains(&wrapped));
-	let reserved_renew =
-		RuntimeCall::TransactionStorage(pallet_orbis_transaction_storage::Call::renew_reserved {
-			reservation_id: 7,
-			content_hash: [9u8; 32],
-		});
-	assert!(crate::OrbisStorageCallInspector::contains(&reserved_renew));
-	assert!(!XcmSafeCalls::contains(&reserved_renew));
-	let wrapped_reserved =
-		RuntimeCall::Utility(pallet_utility::Call::batch { calls: vec![reserved_renew] });
-	assert!(crate::OrbisStorageCallInspector::contains(&wrapped_reserved));
-	assert!(!XcmSafeCalls::contains(&wrapped_reserved));
-
-	let reserved_store =
-		RuntimeCall::TransactionStorage(pallet_orbis_transaction_storage::Call::store_reserved {
-			reservation_id: 7,
-			cid_config: orbis_transaction_storage_primitives::cids::CidConfig {
-				codec: orbis_transaction_storage_primitives::cids::RAW_CODEC,
-				hashing: orbis_transaction_storage_primitives::cids::HashingAlgorithm::Blake2b256,
-			},
-			data: b"reserved".to_vec(),
-		});
-	let proxy_any = RuntimeCall::Proxy(pallet_proxy::Call::proxy {
-		real: AccountId::from([2u8; 32]).into(),
-		force_proxy_type: Some(crate::ProxyType::Any),
-		call: Box::new(reserved_store.clone()),
-	});
-	let multisig = RuntimeCall::Multisig(pallet_multisig::Call::as_multi_threshold_1 {
-		other_signatories: vec![AccountId::from([2u8; 32])],
-		call: Box::new(reserved_store.clone()),
-	});
-	let opaque_multisig = RuntimeCall::Multisig(pallet_multisig::Call::approve_as_multi {
-		threshold: 2,
-		other_signatories: vec![AccountId::from([2u8; 32])],
-		maybe_timepoint: None,
-		call_hash: [3u8; 32],
-		max_weight: frame_support::weights::Weight::from_parts(1_000_000, 0),
-	});
-	let scheduled = RuntimeCall::Scheduler(pallet_scheduler::Call::schedule {
-		when: 2,
-		maybe_periodic: None,
-		priority: 0,
-		call: Box::new(reserved_store.clone()),
-	});
-	let revive = RuntimeCall::Revive(pallet_revive::Call::dispatch_as_fallback_account {
-		call: Box::new(reserved_store.clone()),
-	});
-	let meta_extension: crate::MetaTxExtension = (
-		pallet_verify_signature::VerifySignature::new_with_signature(
-			sp_runtime::MultiSignature::Sr25519(sp_core::sr25519::Signature::from_raw([0u8; 64])),
-			AccountId::from(ALICE),
-		),
-		crate::meta_v6::ConsumePaidMetaIngress(crate::meta_v6::IntentPreimageV7 {
-			domain: vec![],
-			extension_version: 0,
-			genesis_hash: Default::default(),
-			spec_version: 0,
-			transaction_version: 0,
-			inner_signer: AccountId::from(ALICE),
-			call_hash: Default::default(),
-			mortality: sp_runtime::generic::Era::Immortal,
-			nonce: 0,
-			policy_proofs_hash: Default::default(),
-			storage_extension_hash: Default::default(),
-			metadata_extension_hash: Default::default(),
-			metadata_implicit: None,
-		}),
-		pallet_meta_tx::MetaTxMarker::new(),
-		frame_system::CheckNonZeroSender::new(),
-		frame_system::CheckSpecVersion::new(),
-		frame_system::CheckTxVersion::new(),
-		frame_system::CheckGenesis::new(),
-		frame_system::CheckMortality::from(sp_runtime::generic::Era::Immortal),
-		frame_system::CheckNonce::from(0),
-		(
-			pallet_orbis_score::ScoreAsParticipant::<Runtime>::new(None),
-			Default::default(),
-			pallet_orbis_honour::extension::VoterAuth::<Runtime>::new(None),
-		),
-		Default::default(),
-		frame_metadata_hash_extension::CheckMetadataHash::new(false),
-	);
-	let meta_tx = pallet_meta_tx::MetaTxFor::<Runtime>::new(reserved_store, 0, meta_extension);
-	let meta_encoded_len = meta_tx.encoded_size() as u32;
-	let meta = RuntimeCall::MetaTx(pallet_meta_tx::Call::dispatch {
-		meta_tx: Box::new(meta_tx),
-		meta_tx_encoded_len: meta_encoded_len,
-	});
-
-	for (name, call) in [
-		("proxy-any", proxy_any),
-		("multisig", multisig),
-		("multisig-opaque", opaque_multisig),
-		("scheduler", scheduled),
-		("meta-tx", meta),
-		("revive", revive),
-	] {
-		assert!(crate::OrbisStorageCallInspector::contains(&call), "{name} bypassed inspection");
-		assert!(!XcmSafeCalls::contains(&call), "{name} bypassed the XCM safe filter");
-	}
-
-	sp_io::TestExternalities::new_empty().execute_with(|| {
-		let call = RuntimeCall::Proxy(pallet_proxy::Call::proxy {
-			real: AccountId::from([2u8; 32]).into(),
-			force_proxy_type: Some(crate::ProxyType::Any),
-			call: Box::new(RuntimeCall::TransactionStorage(
-				pallet_orbis_transaction_storage::Call::store_reserved {
-					reservation_id: 7,
-					cid_config: orbis_transaction_storage_primitives::cids::CidConfig {
-						codec: orbis_transaction_storage_primitives::cids::RAW_CODEC,
-						hashing:
-							orbis_transaction_storage_primitives::cids::HashingAlgorithm::Blake2b256,
-					},
-					data: b"reserved".to_vec(),
-				},
-			)),
-		});
-		let extension = pallet_orbis_transaction_storage::extension::ValidateStorageCalls::<
-			Runtime,
-			crate::OrbisStorageCallInspector,
-		>::default();
-		let info = call.get_dispatch_info();
-		let result = extension.validate(
-			RuntimeOrigin::signed(AccountId::from(ALICE)),
-			&call,
-			&info,
-			call.encoded_size(),
-			(),
-			&sp_runtime::traits::TxBaseImplication((0u8, &call)),
-			sp_runtime::transaction_validity::TransactionSource::External,
-		);
-		assert_eq!(
-			result.unwrap_err(),
-			sp_runtime::transaction_validity::InvalidTransaction::Call.into()
-		);
-	});
-
-	let ordinary = RuntimeCall::System(frame_system::Call::remark { remark: vec![] });
-	assert!(!crate::OrbisStorageCallInspector::contains(&ordinary));
-	assert!(XcmSafeCalls::contains(&ordinary));
-}
-
 fn full_core_task(task: u32) -> Schedule {
 	Schedule::truncate_from(vec![ScheduleItem {
 		mask: CoreMask::complete(),
@@ -3414,10 +3002,7 @@ fn signed_direct_resources_claim_uses_validated_origin_payer_through_executive()
 				)),
 				frame_system::CheckWeight::<Runtime>::new(),
 				crate::AccountAwareResources::from(payment),
-				pallet_orbis_transaction_storage::extension::ValidateStorageCalls::<
-					Runtime,
-					crate::OrbisStorageCallInspector,
-				>::default(),
+				(),
 				frame_metadata_hash_extension::CheckMetadataHash::<Runtime>::new(false),
 				revive,
 			);
@@ -3489,10 +3074,7 @@ fn signed_direct_resources_claim_uses_validated_origin_payer_through_executive()
 				)),
 				frame_system::CheckWeight::<Runtime>::new(),
 				crate::AccountAwareResources::from(payment),
-				pallet_orbis_transaction_storage::extension::ValidateStorageCalls::<
-					Runtime,
-					crate::OrbisStorageCallInspector,
-				>::default(),
+				(),
 				frame_metadata_hash_extension::CheckMetadataHash::<Runtime>::new(false),
 				pallet_revive::evm::tx_extension::SetOrigin::<Runtime>::default(),
 			));
@@ -3674,10 +3256,7 @@ fn sponsored_meta_tx_preserves_actor_and_rejects_replay_and_forgery_core(emit_v4
 		frame_system::CheckMortality<Runtime>,
 		frame_system::CheckNonce<Runtime>,
 		crate::MetaIdentityBoundPolicies,
-		pallet_orbis_transaction_storage::extension::ValidateStorageCalls<
-			Runtime,
-			crate::OrbisStorageCallInspector,
-		>,
+		(),
 		frame_metadata_hash_extension::CheckMetadataHash<Runtime>,
 	);
 
@@ -3712,10 +3291,7 @@ fn sponsored_meta_tx_preserves_actor_and_rejects_replay_and_forgery_core(emit_v4
 		let mortality = frame_system::CheckMortality::<Runtime>::from(Era::Immortal);
 		let nonce = frame_system::CheckNonce::<Runtime>::from(System::account(&claimed).nonce);
 		let policy = crate::meta_v6::MetaAccountBoundPoliciesV6::new(proofs);
-		let storage = pallet_orbis_transaction_storage::extension::ValidateStorageCalls::<
-			Runtime,
-			crate::OrbisStorageCallInspector,
-		>::default();
+		let storage = ();
 		let preimage = crate::meta_v6::IntentPreimageV7 {
 			domain: crate::meta_v6::META_DOMAIN.to_vec(),
 			extension_version: META_EXTENSION_VERSION,
@@ -3802,10 +3378,7 @@ fn sponsored_meta_tx_preserves_actor_and_rejects_replay_and_forgery_core(emit_v4
 		let mortality = frame_system::CheckMortality::<Runtime>::from(Era::Immortal);
 		let nonce = frame_system::CheckNonce::<Runtime>::from(System::account(&claimed).nonce);
 		let policy = crate::meta_v6::MetaAccountBoundPoliciesV6::new(proofs);
-		let storage = pallet_orbis_transaction_storage::extension::ValidateStorageCalls::<
-			Runtime,
-			crate::OrbisStorageCallInspector,
-		>::default();
+		let storage = ();
 		let preimage = crate::meta_v6::IntentPreimageV7 {
 			domain: crate::meta_v6::META_DOMAIN.to_vec(),
 			extension_version: META_EXTENSION_VERSION,
@@ -3967,10 +3540,7 @@ fn sponsored_meta_tx_preserves_actor_and_rejects_replay_and_forgery_core(emit_v4
 	}
 
 	fn resource_meta_message(call: &RuntimeCall, signer: &AccountId) -> [u8; 32] {
-		let storage = pallet_orbis_transaction_storage::extension::ValidateStorageCalls::<
-			Runtime,
-			crate::OrbisStorageCallInspector,
-		>::default();
+		let storage = ();
 		let metadata = frame_metadata_hash_extension::CheckMetadataHash::<Runtime>::new(false);
 		let honour = pallet_orbis_honour::extension::VoterAuth::<Runtime>::new(None);
 		let inherited = sp_runtime::traits::ImplicationParts {
@@ -3978,7 +3548,7 @@ fn sponsored_meta_tx_preserves_actor_and_rejects_replay_and_forgery_core(emit_v4
 			explicit: (&honour, (&storage, &metadata)),
 			implicit: (
 				honour.implicit().unwrap(),
-				(storage.implicit().unwrap(), metadata.implicit().unwrap()),
+				((), metadata.implicit().unwrap()),
 			),
 		};
 		let RuntimeCall::Resources(indiv_pallet_resources::Call::claim_long_term_storage {
@@ -4018,10 +3588,7 @@ fn sponsored_meta_tx_preserves_actor_and_rejects_replay_and_forgery_core(emit_v4
 		call: &RuntimeCall,
 		signer: &AccountId,
 	) -> [u8; 32] {
-		let storage = pallet_orbis_transaction_storage::extension::ValidateStorageCalls::<
-			Runtime,
-			crate::OrbisStorageCallInspector,
-		>::default();
+		let storage = ();
 		let metadata = frame_metadata_hash_extension::CheckMetadataHash::<Runtime>::new(false);
 		let honour = pallet_orbis_honour::extension::VoterAuth::<Runtime>::new(None);
 		let inherited = sp_runtime::traits::ImplicationParts {
@@ -4029,7 +3596,7 @@ fn sponsored_meta_tx_preserves_actor_and_rejects_replay_and_forgery_core(emit_v4
 			explicit: (&honour, (&storage, &metadata)),
 			implicit: (
 				honour.implicit().unwrap(),
-				(storage.implicit().unwrap(), metadata.implicit().unwrap()),
+				((), metadata.implicit().unwrap()),
 			),
 		};
 		(domain, signer, signer, call, inherited).using_encoded(sp_io::hashing::blake2_256)
@@ -4319,10 +3886,7 @@ fn sponsored_meta_tx_preserves_actor_and_rejects_replay_and_forgery_core(emit_v4
 			vote: vote.clone(),
 			call_valid_from: now,
 		});
-		let storage = pallet_orbis_transaction_storage::extension::ValidateStorageCalls::<
-			Runtime,
-			crate::OrbisStorageCallInspector,
-		>::default();
+		let storage = ();
 		let metadata = frame_metadata_hash_extension::CheckMetadataHash::<Runtime>::new(false);
 		let message = (META_EXTENSION_VERSION, &honour_call, &storage, &metadata, (), None::<[u8; 32]>, &alice)
 			.using_encoded(sp_io::hashing::blake2_256);
@@ -4404,10 +3968,7 @@ fn sponsored_meta_tx_preserves_actor_and_rejects_replay_and_forgery_core(emit_v4
 					)),
 					frame_system::CheckWeight::<Runtime>::new(),
 					crate::AccountAwareResources::from(direct_payment),
-					pallet_orbis_transaction_storage::extension::ValidateStorageCalls::<
-						Runtime,
-						crate::OrbisStorageCallInspector,
-					>::default(),
+					(),
 					frame_metadata_hash_extension::CheckMetadataHash::<Runtime>::new(false),
 					pallet_revive::evm::tx_extension::SetOrigin::<Runtime>::default(),
 				);
@@ -4879,10 +4440,7 @@ fn sponsored_meta_tx_preserves_actor_and_rejects_replay_and_forgery_core(emit_v4
 		));
 		assert!(Balances::free_balance(&bob) >= bob_after_withdrawal);
 		assert!(Balances::free_balance(&bob) < bob_balance);
-		assert!(matches!(
-			crate::TransactionStorage::resource_reservation(0),
-			Some(orbis_transaction_storage_primitives::ResourceReservationView::Active(_))
-		));
+		assert!(indiv_pallet_resources::StorageClaims::<Runtime>::contains_key(0));
 		assert_eq!(System::account_nonce(&alice), 1);
 		assert_eq!(Balances::free_balance(&alice), alice_balance);
 

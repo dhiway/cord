@@ -28,13 +28,12 @@ use super::{
 		drive::{DriveCommand, DriveQuery},
 		identity_personhood::{IdentityPersonhoodCommand, IdentityPersonhoodQuery},
 		s3::{S3Command, S3Query},
-		storage::{StorageCommand, StorageQuery},
 		storage_provider::{StorageProviderCommand, StorageProviderQuery},
 		Validate,
 	},
 	transport::{
 		prepare_attestation_command, prepare_names_command, prepare_drive_command,
-		prepare_identity_personhood_command, prepare_s3_command, prepare_storage_command,
+		prepare_identity_personhood_command, prepare_s3_command,
 		prepare_storage_provider_command,
 	},
 };
@@ -45,8 +44,6 @@ pub enum NativeRouteBinding {
 	AttestationCommand(AttestationCommand),
 	NamesQuery(NamesQuery),
 	NamesCommand(NamesCommand),
-	StorageQuery(StorageQuery),
-	StorageCommand(StorageCommand),
 	StorageProviderQuery(StorageProviderQuery),
 	StorageProviderCommand(StorageProviderCommand),
 	DriveQuery(DriveQuery),
@@ -233,8 +230,6 @@ impl NativeRouteBinding {
 			Self::AttestationCommand(value) => prepare_attestation_command(value).map(drop),
 			Self::NamesQuery(value) => value.validate(),
 			Self::NamesCommand(value) => prepare_names_command(value).map(drop),
-			Self::StorageQuery(value) => value.validate(),
-			Self::StorageCommand(value) => prepare_storage_command(value).map(drop),
 			Self::StorageProviderQuery(value) => value.validate(),
 			Self::StorageProviderCommand(value) =>
 				prepare_storage_provider_command(value).map(drop),
@@ -381,20 +376,6 @@ fn sponsored_target_declaration(
 		},
 		SponsorableCapability::Storage => {
 			if [
-				"store",
-				"store_with_cid_config",
-				"store_reserved",
-				"renew_reserved",
-				"attach_provider",
-				"renew",
-				"force_renew",
-				"enable_auto_renew",
-				"disable_auto_renew",
-			]
-			.contains(&method)
-			{
-				"StorageCommand"
-			} else if [
 				"register_provider",
 				"update_provider",
 				"set_provider_status",
@@ -704,8 +685,6 @@ pub fn instantiate_native_route(route: &Value) -> Result<NativeRouteBinding, Nat
 		"AttestationCommand" => decode!(AttestationCommand, AttestationCommand),
 		"NamesQuery" => decode!(NamesQuery, NamesQuery),
 		"NamesCommand" => decode!(NamesCommand, NamesCommand),
-		"StorageQuery" => decode!(StorageQuery, StorageQuery),
-		"StorageCommand" => decode!(StorageCommand, StorageCommand),
 		"StorageProviderQuery" => decode!(StorageProviderQuery, StorageProviderQuery),
 		"StorageProviderCommand" => decode!(StorageProviderCommand, StorageProviderCommand),
 		"DriveQuery" => decode!(DriveQuery, DriveQuery),

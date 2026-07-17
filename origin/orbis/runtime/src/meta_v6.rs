@@ -780,10 +780,7 @@ pub fn benchmark_policy_scenario(
 			let mortality = frame_system::CheckMortality::<Runtime>::from(Era::Immortal);
 			let nonce = frame_system::CheckNonce::<Runtime>::from(0);
 			let policy = MetaAccountBoundPoliciesV6::default();
-			let storage = pallet_orbis_transaction_storage::extension::ValidateStorageCalls::<
-				Runtime,
-				crate::OrbisStorageCallInspector,
-			>::default();
+			let storage = ();
 			let metadata = crate::canonical_metadata_extension();
 			let metadata_implicit =
 				orbis_pallets_common::resolve_metadata_implicit::<RuntimeCall, _>(&metadata)

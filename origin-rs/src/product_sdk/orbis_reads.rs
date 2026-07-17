@@ -27,7 +27,6 @@ use orbis_identity_personhood_runtime_api as identity_api;
 use orbis_storage_runtime_api as storage_api;
 use pallet_orbis_attestation_runtime_api as att_api;
 use pallet_orbis_names_runtime_api as names_api;
-use pallet_orbis_transaction_storage_runtime_api as transaction_storage_api;
 use scale_value::{Composite, Value};
 use subxt::{metadata::DecodeWithMetadata, runtime_api::StaticPayload};
 
@@ -41,8 +40,8 @@ use super::{
 		},
 		common::{
 			AccountId, AgreementId, AttestationId, BucketId, ChallengeId, ContentCommitment,
-			ContentHash, DomainResult, DriveId, FinalizedPage, FinalizedValue, Hash32, NameId,
-			ObjectId, ProofCommitment, ProviderReference, ReservationId, SchemaId, SubjectId,
+			DomainResult, DriveId, FinalizedPage, FinalizedValue, Hash32, NameId,
+			ObjectId, ProofCommitment, SchemaId, SubjectId,
 			UniquenessCommitment, Validate,
 		},
 		drive::{DriveName, DriveQuery, DriveRead, DriveResponse, DriveStatus, DriveView},
@@ -58,12 +57,6 @@ use super::{
 			BucketName, BucketStatus, BucketView, FinalizedObjectPage, ObjectKey, ObjectKeyPrefix,
 			ObjectListCursor, ObjectListRequest, ObjectVersionView, ObjectView, S3Query, S3Read,
 			S3Response,
-		},
-		storage::{
-			AccountAuthorization as DomainAccountAuthorization, ActiveResourceReservation,
-			DecimalU64, ResourceClosure, ResourceReservationLink as DomainResourceReservationLink,
-			ResourceReservationTombstone, ResourceReservationView, StorageActor, StorageQuery,
-			StorageRead, StorageRef as DomainStorageRef, StorageResponse, TransactionRef,
 		},
 		storage_provider::{
 			AgreementStatus, AgreementView, ChallengeStatus, ChallengeView, CheckpointView,
@@ -882,128 +875,6 @@ impl FinalizedReadBinding for OrbisFinalizedReadBinding {
 			},
 		}
 	}
-
-	async fn orbis_storage(&self, read: &StorageRead) -> DomainResult<StorageResponse> {
-		read.validate()?;
-		let hash = &read.finalized_block_hash;
-		match &read.query {
-			StorageQuery::AccountAuthorization { account } => {
-				let response: Option<
-					transaction_storage_api::AccountAuthorization<RuntimeBlockNumber>,
-				> = self
-					.call_at(
-						hash,
-						"OrbisTransactionStorageApi",
-						"account_authorization",
-						vec![account_arg(account)?],
-					)
-					.await?;
-				Ok(StorageResponse::AccountAuthorization(finalized_value(
-					hash,
-					1,
-					response.map(account_authorization),
-				)?))
-			},
-			StorageQuery::CanStore { account, data_len } => {
-				let response: bool = self
-					.call_at(
-						hash,
-						"OrbisTransactionStorageApi",
-						"can_store",
-						vec![account_arg(account)?, Value::u128(*data_len as u128)],
-					)
-					.await?;
-				Ok(StorageResponse::CanStore(finalized_value(hash, 1, Some(response))?))
-			},
-			StorageQuery::CanRenew { account, entry } => {
-				let response: bool = self
-					.call_at(
-						hash,
-						"OrbisTransactionStorageApi",
-						"can_renew",
-						vec![account_arg(account)?, transaction_ref_arg(entry)?],
-					)
-					.await?;
-				Ok(StorageResponse::CanRenew(finalized_value(hash, 1, Some(response))?))
-			},
-			StorageQuery::StoredContentProvenance { reference } => {
-				let response: Option<
-					transaction_storage_api::ClientStorageActor<RuntimeAccountId>,
-				> = self
-					.call_at(
-						hash,
-						"OrbisTransactionStorageApi",
-						"stored_content_provenance",
-						vec![storage_ref_arg(reference)],
-					)
-					.await?;
-				Ok(StorageResponse::StoredContentProvenance(finalized_value(
-					hash,
-					1,
-					response.map(storage_actor).transpose()?,
-				)?))
-			},
-			StorageQuery::ResourceReservation { reservation_id } => {
-				let response: Option<
-					transaction_storage_api::ClientResourceReservationView<
-						RuntimeAccountId,
-						RuntimeBlockNumber,
-					>,
-				> = self
-					.call_at(
-						hash,
-						"OrbisTransactionStorageApi",
-						"resource_reservation",
-						vec![Value::u128(reservation_id.as_u64()? as u128)],
-					)
-					.await?;
-				Ok(StorageResponse::ResourceReservation(finalized_value(
-					hash,
-					1,
-					response.map(resource_reservation).transpose()?,
-				)?))
-			},
-			StorageQuery::ResourceReservationLink { reservation_id, content_hash } => {
-				let response: Option<
-					transaction_storage_api::ClientResourceReservationLink<
-						RuntimeAccountId,
-						RuntimeBlockNumber,
-					>,
-				> = self
-					.call_at(
-						hash,
-						"OrbisTransactionStorageApi",
-						"resource_reservation_link",
-						vec![
-							Value::u128(reservation_id.as_u64()? as u128),
-							hash_arg(content_hash.as_hash())?,
-						],
-					)
-					.await?;
-				Ok(StorageResponse::ResourceReservationLink(finalized_value(
-					hash,
-					1,
-					response.map(resource_reservation_link).transpose()?,
-				)?))
-			},
-			StorageQuery::ResourceProviderRef { reservation_id } => {
-				let response: Option<[u8; 32]> = self
-					.call_at(
-						hash,
-						"OrbisTransactionStorageApi",
-						"resource_provider_ref",
-						vec![Value::u128(reservation_id.as_u64()? as u128)],
-					)
-					.await?;
-				Ok(StorageResponse::ResourceProviderRef(finalized_value(
-					hash,
-					1,
-					response.map(|value| ProviderReference(Hash32::from_bytes(value))),
-				)?))
-			},
-		}
-	}
-
 	async fn storage_provider(
 		&self,
 		read: &StorageProviderRead,
@@ -1144,21 +1015,6 @@ impl FinalizedReadBinding for OrbisFinalizedReadBinding {
 					hash,
 					response.version,
 					response.value.map(checkpoint_view).transpose()?,
-				)?))
-			},
-			StorageProviderQuery::ResourceProviderRef { reservation_id } => {
-				let response: Option<[u8; 32]> = self
-					.call_at(
-						hash,
-						"OrbisTransactionStorageApi",
-						"resource_provider_ref",
-						vec![Value::u128(reservation_id.as_u64()? as u128)],
-					)
-					.await?;
-				Ok(StorageProviderResponse::ResourceProviderRef(finalized_value(
-					hash,
-					1,
-					response.map(|value| ProviderReference(Hash32::from_bytes(value))),
 				)?))
 			},
 		}
@@ -1450,89 +1306,6 @@ fn name_view(
 		depth: view.depth,
 	})
 }
-
-fn account_authorization(
-	authorization: transaction_storage_api::AccountAuthorization<RuntimeBlockNumber>,
-) -> DomainAccountAuthorization {
-	DomainAccountAuthorization {
-		expires_at: authorization.expires_at,
-		bytes_allowance: DecimalU64::from_u64(authorization.bytes_allowance),
-		bytes_used: DecimalU64::from_u64(authorization.bytes_used),
-		bytes_permanent_used: DecimalU64::from_u64(authorization.bytes_permanent_used),
-		transactions_allowance: authorization.transactions_allowance,
-		transactions_used: authorization.transactions_used,
-	}
-}
-
-fn storage_actor(
-	actor: transaction_storage_api::ClientStorageActor<RuntimeAccountId>,
-) -> DomainResult<StorageActor> {
-	Ok(match actor {
-		transaction_storage_api::ClientStorageActor::Account(account) =>
-			StorageActor::Account { account: account_id(&account)? },
-		transaction_storage_api::ClientStorageActor::Root => StorageActor::Root,
-		transaction_storage_api::ClientStorageActor::Preimage(content_hash) =>
-			StorageActor::Preimage { content_hash: ContentHash(Hash32::from_bytes(content_hash)) },
-		transaction_storage_api::ClientStorageActor::AutoRenew(account) =>
-			StorageActor::AutoRenew { account: account_id(&account)? },
-	})
-}
-
-fn resource_reservation(
-	view: transaction_storage_api::ClientResourceReservationView<
-		RuntimeAccountId,
-		RuntimeBlockNumber,
-	>,
-) -> DomainResult<ResourceReservationView> {
-	Ok(match view {
-		transaction_storage_api::ClientResourceReservationView::Active(active) =>
-			ResourceReservationView::Active(ActiveResourceReservation {
-				owner: account_id(&active.owner)?,
-				purpose_digest: ContentHash(Hash32::from_bytes(active.purpose_digest)),
-				bytes_remaining: DecimalU64::from_u64(active.bytes_remaining),
-				transactions_remaining: active.transactions_remaining,
-				created_at: active.created_at,
-				expires_at: active.expires_at,
-			}),
-		transaction_storage_api::ClientResourceReservationView::Tombstone(tombstone) => {
-			let outcome = match tombstone.outcome {
-				transaction_storage_api::ClientResourceClosure::Cancelled =>
-					ResourceClosure::Cancelled,
-				transaction_storage_api::ClientResourceClosure::Expired => ResourceClosure::Expired,
-				transaction_storage_api::ClientResourceClosure::Exhausted =>
-					ResourceClosure::Exhausted,
-			};
-			ResourceReservationView::Tombstone(ResourceReservationTombstone {
-				owner: account_id(&tombstone.owner)?,
-				purpose_digest: ContentHash(Hash32::from_bytes(tombstone.purpose_digest)),
-				final_bytes_remaining: DecimalU64::from_u64(tombstone.final_bytes_remaining),
-				final_transactions_remaining: tombstone.final_transactions_remaining,
-				outcome,
-				closed_at: tombstone.closed_at,
-			})
-		},
-	})
-}
-
-fn resource_reservation_link(
-	link: transaction_storage_api::ClientResourceReservationLink<
-		RuntimeAccountId,
-		RuntimeBlockNumber,
-	>,
-) -> DomainResult<DomainResourceReservationLink> {
-	Ok(DomainResourceReservationLink {
-		reservation_id: ReservationId::from_u64(link.reservation_id),
-		content_hash: ContentHash(Hash32::from_bytes(link.content_hash)),
-		storage_ref: DomainStorageRef {
-			block: link.storage_ref.block,
-			transaction_index: link.storage_ref.transaction_index,
-		},
-		owner: account_id(&link.owner)?,
-		size: link.size,
-		retention_boundary: link.retention_boundary,
-	})
-}
-
 fn provider_view(
 	provider: AccountId,
 	info: storage_api::ProviderInfo<RuntimeHash, RuntimeBlockNumber>,
@@ -1924,31 +1697,6 @@ fn account_arg(account: &AccountId) -> DomainResult<Value> {
 	let bytes: &[u8; 32] = account.as_ref();
 	Ok(Value::from_bytes(bytes))
 }
-
-fn storage_ref_arg(reference: &DomainStorageRef) -> Value {
-	Value::named_composite(vec![
-		("block", Value::u128(reference.block as u128)),
-		("transaction_index", Value::u128(reference.transaction_index as u128)),
-	])
-}
-
-fn transaction_ref_arg(reference: &TransactionRef) -> DomainResult<Value> {
-	reference.validate()?;
-	Ok(match reference {
-		TransactionRef::Position { block, index } => Value::variant(
-			"Position",
-			Composite::named(vec![
-				("block", Value::u128(*block as u128)),
-				("index", Value::u128(*index as u128)),
-			]),
-		),
-		TransactionRef::ContentHash { content_hash } => Value::variant(
-			"ContentHash",
-			Composite::unnamed(vec![hash_arg(content_hash.as_hash())?]),
-		),
-	})
-}
-
 fn page_args(first: Value, page: &super::domains::PageRequest) -> Vec<Value> {
 	let mut args = vec![first];
 	args.extend(page_tail(page));

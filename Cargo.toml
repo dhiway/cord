@@ -42,7 +42,6 @@ members = [
 	"origin/orbis/pallets/drive",
 	"origin/orbis/pallets/storage-provider",
 	"origin/orbis/pallets/s3",
-	"origin/orbis/pallets/hop-promotion",
 	"origin/orbis/pallets/individuality-support",
 	"origin/orbis/pallets/chunks-manager",
 	"origin/orbis/pallets/members",
@@ -53,9 +52,6 @@ members = [
 	"origin/orbis/pallets/resources",
 	"origin/orbis/pallets/score",
 	"origin/orbis/pallets/honour",
-	"origin/orbis/pallets/transaction-storage",
-	"origin/orbis/pallets/transaction-storage/primitives",
-	"origin/orbis/pallets/transaction-storage/runtime-api",
 	"pallets/collection",
 	"pallets/doken",
 	"pallets/identity",
@@ -175,7 +171,6 @@ blake3 = { version = "1.5" }
 bn = { package = "substrate-bn", version = "0.6", default-features = false }
 bounded-collections = { version = "0.3.2", default-features = false }
 orbis-pallets-common = { path = "origin/orbis/pallets/common", default-features = false }
-orbis-transaction-storage-primitives = { path = "origin/orbis/pallets/transaction-storage/primitives", default-features = false }
 bounded-vec = { version = "0.7" }
 bs58 = { version = "0.5.1", default-features = false, features = ["alloc"] }
 build-helper = { version = "0.1.1" }
@@ -397,9 +392,6 @@ pallet-bridge-messages = { git = "https://github.com/dhiway/sdk", default-featur
 pallet-bridge-parachains = { git = "https://github.com/dhiway/sdk", default-features = false, branch = "release-v1.24.0" }
 pallet-bridge-relayers = { git = "https://github.com/dhiway/sdk", default-features = false, branch = "release-v1.24.0" }
 pallet-broker = { git = "https://github.com/dhiway/sdk", default-features = false, branch = "release-v1.24.0" }
-pallet-orbis-hop-promotion = { path = "origin/orbis/pallets/hop-promotion", default-features = false }
-pallet-orbis-transaction-storage = { path = "origin/orbis/pallets/transaction-storage", default-features = false }
-pallet-orbis-transaction-storage-runtime-api = { path = "origin/orbis/pallets/transaction-storage/runtime-api", default-features = false }
 pallet-orbis-attestation = { path = "origin/orbis/pallets/attestation", default-features = false }
 pallet-orbis-attestation-runtime-api = { path = "origin/orbis/pallets/attestation/runtime-api", default-features = false }
 pallet-orbis-names = { path = "origin/orbis/pallets/names", default-features = false }
@@ -681,7 +673,6 @@ sp-database = { git = "https://github.com/dhiway/sdk", default-features = false,
 sp-debug-derive = { git = "https://github.com/dhiway/sdk", default-features = false, branch = "release-v1.24.0" }
 sp-externalities = { git = "https://github.com/dhiway/sdk", default-features = false, branch = "release-v1.24.0" }
 sp-genesis-builder = { git = "https://github.com/dhiway/sdk", default-features = false, branch = "release-v1.24.0" }
-sp-hop = { git = "https://github.com/dhiway/sdk", default-features = false, branch = "release-v1.24.0" }
 sp-inherents = { git = "https://github.com/dhiway/sdk", default-features = false, branch = "release-v1.24.0" }
 sp-io = { git = "https://github.com/dhiway/sdk", default-features = false, branch = "release-v1.24.0" }
 sp-keyring = { git = "https://github.com/dhiway/sdk", default-features = false, branch = "release-v1.24.0" }

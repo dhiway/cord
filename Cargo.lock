@@ -7375,7 +7375,6 @@ dependencies = [
  "indiv-pallet-people-lite",
  "indiv-support",
  "log",
- "orbis-transaction-storage-primitives",
  "parity-scale-codec",
  "parking_lot 0.12.5",
  "scale-info",
@@ -9630,18 +9629,6 @@ dependencies = [
 ]
 
 [[package]]
-name = "orbis-transaction-storage-primitives"
-version = "0.1.0"
-dependencies = [
- "cid",
- "parity-scale-codec",
- "scale-info",
- "sp-io",
- "sp-transaction-storage-proof",
- "tracing",
-]
-
-[[package]]
 name = "orchestra"
 version = "0.4.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -9746,7 +9733,6 @@ dependencies = [
  "orbis-identity-personhood-runtime-api",
  "orbis-pallets-common",
  "orbis-storage-runtime-api",
- "orbis-transaction-storage-primitives",
  "origin-commons-runtime-constants",
  "origin-primitives",
  "origin-runtime-constants",
@@ -9773,7 +9759,6 @@ dependencies = [
  "pallet-orbis-attestation-runtime-api",
  "pallet-orbis-drive",
  "pallet-orbis-honour",
- "pallet-orbis-hop-promotion",
  "pallet-orbis-names",
  "pallet-orbis-names-runtime-api",
  "pallet-orbis-people",
@@ -9781,8 +9766,6 @@ dependencies = [
  "pallet-orbis-score",
  "pallet-orbis-storage-control-primitives",
  "pallet-orbis-storage-provider",
- "pallet-orbis-transaction-storage",
- "pallet-orbis-transaction-storage-runtime-api",
  "pallet-origin-entity",
  "pallet-origin-feeless",
  "pallet-origin-register",
@@ -9821,7 +9804,6 @@ dependencies = [
  "sp-crypto-hashing",
  "sp-externalities",
  "sp-genesis-builder",
- "sp-hop",
  "sp-inherents",
  "sp-io",
  "sp-offchain",
@@ -9831,7 +9813,6 @@ dependencies = [
  "sp-statement-store",
  "sp-storage",
  "sp-transaction-pool",
- "sp-transaction-storage-proof",
  "sp-version",
  "staging-parachain-info",
  "staging-xcm",
@@ -10012,57 +9993,26 @@ version = "0.9.9"
 dependencies = [
  "base64 0.21.7",
  "chrono",
- "clap",
  "color-eyre",
- "cumulus-client-bootnodes",
- "cumulus-client-cli",
- "cumulus-client-collator",
- "cumulus-client-consensus-aura",
- "cumulus-client-consensus-common",
- "cumulus-client-service",
  "cumulus-primitives-core",
- "cumulus-relay-chain-interface",
- "futures",
  "hex",
  "hex-literal",
- "jsonrpsee",
  "log",
  "origin-commons-runtime",
  "origin-runtime-constants",
  "parachains-common",
- "parity-scale-codec",
- "polkadot-cli",
  "polkadot-omni-node-lib",
- "sc-basic-authorship",
- "sc-block-builder",
  "sc-chain-spec",
  "sc-cli",
- "sc-client-api",
- "sc-consensus",
- "sc-executor",
- "sc-network",
  "sc-service",
- "sc-telemetry",
- "sc-transaction-pool",
  "serde",
  "serde_json",
  "sha2 0.10.9",
- "sp-api",
- "sp-block-builder",
- "sp-blockchain",
- "sp-consensus",
- "sp-consensus-aura",
  "sp-core",
  "sp-genesis-builder",
- "sp-inherents",
  "sp-keyring",
- "sp-keystore",
- "sp-runtime",
- "sp-timestamp",
- "sp-transaction-storage-proof",
  "staging-xcm",
  "substrate-build-script-utils",
- "substrate-prometheus-endpoint",
 ]
 
 [[package]]
@@ -10157,7 +10107,6 @@ dependencies = [
  "origin-primitives",
  "pallet-orbis-attestation-runtime-api",
  "pallet-orbis-names-runtime-api",
- "pallet-orbis-transaction-storage-runtime-api",
  "parity-scale-codec",
  "proptest",
  "rand 0.8.6",
@@ -11365,26 +11314,6 @@ dependencies = [
 ]
 
 [[package]]
-name = "pallet-orbis-hop-promotion"
-version = "0.1.0"
-dependencies = [
- "frame-support",
- "frame-system",
- "indiv-support",
- "orbis-pallets-common",
- "orbis-transaction-storage-primitives",
- "pallet-orbis-transaction-storage",
- "pallet-timestamp",
- "parity-scale-codec",
- "polkadot-sdk-frame",
- "scale-info",
- "sp-io",
- "sp-keyring",
- "sp-keystore",
- "sp-runtime",
-]
-
-[[package]]
 name = "pallet-orbis-names"
 version = "0.9.9"
 dependencies = [
@@ -11483,33 +11412,6 @@ dependencies = [
  "sp-core",
  "sp-io",
  "sp-runtime",
-]
-
-[[package]]
-name = "pallet-orbis-transaction-storage"
-version = "0.1.0"
-dependencies = [
- "array-bytes 6.2.3",
- "indiv-support",
- "orbis-pallets-common",
- "orbis-transaction-storage-primitives",
- "pallet-orbis-transaction-storage-runtime-api",
- "parity-scale-codec",
- "polkadot-sdk-frame",
- "scale-info",
- "sp-transaction-storage-proof",
- "tracing",
-]
-
-[[package]]
-name = "pallet-orbis-transaction-storage-runtime-api"
-version = "0.1.0"
-dependencies = [
- "orbis-transaction-storage-primitives",
- "parity-scale-codec",
- "scale-decode",
- "scale-info",
- "sp-api",
 ]
 
 [[package]]

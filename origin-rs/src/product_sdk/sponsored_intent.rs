@@ -31,11 +31,11 @@ use crate::{
 	product_sdk::{
 		domains::{
 			attestation::AttestationCommand, names::NamesCommand, drive::DriveCommand,
-			identity_personhood::IdentityPersonhoodCommand, s3::S3Command, storage::StorageCommand,
+			identity_personhood::IdentityPersonhoodCommand, s3::S3Command,
 			storage_provider::StorageProviderCommand, BlockNumber, Validate,
 		},
 		prepare_attestation_command, prepare_names_command, prepare_drive_command,
-		prepare_identity_personhood_command, prepare_s3_command, prepare_storage_command,
+		prepare_identity_personhood_command, prepare_s3_command,
 		prepare_storage_provider_command, OrbisNativeClient,
 	},
 	tx::meta::{
@@ -54,7 +54,6 @@ pub enum SponsoredNativeTarget {
 	IdentityPersonhood(IdentityPersonhoodCommand),
 	Attestation(AttestationCommand),
 	Names(NamesCommand),
-	Storage(StorageCommand),
 	StorageProvider(StorageProviderCommand),
 	Drive(DriveCommand),
 	S3(S3Command),
@@ -66,7 +65,6 @@ impl SponsoredNativeTarget {
 			Self::IdentityPersonhood(command) => command.validate(),
 			Self::Attestation(command) => command.validate_at(current_block),
 			Self::Names(command) => command.validate_at(current_block),
-			Self::Storage(command) => command.validate(),
 			Self::StorageProvider(command) => command.validate_at(current_block),
 			Self::Drive(command) => command.validate(),
 			Self::S3(command) => command.validate(),
@@ -85,7 +83,6 @@ impl SponsoredNativeTarget {
 			Self::IdentityPersonhood(command) => prepare_identity_personhood_command(&command),
 			Self::Attestation(command) => prepare_attestation_command(&command),
 			Self::Names(command) => prepare_names_command(&command),
-			Self::Storage(command) => prepare_storage_command(&command),
 			Self::StorageProvider(command) => prepare_storage_provider_command(&command),
 			Self::Drive(command) => prepare_drive_command(&command),
 			Self::S3(command) => prepare_s3_command(&command),

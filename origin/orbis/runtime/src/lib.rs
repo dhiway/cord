@@ -33,9 +33,6 @@ mod meta_v6;
 #[cfg(feature = "runtime-benchmarks")]
 #[cfg(test)]
 mod meta_v6_weight_evidence;
-#[cfg(all(test, not(feature = "runtime-benchmarks")))]
-mod transaction_policy_vectors;
-
 #[cfg(test)]
 mod enterprise_journey;
 #[cfg(test)]
@@ -63,7 +60,7 @@ use frame_support::{
 	parameter_types,
 	traits::{
 		fungible, fungibles, tokens::imbalance::ResolveAssetTo, AsEnsureOriginWithArg, ConstBool,
-		ConstU128, ConstU32, ConstU64, Contains, EitherOf, EitherOfDiverse, InstanceFilter,
+		ConstU128, ConstU32, ConstU64, Contains, EitherOfDiverse, InstanceFilter,
 		PrivilegeCmp, TransformOrigin, VariantCountOf,
 	},
 	weights::{ConstantMultiplier, Weight},
@@ -108,7 +105,7 @@ use sp_runtime::{
 	generic, impl_opaque_keys,
 	traits::{BlakeTwo256, Block as BlockT, Verify},
 	transaction_validity::{
-		TransactionLongevity, TransactionPriority, TransactionSource, TransactionValidity,
+		TransactionSource, TransactionValidity,
 	},
 	ApplyExtrinsicResult, FixedU128, MultiSignature, MultiSigner,
 };
@@ -1353,10 +1350,7 @@ pub type MetaTxExtension = (
 	frame_system::CheckMortality<Runtime>,
 	frame_system::CheckNonce<Runtime>,
 	MetaIdentityBoundPolicies,
-	pallet_orbis_transaction_storage::extension::ValidateStorageCalls<
-		Runtime,
-		OrbisStorageCallInspector,
-	>,
+	(),
 	frame_metadata_hash_extension::CheckMetadataHash<Runtime>,
 );
 
@@ -1919,7 +1913,7 @@ impl indiv_pallet_resources::Config for Runtime {
 	type LongTermStorageClaimsPerPeriod = ResourcesLongTermStorageClaimsPerPeriod;
 	type LongTermStorageAllowanceForPeople = ResourcesLongTermStorageAllowanceForPeople;
 	type LongTermStorageAllowanceForLitePeople = ResourcesLongTermStorageAllowanceForLitePeople;
-	type LongTermStorageDataStore = TransactionStorage;
+	type LongTermStorageDataStore = DisabledLongTermStorage;
 	type LongTermStorageCleanupLimit = ResourcesLongTermStorageCleanupLimit;
 	type MaxReservations = ResourcesMaxReservations;
 	type StorageReservationDuration = ResourcesStorageReservationDuration;
@@ -1929,159 +1923,42 @@ impl indiv_pallet_resources::Config for Runtime {
 	type MetaPolicyBenchmarkHelper = ResourcesBenchmarkHelper;
 }
 
-parameter_types! {
-	pub const StorageMaxBlockTransactions: u32 = 128;
-	pub const StorageMaxTransactionSize: u32 = 256 * 1024;
-	pub const StorageMaxPermanentStorageSize: u64 = 16 * 1024 * 1024 * 1024;
-	pub const StorageMaxReservations: u32 = 256;
-	pub const StorageMaxReservationExpiryBlocks: u32 = 256;
-	pub const StorageMaxReservationsPerExpiryBlock: u32 = 256;
-	pub const StorageMaxReservationLinks: u32 = 1024;
-	pub const StorageTombstoneRetention: BlockNumber = 100;
-	pub const StorageAuthorizationPeriod: BlockNumber = 14 * DAYS;
-	pub const StorageStoreRenewPriority: TransactionPriority = TransactionPriority::MAX / 4;
-	pub const StorageStoreRenewLongevity: TransactionLongevity = DAYS as TransactionLongevity;
-	pub const StorageCleanupPriority: TransactionPriority = TransactionPriority::MAX;
-	pub const StorageCleanupLongevity: TransactionLongevity = DAYS as TransactionLongevity;
-}
+/// The former Resources reservation adapter targeted the removed transaction-storage pallet.
+/// Keep the remaining identity quota surface fail-closed until it is bound to the canonical
+/// StorageProvider agreement model.
+pub struct DisabledLongTermStorage;
 
-/// Recursively exposes Utility calls to Orbis Storage's authorization extension. Storage mutations
-/// are required to be direct extrinsics; wrapped mutations are rejected by the extension.
-#[derive(Clone, PartialEq, Eq, Default)]
-pub struct OrbisStorageCallInspector;
-
-impl OrbisStorageCallInspector {
-	fn is_opaque_dispatch_wrapper(call: &RuntimeCall) -> bool {
-		matches!(call, RuntimeCall::Multisig(pallet_multisig::Call::approve_as_multi { .. }))
+impl indiv_support::traits::TwoPhaseStorage<
+	AccountId,
+	indiv_pallet_resources::types::ReservationId,
+	indiv_pallet_resources::types::ReservationPurpose,
+	BlockNumber,
+> for DisabledLongTermStorage
+{
+	fn reserve(
+		_id: indiv_pallet_resources::types::ReservationId,
+		_owner: &AccountId,
+		_purpose: &indiv_pallet_resources::types::ReservationPurpose,
+		_bytes: u64,
+		_transactions: u32,
+		_expires_at: BlockNumber,
+	) -> frame_support::dispatch::DispatchResult {
+		Err(sp_runtime::DispatchError::Other("long-term storage reservations are disabled"))
 	}
 
-	fn contains_storage_mutation(call: &RuntimeCall, depth: u32) -> bool {
-		if matches!(
-			call,
-			RuntimeCall::TransactionStorage(
-				pallet_orbis_transaction_storage::Call::store { .. }
-					| pallet_orbis_transaction_storage::Call::store_with_cid_config { .. }
-					| pallet_orbis_transaction_storage::Call::force_renew { .. }
-					| pallet_orbis_transaction_storage::Call::store_reserved { .. }
-					| pallet_orbis_transaction_storage::Call::renew_reserved { .. }
-			)
-		) {
-			return true;
-		}
-		if Self::is_opaque_dispatch_wrapper(call)
-			|| depth >= pallet_orbis_transaction_storage::MAX_WRAPPER_DEPTH
-		{
-			return true;
-		}
-		if let RuntimeCall::MetaTx(pallet_meta_tx::Call::dispatch { meta_tx, .. }) = call {
-			let encoded = meta_tx.encode();
-			let Ok((inner, _, _)) =
-				<(RuntimeCall, sp_runtime::generic::ExtensionVersion, MetaTxExtension)>::decode(
-					&mut encoded.as_slice(),
-				)
-			else {
-				return true;
-			};
-			return Self::contains_storage_mutation(&inner, depth + 1);
-		}
-		<Self as pallet_orbis_transaction_storage::CallInspector<Runtime>>::inspect_wrapper(call)
-			.is_some_and(|calls| {
-				calls.into_iter().any(|inner| Self::contains_storage_mutation(inner, depth + 1))
-			})
-	}
-}
-
-impl pallet_orbis_transaction_storage::CallInspector<Runtime> for OrbisStorageCallInspector {
-	fn inspect_wrapper(call: &RuntimeCall) -> Option<Vec<&RuntimeCall>> {
-		match call {
-			RuntimeCall::Utility(pallet_utility::Call::batch { calls })
-			| RuntimeCall::Utility(pallet_utility::Call::batch_all { calls })
-			| RuntimeCall::Utility(pallet_utility::Call::force_batch { calls }) => {
-				Some(calls.iter().collect())
-			},
-			RuntimeCall::Utility(pallet_utility::Call::as_derivative { call, .. })
-			| RuntimeCall::Utility(pallet_utility::Call::dispatch_as { call, .. })
-			| RuntimeCall::Utility(pallet_utility::Call::dispatch_as_fallible { call, .. })
-			| RuntimeCall::Utility(pallet_utility::Call::with_weight { call, .. }) => {
-				Some(vec![call.as_ref()])
-			},
-			RuntimeCall::Proxy(pallet_proxy::Call::proxy { call, .. })
-			| RuntimeCall::Proxy(pallet_proxy::Call::proxy_announced { call, .. })
-			| RuntimeCall::Multisig(pallet_multisig::Call::as_multi_threshold_1 { call, .. })
-			| RuntimeCall::Multisig(pallet_multisig::Call::as_multi { call, .. })
-			| RuntimeCall::Scheduler(pallet_scheduler::Call::schedule { call, .. })
-			| RuntimeCall::Scheduler(pallet_scheduler::Call::schedule_named { call, .. })
-			| RuntimeCall::Scheduler(pallet_scheduler::Call::schedule_after { call, .. })
-			| RuntimeCall::Scheduler(pallet_scheduler::Call::schedule_named_after {
-				call, ..
-			})
-			| RuntimeCall::Revive(pallet_revive::Call::eth_substrate_call { call, .. })
-			| RuntimeCall::Revive(pallet_revive::Call::dispatch_as_fallback_account {
-				call, ..
-			}) => Some(vec![call.as_ref()]),
-			_ => None,
-		}
+	fn cancel(
+		_owner: &AccountId,
+		_id: indiv_pallet_resources::types::ReservationId,
+	) -> frame_support::dispatch::DispatchResult {
+		Err(sp_runtime::DispatchError::Other("long-term storage reservations are disabled"))
 	}
 
-	fn is_storage_mutating_call(call: &RuntimeCall, depth: u32) -> bool {
-		Self::contains_storage_mutation(call, depth)
+	fn expire_due(
+		_now: BlockNumber,
+		_limit: u32,
+	) -> Result<Vec<indiv_pallet_resources::types::ReservationId>, sp_runtime::DispatchError> {
+		Err(sp_runtime::DispatchError::Other("long-term storage reservations are disabled"))
 	}
-}
-
-impl Contains<RuntimeCall> for OrbisStorageCallInspector {
-	fn contains(call: &RuntimeCall) -> bool {
-		<Self as pallet_orbis_transaction_storage::CallInspector<Runtime>>::is_storage_mutating_call(
-			call, 0,
-		)
-	}
-}
-
-impl pallet_orbis_transaction_storage::Config for Runtime {
-	type RuntimeEvent = RuntimeEvent;
-	type RuntimeCall = RuntimeCall;
-	type Currency = Balances;
-	type RuntimeHoldReason = RuntimeHoldReason;
-	type FeeDestination = ();
-	type WeightInfo = pallet_orbis_transaction_storage::weights::SubstrateWeight<Runtime>;
-	type MaxBlockTransactions = StorageMaxBlockTransactions;
-	type MaxTransactionSize = StorageMaxTransactionSize;
-	type MaxPermanentStorageSize = StorageMaxPermanentStorageSize;
-	type MaxReservations = StorageMaxReservations;
-	type MaxReservationExpiryBlocks = StorageMaxReservationExpiryBlocks;
-	type MaxReservationsPerExpiryBlock = StorageMaxReservationsPerExpiryBlock;
-	type MaxReservationLinks = StorageMaxReservationLinks;
-	type TombstoneRetention = StorageTombstoneRetention;
-	type ReservationPurpose = indiv_pallet_resources::types::ReservationPurpose;
-	type ResourceClaimLifecycle = Resources;
-	// TransactionStorage is not an authority for the new Commons storage plane. New provider
-	// allocations are governed exclusively by StorageProvider bucket agreements.
-	type ProviderAllocation = ();
-	type AuthorizationPeriod = StorageAuthorizationPeriod;
-	type AuthorizerRegistrarOrigin = EnsureRoot<AccountId>;
-	type Authorizer = EitherOf<
-		pallet_orbis_transaction_storage::AsAuthorizer<
-			EnsureRoot<AccountId>,
-			AccountId,
-			BlockNumber,
-		>,
-		pallet_orbis_transaction_storage::EnsureAllowedAuthorizers<Runtime>,
-	>;
-	type StoreRenewPriority = StorageStoreRenewPriority;
-	type StoreRenewLongevity = StorageStoreRenewLongevity;
-	type RemoveExpiredAuthorizationPriority = StorageCleanupPriority;
-	type RemoveExpiredAuthorizationLongevity = StorageCleanupLongevity;
-	#[cfg(feature = "runtime-benchmarks")]
-	type BenchmarkHelper = pallet_orbis_transaction_storage::benchmarking::DefaultCheckProofHelper;
-}
-
-parameter_types! {
-	/// Maximum clock skew accepted for a HOP submit signature: 48 hours in milliseconds.
-	pub const HopSubmitTimestampTolerance: u64 = 48 * 60 * 60 * 1_000;
-}
-
-impl pallet_orbis_hop_promotion::Config for Runtime {
-	type SubmitTimestampTolerance = HopSubmitTimestampTolerance;
-	type WeightInfo = weights::pallet_orbis_hop_promotion::WeightInfo<Runtime>;
 }
 
 parameter_types! {
@@ -2687,9 +2564,7 @@ construct_runtime!(
 		// Solidity and PolkaVM contracts.
 		Revive: pallet_revive = 100,
 
-		// Orbis Storage durable transaction storage and proof accounting.
-		TransactionStorage: pallet_orbis_transaction_storage = 110,
-		HopPromotion: pallet_orbis_hop_promotion = 111,
+		// Commons native storage services.
 		Names: pallet_orbis_names = 116,
 		StorageProvider: pallet_orbis_storage_provider = 120,
 		Drive: pallet_orbis_drive = 121,
@@ -2748,10 +2623,7 @@ pub type InnerTxExtensions = (
 	AccountAwareCheckNonce,
 	frame_system::CheckWeight<Runtime>,
 	AccountAwarePayment,
-	pallet_orbis_transaction_storage::extension::ValidateStorageCalls<
-		Runtime,
-		OrbisStorageCallInspector,
-	>,
+	(),
 	frame_metadata_hash_extension::CheckMetadataHash<Runtime>,
 	pallet_revive::evm::tx_extension::SetOrigin<Runtime>,
 );
@@ -2782,10 +2654,7 @@ fn default_inner_tx_extensions(
 		AccountAwareResources::from(frame_system::CheckNonce::<Runtime>::from(nonce)),
 		frame_system::CheckWeight::<Runtime>::new(),
 		payment.into(),
-		pallet_orbis_transaction_storage::extension::ValidateStorageCalls::<
-			Runtime,
-			OrbisStorageCallInspector,
-		>::default(),
+		(),
 		canonical_metadata_extension(),
 		revive_origin,
 	)
@@ -2954,8 +2823,6 @@ mod benches {
 		[pallet_asset_conversion_tx_payment, AssetTxPayment]
 		[pallet_balances, Balances]
 		[pallet_broker, Broker]
-		[pallet_orbis_transaction_storage, TransactionStorage]
-		[pallet_orbis_hop_promotion, HopPromotion]
 		[pallet_orbis_storage_provider, StorageProvider]
 		[pallet_orbis_drive, Drive]
 		[pallet_orbis_s3, S3]
@@ -4958,119 +4825,6 @@ pallet_revive::impl_runtime_apis_plus_revive_traits!(
 	impl cumulus_primitives_core::CollectCollationInfo<Block> for Runtime {
 		fn collect_collation_info(header: &<Block as BlockT>::Header) -> cumulus_primitives_core::CollationInfo {
 			ParachainSystem::collect_collation_info(header)
-		}
-	}
-
-	impl sp_transaction_storage_proof::runtime_api::TransactionStorageApi<Block> for Runtime {
-		fn retention_period() -> BlockNumber {
-			TransactionStorage::retention_period()
-		}
-
-		fn indexed_transactions(
-			block: BlockNumber,
-		) -> Vec<sp_transaction_storage_proof::IndexedTransactionInfo> {
-			TransactionStorage::transactions_at(block)
-				.map(|transactions| {
-					transactions
-						.into_iter()
-						.map(|transaction| sp_transaction_storage_proof::IndexedTransactionInfo {
-							content_hash: transaction.content_hash,
-							size: transaction.size,
-							hashing: transaction.hashing.into(),
-							cid_codec: transaction.cid_codec,
-							extrinsic_index: transaction.extrinsic_index,
-						})
-						.collect()
-				})
-				.unwrap_or_default()
-		}
-	}
-
-	impl sp_hop::HopRuntimeApi<Block, AccountId> for Runtime {
-		fn can_account_promote(who: AccountId, data_len: u32) -> bool {
-			HopPromotion::can_account_promote(&who, data_len)
-		}
-
-		fn create_promotion_extrinsic(
-			data: Vec<u8>,
-			signer: MultiSigner,
-			signature: MultiSignature,
-			submit_timestamp: u64,
-		) -> <Block as BlockT>::Extrinsic {
-			use frame_system::offchain::CreateAuthorizedTransaction;
-			<Runtime as CreateAuthorizedTransaction<
-				pallet_orbis_hop_promotion::Call<Runtime>,
-			>>::create_authorized_transaction(
-				pallet_orbis_hop_promotion::Call::<Runtime>::promote {
-					data,
-					signer,
-					signature,
-					submit_timestamp,
-				}
-				.into(),
-			)
-		}
-
-		fn max_promotion_size() -> u32 {
-			<Runtime as pallet_orbis_transaction_storage::Config>::MaxTransactionSize::get()
-		}
-
-		fn is_promoted_on_chain(hash: [u8; 32]) -> bool {
-			HopPromotion::is_promoted_on_chain(hash)
-		}
-	}
-
-	impl pallet_orbis_transaction_storage_runtime_api::OrbisTransactionStorageApi<Block, AccountId, BlockNumber> for Runtime {
-		fn account_authorization(
-			account: AccountId,
-		) -> Option<pallet_orbis_transaction_storage_runtime_api::AccountAuthorization<BlockNumber>> {
-			TransactionStorage::account_authorization(account)
-		}
-
-		fn can_store(account: AccountId, data_len: u32) -> bool {
-			TransactionStorage::can_store(&account, data_len)
-		}
-
-		fn can_renew(
-			account: AccountId,
-			entry: pallet_orbis_transaction_storage::TransactionRef<BlockNumber>,
-		) -> bool {
-			TransactionStorage::can_renew(&account, &entry)
-		}
-
-		fn stored_content_provenance(
-			reference: orbis_transaction_storage_primitives::StorageRef<BlockNumber>,
-		) -> Option<orbis_transaction_storage_primitives::StorageActor<AccountId>> {
-			TransactionStorage::stored_content_provenance(reference)
-		}
-
-		fn resource_reservation(
-			reservation_id: orbis_transaction_storage_primitives::ReservationId,
-		) -> Option<
-			orbis_transaction_storage_primitives::ResourceReservationView<
-				AccountId,
-				BlockNumber,
-			>,
-		> {
-			TransactionStorage::resource_reservation(reservation_id)
-		}
-
-		fn resource_reservation_link(
-			reservation_id: orbis_transaction_storage_primitives::ReservationId,
-			content_hash: orbis_transaction_storage_primitives::ContentHash,
-		) -> Option<
-			orbis_transaction_storage_primitives::ResourceReservationLink<
-				AccountId,
-				BlockNumber,
-			>,
-		> {
-			TransactionStorage::resource_reservation_link(reservation_id, content_hash)
-		}
-
-		fn resource_provider_ref(
-			reservation_id: orbis_transaction_storage_primitives::ReservationId,
-		) -> Option<orbis_transaction_storage_primitives::ProviderAllocationId> {
-			TransactionStorage::resource_provider_ref(reservation_id)
 		}
 	}
 

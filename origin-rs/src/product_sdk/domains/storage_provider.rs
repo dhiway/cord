@@ -21,7 +21,7 @@ use serde::{Deserialize, Serialize};
 use super::common::{
 	ensure_bytes, invalid, AccountId, AgreementId, BlockNumber, BucketId, ChallengeId, ContainerId,
 	ContentCommitment, DomainResult, FinalizedQuery, Hash32, PageRequest, ProofCommitment,
-	ProviderReference, ReservationId, SubmitAndFinalize, Validate,
+	ReservationId, SubmitAndFinalize, Validate,
 };
 
 pub const MAX_ENDPOINT_BYTES: usize = 512;
@@ -203,7 +203,6 @@ pub enum StorageProviderResponse {
 	Challenges(super::common::FinalizedPage<ChallengeId>),
 	CanAcceptCapacity(super::common::FinalizedValue<bool>),
 	Checkpoint(super::common::FinalizedValue<CheckpointView>),
-	ResourceProviderRef(super::common::FinalizedValue<ProviderReference>),
 }
 
 #[derive(Clone, Debug, Deserialize, Eq, PartialEq, Serialize)]
@@ -239,10 +238,6 @@ pub enum StorageProviderQuery {
 	BucketCheckpoint {
 		bucket: BucketId,
 	},
-	/// Exact TransactionStorage `resource_provider_ref(reservation_id)` runtime API query.
-	ResourceProviderRef {
-		reservation_id: ReservationId,
-	},
 }
 
 impl Validate for StorageProviderQuery {
@@ -264,7 +259,6 @@ impl Validate for StorageProviderQuery {
 			Self::ChallengeById { challenge } => challenge.validate(),
 			Self::ChallengesAt { page, .. } => page.validate(),
 			Self::BucketCheckpoint { bucket } => bucket.validate(),
-			Self::ResourceProviderRef { reservation_id } => reservation_id.validate(),
 		}
 	}
 }
@@ -332,11 +326,6 @@ pub enum StorageProviderCommand {
 		evidence_hash: ProofCommitment,
 		service_key: ServiceKey,
 		signature: Vec<u8>,
-	},
-	/// Exact TransactionStorage `attach_provider(reservation_id, provider_ref)` call.
-	AttachProvider {
-		reservation_id: ReservationId,
-		provider_ref: ProviderReference,
 	},
 }
 
@@ -418,10 +407,6 @@ impl Validate for StorageProviderCommand {
 			},
 			Self::TimeoutChallenge { challenge } => challenge.validate(),
 			Self::RequestRenewal { agreement, .. } => agreement.validate(),
-			Self::AttachProvider { reservation_id, provider_ref } => {
-				reservation_id.validate()?;
-				provider_ref.validate()
-			},
 		}
 	}
 }

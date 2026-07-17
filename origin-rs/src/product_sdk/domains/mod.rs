@@ -31,7 +31,6 @@ pub mod identity_personhood;
 #[allow(dead_code)]
 pub(crate) mod identity_v2;
 pub mod s3;
-pub mod storage;
 pub mod storage_events;
 pub mod storage_provider;
 

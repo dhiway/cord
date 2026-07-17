@@ -51,10 +51,6 @@ use crate::{
 			},
 			names::{NamesCommand, NamesRead, NamesResponse},
 			s3::{S3Command, S3Read, S3Response},
-			storage::{
-				CidConfig, HashingAlgorithm as StorageHashingAlgorithm, StorageCommand,
-				StorageRead, StorageResponse, TransactionRef,
-			},
 			storage_provider::{
 				ProviderStatus, StorageProviderCommand, StorageProviderRead,
 				StorageProviderResponse,
@@ -83,7 +79,6 @@ pub trait FinalizedReadBinding: Send + Sync {
 	) -> DomainResult<StorageProviderResponse>;
 	async fn drive(&self, query: &DriveRead) -> DomainResult<DriveResponse>;
 	async fn s3(&self, query: &S3Read) -> DomainResult<S3Response>;
-	async fn orbis_storage(&self, query: &StorageRead) -> DomainResult<StorageResponse>;
 }
 
 /// Fail-closed reader used when an exact pinned-hash runtime-API binding was not installed.
@@ -119,10 +114,6 @@ impl FinalizedReadBinding for MissingFinalizedReadBinding {
 	}
 
 	async fn s3(&self, _query: &S3Read) -> DomainResult<S3Response> {
-		Err(read_binding_required())
-	}
-
-	async fn orbis_storage(&self, _query: &StorageRead) -> DomainResult<StorageResponse> {
 		Err(read_binding_required())
 	}
 }
@@ -193,12 +184,6 @@ impl<R: FinalizedReadBinding> NativeDomainTransport<R> {
 		query.validate()?;
 		self.reads.s3(query).await
 	}
-
-	pub async fn read_storage(&self, query: &StorageRead) -> DomainResult<StorageResponse> {
-		query.validate()?;
-		self.reads.orbis_storage(query).await
-	}
-
 	pub async fn submit_attestation(
 		&self,
 		intent: &SubmitAndFinalize<AttestationCommand>,
@@ -240,14 +225,6 @@ impl<R: FinalizedReadBinding> NativeDomainTransport<R> {
 	) -> DomainResult<NativeLifecycle> {
 		self.submit(intent, prepare_s3_command(&intent.command)?).await
 	}
-
-	pub async fn submit_storage(
-		&self,
-		intent: &SubmitAndFinalize<StorageCommand>,
-	) -> DomainResult<NativeLifecycle> {
-		self.submit(intent, prepare_storage_command(&intent.command)?).await
-	}
-
 	async fn submit<C: Validate>(
 		&self,
 		intent: &SubmitAndFinalize<C>,
@@ -529,12 +506,6 @@ impl<R: FinalizedReadBinding, G: GovernedSudoBinding> OrbisDomainTransport<R, G>
 		query.validate()?;
 		self.reads.s3(query).await
 	}
-
-	pub async fn read_storage(&self, query: &StorageRead) -> DomainResult<StorageResponse> {
-		query.validate()?;
-		self.reads.orbis_storage(query).await
-	}
-
 	pub async fn submit_attestation(
 		&self,
 		intent: &SubmitAndFinalize<AttestationCommand>,
@@ -582,14 +553,6 @@ impl<R: FinalizedReadBinding, G: GovernedSudoBinding> OrbisDomainTransport<R, G>
 	) -> DomainResult<NativeLifecycle> {
 		self.submit(intent, prepare_s3_command(&intent.command)?, false).await
 	}
-
-	pub async fn submit_storage(
-		&self,
-		intent: &SubmitAndFinalize<StorageCommand>,
-	) -> DomainResult<NativeLifecycle> {
-		self.submit(intent, prepare_storage_command(&intent.command)?, false).await
-	}
-
 	async fn submit<C: Validate>(
 		&self,
 		intent: &SubmitAndFinalize<C>,
@@ -983,7 +946,7 @@ pub fn prepare_names_command(command: &NamesCommand) -> DomainResult<DynamicPayl
 	Ok(subxt::dynamic::tx("Names", call, args))
 }
 
-/// Prepare a provider or TransactionStorage attachment call without submitting it.
+/// Prepare a canonical StorageProvider call without submitting it.
 pub fn prepare_storage_provider_command(
 	command: &StorageProviderCommand,
 ) -> DomainResult<DynamicPayload> {
@@ -1098,65 +1061,9 @@ pub fn prepare_storage_provider_command(
 				Value::from_bytes(signature),
 			],
 		),
-		StorageProviderCommand::AttachProvider { reservation_id, provider_ref } => (
-			"TransactionStorage",
-			"attach_provider",
-			vec![
-				Value::u128(reservation_id.as_u64()? as u128),
-				hash_value(provider_ref.as_hash())?,
-			],
-		),
 	};
 	Ok(subxt::dynamic::tx(pallet, call, args))
 }
-
-/// Prepare a Orbis Storage TransactionStorage call using live metadata.
-pub fn prepare_storage_command(command: &StorageCommand) -> DomainResult<DynamicPayload> {
-	command.validate()?;
-	let (call, args) = match command {
-		StorageCommand::Store { content_base64 } => {
-			("store", vec![Value::from_bytes(content_base64.decode()?)])
-		},
-		StorageCommand::StoreWithCidConfig { cid_config, content_base64 } => (
-			"store_with_cid_config",
-			vec![cid_config_value(cid_config)?, Value::from_bytes(content_base64.decode()?)],
-		),
-		StorageCommand::StoreReserved { reservation_id, cid_config, content_base64 } => (
-			"store_reserved",
-			vec![
-				Value::u128(reservation_id.as_u64()? as u128),
-				cid_config_value(cid_config)?,
-				Value::from_bytes(content_base64.decode()?),
-			],
-		),
-		StorageCommand::RenewReserved { reservation_id, content_hash } => (
-			"renew_reserved",
-			vec![
-				Value::u128(reservation_id.as_u64()? as u128),
-				hash_value(content_hash.as_hash())?,
-			],
-		),
-		StorageCommand::AttachProvider { reservation_id, provider_ref } => (
-			"attach_provider",
-			vec![
-				Value::u128(reservation_id.as_u64()? as u128),
-				hash_value(provider_ref.as_hash())?,
-			],
-		),
-		StorageCommand::Renew { entry } => ("renew", vec![transaction_ref_value(entry)?]),
-		StorageCommand::ForceRenew { entry } => {
-			("force_renew", vec![transaction_ref_value(entry)?])
-		},
-		StorageCommand::EnableAutoRenew { content_hash } => {
-			("enable_auto_renew", vec![hash_value(content_hash.as_hash())?])
-		},
-		StorageCommand::DisableAutoRenew { content_hash } => {
-			("disable_auto_renew", vec![hash_value(content_hash.as_hash())?])
-		},
-	};
-	Ok(subxt::dynamic::tx("TransactionStorage", call, args))
-}
-
 /// Prepare a Drive call for metadata-derived encoding without submitting it.
 pub fn prepare_drive_command(command: &DriveCommand) -> DomainResult<DynamicPayload> {
 	let (call, args) = match command {
@@ -1346,36 +1253,6 @@ fn provider_status(status: ProviderStatus) -> Value {
 	};
 	Value::variant(variant, Composite::unnamed(vec![]))
 }
-
-fn cid_config_value(config: &CidConfig) -> DomainResult<Value> {
-	let hashing = match config.hashing {
-		StorageHashingAlgorithm::Blake2b256 => "Blake2b256",
-		StorageHashingAlgorithm::Sha2_256 => "Sha2_256",
-		StorageHashingAlgorithm::Keccak256 => "Keccak256",
-	};
-	Ok(Value::named_composite(vec![
-		("codec", Value::u128(config.codec.as_u64()? as u128)),
-		("hashing", Value::variant(hashing, Composite::unnamed(vec![]))),
-	]))
-}
-
-fn transaction_ref_value(reference: &TransactionRef) -> DomainResult<Value> {
-	reference.validate()?;
-	Ok(match reference {
-		TransactionRef::Position { block, index } => Value::variant(
-			"Position",
-			Composite::named(vec![
-				("block", Value::u128(*block as u128)),
-				("index", Value::u128(*index as u128)),
-			]),
-		),
-		TransactionRef::ContentHash { content_hash } => Value::variant(
-			"ContentHash",
-			Composite::unnamed(vec![hash_value(content_hash.as_hash())?]),
-		),
-	})
-}
-
 fn option_hash(value: Option<&Hash32>) -> DomainResult<Value> {
 	match value {
 		Some(value) => Ok(option_value(Some(hash_value(value)?))),
