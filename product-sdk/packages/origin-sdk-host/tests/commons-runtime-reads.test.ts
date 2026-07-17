@@ -22,6 +22,7 @@ import { resolve } from "node:path";
 import test from "node:test";
 import { PrivateCordCommonsRuntimeBridgeV2 } from "../../../internal/commons-runtime-bridge-v2.ts";
 import { parseContentCid } from "../../origin-sdk-cloud-storage/src/content.ts";
+import { blake2b256 } from "../../origin-sdk-crypto/src/index.ts";
 import { decodeHostV2, encodeHostV2 } from "../src/internal/v2/codec.ts";
 
 const repo = resolve(import.meta.dirname, "../../../..");
@@ -203,11 +204,14 @@ test("replica status preserves accepted then bounded not-found error sequencing"
 });
 
 const textEncoder = new TextEncoder();
-function snapshotCursor(version: bigint, key: string): Uint8Array {
+function snapshotCursor(version: bigint, bucket: `0x${string}`, prefix: Uint8Array | null, key: string): Uint8Array {
+  const bucketBytes = fromHex(bucket.slice(2));
+  const domain = textEncoder.encode("cord.origin.host/2/s3-list-prefix/v1");
+  const binding = blake2b256(prefix === null ? Uint8Array.of(...domain, 0) : Uint8Array.of(...domain, 1, ...prefix));
   const encodedKey = textEncoder.encode(key);
-  const cursor = new Uint8Array(8 + encodedKey.length);
-  new DataView(cursor.buffer).setBigUint64(0, version);
-  cursor.set(encodedKey, 8);
+  const cursor = new Uint8Array(73 + encodedKey.length);
+  cursor[0] = 1; new DataView(cursor.buffer).setBigUint64(1, version);
+  cursor.set(bucketBytes, 9); cursor.set(binding, 41); cursor.set(encodedKey, 73);
   return cursor;
 }
 
@@ -215,7 +219,7 @@ test("S3 list resolves one bounded stable snapshot into authoritative object CID
   const bucketName = "festival-bucket";
   const bucket = hex(0x51);
   const prefix = textEncoder.encode("images/");
-  const inputCursor = snapshotCursor(7n, "images/a.png");
+  const inputCursor = snapshotCursor(7n, bucket, prefix, "images/a.png");
   const keys = [textEncoder.encode("images/b.png"), textEncoder.encode("images/c.png")];
   const commitments = [new Uint8Array(32).fill(0xaa), new Uint8Array(32).fill(0xbb)];
   const calls: { readonly at: string; readonly target: string; readonly payload: Readonly<Record<string, unknown>> }[] = [];
@@ -224,7 +228,7 @@ test("S3 list resolves one bounded stable snapshot into authoritative object CID
   }, async (at, target, payload) => {
     calls.push({ at, target, payload });
     if (target === "S3RegistryApi.bucket_by_name") {
-      return { version: 9, value: { bucket_id: bucket, name: textEncoder.encode(bucketName), status: "Active" } };
+      return { version: 9, value: { bucket_id: bucket, name: textEncoder.encode(bucketName), status: "Active", version: 7n } };
     }
     if (target === "S3RegistryApi.object_keys") {
       return {
@@ -263,20 +267,20 @@ test("S3 list resolves one bounded stable snapshot into authoritative object CID
     assert.deepEqual([cid.version, cid.codec, cid.multihash], [1, "raw", "blake2b-256"]);
     assert.deepEqual(cid.digest, commitments[index]);
   }
-  assert.deepEqual(result[1], snapshotCursor(7n, "images/c.png"));
+  assert.deepEqual(result[1], snapshotCursor(7n, bucket, prefix, "images/c.png"));
   assert.deepEqual([Number(result[2]), Number(result[3][0]), Buffer.from(result[3][1]).toString("hex")], [7, 99, finalizedHash.slice(2)]);
 });
 
 test("S3 list maps the native stale snapshot error without reading objects", async () => {
   let reads = 0;
   const { events } = await dispatchS3((frame) => {
-    frame[8] = { 0: "festival-bucket", 2: snapshotCursor(7n, "a"), 3: 2 };
+    frame[8] = { 0: "festival-bucket", 2: snapshotCursor(7n, hex(0x51), null, "a"), 3: 2 };
   }, async (_at, target) => {
     reads += 1;
     if (target === "S3RegistryApi.bucket_by_name") {
       return {
         version: 9,
-        value: { bucket_id: hex(0x51), name: textEncoder.encode("festival-bucket"), status: "Active" },
+        value: { bucket_id: hex(0x51), name: textEncoder.encode("festival-bucket"), status: "Active", version: 7n },
       };
     }
     assert.equal(target, "S3RegistryApi.object_keys");
@@ -296,7 +300,7 @@ test("S3 list rejects non-increasing finalized object pages", async () => {
       if (target === "S3RegistryApi.bucket_by_name") {
         return {
           version: 9,
-          value: { bucket_id: bucket, name: textEncoder.encode("festival-bucket"), status: "Active" },
+          value: { bucket_id: bucket, name: textEncoder.encode("festival-bucket"), status: "Active", version: 1n },
         };
       }
       assert.equal(target, "S3RegistryApi.object_keys");
@@ -309,4 +313,44 @@ test("S3 list rejects non-increasing finalized object pages", async () => {
       };
     });
   }, /strictly increasing key order/);
+});
+
+test("S3 list rejects a page snapshot that differs from the finalized bucket version", async () => {
+  const bucket = hex(0x51);
+  await assert.rejects(() => dispatchS3((frame) => { frame[8] = { 0: "festival-bucket", 3: 1 }; }, async (_at, target) => {
+    if (target === "S3RegistryApi.bucket_by_name") return { version: 9, value: { bucket_id: bucket, name: textEncoder.encode("festival-bucket"), status: "Active", version: 2n } };
+    assert.equal(target, "S3RegistryApi.object_keys");
+    return { type: "Ok", value: { version: 9, items: [], next_cursor: null, snapshot_version: 1n } };
+  }), /not bound to the finalized bucket version/);
+});
+
+test("S3 list rejects an opaque cursor reused across bucket or prefix authority", async () => {
+  const bucket = hex(0x51);
+  let reads = 0;
+  const { events } = await dispatchS3((frame) => {
+    frame[8] = { 0: "festival-bucket", 1: textEncoder.encode("images/"), 2: snapshotCursor(7n, hex(0x52), textEncoder.encode("images/"), "images/a"), 3: 1 };
+  }, async (_at, target) => {
+    reads += 1; assert.equal(target, "S3RegistryApi.bucket_by_name");
+    return { version: 9, value: { bucket_id: bucket, name: textEncoder.encode("festival-bucket"), status: "Active", version: 7n } };
+  });
+  assert.equal(reads, 1);
+  assert.deepEqual([Number(events[1][4][0]), events[1][4][1]], [261, "STORAGE_CURSOR_STALE"]);
+});
+
+test("S3 list fails closed when a finalized page object is bound to another bucket", async () => {
+  const bucket = hex(0x51); const key = textEncoder.encode("a");
+  await assert.rejects(() => dispatchS3((frame) => { frame[8] = { 0: "festival-bucket", 3: 1 }; }, async (_at, target) => {
+    if (target === "S3RegistryApi.bucket_by_name") return { version: 9, value: { bucket_id: bucket, name: textEncoder.encode("festival-bucket"), status: "Active", version: 1n } };
+    if (target === "S3RegistryApi.object_keys") return { type: "Ok", value: { version: 9, items: [key], next_cursor: null, snapshot_version: 1n } };
+    return { version: 9, value: { bucket_id: hex(0x52), key, content_hash: new Uint8Array(32), deleted: false } };
+  }), /inconsistent with its finalized page/);
+});
+
+test("S3 list rejects a native continuation cursor not bound to its returned page", async () => {
+  const bucket = hex(0x51); const key = textEncoder.encode("a");
+  await assert.rejects(() => dispatchS3((frame) => { frame[8] = { 0: "festival-bucket", 3: 1 }; }, async (_at, target) => {
+    assert.equal(target === "S3RegistryApi.bucket_by_name" || target === "S3RegistryApi.object_keys", true);
+    if (target === "S3RegistryApi.bucket_by_name") return { version: 9, value: { bucket_id: bucket, name: textEncoder.encode("festival-bucket"), status: "Active", version: 1n } };
+    return { type: "Ok", value: { version: 9, items: [key], next_cursor: { snapshot_version: 1n, last_key: textEncoder.encode("b") }, snapshot_version: 1n } };
+  }), /does not identify the last returned key/);
 });

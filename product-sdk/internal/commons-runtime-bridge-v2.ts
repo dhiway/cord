@@ -22,6 +22,7 @@
  */
 
 import { parseContentCid } from "../packages/origin-sdk-cloud-storage/src/content.ts";
+import { blake2b256 } from "../packages/origin-sdk-crypto/src/index.ts";
 import type { OriginSigner } from "../packages/origin-sdk-signer/src/index.ts";
 import type { CommonsRuntimeExecutor } from "../packages/origin-sdk/src/runtime.ts";
 import { decodeHostV2, encodeHostV2Value, type HostV2Map } from "../packages/origin-sdk-host/src/internal/v2/codec.ts";
@@ -77,7 +78,7 @@ interface ManifestInfo {
   readonly checkpoint: number | bigint | null;
 }
 interface ContentPublicationInfo { readonly content: unknown; readonly revision: number | bigint }
-interface S3BucketInfo { readonly bucket_id: unknown; readonly name: unknown; readonly status: unknown }
+interface S3BucketInfo { readonly bucket_id: unknown; readonly name: unknown; readonly status: unknown; readonly version: number | bigint }
 interface S3ObjectInfo {
   readonly bucket_id: unknown; readonly key: unknown; readonly content_hash: unknown;
   readonly deleted: boolean;
@@ -171,16 +172,29 @@ function startsWith(value: Uint8Array, prefix: Uint8Array): boolean {
   return prefix.length <= value.length && prefix.every((byte, index) => value[index] === byte);
 }
 
-function decodeSnapshotCursor(value: unknown): { readonly snapshot_version: bigint; readonly last_key: Uint8Array } {
-  const encoded = boundedBytes(value, 9, 1_032, "S3 snapshot cursor");
-  const view = new DataView(encoded.buffer, encoded.byteOffset, encoded.byteLength);
-  return { snapshot_version: view.getBigUint64(0), last_key: encoded.slice(8) };
+function s3PrefixBinding(prefix: Uint8Array | null): Uint8Array {
+  const domain = utf8.encode("cord.origin.host/2/s3-list-prefix/v1");
+  const encoded = prefix === null ? Uint8Array.of(...domain, 0) : Uint8Array.of(...domain, 1, ...prefix);
+  return blake2b256(encoded);
 }
-
-function encodeSnapshotCursor(value: { readonly snapshot_version: bigint; readonly last_key: Uint8Array }): Uint8Array {
-  const encoded = new Uint8Array(8 + value.last_key.length);
-  new DataView(encoded.buffer).setBigUint64(0, value.snapshot_version);
-  encoded.set(value.last_key, 8);
+interface BoundSnapshotCursor {
+  readonly snapshot_version: bigint; readonly bucket_id: Uint8Array;
+  readonly prefix_binding: Uint8Array; readonly last_key: Uint8Array;
+}
+function decodeSnapshotCursor(value: unknown): BoundSnapshotCursor {
+  const encoded = boundedBytes(value, 74, 1_097, "S3 snapshot cursor");
+  if (encoded[0] !== 1) throw new TypeError("S3 snapshot cursor format is unsupported");
+  const view = new DataView(encoded.buffer, encoded.byteOffset, encoded.byteLength);
+  return {
+    snapshot_version: view.getBigUint64(1), bucket_id: encoded.slice(9, 41),
+    prefix_binding: encoded.slice(41, 73), last_key: encoded.slice(73),
+  };
+}
+function encodeSnapshotCursor(value: BoundSnapshotCursor): Uint8Array {
+  const encoded = new Uint8Array(73 + value.last_key.length);
+  encoded[0] = 1;
+  new DataView(encoded.buffer).setBigUint64(1, value.snapshot_version);
+  encoded.set(value.bucket_id, 9); encoded.set(value.prefix_binding, 41); encoded.set(value.last_key, 73);
   return encoded;
 }
 
@@ -511,7 +525,7 @@ export class PrivateCordCommonsRuntimeBridgeV2 implements PrivateCommonsRuntimeB
   async #s3List(payload: WireMap, authority: PrivateFinalizedHostAuthorityV2, signal?: AbortSignal) {
     const bucketName = nativeS3BucketName(payload[0]);
     const prefix = payload[1] === undefined ? null : boundedBytes(payload[1], 0, 1_024, "S3 object prefix");
-    let cursor: { readonly snapshot_version: bigint; readonly last_key: Uint8Array } | null = null;
+    let cursor: BoundSnapshotCursor | null = null;
     if (payload[2] !== undefined) {
       try { cursor = decodeSnapshotCursor(payload[2]); }
       catch (error) {
@@ -529,7 +543,9 @@ export class PrivateCordCommonsRuntimeBridgeV2 implements PrivateCommonsRuntimeB
     if (bucketResponse.version !== 9) throw new TypeError("S3 bucket response version is unsupported");
     if (bucketResponse.value === null) throw new CommonsHostFailure(324, "S3 bucket was not found");
     const bucket = bucketResponse.value;
-    const bucketId = hex(bucket.bucket_id, 32, "S3 bucket ID");
+    const bucketIdBytes = bytes(bucket.bucket_id, 32, "S3 bucket ID");
+    const bucketId = hex(bucketIdBytes, 32, "S3 bucket ID");
+    const bucketVersion = uint(bucket.version, "S3 bucket version");
     if (!equal(boundedBytes(bucket.name, 3, 63, "S3 bucket name"), bucketName.bytes)) {
       throw new TypeError("S3 bucket response is not bound to the requested name");
     }
@@ -537,6 +553,11 @@ export class PrivateCordCommonsRuntimeBridgeV2 implements PrivateCommonsRuntimeB
     if (bucketStatus === "deleted") throw new CommonsHostFailure(324, "S3 bucket is deleted");
     if (bucketStatus !== "active" && bucketStatus !== "archived") {
       throw new TypeError("S3 bucket response has an unknown status");
+    }
+    const prefixBinding = s3PrefixBinding(prefix);
+    if (cursor !== null && (cursor.snapshot_version !== bucketVersion
+      || !equal(cursor.bucket_id, bucketIdBytes) || !equal(cursor.prefix_binding, prefixBinding))) {
+      throw new CommonsHostFailure(261, "S3 snapshot cursor is stale or belongs to a different bucket or prefix");
     }
     const runtimePage = runtimeEnum(await this.#runtime.read(
       hex(authority.hash), "S3RegistryApi.object_keys",
@@ -556,6 +577,9 @@ export class PrivateCordCommonsRuntimeBridgeV2 implements PrivateCommonsRuntimeB
       throw new TypeError("S3 object page exceeds the current bounded response contract");
     }
     const snapshotVersion = uint(page.snapshot_version, "S3 snapshot version");
+    if (snapshotVersion !== bucketVersion) {
+      throw new TypeError("S3 object page snapshot is not bound to the finalized bucket version");
+    }
     if (cursor !== null && cursor.snapshot_version !== snapshotVersion) {
       throw new TypeError("S3 object page changed the requested snapshot version");
     }
@@ -576,7 +600,7 @@ export class PrivateCordCommonsRuntimeBridgeV2 implements PrivateCommonsRuntimeB
       if (nextVersion !== snapshotVersion || keys.length === 0 || !equal(nextKey, keys[keys.length - 1]!)) {
         throw new TypeError("S3 object cursor does not identify the last returned key");
       }
-      nextCursor = encodeSnapshotCursor({ snapshot_version: nextVersion, last_key: nextKey });
+      nextCursor = encodeSnapshotCursor({ snapshot_version: nextVersion, bucket_id: bucketIdBytes, prefix_binding: prefixBinding, last_key: nextKey });
     }
     const cids = await Promise.all(keys.map(async (key) => {
       const response = versioned<S3ObjectInfo>(await this.#runtime.read(
