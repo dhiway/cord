@@ -77,6 +77,16 @@ interface ManifestInfo {
   readonly checkpoint: number | bigint | null;
 }
 interface ContentPublicationInfo { readonly content: unknown; readonly revision: number | bigint }
+interface S3BucketInfo { readonly bucket_id: unknown; readonly name: unknown; readonly status: unknown }
+interface S3ObjectInfo {
+  readonly bucket_id: unknown; readonly key: unknown; readonly content_hash: unknown;
+  readonly deleted: boolean;
+}
+interface SnapshotCursor { readonly snapshot_version: number | bigint; readonly last_key: unknown }
+interface SnapshotPage {
+  readonly version: number; readonly items: readonly unknown[];
+  readonly next_cursor: SnapshotCursor | null; readonly snapshot_version: number | bigint;
+}
 
 class CommonsHostFailure extends Error {
   readonly code: number;
@@ -92,6 +102,13 @@ function bytes(value: unknown, length: number, label: string): Uint8Array {
     return Uint8Array.from(value.slice(2).match(/../g)!.map((pair) => Number.parseInt(pair, 16)));
   }
   throw new TypeError(`${label} must contain ${length} bytes`);
+}
+
+function boundedBytes(value: unknown, minimum: number, maximum: number, label: string): Uint8Array {
+  if (!(value instanceof Uint8Array) || value.length < minimum || value.length > maximum) {
+    throw new TypeError(`${label} must contain ${minimum}-${maximum} bytes`);
+  }
+  return value.slice();
 }
 
 function hex(value: unknown, length = 32, label = "runtime hash"): HashHex {
@@ -128,6 +145,66 @@ function enumName(value: unknown): string {
     if (keys.length === 1) return keys[0]!.toLowerCase();
   }
   throw new TypeError("runtime enum has an unknown descriptor shape");
+}
+
+function runtimeEnum(value: unknown, label: string): { readonly name: string; readonly value: unknown } {
+  if (typeof value === "string") return { name: value.toLowerCase(), value: undefined };
+  if (!value || typeof value !== "object" || Array.isArray(value)) {
+    throw new TypeError(`${label} has an unknown descriptor enum shape`);
+  }
+  const record = value as Record<string, unknown>;
+  if (typeof record.type === "string") return { name: record.type.toLowerCase(), value: record.value };
+  const keys = Object.keys(record);
+  if (keys.length === 1) return { name: keys[0]!.toLowerCase(), value: record[keys[0]!] };
+  throw new TypeError(`${label} has an unknown descriptor enum shape`);
+}
+
+function compareBytes(left: Uint8Array, right: Uint8Array): number {
+  const length = Math.min(left.length, right.length);
+  for (let index = 0; index < length; index += 1) {
+    if (left[index] !== right[index]) return left[index]! - right[index]!;
+  }
+  return left.length - right.length;
+}
+
+function startsWith(value: Uint8Array, prefix: Uint8Array): boolean {
+  return prefix.length <= value.length && prefix.every((byte, index) => value[index] === byte);
+}
+
+function decodeSnapshotCursor(value: unknown): { readonly snapshot_version: bigint; readonly last_key: Uint8Array } {
+  const encoded = boundedBytes(value, 9, 1_032, "S3 snapshot cursor");
+  const view = new DataView(encoded.buffer, encoded.byteOffset, encoded.byteLength);
+  return { snapshot_version: view.getBigUint64(0), last_key: encoded.slice(8) };
+}
+
+function encodeSnapshotCursor(value: { readonly snapshot_version: bigint; readonly last_key: Uint8Array }): Uint8Array {
+  const encoded = new Uint8Array(8 + value.last_key.length);
+  new DataView(encoded.buffer).setBigUint64(0, value.snapshot_version);
+  encoded.set(value.last_key, 8);
+  return encoded;
+}
+
+function s3ListFailure(value: unknown): CommonsHostFailure {
+  const error = enumName(value);
+  switch (error) {
+    case "bucketnotfound": return new CommonsHostFailure(324, "S3 bucket was not found");
+    case "bucketdeleted": return new CommonsHostFailure(324, "S3 bucket is deleted");
+    case "cursorstale": return new CommonsHostFailure(261, "S3 object cursor is stale");
+    case "pagelimitinvalid": return new CommonsHostFailure(100, "S3 object page limit is invalid");
+    case "cursorkeyinvalid": return new CommonsHostFailure(321, "S3 object cursor key is invalid");
+    default: throw new TypeError(`S3 list returned unknown error ${error}`);
+  }
+}
+
+function nativeS3BucketName(value: unknown): { readonly name: string; readonly bytes: Uint8Array } {
+  if (typeof value !== "string" || !/^[a-z0-9](?:[a-z0-9-]*[a-z0-9])$/.test(value)) {
+    throw new CommonsHostFailure(320, "S3 bucket name does not satisfy the native policy");
+  }
+  const encoded = utf8.encode(value);
+  if (encoded.length < 3 || encoded.length > 63) {
+    throw new CommonsHostFailure(320, "S3 bucket name does not satisfy the native policy");
+  }
+  return { name: value, bytes: encoded };
 }
 
 function varint(value: number): number[] {
@@ -266,6 +343,10 @@ export class PrivateCordCommonsRuntimeBridgeV2 implements PrivateCommonsRuntimeB
           yield { event: acceptedEvent(requestId), terminalBlock: input.authority.number };
           accepted = true;
           ({ result, terminal } = await this.#replicaStatus(payload, input.authority, input.signal)); break;
+        case "storage.s3.list":
+          yield { event: acceptedEvent(requestId), terminalBlock: input.authority.number };
+          accepted = true;
+          ({ result, terminal } = await this.#s3List(payload, input.authority, input.signal)); break;
         case "storage.publish": {
           const executed = await this.#publish(request, payload, input.authority, sequence, input.signal);
           sequence = executed.nextSequence; result = executed.result; terminal = executed.terminal;
@@ -423,6 +504,100 @@ export class PrivateCordCommonsRuntimeBridgeV2 implements PrivateCommonsRuntimeB
       result: {
         0: primary, 1: replicas, 2: confirmed, 3: lag,
         4: eligibility.filter(Boolean).length, 5: finalityMap(authority),
+      } as HostV2Map,
+    };
+  }
+
+  async #s3List(payload: WireMap, authority: PrivateFinalizedHostAuthorityV2, signal?: AbortSignal) {
+    const bucketName = nativeS3BucketName(payload[0]);
+    const prefix = payload[1] === undefined ? null : boundedBytes(payload[1], 0, 1_024, "S3 object prefix");
+    let cursor: { readonly snapshot_version: bigint; readonly last_key: Uint8Array } | null = null;
+    if (payload[2] !== undefined) {
+      try { cursor = decodeSnapshotCursor(payload[2]); }
+      catch (error) {
+        if (error instanceof TypeError) throw new CommonsHostFailure(261, error.message);
+        throw error;
+      }
+    }
+    const limit = Number(uint(payload[3], "S3 page limit"));
+    if (!Number.isSafeInteger(limit) || limit < 1 || limit > 100) {
+      throw new CommonsHostFailure(100, "S3 page limit must be between 1 and 100");
+    }
+    const bucketResponse = versioned<S3BucketInfo>(await this.#runtime.read(
+      hex(authority.hash), "S3RegistryApi.bucket_by_name", { name: bucketName.bytes }, signal,
+    ), "S3 bucket");
+    if (bucketResponse.version !== 9) throw new TypeError("S3 bucket response version is unsupported");
+    if (bucketResponse.value === null) throw new CommonsHostFailure(324, "S3 bucket was not found");
+    const bucket = bucketResponse.value;
+    const bucketId = hex(bucket.bucket_id, 32, "S3 bucket ID");
+    if (!equal(boundedBytes(bucket.name, 3, 63, "S3 bucket name"), bucketName.bytes)) {
+      throw new TypeError("S3 bucket response is not bound to the requested name");
+    }
+    const bucketStatus = enumName(bucket.status);
+    if (bucketStatus === "deleted") throw new CommonsHostFailure(324, "S3 bucket is deleted");
+    if (bucketStatus !== "active" && bucketStatus !== "archived") {
+      throw new TypeError("S3 bucket response has an unknown status");
+    }
+    const runtimePage = runtimeEnum(await this.#runtime.read(
+      hex(authority.hash), "S3RegistryApi.object_keys",
+      {
+        bucket_id: bucketId, prefix,
+        cursor: cursor === null ? null : { snapshot_version: cursor.snapshot_version, last_key: cursor.last_key },
+        limit,
+      }, signal,
+    ), "S3 object page");
+    if (runtimePage.name === "err") throw s3ListFailure(runtimePage.value);
+    if (runtimePage.name !== "ok" || !runtimePage.value || typeof runtimePage.value !== "object" || Array.isArray(runtimePage.value)) {
+      throw new TypeError("S3 object page did not return an Ok snapshot");
+    }
+    const page = runtimePage.value as SnapshotPage;
+    if (page.version !== 9 || !Array.isArray(page.items) || !("next_cursor" in page)
+      || page.items.length > limit || page.items.length > 100) {
+      throw new TypeError("S3 object page exceeds the current bounded response contract");
+    }
+    const snapshotVersion = uint(page.snapshot_version, "S3 snapshot version");
+    if (cursor !== null && cursor.snapshot_version !== snapshotVersion) {
+      throw new TypeError("S3 object page changed the requested snapshot version");
+    }
+    const keys = page.items.map((key) => boundedBytes(key, 1, 1_024, "S3 object key"));
+    for (let index = 0; index < keys.length; index += 1) {
+      const previous = index === 0 ? cursor?.last_key : keys[index - 1];
+      if (previous && compareBytes(keys[index]!, previous) <= 0) {
+        throw new TypeError("S3 object page is not in strictly increasing key order");
+      }
+      if (prefix !== null && !startsWith(keys[index]!, prefix)) {
+        throw new TypeError("S3 object page escaped the requested prefix");
+      }
+    }
+    let nextCursor: Uint8Array | undefined;
+    if (page.next_cursor !== null && page.next_cursor !== undefined) {
+      const nextVersion = uint(page.next_cursor.snapshot_version, "next S3 snapshot version");
+      const nextKey = boundedBytes(page.next_cursor.last_key, 1, 1_024, "next S3 cursor key");
+      if (nextVersion !== snapshotVersion || keys.length === 0 || !equal(nextKey, keys[keys.length - 1]!)) {
+        throw new TypeError("S3 object cursor does not identify the last returned key");
+      }
+      nextCursor = encodeSnapshotCursor({ snapshot_version: nextVersion, last_key: nextKey });
+    }
+    const cids = await Promise.all(keys.map(async (key) => {
+      const response = versioned<S3ObjectInfo>(await this.#runtime.read(
+        hex(authority.hash), "S3RegistryApi.object", { bucket_id: bucketId, key }, signal,
+      ), "S3 object");
+      if (response.version !== 9 || response.value === null) {
+        throw new TypeError("S3 object page references an unavailable object");
+      }
+      const object = response.value;
+      if (hex(object.bucket_id, 32, "S3 object bucket") !== bucketId
+        || !equal(boundedBytes(object.key, 1, 1_024, "S3 object key"), key)
+        || object.deleted !== false || object.content_hash === null || object.content_hash === undefined) {
+        throw new TypeError("S3 object response is inconsistent with its finalized page");
+      }
+      return cidForCommitment(bytes(object.content_hash, 32, "S3 object content hash"));
+    }));
+    return {
+      terminal: authority,
+      result: {
+        0: cids, ...(nextCursor === undefined ? {} : { 1: nextCursor }),
+        2: snapshotVersion, 3: finalityMap(authority),
       } as HostV2Map,
     };
   }
