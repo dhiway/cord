@@ -262,6 +262,10 @@ export class PrivateCordCommonsRuntimeBridgeV2 implements PrivateCommonsRuntimeB
           yield { event: acceptedEvent(requestId), terminalBlock: input.authority.number };
           accepted = true;
           ({ result, terminal } = await this.#checkpointStatus(payload, input.authority, input.signal)); break;
+        case "storage.replica.status":
+          yield { event: acceptedEvent(requestId), terminalBlock: input.authority.number };
+          accepted = true;
+          ({ result, terminal } = await this.#replicaStatus(payload, input.authority, input.signal)); break;
         case "storage.publish": {
           const executed = await this.#publish(request, payload, input.authority, sequence, input.signal);
           sequence = executed.nextSequence; result = executed.result; terminal = executed.terminal;
@@ -361,6 +365,50 @@ export class PrivateCordCommonsRuntimeBridgeV2 implements PrivateCommonsRuntimeB
       terminal: authority,
       result: { 0: this.#checkpointMap(checkpoint), 1: Number(uint(checkpoint.commitment_nonce, "checkpoint sequence")),
         2: uint(checkpoint.checkpoint_block, "checkpoint block"), 3: quorum, 4: finalityMap(authority) } as HostV2Map,
+    };
+  }
+
+  async #replicaStatus(payload: WireMap, authority: PrivateFinalizedHostAuthorityV2, signal?: AbortSignal) {
+    const bucketId = hex(payload[0], 32, "replica bucket ID");
+    const response = versioned<ControlBucket>(await this.#runtime.read(
+      hex(authority.hash), "StorageProviderApi.control_bucket", { bucket_id: bucketId }, signal,
+    ), "control bucket");
+    if (response.value === null) throw new CommonsHostFailure(250, "bucket was not found at finalized state");
+    const bucket = response.value;
+    if (hex(bucket.bucket_id) !== bucketId || !Array.isArray(bucket.replicas)
+      || bucket.replicas.length < 2 || bucket.replicas.length > 4) {
+      throw new TypeError("control bucket response is not bound to the requested bucket");
+    }
+    const primary = bytes(bucket.primary, 32, "bucket primary");
+    const replicas = bucket.replicas.map((provider) => bytes(provider, 32, "bucket replica"));
+    const providerIds = [primary, ...replicas].map((provider) => hex(provider));
+    if (new Set(providerIds).size !== providerIds.length) {
+      throw new TypeError("control bucket provider authority contains duplicate members");
+    }
+    const checkpoint = await this.#checkpoint(payload, authority, signal);
+    const checkpointBlock = uint(checkpoint.checkpoint_block, "checkpoint block");
+    if (checkpointBlock > authority.number) {
+      throw new TypeError("checkpoint is ahead of its finalized authority");
+    }
+    const confirmations = await Promise.all(replicas.map(async (provider) => {
+      const value = await this.#runtime.read<unknown>(
+        hex(authority.hash), "StorageProviderApi.replica_checkpoint",
+        { bucket_id: bucketId, provider: hex(provider) }, signal,
+      );
+      if (value === null || value === undefined) return null;
+      const confirmed = uint(value, "replica checkpoint");
+      if (confirmed > authority.number) {
+        throw new TypeError("replica checkpoint is ahead of its finalized authority");
+      }
+      return confirmed;
+    }));
+    const healthy = confirmations.filter((confirmed) => confirmed !== null && confirmed >= checkpointBlock).length;
+    return {
+      terminal: authority,
+      result: {
+        0: primary, 1: replicas, 2: healthy, 3: checkpointBlock,
+        4: replicas.length - healthy, 5: finalityMap(authority),
+      } as HostV2Map,
     };
   }
 
