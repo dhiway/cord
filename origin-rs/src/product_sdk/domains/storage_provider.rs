@@ -26,8 +26,6 @@ use super::common::{
 
 pub const MAX_ENDPOINT_BYTES: usize = 512;
 pub const MAX_SERVICE_KEY_BYTES: usize = 128;
-pub const MAX_DELETION_PROOF_DEPTH: usize = 64;
-pub const MAX_ROOT_APPEND_BATCH: usize = 256;
 
 pub type StorageProviderRead = FinalizedQuery<StorageProviderQuery>;
 pub type StorageProviderWrite = SubmitAndFinalize<StorageProviderCommand>;
@@ -313,10 +311,6 @@ pub enum StorageProviderCommand {
 		expected_commitment: ProofCommitment,
 		due_at: BlockNumber,
 	},
-	SubmitCheckpoint {
-		challenge: ChallengeId,
-		proof_commitment: ProofCommitment,
-	},
 	TimeoutChallenge {
 		challenge: ChallengeId,
 	},
@@ -333,24 +327,11 @@ pub enum StorageProviderCommand {
 	PruneAgreement {
 		agreement: AgreementId,
 	},
-	AcknowledgeDeletion {
-		agreement: AgreementId,
-		content_commitment: ContentCommitment,
-		tombstone_root: ProofCommitment,
-		root_sequence: u64,
-		leaf_index: u64,
-		leaf_count: u64,
-		inclusion_proof: Vec<ProofCommitment>,
-	},
 	AcknowledgeManifestDeletion {
 		manifest: ContentCommitment,
 		evidence_hash: ProofCommitment,
 		service_key: ServiceKey,
 		signature: Vec<u8>,
-	},
-	CommitProviderRoot {
-		sequence: u64,
-		appended_leaves: Vec<ProofCommitment>,
 	},
 	/// Exact TransactionStorage `attach_provider(reservation_id, provider_ref)` call.
 	AttachProvider {
@@ -415,26 +396,6 @@ impl Validate for StorageProviderCommand {
 			| Self::AcceptRenewal { agreement }
 			| Self::ExpireAgreement { agreement }
 			| Self::PruneAgreement { agreement } => agreement.validate(),
-			Self::AcknowledgeDeletion {
-				agreement,
-				content_commitment,
-				tombstone_root,
-				root_sequence,
-				leaf_index,
-				leaf_count,
-				inclusion_proof,
-			} => {
-				agreement.validate()?;
-				content_commitment.validate()?;
-				tombstone_root.validate()?;
-				if *root_sequence == 0 || *leaf_count == 0 || *leaf_index >= *leaf_count {
-					return Err(invalid("deletion root sequence/count/index is invalid"));
-				}
-				if inclusion_proof.len() > MAX_DELETION_PROOF_DEPTH {
-					return Err(invalid("deletion proof exceeds maximum depth"));
-				}
-				inclusion_proof.iter().try_for_each(Validate::validate)
-			},
 			Self::AcknowledgeManifestDeletion {
 				manifest,
 				evidence_hash,
@@ -451,24 +412,9 @@ impl Validate for StorageProviderCommand {
 				}
 				Ok(())
 			},
-			Self::CommitProviderRoot { sequence, appended_leaves } => {
-				if *sequence == 0 || appended_leaves.is_empty() {
-					return Err(invalid(
-						"provider root sequence and append batch must be non-zero",
-					));
-				}
-				if appended_leaves.len() > MAX_ROOT_APPEND_BATCH {
-					return Err(invalid("provider root append batch exceeds maximum size"));
-				}
-				appended_leaves.iter().try_for_each(Validate::validate)
-			},
 			Self::IssueChallenge { agreement, expected_commitment, .. } => {
 				agreement.validate()?;
 				expected_commitment.validate()
-			},
-			Self::SubmitCheckpoint { challenge, proof_commitment } => {
-				challenge.validate()?;
-				proof_commitment.validate()
 			},
 			Self::TimeoutChallenge { challenge } => challenge.validate(),
 			Self::RequestRenewal { agreement, .. } => agreement.validate(),

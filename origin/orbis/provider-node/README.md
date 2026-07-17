@@ -19,12 +19,13 @@ this service does not silently translate SHA-256, Blake3, UnixFS, or DAG commitm
 
 The provider is a companion binary, not an alternative runtime or a fork of the pinned SDK. It
 reads `StorageProviderApi::{provider,agreement,challenges_at}` using `state_call` at
-`chain_getFinalizedHead`. Proof duties and deletion acknowledgements are written to an fsynced,
-typed JSONL outbox. The included `origin-orbis-provider-outbox` process consumes that seam through
-the existing `origin-rs` Orbis metadata-derived signer/nonce/finality pipeline and submits native
-`StorageProvider::{submit_checkpoint,commit_provider_root,acknowledge_deletion}` calls. It records an fsynced finalized
-block/extrinsic receipt before treating an idempotency key as complete. Neither process embeds a
-pallet/call index, signed extension, nonce, governance key, or raw SCALE payload.
+`chain_getFinalizedHead`. Canonical manifest-deletion acknowledgements are written to an fsynced,
+typed JSONL outbox. The included `origin-orbis-provider-outbox` process accepts only that record
+and submits native `StorageProvider::acknowledge_manifest_deletion` through the existing
+`origin-rs` Orbis metadata-derived signer/nonce/finality pipeline. It records an fsynced finalized
+block/extrinsic receipt before treating an idempotency key as complete. Checkpoint v2 uses its
+separate canonical outbox/worker and is not accepted by this manifest consumer. Neither process
+embeds a pallet/call index, signed extension, nonce, governance key, or raw SCALE payload.
 
 Required secrets are read from environment variables (defaults:
 `ORBIS_PROVIDER_BEARER_TOKEN` and `ORBIS_PROVIDER_SERVICE_SURI`) and are not persisted. The bearer
@@ -45,13 +46,13 @@ The bounded v4 routes are:
 
 `POST /delete` is fail-closed: the same finalized provider and agreement checks run again and the
 agreement must already be finalized as `Cancelled` or `Expired`. The local agreement string is
-never sufficient authorization. The store first atomically appends a tombstone leaf and a pending
-deletion journal entry. It journals the exact tombstone leaf, then fsyncs a provider-root append followed by
-`acknowledge_deletion(agreement, content_commitment, root_sequence, root, leaf_index, leaf_count,
-inclusion_proof)` to the outbox before removing bytes. All pending root journal entries are flushed in ascending sequence under one shared mutation/outbox lock; a deletion root and acknowledgement are queued as one ordering unit. The runtime folds the exact leaf through its bounded frontier, derives root/count, and requires the root transaction to
-finalize first, rejects sequence/leaf-count rollback, derives the canonical tombstone leaf from the
-agreement, content and provider, and verifies the bounded duplicate-last Merkle proof. Agreement
-pruning remains blocked until the provider-signed acknowledgement finalizes.
+never sufficient authorization. The store retains its legacy pending-root and pending-deletion
+journals as an internal crash-safety bearer until the planned P4 atomic API cutover. Those records
+are not public SDK requests, do not correspond to Commons runtime calls, and the production JSONL
+submitter rejects them instead of emitting ambiguous records. Consequently this legacy completion
+path remains unavailable rather than pretending that `commit_provider_root` or
+`acknowledge_deletion` exists. Canonical deletion completion is driven independently from finalized
+manifest-deletion duties and `acknowledge_manifest_deletion`.
 
 ## Persistence and workers
 

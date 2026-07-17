@@ -281,15 +281,18 @@ struct NoopOutbox;
 
 #[async_trait]
 impl CheckpointSubmitter for NoopOutbox {
-	async fn submit(&self, _: crate::CheckpointSubmission) -> Result<(), String> {
+	async fn submit(&self, _: crate::workers::CheckpointSubmission) -> Result<(), String> {
 		Ok(())
 	}
 
-	async fn submit_root(&self, _: crate::ProviderRootSubmission) -> Result<(), String> {
+	async fn submit_root(&self, _: crate::workers::ProviderRootSubmission) -> Result<(), String> {
 		Ok(())
 	}
 
-	async fn submit_deletion(&self, _: crate::ContentDeletionSubmission) -> Result<(), String> {
+	async fn submit_deletion(
+		&self,
+		_: crate::workers::ContentDeletionSubmission,
+	) -> Result<(), String> {
 		Ok(())
 	}
 }

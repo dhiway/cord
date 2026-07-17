@@ -250,17 +250,6 @@ export const providerHostRoutes = {
     });
   },
 
-  submitCheckpoint(
-    context: RequestContext,
-    challenge_id: ChallengeId,
-    proof_commitment: ContentCommitment,
-  ) {
-    return submitAndFinalize("provider", context, "storage", "submit_checkpoint", {
-      challenge_id,
-      proof_commitment,
-    });
-  },
-
   timeoutChallenge(context: RequestContext, challenge_id: ChallengeId) {
     return submitAndFinalize("provider", context, "storage", "timeout_challenge", { challenge_id });
   },
@@ -270,6 +259,21 @@ export const providerHostRoutes = {
       agreement_id,
       expires_at,
     });
+  },
+
+  acknowledgeManifestDeletion(
+	context: RequestContext,
+	manifest: ContentCommitment,
+	evidence_hash: ContentCommitment,
+	service_key: ProviderServiceKey,
+	signature: string,
+  ) {
+	return submitAndFinalize("provider", context, "storage", "acknowledge_manifest_deletion", {
+	  manifest,
+	  evidence_hash,
+	  service_key,
+	  signature,
+	});
   },
 
   acceptRenewal(context: RequestContext, agreement_id: AgreementId) {
@@ -284,37 +288,6 @@ export const providerHostRoutes = {
     return submitAndFinalize("provider", context, "storage", "prune_agreement", { agreement_id });
   },
 
-  acknowledgeDeletion(
-    context: RequestContext,
-    agreement_id: AgreementId,
-    content_commitment: ContentCommitment,
-    tombstone_root: ContentCommitment,
-    root_sequence: DecimalU64,
-    leaf_index: DecimalU64,
-    leaf_count: DecimalU64,
-    inclusion_proof: readonly ContentCommitment[],
-  ) {
-    return submitAndFinalize("provider", context, "storage", "acknowledge_deletion", {
-      agreement_id,
-      content_commitment,
-      tombstone_root,
-      root_sequence,
-      leaf_index,
-      leaf_count,
-      inclusion_proof: [...inclusion_proof],
-    });
-  },
-
-  commitProviderRoot(
-    context: RequestContext,
-    sequence: DecimalU64,
-    appended_leaves: readonly ContentCommitment[],
-  ) {
-    return submitAndFinalize("provider", context, "storage", "commit_provider_root", {
-      sequence,
-      appended_leaves: [...appended_leaves],
-    });
-  },
 } as const;
 
 export const driveHostRoutes = {

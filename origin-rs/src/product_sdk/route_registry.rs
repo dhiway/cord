@@ -407,11 +407,9 @@ fn sponsored_target_declaration(
 				"expire_agreement",
 				"prune_agreement",
 				"issue_challenge",
-				"submit_checkpoint",
 				"timeout_challenge",
 				"request_renewal",
-				"acknowledge_deletion",
-				"commit_provider_root",
+				"acknowledge_manifest_deletion",
 			]
 			.contains(&method)
 			{

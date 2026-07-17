@@ -58,7 +58,7 @@
         "accept_agreement",
         "accept_renewal",
         "account_authorization",
-        "acknowledge_deletion",
+        "acknowledge_manifest_deletion",
         "add_controller",
         "agreement_by_id",
         "agreement_nonce",
@@ -71,6 +71,7 @@
         "attestation_live_status",
         "bucket_by_id",
         "bucket_by_name",
+        "bucket_checkpoint",
         "bucket_object_keys",
         "can_accept_capacity",
         "can_renew",
@@ -83,8 +84,6 @@
         "clear_identity",
         "clear_reservation",
         "commit",
-        "commit_provider_root",
-        "container_agreements",
         "controllers",
         "create_bucket",
         "create_drive",
@@ -92,7 +91,6 @@
         "creator_schemas",
         "delete_bucket",
         "delete_object",
-        "deletion_acknowledgement",
         "disable_auto_renew",
         "drive.set_controller",
         "drive_by_id",
@@ -121,8 +119,6 @@
         "object_by_key",
         "object_history",
         "object_id",
-        "open_challenge_count",
-        "owner_agreements",
         "owner_buckets",
         "owner_drives",
         "owner_names",
@@ -133,8 +129,6 @@
         "provide_judgement",
         "provider_agreements",
         "provider_by_id",
-        "provider_checkpoint",
-        "provider_root",
         "providers",
         "prune_agreement",
         "prune_expired_commitment",
@@ -188,7 +182,6 @@
         "store_with_cid_config",
         "stored_content_provenance",
         "subject_schema_attestations",
-        "submit_checkpoint",
         "submit_sponsored_intent",
         "timeout_challenge",
         "transfer",
@@ -2993,72 +2986,6 @@
           "const": "storage"
         },
         "method": {
-          "const": "owner_agreements"
-        },
-        "finality": {
-          "const": "finalized"
-        },
-        "payload": {
-          "type": "object",
-          "additionalProperties": false,
-          "required": [
-            "owner",
-            "cursor",
-            "limit"
-          ],
-          "properties": {
-            "owner": {},
-            "cursor": {},
-            "limit": {}
-          }
-        }
-      },
-      "required": [
-        "capability",
-        "method",
-        "finality",
-        "payload"
-      ]
-    },
-    {
-      "properties": {
-        "capability": {
-          "const": "storage"
-        },
-        "method": {
-          "const": "container_agreements"
-        },
-        "finality": {
-          "const": "finalized"
-        },
-        "payload": {
-          "type": "object",
-          "additionalProperties": false,
-          "required": [
-            "container_ref",
-            "cursor",
-            "limit"
-          ],
-          "properties": {
-            "container_ref": {},
-            "cursor": {},
-            "limit": {}
-          }
-        }
-      },
-      "required": [
-        "capability",
-        "method",
-        "finality",
-        "payload"
-      ]
-    },
-    {
-      "properties": {
-        "capability": {
-          "const": "storage"
-        },
-        "method": {
           "const": "agreement_nonce"
         },
         "finality": {
@@ -3150,35 +3077,6 @@
           "const": "storage"
         },
         "method": {
-          "const": "open_challenge_count"
-        },
-        "finality": {
-          "const": "finalized"
-        },
-        "payload": {
-          "type": "object",
-          "additionalProperties": false,
-          "required": [
-            "agreement_id"
-          ],
-          "properties": {
-            "agreement_id": {}
-          }
-        }
-      },
-      "required": [
-        "capability",
-        "method",
-        "finality",
-        "payload"
-      ]
-    },
-    {
-      "properties": {
-        "capability": {
-          "const": "storage"
-        },
-        "method": {
           "const": "can_accept_capacity"
         },
         "finality": {
@@ -3210,7 +3108,7 @@
           "const": "storage"
         },
         "method": {
-          "const": "provider_checkpoint"
+          "const": "bucket_checkpoint"
         },
         "finality": {
           "const": "finalized"
@@ -3219,68 +3117,10 @@
           "type": "object",
           "additionalProperties": false,
           "required": [
-            "provider"
+            "bucket"
           ],
           "properties": {
-            "provider": {}
-          }
-        }
-      },
-      "required": [
-        "capability",
-        "method",
-        "finality",
-        "payload"
-      ]
-    },
-    {
-      "properties": {
-        "capability": {
-          "const": "storage"
-        },
-        "method": {
-          "const": "provider_root"
-        },
-        "finality": {
-          "const": "finalized"
-        },
-        "payload": {
-          "type": "object",
-          "additionalProperties": false,
-          "required": [
-            "provider"
-          ],
-          "properties": {
-            "provider": {}
-          }
-        }
-      },
-      "required": [
-        "capability",
-        "method",
-        "finality",
-        "payload"
-      ]
-    },
-    {
-      "properties": {
-        "capability": {
-          "const": "storage"
-        },
-        "method": {
-          "const": "deletion_acknowledgement"
-        },
-        "finality": {
-          "const": "finalized"
-        },
-        "payload": {
-          "type": "object",
-          "additionalProperties": false,
-          "required": [
-            "agreement_id"
-          ],
-          "properties": {
-            "agreement_id": {}
+            "bucket": {}
           }
         }
       },
@@ -3582,7 +3422,7 @@
           "const": "storage"
         },
         "method": {
-          "const": "submit_checkpoint"
+          "const": "acknowledge_manifest_deletion"
         },
         "finality": {
           "const": "submit-and-finalize"
@@ -3591,12 +3431,16 @@
           "type": "object",
           "additionalProperties": false,
           "required": [
-            "challenge_id",
-            "proof_commitment"
+            "manifest",
+            "evidence_hash",
+            "service_key",
+            "signature"
           ],
           "properties": {
-            "challenge_id": {},
-            "proof_commitment": {}
+            "manifest": {},
+            "evidence_hash": {},
+            "service_key": {},
+            "signature": {}
           }
         }
       },
@@ -3657,78 +3501,6 @@
           "properties": {
             "agreement_id": {},
             "expires_at": {}
-          }
-        }
-      },
-      "required": [
-        "capability",
-        "method",
-        "finality",
-        "payload"
-      ]
-    },
-    {
-      "properties": {
-        "capability": {
-          "const": "storage"
-        },
-        "method": {
-          "const": "acknowledge_deletion"
-        },
-        "finality": {
-          "const": "submit-and-finalize"
-        },
-        "payload": {
-          "type": "object",
-          "additionalProperties": false,
-          "required": [
-            "agreement_id",
-            "content_commitment",
-            "tombstone_root",
-            "root_sequence",
-            "leaf_index",
-            "leaf_count",
-            "inclusion_proof"
-          ],
-          "properties": {
-            "agreement_id": {},
-            "content_commitment": {},
-            "tombstone_root": {},
-            "root_sequence": {},
-            "leaf_index": {},
-            "leaf_count": {},
-            "inclusion_proof": {}
-          }
-        }
-      },
-      "required": [
-        "capability",
-        "method",
-        "finality",
-        "payload"
-      ]
-    },
-    {
-      "properties": {
-        "capability": {
-          "const": "storage"
-        },
-        "method": {
-          "const": "commit_provider_root"
-        },
-        "finality": {
-          "const": "submit-and-finalize"
-        },
-        "payload": {
-          "type": "object",
-          "additionalProperties": false,
-          "required": [
-            "sequence",
-            "appended_leaves"
-          ],
-          "properties": {
-            "sequence": {},
-            "appended_leaves": {}
           }
         }
       },
@@ -4214,11 +3986,13 @@
           "additionalProperties": false,
           "required": [
             "bucket",
+            "prefix",
             "cursor",
             "limit"
           ],
           "properties": {
             "bucket": {},
+            "prefix": {},
             "cursor": {},
             "limit": {}
           }

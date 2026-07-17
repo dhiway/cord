@@ -28,7 +28,7 @@ export const NATIVE_ROUTE_CONTRACT = {
     "activation_state": "candidate-pending",
     "production_activation_ready": false
   },
-  "route_count": 138,
+  "route_count": 136,
   "routes": [
     {
       "id": "identity:identity_status",
@@ -6998,46 +6998,62 @@ export const NATIVE_ROUTE_CONTRACT = {
       ]
     },
     {
-      "id": "storage:submit_checkpoint",
+      "id": "storage:acknowledge_manifest_deletion",
       "capability": "storage",
-      "method": "submit_checkpoint",
+      "method": "acknowledge_manifest_deletion",
       "finality": "submit-and-finalize",
       "parameters": [
         {
-          "name": "challenge_id",
+          "name": "manifest",
           "schema": {
             "type": "string",
             "pattern": "^0x[0-9a-f]{64}$"
           }
         },
         {
-          "name": "proof_commitment",
+          "name": "evidence_hash",
           "schema": {
             "type": "string",
             "pattern": "^0x[0-9a-f]{64}$"
           }
+        },
+        {
+          "name": "service_key",
+          "schema": {
+            "type": "string",
+            "pattern": "^0x[0-9a-f]{64}$"
+          }
+        },
+        {
+          "name": "signature",
+          "schema": {
+            "type": "string",
+            "pattern": "^0x[0-9a-f]{128}$"
+          }
         }
       ],
       "sample_payload": {
-        "challenge_id": "0x1111111111111111111111111111111111111111111111111111111111111111",
-        "proof_commitment": "0x1111111111111111111111111111111111111111111111111111111111111111"
+        "manifest": "0x1111111111111111111111111111111111111111111111111111111111111111",
+        "evidence_hash": "0x1111111111111111111111111111111111111111111111111111111111111111",
+        "service_key": "0x1111111111111111111111111111111111111111111111111111111111111111",
+        "signature": "0x11111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111"
       },
       "rust": {
         "declaration": "StorageProviderCommand",
-        "variant": "SubmitCheckpoint",
+        "variant": "AcknowledgeManifestDeletion",
         "result": "FinalizedNativeExtrinsic"
       },
       "typescript": {
         "object": "provider",
-        "callable": "submitCheckpoint"
+        "callable": "acknowledgeManifestDeletion"
       },
       "runtime": {
         "kind": "pallet-call",
         "source": "origin/orbis/pallets/storage-provider/src/lib.rs",
-        "target": "submit_checkpoint",
+        "target": "acknowledge_manifest_deletion",
         "pallet": "StorageProvider",
         "pallet_index": 120,
-        "call_index": 9
+        "call_index": 23
       },
       "metadata_binding": {
         "metadata_hash": "0x50c8958f0171889a4b01093a5dd5272faf8802018f24a4ac22b231d37b2adc45",
@@ -7045,7 +7061,9 @@ export const NATIVE_ROUTE_CONTRACT = {
       },
       "canonical_arguments": [
         "0x1111111111111111111111111111111111111111111111111111111111111111",
-        "0x1111111111111111111111111111111111111111111111111111111111111111"
+        "0x1111111111111111111111111111111111111111111111111111111111111111",
+        "0x1111111111111111111111111111111111111111111111111111111111111111",
+        "0x11111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111"
       ]
     },
     {
@@ -7139,167 +7157,6 @@ export const NATIVE_ROUTE_CONTRACT = {
       "canonical_arguments": [
         "0x1111111111111111111111111111111111111111111111111111111111111111",
         "1"
-      ]
-    },
-    {
-      "id": "storage:acknowledge_deletion",
-      "capability": "storage",
-      "method": "acknowledge_deletion",
-      "finality": "submit-and-finalize",
-      "parameters": [
-        {
-          "name": "agreement_id",
-          "schema": {
-            "type": "string",
-            "pattern": "^0x[0-9a-f]{64}$"
-          }
-        },
-        {
-          "name": "content_commitment",
-          "schema": {
-            "type": "string",
-            "pattern": "^0x[0-9a-f]{64}$"
-          }
-        },
-        {
-          "name": "tombstone_root",
-          "schema": {
-            "type": "string",
-            "pattern": "^0x[0-9a-f]{64}$"
-          }
-        },
-        {
-          "name": "root_sequence",
-          "schema": {
-            "type": "string",
-            "pattern": "^(0|[1-9][0-9]{0,19})$"
-          }
-        },
-        {
-          "name": "leaf_index",
-          "schema": {
-            "type": "string",
-            "pattern": "^(0|[1-9][0-9]{0,19})$"
-          }
-        },
-        {
-          "name": "leaf_count",
-          "schema": {
-            "type": "string",
-            "pattern": "^(0|[1-9][0-9]{0,19})$"
-          }
-        },
-        {
-          "name": "inclusion_proof",
-          "schema": {
-            "type": "array",
-            "items": {
-              "type": "string",
-              "pattern": "^0x[0-9a-f]{64}$"
-            },
-            "minItems": 0,
-            "maxItems": 64
-          }
-        }
-      ],
-      "sample_payload": {
-        "agreement_id": "0x1111111111111111111111111111111111111111111111111111111111111111",
-        "content_commitment": "0x1111111111111111111111111111111111111111111111111111111111111111",
-        "tombstone_root": "0x1111111111111111111111111111111111111111111111111111111111111111",
-        "root_sequence": "1",
-        "leaf_index": "1",
-        "leaf_count": "1",
-        "inclusion_proof": []
-      },
-      "rust": {
-        "declaration": "StorageProviderCommand",
-        "variant": "AcknowledgeDeletion",
-        "result": "FinalizedNativeExtrinsic"
-      },
-      "typescript": {
-        "object": "provider",
-        "callable": "acknowledgeDeletion"
-      },
-      "runtime": {
-        "kind": "pallet-call",
-        "source": "origin/orbis/pallets/storage-provider/src/lib.rs",
-        "target": "acknowledge_deletion",
-        "pallet": "StorageProvider",
-        "pallet_index": 120,
-        "call_index": 15
-      },
-      "metadata_binding": {
-        "metadata_hash": "0x50c8958f0171889a4b01093a5dd5272faf8802018f24a4ac22b231d37b2adc45",
-        "inventory": "runtime-source-item-index-and-canonical-sdk-typed-factory;decoded-metadata-blob-unavailable"
-      },
-      "canonical_arguments": [
-        "0x1111111111111111111111111111111111111111111111111111111111111111",
-        "0x1111111111111111111111111111111111111111111111111111111111111111",
-        "0x1111111111111111111111111111111111111111111111111111111111111111",
-        "1",
-        "1",
-        "1",
-        []
-      ]
-    },
-    {
-      "id": "storage:commit_provider_root",
-      "capability": "storage",
-      "method": "commit_provider_root",
-      "finality": "submit-and-finalize",
-      "parameters": [
-        {
-          "name": "sequence",
-          "schema": {
-            "type": "string",
-            "pattern": "^(0|[1-9][0-9]{0,19})$"
-          }
-        },
-        {
-          "name": "appended_leaves",
-          "schema": {
-            "type": "array",
-            "items": {
-              "type": "string",
-              "pattern": "^0x[0-9a-f]{64}$"
-            },
-            "minItems": 1,
-            "maxItems": 256
-          }
-        }
-      ],
-      "sample_payload": {
-        "sequence": "1",
-        "appended_leaves": [
-          "0x1111111111111111111111111111111111111111111111111111111111111111"
-        ]
-      },
-      "rust": {
-        "declaration": "StorageProviderCommand",
-        "variant": "CommitProviderRoot",
-        "result": "FinalizedNativeExtrinsic"
-      },
-      "typescript": {
-        "object": "provider",
-        "callable": "commitProviderRoot"
-      },
-      "runtime": {
-        "kind": "pallet-call",
-        "source": "origin/orbis/pallets/storage-provider/src/lib.rs",
-        "target": "commit_provider_root",
-        "pallet": "StorageProvider",
-        "pallet_index": 120,
-        "call_index": 16
-      },
-      "metadata_binding": {
-        "metadata_hash": "0x50c8958f0171889a4b01093a5dd5272faf8802018f24a4ac22b231d37b2adc45",
-        "inventory": "runtime-source-item-index-and-canonical-sdk-typed-factory;decoded-metadata-blob-unavailable"
-      },
-      "canonical_arguments": [
-        "1",
-        [
-          "0x1111111111111111111111111111111111111111111111111111111111111111"
-        ]
       ]
     },
     {
@@ -12679,23 +12536,33 @@ export const NATIVE_ROUTE_CONTRACT = {
                     "const": "storage"
                   },
                   "method": {
-                    "const": "submit_checkpoint"
+                    "const": "acknowledge_manifest_deletion"
                   },
                   "payload": {
                     "type": "object",
                     "additionalProperties": false,
                     "required": [
-                      "challenge_id",
-                      "proof_commitment"
+                      "manifest",
+                      "evidence_hash",
+                      "service_key",
+                      "signature"
                     ],
                     "properties": {
-                      "challenge_id": {
+                      "manifest": {
                         "type": "string",
                         "pattern": "^0x[0-9a-f]{64}$"
                       },
-                      "proof_commitment": {
+                      "evidence_hash": {
                         "type": "string",
                         "pattern": "^0x[0-9a-f]{64}$"
+                      },
+                      "service_key": {
+                        "type": "string",
+                        "pattern": "^0x[0-9a-f]{64}$"
+                      },
+                      "signature": {
+                        "type": "string",
+                        "pattern": "^0x[0-9a-f]{128}$"
                       }
                     }
                   }
@@ -12761,111 +12628,6 @@ export const NATIVE_ROUTE_CONTRACT = {
                       "expires_at": {
                         "type": "string",
                         "pattern": "^(0|[1-9][0-9]{0,19})$"
-                      }
-                    }
-                  }
-                }
-              },
-              {
-                "type": "object",
-                "additionalProperties": false,
-                "required": [
-                  "capability",
-                  "method",
-                  "payload"
-                ],
-                "properties": {
-                  "capability": {
-                    "const": "storage"
-                  },
-                  "method": {
-                    "const": "acknowledge_deletion"
-                  },
-                  "payload": {
-                    "type": "object",
-                    "additionalProperties": false,
-                    "required": [
-                      "agreement_id",
-                      "content_commitment",
-                      "tombstone_root",
-                      "root_sequence",
-                      "leaf_index",
-                      "leaf_count",
-                      "inclusion_proof"
-                    ],
-                    "properties": {
-                      "agreement_id": {
-                        "type": "string",
-                        "pattern": "^0x[0-9a-f]{64}$"
-                      },
-                      "content_commitment": {
-                        "type": "string",
-                        "pattern": "^0x[0-9a-f]{64}$"
-                      },
-                      "tombstone_root": {
-                        "type": "string",
-                        "pattern": "^0x[0-9a-f]{64}$"
-                      },
-                      "root_sequence": {
-                        "type": "string",
-                        "pattern": "^(0|[1-9][0-9]{0,19})$"
-                      },
-                      "leaf_index": {
-                        "type": "string",
-                        "pattern": "^(0|[1-9][0-9]{0,19})$"
-                      },
-                      "leaf_count": {
-                        "type": "string",
-                        "pattern": "^(0|[1-9][0-9]{0,19})$"
-                      },
-                      "inclusion_proof": {
-                        "type": "array",
-                        "items": {
-                          "type": "string",
-                          "pattern": "^0x[0-9a-f]{64}$"
-                        },
-                        "minItems": 0,
-                        "maxItems": 64
-                      }
-                    }
-                  }
-                }
-              },
-              {
-                "type": "object",
-                "additionalProperties": false,
-                "required": [
-                  "capability",
-                  "method",
-                  "payload"
-                ],
-                "properties": {
-                  "capability": {
-                    "const": "storage"
-                  },
-                  "method": {
-                    "const": "commit_provider_root"
-                  },
-                  "payload": {
-                    "type": "object",
-                    "additionalProperties": false,
-                    "required": [
-                      "sequence",
-                      "appended_leaves"
-                    ],
-                    "properties": {
-                      "sequence": {
-                        "type": "string",
-                        "pattern": "^(0|[1-9][0-9]{0,19})$"
-                      },
-                      "appended_leaves": {
-                        "type": "array",
-                        "items": {
-                          "type": "string",
-                          "pattern": "^0x[0-9a-f]{64}$"
-                        },
-                        "minItems": 1,
-                        "maxItems": 256
                       }
                     }
                   }
@@ -17294,23 +17056,33 @@ export const NATIVE_ROUTE_CONTRACT = {
                             "const": "storage"
                           },
                           "method": {
-                            "const": "submit_checkpoint"
+                            "const": "acknowledge_manifest_deletion"
                           },
                           "payload": {
                             "type": "object",
                             "additionalProperties": false,
                             "required": [
-                              "challenge_id",
-                              "proof_commitment"
+                              "manifest",
+                              "evidence_hash",
+                              "service_key",
+                              "signature"
                             ],
                             "properties": {
-                              "challenge_id": {
+                              "manifest": {
                                 "type": "string",
                                 "pattern": "^0x[0-9a-f]{64}$"
                               },
-                              "proof_commitment": {
+                              "evidence_hash": {
                                 "type": "string",
                                 "pattern": "^0x[0-9a-f]{64}$"
+                              },
+                              "service_key": {
+                                "type": "string",
+                                "pattern": "^0x[0-9a-f]{64}$"
+                              },
+                              "signature": {
+                                "type": "string",
+                                "pattern": "^0x[0-9a-f]{128}$"
                               }
                             }
                           }
@@ -17376,111 +17148,6 @@ export const NATIVE_ROUTE_CONTRACT = {
                               "expires_at": {
                                 "type": "string",
                                 "pattern": "^(0|[1-9][0-9]{0,19})$"
-                              }
-                            }
-                          }
-                        }
-                      },
-                      {
-                        "type": "object",
-                        "additionalProperties": false,
-                        "required": [
-                          "capability",
-                          "method",
-                          "payload"
-                        ],
-                        "properties": {
-                          "capability": {
-                            "const": "storage"
-                          },
-                          "method": {
-                            "const": "acknowledge_deletion"
-                          },
-                          "payload": {
-                            "type": "object",
-                            "additionalProperties": false,
-                            "required": [
-                              "agreement_id",
-                              "content_commitment",
-                              "tombstone_root",
-                              "root_sequence",
-                              "leaf_index",
-                              "leaf_count",
-                              "inclusion_proof"
-                            ],
-                            "properties": {
-                              "agreement_id": {
-                                "type": "string",
-                                "pattern": "^0x[0-9a-f]{64}$"
-                              },
-                              "content_commitment": {
-                                "type": "string",
-                                "pattern": "^0x[0-9a-f]{64}$"
-                              },
-                              "tombstone_root": {
-                                "type": "string",
-                                "pattern": "^0x[0-9a-f]{64}$"
-                              },
-                              "root_sequence": {
-                                "type": "string",
-                                "pattern": "^(0|[1-9][0-9]{0,19})$"
-                              },
-                              "leaf_index": {
-                                "type": "string",
-                                "pattern": "^(0|[1-9][0-9]{0,19})$"
-                              },
-                              "leaf_count": {
-                                "type": "string",
-                                "pattern": "^(0|[1-9][0-9]{0,19})$"
-                              },
-                              "inclusion_proof": {
-                                "type": "array",
-                                "items": {
-                                  "type": "string",
-                                  "pattern": "^0x[0-9a-f]{64}$"
-                                },
-                                "minItems": 0,
-                                "maxItems": 64
-                              }
-                            }
-                          }
-                        }
-                      },
-                      {
-                        "type": "object",
-                        "additionalProperties": false,
-                        "required": [
-                          "capability",
-                          "method",
-                          "payload"
-                        ],
-                        "properties": {
-                          "capability": {
-                            "const": "storage"
-                          },
-                          "method": {
-                            "const": "commit_provider_root"
-                          },
-                          "payload": {
-                            "type": "object",
-                            "additionalProperties": false,
-                            "required": [
-                              "sequence",
-                              "appended_leaves"
-                            ],
-                            "properties": {
-                              "sequence": {
-                                "type": "string",
-                                "pattern": "^(0|[1-9][0-9]{0,19})$"
-                              },
-                              "appended_leaves": {
-                                "type": "array",
-                                "items": {
-                                  "type": "string",
-                                  "pattern": "^0x[0-9a-f]{64}$"
-                                },
-                                "minItems": 1,
-                                "maxItems": 256
                               }
                             }
                           }

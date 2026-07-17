@@ -24,8 +24,8 @@ const sourceHeader = readFileSync(resolve(root, "HEADER-GPL3"), "utf8");
 const source = JSON.parse(readFileSync(resolve(root, "docs/sdk/native-route-contract.json"), "utf8"));
 if (source.schema !== "cord.native-route-contract.v1" || source.route_count !== source.routes?.length)
   throw new Error("invalid native route contract");
-if (source.route_count !== 138 || new Set(source.routes.map(({ id }: any) => id)).size !== source.route_count)
-  throw new Error("native route contract must contain 138 unique routes");
+if (source.route_count !== 136 || new Set(source.routes.map(({ id }: any) => id)).size !== source.route_count)
+  throw new Error("native route contract must contain 136 unique routes");
 const allowedRuntimeKinds = new Set(["runtime-api", "pallet-call", "sdk-host-operation"]);
 for (const route of source.routes) {
   if (!allowedRuntimeKinds.has(route.runtime?.kind)) throw new Error(`${route.id}: unsupported runtime binding kind`);

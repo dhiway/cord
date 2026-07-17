@@ -376,7 +376,7 @@ equal(descriptor.fixtureIdentity.genesis_state_root, matrix.networks.orbis.candi
 equal(descriptor.fixtureIdentity.candidate_identity_sha256, matrix.networks.orbis.candidate_genesis_identity_sha256, "descriptor candidate artifact");
 equal(descriptor.nativeHostContract.methodCount, NATIVE_HOST_METHODS.length, "descriptor native method count");
 equal(routeContract.schema, "cord.native-route-contract.v1", "route contract schema");
-equal(routeContract.route_count, 138, "route contract count");
+equal(routeContract.route_count, 136, "route contract count");
 equal(routeContract.network.metadata_hash, matrix.networks.orbis.metadata_hash, "route contract metadata hash");
 equal(routeContract.network.activation_state, matrix.networks.orbis.activation_state, "route contract activation state");
 equal(routeContract.network.production_activation_ready, false, "route contract production gate");

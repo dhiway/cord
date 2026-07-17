@@ -26,6 +26,7 @@ use std::{
 
 use async_trait::async_trait;
 use codec::Encode;
+use fs4::FileExt;
 use serde::{Deserialize, Serialize};
 use sp_core::{crypto::AccountId32, H256};
 use tokio::{
@@ -53,7 +54,7 @@ pub struct CheckpointSubmission {
 	pub duty: ChallengeDuty,
 	/// Signed local provider root produced while handling the duty.
 	pub checkpoint: SignedCheckpoint,
-	/// Exact runtime proof commitment passed to `StorageProvider::submit_checkpoint`.
+	/// Legacy challenge proof retained only for fail-closed cutover diagnostics.
 	pub proof_commitment: String,
 }
 
@@ -121,12 +122,6 @@ pub struct ProviderRootSubmission {
 #[derive(Clone, Debug, Eq, PartialEq, Serialize, Deserialize)]
 #[serde(tag = "kind", content = "request", rename_all = "snake_case")]
 pub enum ProviderSubmission {
-	/// Native `StorageProvider::submit_checkpoint` request.
-	Checkpoint(CheckpointSubmission),
-	/// Native `StorageProvider::commit_provider_root` request.
-	ProviderRoot(ProviderRootSubmission),
-	/// Native provider content-deletion acknowledgement request.
-	ContentDeletion(ContentDeletionSubmission),
 	/// Native `StorageProvider::acknowledge_manifest_deletion` request.
 	ManifestDeletion(ManifestDeletionSubmission),
 }
@@ -134,13 +129,16 @@ pub enum ProviderSubmission {
 /// Explicit seam between proof production and signed Orbis extrinsic submission.
 #[async_trait]
 pub trait CheckpointSubmitter: Send + Sync + 'static {
-	/// Durably accept a checkpoint submission. Implementations must be idempotent by challenge id.
+	/// Legacy challenge seam. The production JSONL implementation fails closed because canonical
+	/// checkpoint v2 owns runtime submission.
 	async fn submit(&self, request: CheckpointSubmission) -> Result<(), String>;
 
-	/// Durably accept an append-only provider root update.
+	/// Legacy local root-completion seam. Commons has no matching call; the production JSONL
+	/// implementation fails closed until the DiskStore/API completion path is removed.
 	async fn submit_root(&self, request: ProviderRootSubmission) -> Result<(), String>;
 
-	/// Durably accept a content-deletion acknowledgement.
+	/// Legacy agreement-deletion seam. Commons has no matching call; the production JSONL
+	/// implementation fails closed until callers use canonical manifest deletion duties.
 	async fn submit_deletion(&self, request: ContentDeletionSubmission) -> Result<(), String>;
 
 	/// Durably accept one idempotent canonical manifest-deletion acknowledgement.
@@ -152,11 +150,8 @@ pub trait CheckpointSubmitter: Send + Sync + 'static {
 	}
 }
 
-/// Append-only JSONL outbox for a separately governed CORD Orbis transaction worker.
-///
-/// This keeps the provider service from inventing nonce/signer behavior. The downstream worker
-/// submits `StorageProvider::submit_checkpoint`, waits for finality, and records the challenge id
-/// before acknowledging/removing an outbox item.
+/// Append-only JSONL outbox for metadata-valid canonical manifest-deletion acknowledgements.
+/// Legacy challenge, root and agreement-deletion methods fail closed without emitting records.
 pub struct JsonlCheckpointOutbox {
 	path: PathBuf,
 	write_lock: Mutex<()>,
@@ -179,33 +174,18 @@ impl JsonlCheckpointOutbox {
 #[async_trait]
 impl CheckpointSubmitter for JsonlCheckpointOutbox {
 	async fn submit(&self, request: CheckpointSubmission) -> Result<(), String> {
-		let _guard = self.write_lock.lock().await;
-		let mut encoded = serde_json::to_vec(&ProviderSubmission::Checkpoint(request))
-			.map_err(|error| error.to_string())?;
-		self.append(&mut encoded).await
+		let _ = request;
+		Err("legacy challenge checkpoint is superseded by the checkpoint v2 outbox".into())
 	}
 
 	async fn submit_root(&self, request: ProviderRootSubmission) -> Result<(), String> {
-		let _guard = self.write_lock.lock().await;
-		let mut encoded = serde_json::to_vec(&ProviderSubmission::ProviderRoot(request))
-			.map_err(|error| error.to_string())?;
-		self.append(&mut encoded).await
+		let _ = request;
+		Err("legacy provider-root submission is not a Commons runtime call".into())
 	}
 
 	async fn submit_deletion(&self, request: ContentDeletionSubmission) -> Result<(), String> {
-		let _guard = self.write_lock.lock().await;
-		let root = ProviderRootSubmission {
-			sequence: request.root_sequence,
-			appended_leaves: vec![request.tombstone_leaf.clone()],
-			expected_root: request.tombstone_root.clone(),
-			expected_leaf_count: request.leaf_count,
-		};
-		let mut encoded = serde_json::to_vec(&ProviderSubmission::ProviderRoot(root))
-			.map_err(|error| error.to_string())?;
-		self.append(&mut encoded).await?;
-		let mut encoded = serde_json::to_vec(&ProviderSubmission::ContentDeletion(request))
-			.map_err(|error| error.to_string())?;
-		self.append(&mut encoded).await
+		let _ = request;
+		Err("legacy content-deletion submission is not a Commons runtime call".into())
 	}
 
 	async fn submit_manifest_deletion(
@@ -213,7 +193,10 @@ impl CheckpointSubmitter for JsonlCheckpointOutbox {
 		request: ManifestDeletionSubmission,
 	) -> Result<(), String> {
 		let _guard = self.write_lock.lock().await;
-		let existing = read_bounded_jsonl_tail(&self.path, MANIFEST_DELETION_DEDUPE_TAIL_BYTES).await?;
+		let _process_lock = self.lock_outbox().await?;
+		repair_incomplete_jsonl_tail(&self.path).await?;
+		let existing =
+			read_bounded_jsonl_tail(&self.path, MANIFEST_DELETION_DEDUPE_TAIL_BYTES).await?;
 		for line in existing.split(|byte| *byte == b'\n').filter(|line| !line.is_empty()) {
 			let Ok(ProviderSubmission::ManifestDeletion(previous)) =
 				serde_json::from_slice::<ProviderSubmission>(line)
@@ -230,7 +213,7 @@ impl CheckpointSubmitter for JsonlCheckpointOutbox {
 		}
 		let mut encoded = serde_json::to_vec(&ProviderSubmission::ManifestDeletion(request))
 			.map_err(|error| error.to_string())?;
-		self.append(&mut encoded).await
+		self.append_locked(&mut encoded).await
 	}
 }
 
@@ -242,9 +225,14 @@ async fn read_bounded_jsonl_tail(path: &Path, limit: u64) -> Result<Vec<u8>, Str
 	};
 	let len = file.metadata().await.map_err(|error| error.to_string())?.len();
 	let start = len.saturating_sub(limit);
-	file.seek(std::io::SeekFrom::Start(start)).await.map_err(|error| error.to_string())?;
+	file.seek(std::io::SeekFrom::Start(start))
+		.await
+		.map_err(|error| error.to_string())?;
 	let mut bytes = Vec::with_capacity((len - start) as usize);
-	file.take(limit).read_to_end(&mut bytes).await.map_err(|error| error.to_string())?;
+	file.take(limit)
+		.read_to_end(&mut bytes)
+		.await
+		.map_err(|error| error.to_string())?;
 	if start > 0 {
 		if let Some(newline) = bytes.iter().position(|byte| *byte == b'\n') {
 			bytes.drain(..=newline);
@@ -256,14 +244,30 @@ async fn read_bounded_jsonl_tail(path: &Path, limit: u64) -> Result<Vec<u8>, Str
 }
 
 impl JsonlCheckpointOutbox {
-	async fn append(&self, encoded: &mut Vec<u8>) -> Result<(), String> {
-		if encoded.len() as u64 > MAX_JSONL_RECORD_BYTES {
-			return Err("outbox record exceeds the bounded line limit".into());
-		}
+	async fn lock_outbox(&self) -> Result<std::fs::File, String> {
 		if let Some(parent) = self.path.parent() {
 			tokio::fs::create_dir_all(parent).await.map_err(|error| error.to_string())?;
 		}
-		repair_incomplete_jsonl_tail(&self.path).await?;
+		let lock_path = suffixed_path(&self.path, ".lock");
+		tokio::task::spawn_blocking(move || {
+			let lock = std::fs::OpenOptions::new()
+				.create(true)
+				.read(true)
+				.write(true)
+				.open(lock_path)
+				.map_err(|error| error.to_string())?;
+			FileExt::lock_exclusive(&lock).map_err(|error| error.to_string())?;
+			Ok(lock)
+		})
+		.await
+		.map_err(|error| error.to_string())?
+	}
+
+	/// Append while the caller holds the shared process lock for the complete dedupe decision.
+	async fn append_locked(&self, encoded: &mut Vec<u8>) -> Result<(), String> {
+		if encoded.len() as u64 > MAX_JSONL_RECORD_BYTES {
+			return Err("outbox record exceeds the bounded line limit".into());
+		}
 		encoded.push(b'\n');
 		let mut file = tokio::fs::OpenOptions::new()
 			.create(true)
@@ -279,6 +283,12 @@ impl JsonlCheckpointOutbox {
 		}
 		sync_parent_directory(&self.path).await
 	}
+}
+
+fn suffixed_path(path: &Path, suffix: &str) -> PathBuf {
+	let mut value = path.as_os_str().to_os_string();
+	value.push(suffix);
+	PathBuf::from(value)
 }
 
 async fn sync_parent_directory(path: &Path) -> Result<(), String> {
@@ -300,7 +310,9 @@ async fn repair_incomplete_jsonl_tail(path: &Path) -> Result<(), String> {
 	if len == 0 {
 		return Ok(());
 	}
-	file.seek(std::io::SeekFrom::Start(len - 1)).await.map_err(|error| error.to_string())?;
+	file.seek(std::io::SeekFrom::Start(len - 1))
+		.await
+		.map_err(|error| error.to_string())?;
 	let mut last = [0u8; 1];
 	file.read_exact(&mut last).await.map_err(|error| error.to_string())?;
 	if last[0] == b'\n' {
@@ -309,7 +321,9 @@ async fn repair_incomplete_jsonl_tail(path: &Path) -> Result<(), String> {
 	let start = len.saturating_sub(MAX_JSONL_RECORD_BYTES.saturating_add(1));
 	let width = (len - start) as usize;
 	let mut tail = vec![0u8; width];
-	file.seek(std::io::SeekFrom::Start(start)).await.map_err(|error| error.to_string())?;
+	file.seek(std::io::SeekFrom::Start(start))
+		.await
+		.map_err(|error| error.to_string())?;
 	file.read_exact(&mut tail).await.map_err(|error| error.to_string())?;
 	let keep = match tail.iter().rposition(|byte| *byte == b'\n') {
 		Some(index) => start + index as u64 + 1,
@@ -674,6 +688,19 @@ mod tests {
 
 	struct NoopAuthority;
 
+	fn manifest_deletion(byte: &str) -> ManifestDeletionSubmission {
+		ManifestDeletionSubmission {
+			manifest: format!("0x{}", byte.repeat(32)),
+			bucket_id: format!("0x{}", "22".repeat(32)),
+			provider_commitment: format!("0x{}", "33".repeat(32)),
+			evidence_hash: format!("0x{}", "44".repeat(32)),
+			tombstoned_at: 70,
+			service_key: format!("0x{}", "55".repeat(32)),
+			signature: format!("0x{}", "66".repeat(64)),
+			duty_fingerprint: format!("0x{}", "77".repeat(32)),
+		}
+	}
+
 	#[test]
 	fn provider_manifest_deletion_signature_is_accepted_by_runtime_pallet() {
 		use origin_commons_runtime::{Runtime, RuntimeOrigin, StorageProvider, System};
@@ -681,8 +708,8 @@ mod tests {
 		use pallet_orbis_storage_provider::{
 			AssignedProvidersOf, CanonicalManifestRecord, CanonicalManifests,
 			GovernedFinalizedCheckpoint, ManifestDeletionAcknowledgements,
-			ManifestDeletionRequirements, OrganizationRefOf,
-			ProviderOrganizationRefV1, ProviderRecord, ProviderStatus, Providers, ServiceKeyRecord,
+			ManifestDeletionRequirements, OrganizationRefOf, ProviderOrganizationRefV1,
+			ProviderRecord, ProviderStatus, Providers, ServiceKeyRecord,
 		};
 		use sp_core::ed25519;
 
@@ -892,10 +919,37 @@ mod tests {
 	}
 
 	#[tokio::test]
-	async fn deletion_outbox_durably_orders_root_before_acknowledgement() {
+	async fn every_legacy_outbox_path_fails_closed_without_emitting_invalid_runtime_calls() {
 		let temp = tempfile::tempdir().unwrap();
 		let path = temp.path().join("outbox.jsonl");
 		let outbox = JsonlCheckpointOutbox::new(&path);
+		let checkpoint = CheckpointSubmission {
+			duty: ChallengeDuty {
+				challenge_id: format!("0x{}", "10".repeat(32)),
+				agreement_id: format!("0x{}", "11".repeat(32)),
+				content_commitment: format!("0x{}", "12".repeat(32)),
+				expected_commitment: format!("0x{}", "13".repeat(32)),
+				due_at: 10,
+				observed_at: format!("0x{}", "14".repeat(32)),
+			},
+			checkpoint: SignedCheckpoint {
+				root: format!("0x{}", "15".repeat(32)),
+				leaves: 1,
+				created_unix_ms: 1,
+				signature: format!("0x{}", "16".repeat(64)),
+			},
+			proof_commitment: format!("0x{}", "17".repeat(32)),
+		};
+		assert!(outbox.submit(checkpoint).await.is_err());
+		assert!(outbox
+			.submit_root(ProviderRootSubmission {
+				sequence: 1,
+				appended_leaves: vec![format!("0x{}", "18".repeat(32))],
+				expected_root: format!("0x{}", "19".repeat(32)),
+				expected_leaf_count: 1,
+			})
+			.await
+			.is_err());
 		let request = ContentDeletionSubmission {
 			agreement_id: format!("0x{}", "01".repeat(32)),
 			content_commitment: format!("0x{}", "02".repeat(32)),
@@ -907,15 +961,8 @@ mod tests {
 			leaf_count: 3,
 			inclusion_proof: vec![format!("0x{}", "05".repeat(32))],
 		};
-		outbox.submit_deletion(request).await.unwrap();
-		let lines: Vec<_> = tokio::fs::read_to_string(path)
-			.await
-			.unwrap()
-			.lines()
-			.map(|line| serde_json::from_str::<ProviderSubmission>(line).unwrap())
-			.collect();
-		assert!(matches!(lines[0], ProviderSubmission::ProviderRoot(_)));
-		assert!(matches!(lines[1], ProviderSubmission::ContentDeletion(_)));
+		assert!(outbox.submit_deletion(request).await.is_err());
+		assert!(!path.exists());
 	}
 
 	#[tokio::test]
@@ -939,6 +986,30 @@ mod tests {
 		let mut conflict = request;
 		conflict.evidence_hash = format!("0x{}", "88".repeat(32));
 		assert!(outbox.submit_manifest_deletion(conflict).await.is_err());
+		assert_eq!(tokio::fs::read_to_string(path).await.unwrap().lines().count(), 1);
+	}
+
+	#[tokio::test(flavor = "multi_thread", worker_threads = 4)]
+	async fn independent_manifest_deletion_producers_dedupe_under_one_process_lock() {
+		let temp = tempfile::tempdir().unwrap();
+		let path = temp.path().join("outbox.jsonl");
+		let request = manifest_deletion("11");
+		let producer_count = 16;
+		let barrier = Arc::new(tokio::sync::Barrier::new(producer_count));
+		let mut tasks = Vec::with_capacity(producer_count);
+		for _ in 0..producer_count {
+			let barrier = barrier.clone();
+			let request = request.clone();
+			let outbox = JsonlCheckpointOutbox::new(&path);
+			tasks.push(tokio::spawn(async move {
+				barrier.wait().await;
+				outbox.submit_manifest_deletion(request).await
+			}));
+		}
+
+		for task in tasks {
+			task.await.unwrap().unwrap();
+		}
 		assert_eq!(tokio::fs::read_to_string(path).await.unwrap().lines().count(), 1);
 	}
 
@@ -967,21 +1038,15 @@ mod tests {
 	}
 
 	#[tokio::test]
-	async fn producer_repairs_torn_final_submission_before_ordered_retry() {
+	async fn producer_repairs_torn_final_submission_before_manifest_retry() {
 		let temp = tempfile::tempdir().unwrap();
 		let path = temp.path().join("outbox.jsonl");
 		let outbox = JsonlCheckpointOutbox::new(&path);
-		let root = |sequence| ProviderRootSubmission {
-			sequence,
-			appended_leaves: vec![format!("0x{}", "01".repeat(32))],
-			expected_root: format!("0x{}", "02".repeat(32)),
-			expected_leaf_count: sequence,
-		};
-		outbox.submit_root(root(1)).await.unwrap();
+		outbox.submit_manifest_deletion(manifest_deletion("11")).await.unwrap();
 		let mut file = tokio::fs::OpenOptions::new().append(true).open(&path).await.unwrap();
 		file.write_all(b"{\"kind\":\"provider_root\"").await.unwrap();
 		file.sync_all().await.unwrap();
-		outbox.submit_root(root(2)).await.unwrap();
+		outbox.submit_manifest_deletion(manifest_deletion("12")).await.unwrap();
 		let submissions: Vec<_> = tokio::fs::read_to_string(&path)
 			.await
 			.unwrap()
@@ -990,10 +1055,10 @@ mod tests {
 			.collect();
 		assert_eq!(submissions.len(), 2);
 		assert!(
-			matches!(&submissions[0], ProviderSubmission::ProviderRoot(root) if root.sequence == 1)
+			matches!(&submissions[0], ProviderSubmission::ManifestDeletion(request) if request.manifest == format!("0x{}", "11".repeat(32)))
 		);
 		assert!(
-			matches!(&submissions[1], ProviderSubmission::ProviderRoot(root) if root.sequence == 2)
+			matches!(&submissions[1], ProviderSubmission::ManifestDeletion(request) if request.manifest == format!("0x{}", "12".repeat(32)))
 		);
 	}
 
@@ -1003,14 +1068,7 @@ mod tests {
 		let path = temp.path().join("outbox.jsonl");
 		let outbox = JsonlCheckpointOutbox::new(&path);
 		outbox.fail_next_directory_sync.store(true, Ordering::SeqCst);
-		let result = outbox
-			.submit_root(ProviderRootSubmission {
-				sequence: 1,
-				appended_leaves: vec![format!("0x{}", "01".repeat(32))],
-				expected_root: format!("0x{}", "02".repeat(32)),
-				expected_leaf_count: 1,
-			})
-			.await;
+		let result = outbox.submit_manifest_deletion(manifest_deletion("11")).await;
 		assert_eq!(result.unwrap_err(), "injected parent directory sync failure");
 		assert!(tokio::fs::read(&path).await.unwrap().ends_with(b"\n"));
 	}

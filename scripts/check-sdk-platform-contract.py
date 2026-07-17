@@ -126,7 +126,7 @@ if descriptor.get("productionPapiDescriptorGenerated") is not True:
     fail("Commons PAPI descriptor is not marked generated")
 
 routes = json.loads((ROOT / "docs/sdk/native-route-contract.json").read_text())
-expected_route_count = 138
+expected_route_count = 136
 if routes.get("route_count") != expected_route_count:
     fail(f"native route count is not {expected_route_count}")
 if len(routes.get("routes", [])) != expected_route_count:

@@ -44,6 +44,7 @@ cid = { workspace = true, default-features = true }
 clap = { workspace = true, features = ["derive"] }
 codec = { workspace = true, default-features = true }
 frame-metadata = { version = "23.0.1", features = ["current"], optional = true }
+fs4 = { workspace = true }
 hex = { workspace = true, default-features = true }
 http-body-util = { workspace = true }
 hyper = { workspace = true, features = ["client", "http1", "server"] }

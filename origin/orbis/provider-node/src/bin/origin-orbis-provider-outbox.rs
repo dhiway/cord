@@ -16,22 +16,21 @@
 // You should have received a copy of the GNU General Public License
 // along with CORD. If not, see <https://www.gnu.org/licenses/>.
 
-//! Typed provider outbox consumer using the CORD Origin SDK Orbis finality pipeline.
+//! Bounded, crash-safe provider outbox consumer for the Orbis finality pipeline.
 
 use std::{
-	collections::BTreeSet,
+	fs::{self, File, OpenOptions},
+	io::{BufRead, BufReader, Read, Seek, SeekFrom, Write},
 	path::{Path, PathBuf},
 	time::Duration,
 };
 
 use clap::Parser;
+use fs4::FileExt;
 use oc::{
 	product_sdk::{
 		domains::{
-			common::{
-				AccountId, AgreementId, ChallengeId, ContentCommitment, ProofCommitment,
-				SubmitAndFinalize,
-			},
+			common::{AccountId, ContentCommitment, ProofCommitment, SubmitAndFinalize},
 			storage_provider::{ServiceKey, StorageProviderCommand},
 		},
 		OrbisDomainTransport, OrbisNativeClient,
@@ -40,8 +39,16 @@ use oc::{
 	OriginSdkError, OriginSigner,
 };
 use origin_orbis_provider::ProviderSubmission;
-use serde::{Deserialize, Serialize};
-use tokio::io::AsyncWriteExt;
+use serde::{de::DeserializeOwned, Deserialize, Serialize};
+
+const STATE_VERSION: u16 = 4;
+const MAX_RECORD_BYTES: usize = 1024 * 1024;
+const MAX_BATCH_BYTES: usize = 2 * 1024 * 1024;
+const MAX_BATCH_RECORDS: usize = 32;
+const MAX_STATE_BYTES: u64 = 2 * 1024 * 1024 + 64 * 1024;
+const MAX_RECEIPTS: usize = 256;
+const COMPACT_AFTER_BYTES: u64 = 4 * 1024 * 1024;
+const SOURCE_PREFIX_BYTES: u64 = 64 * 1024;
 
 #[derive(Debug, Parser)]
 #[command(
@@ -55,13 +62,13 @@ struct Cli {
 	/// Provider JSONL outbox emitted by origin-orbis-provider.
 	#[arg(long)]
 	outbox: PathBuf,
-	/// Fsynced finalized receipt journal. Defaults beside the outbox.
+	/// Bounded fsynced finalized receipt ledger. Defaults beside the outbox.
 	#[arg(long)]
 	receipts: Option<PathBuf>,
 	/// Environment variable containing the provider account secret URI.
 	#[arg(long, default_value = "ORBIS_PROVIDER_ACCOUNT_SURI")]
 	signer_suri_env: String,
-	/// Process existing work once and exit instead of polling.
+	/// Process one bounded batch and exit instead of polling.
 	#[arg(long)]
 	once: bool,
 	/// Poll interval when not using `--once`.
@@ -69,12 +76,137 @@ struct Cli {
 	poll_seconds: u64,
 }
 
+#[derive(Clone, Copy, Debug, Deserialize, Eq, PartialEq, Serialize)]
+#[serde(deny_unknown_fields)]
+struct SourceId {
+	device: u64,
+	inode: u64,
+}
+
+#[cfg(unix)]
+fn source_id(metadata: &fs::Metadata) -> Result<SourceId, Box<dyn std::error::Error>> {
+	use std::os::unix::fs::MetadataExt;
+	Ok(SourceId { device: metadata.dev(), inode: metadata.ino() })
+}
+
+#[cfg(not(unix))]
+fn source_id(_metadata: &fs::Metadata) -> Result<SourceId, Box<dyn std::error::Error>> {
+	Err("provider outbox source identity is unsupported on this platform".into())
+}
+
 #[derive(Clone, Debug, Deserialize, Serialize)]
+#[serde(deny_unknown_fields)]
+struct Cursor {
+	version: u16,
+	source: Option<SourceId>,
+	offset: u64,
+	prefix_len: u64,
+	prefix_hash: String,
+}
+
+impl Default for Cursor {
+	fn default() -> Self {
+		Self {
+			version: STATE_VERSION,
+			source: None,
+			offset: 0,
+			prefix_len: 0,
+			prefix_hash: blake3::hash(&[]).to_hex().to_string(),
+		}
+	}
+}
+
+#[derive(Clone, Debug, Deserialize, Eq, PartialEq, Serialize)]
 #[serde(deny_unknown_fields)]
 struct FinalizedReceipt {
 	key: String,
+	record_hash: String,
 	block_hash: String,
 	extrinsic_hash: String,
+}
+
+#[derive(Clone, Debug, Deserialize, Serialize)]
+#[serde(deny_unknown_fields)]
+struct ReceiptLedger {
+	version: u16,
+	entries: Vec<FinalizedReceipt>,
+}
+
+impl Default for ReceiptLedger {
+	fn default() -> Self {
+		Self { version: STATE_VERSION, entries: Vec::new() }
+	}
+}
+
+#[derive(Clone, Debug, Deserialize, Serialize)]
+#[serde(deny_unknown_fields)]
+struct PendingRecord {
+	version: u16,
+	source: SourceId,
+	start: u64,
+	end: u64,
+	record_hash: String,
+	prefix_len: u64,
+	prefix_hash: String,
+	key: String,
+	line: String,
+}
+
+#[derive(Clone, Debug, Deserialize, Serialize)]
+#[serde(deny_unknown_fields)]
+struct CompactionMarker {
+	version: u16,
+	old_source: SourceId,
+	consumed_len: u64,
+	prefix_len: u64,
+	prefix_hash: String,
+}
+
+struct StatePaths {
+	receipts: PathBuf,
+	cursor: PathBuf,
+	pending: PathBuf,
+	compaction: PathBuf,
+	consumer_lock: PathBuf,
+}
+
+impl StatePaths {
+	fn new(receipts: &Path) -> Self {
+		Self {
+			receipts: receipts.to_path_buf(),
+			cursor: suffixed(receipts, ".cursor"),
+			pending: suffixed(receipts, ".pending"),
+			compaction: suffixed(receipts, ".compaction"),
+			consumer_lock: suffixed(receipts, ".consumer.lock"),
+		}
+	}
+}
+
+struct LockedFile(File);
+
+impl Drop for LockedFile {
+	fn drop(&mut self) {
+		let _ = FileExt::unlock(&self.0);
+	}
+}
+
+fn exclusive_lock(path: &Path) -> Result<LockedFile, Box<dyn std::error::Error>> {
+	if let Some(parent) = path.parent() {
+		fs::create_dir_all(parent)?;
+	}
+	let file = OpenOptions::new().create(true).read(true).write(true).open(path)?;
+	FileExt::lock_exclusive(&file)?;
+	Ok(LockedFile(file))
+}
+
+#[derive(Debug)]
+struct OutboxRecord {
+	source: SourceId,
+	start: u64,
+	end: u64,
+	line: Vec<u8>,
+	prefix_len: u64,
+	prefix_hash: String,
 }
 
 #[tokio::main]
@@ -83,7 +215,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
 	let receipts = cli
 		.receipts
 		.clone()
-		.unwrap_or_else(|| cli.outbox.with_extension("receipts-v3.jsonl"));
+		.unwrap_or_else(|| cli.outbox.with_extension("receipts-v4.json"));
 	let suri = std::env::var(&cli.signer_suri_env).map_err(|_| {
 		format!("{} must contain the provider account secret URI", cli.signer_suri_env)
 	})?;
@@ -108,109 +240,144 @@ async fn consume(
 	signer: &AccountId,
 	transport: &OrbisDomainTransport,
 ) -> Result<(), Box<dyn std::error::Error>> {
-	let mut completed = completed_keys(receipts).await?;
-	let Some(contents) = read_complete_jsonl_snapshot(outbox).await? else { return Ok(()) };
-	for (line_number, line) in contents.lines().enumerate() {
-		if line.trim().is_empty() {
-			continue;
+	let paths = StatePaths::new(receipts);
+	let _consumer = exclusive_lock(&paths.consumer_lock)?;
+	let outbox_lock_path = suffixed(outbox, ".lock");
+	recover_compaction(outbox, &outbox_lock_path, &paths)?;
+	let mut cursor = load_json::<Cursor>(&paths.cursor)?.unwrap_or_default();
+	let mut ledger = load_json::<ReceiptLedger>(&paths.receipts)?.unwrap_or_default();
+	ensure_version(cursor.version)?;
+	ensure_version(ledger.version)?;
+
+	if let Some(pending) = load_json::<PendingRecord>(&paths.pending)? {
+		ensure_version(pending.version)?;
+		validate_pending(&pending)?;
+		verify_pending_source(outbox, &outbox_lock_path, &pending)?;
+		if !recover_local_finality(&paths, &mut cursor, &ledger, &pending)? {
+			finalize_pending(
+				outbox,
+				&outbox_lock_path,
+				&paths,
+				&mut cursor,
+				&mut ledger,
+				pending,
+				signer,
+				transport,
+			)
+			.await?;
 		}
-		let request: ProviderSubmission = serde_json::from_str(line)
-			.map_err(|error| format!("invalid outbox line {}: {error}", line_number + 1))?;
-		let (key, command) = command(request)?;
-		if completed.contains(&key) {
-			continue;
-		}
-		let intent =
-			SubmitAndFinalize::new(format!("orbis-provider-outbox-{key}"), signer.clone(), command)
-				.map_err(native_error)?;
-		let lifecycle = transport.submit_storage_provider(&intent).await.map_err(native_error)?;
-		let receipt = FinalizedReceipt {
-			key,
-			block_hash: lifecycle.block_hash.ok_or("finalized provider call has no block hash")?,
-			extrinsic_hash: lifecycle
-				.extrinsic_hash
-				.ok_or("finalized provider call has no extrinsic hash")?,
-		};
-		append_receipt(receipts, &receipt).await?;
-		completed.insert(receipt.key);
 	}
+
+	let batch = read_batch(outbox, &outbox_lock_path, &paths.cursor, &mut cursor)?;
+	for record in batch {
+		let line = String::from_utf8(record.line.clone())?;
+		let request: ProviderSubmission = serde_json::from_str(line.trim_end_matches('\n'))?;
+		let (key, _) = command(request)?;
+		let pending = PendingRecord {
+			version: STATE_VERSION,
+			source: record.source,
+			start: record.start,
+			end: record.end,
+			record_hash: blake3::hash(&record.line).to_hex().to_string(),
+			prefix_len: record.prefix_len,
+			prefix_hash: record.prefix_hash,
+			key,
+			line,
+		};
+		atomic_json(&paths.pending, &pending)?;
+		finalize_pending(
+			outbox,
+			&outbox_lock_path,
+			&paths,
+			&mut cursor,
+			&mut ledger,
+			pending,
+			signer,
+			transport,
+		)
+		.await?;
+	}
+	compact_if_drained(outbox, &outbox_lock_path, &paths, &mut cursor, COMPACT_AFTER_BYTES)?;
 	Ok(())
 }
 
-async fn read_complete_jsonl_snapshot(
-	path: &Path,
-) -> Result<Option<String>, Box<dyn std::error::Error>> {
-	let bytes = match tokio::fs::read(path).await {
-		Ok(bytes) => bytes,
-		Err(error) if error.kind() == std::io::ErrorKind::NotFound => return Ok(None),
-		Err(error) => return Err(error.into()),
+fn recover_local_finality(
+	paths: &StatePaths,
+	cursor: &mut Cursor,
+	ledger: &ReceiptLedger,
+	pending: &PendingRecord,
+) -> Result<bool, Box<dyn std::error::Error>> {
+	if cursor.source == Some(pending.source)
+		&& cursor.prefix_len == pending.prefix_len
+		&& cursor.prefix_hash == pending.prefix_hash
+		&& cursor.offset >= pending.end
+	{
+		remove_durable(&paths.pending)?;
+		return Ok(true);
+	}
+	if ledger
+		.entries
+		.iter()
+		.any(|entry| entry.key == pending.key && entry.record_hash == pending.record_hash)
+	{
+		advance_cursor(&paths.cursor, cursor, pending)?;
+		remove_durable(&paths.pending)?;
+		return Ok(true);
+	}
+	Ok(false)
+}
+
+async fn finalize_pending(
+	outbox: &Path,
+	outbox_lock_path: &Path,
+	paths: &StatePaths,
+	cursor: &mut Cursor,
+	ledger: &mut ReceiptLedger,
+	pending: PendingRecord,
+	signer: &AccountId,
+	transport: &OrbisDomainTransport,
+) -> Result<(), Box<dyn std::error::Error>> {
+	validate_pending(&pending)?;
+	verify_pending_source(outbox, outbox_lock_path, &pending)?;
+	let request: ProviderSubmission = serde_json::from_str(pending.line.trim_end_matches('\n'))?;
+	let (key, command) = command(request)?;
+	if key != pending.key {
+		return Err("pending provider outbox key changed".into());
+	}
+	let intent = SubmitAndFinalize::new(
+		format!("orbis-provider-outbox-{}", pending.record_hash),
+		signer.clone(),
+		command,
+	)
+	.map_err(native_error)?;
+	let lifecycle = transport.submit_storage_provider(&intent).await.map_err(native_error)?;
+	let receipt = FinalizedReceipt {
+		key,
+		record_hash: pending.record_hash.clone(),
+		block_hash: lifecycle.block_hash.ok_or("finalized provider call has no block hash")?,
+		extrinsic_hash: lifecycle
+			.extrinsic_hash
+			.ok_or("finalized provider call has no extrinsic hash")?,
 	};
-	let complete_len = if bytes.ends_with(b"\n") {
-		bytes.len()
-	} else {
-		bytes.iter().rposition(|byte| *byte == b'\n').map_or(0, |index| index + 1)
-	};
-	Ok(Some(String::from_utf8(bytes[..complete_len].to_vec())?))
+	verify_pending_source(outbox, outbox_lock_path, &pending)?;
+	record_receipt(&paths.receipts, ledger, receipt)?;
+	advance_cursor(&paths.cursor, cursor, &pending)?;
+	remove_durable(&paths.pending)?;
+	Ok(())
 }
 
 fn command(
 	request: ProviderSubmission,
 ) -> Result<(String, StorageProviderCommand), Box<dyn std::error::Error>> {
 	match request {
-		ProviderSubmission::Checkpoint(request) => {
-			let key = format!("checkpoint-{}", request.duty.challenge_id);
-			Ok((
-				key,
-				StorageProviderCommand::SubmitCheckpoint {
-					challenge: ChallengeId::new(request.duty.challenge_id).map_err(native_error)?,
-					proof_commitment: ProofCommitment::new(request.proof_commitment)
-						.map_err(native_error)?,
-				},
-			))
-		},
-		ProviderSubmission::ContentDeletion(request) => {
-			let key = format!("deletion-{}", request.agreement_id);
-			Ok((
-				key,
-				StorageProviderCommand::AcknowledgeDeletion {
-					agreement: AgreementId::new(request.agreement_id).map_err(native_error)?,
-					content_commitment: ContentCommitment::new(canonical_hash(
-						request.content_commitment,
-					)?)
-					.map_err(native_error)?,
-					tombstone_root: ProofCommitment::new(canonical_hash(request.tombstone_root)?)
-						.map_err(native_error)?,
-					root_sequence: request.root_sequence,
-					leaf_index: request.leaf_index,
-					leaf_count: request.leaf_count,
-					inclusion_proof: request
-						.inclusion_proof
-						.into_iter()
-						.map(|hash| -> Result<_, Box<dyn std::error::Error>> {
-							let hash = canonical_hash(hash)?;
-							Ok(ProofCommitment::new(hash).map_err(native_error)?)
-						})
-						.collect::<Result<Vec<_>, Box<dyn std::error::Error>>>()?,
-				},
-			))
-		},
 		ProviderSubmission::ManifestDeletion(request) => {
 			let key = format!(
 				"manifest-deletion-{}-{}-{}",
 				request.manifest, request.duty_fingerprint, request.evidence_hash,
 			);
-			let service_key = hex::decode(
-				request
-					.service_key
-					.strip_prefix("0x")
-					.ok_or("manifest deletion service key is not 0x-prefixed")?,
-			)?;
-			let signature = hex::decode(
-				request
-					.signature
-					.strip_prefix("0x")
-					.ok_or("manifest deletion signature is not 0x-prefixed")?,
-			)?;
+			let service_key =
+				decode_prefixed(&request.service_key, "manifest deletion service key")?;
+			let signature = decode_prefixed(&request.signature, "manifest deletion signature")?;
 			Ok((
 				key,
 				StorageProviderCommand::AcknowledgeManifestDeletion {
@@ -223,24 +390,12 @@ fn command(
 				},
 			))
 		},
-		ProviderSubmission::ProviderRoot(request) => {
-			let key = format!("provider-root-{}", request.sequence);
-			let appended_leaves = request
-				.appended_leaves
-				.into_iter()
-				.map(|hash| -> Result<_, Box<dyn std::error::Error>> {
-					Ok(ProofCommitment::new(canonical_hash(hash)?).map_err(native_error)?)
-				})
-				.collect::<Result<Vec<_>, Box<dyn std::error::Error>>>()?;
-			Ok((
-				key,
-				StorageProviderCommand::CommitProviderRoot {
-					sequence: request.sequence,
-					appended_leaves,
-				},
-			))
-		},
 	}
+}
+
+fn decode_prefixed(value: &str, field: &str) -> Result<Vec<u8>, Box<dyn std::error::Error>> {
+	let encoded = value.strip_prefix("0x").ok_or_else(|| format!("{field} is not 0x-prefixed"))?;
+	Ok(hex::decode(encoded)?)
 }
 
 fn canonical_hash(value: String) -> Result<String, Box<dyn std::error::Error>> {
@@ -251,74 +406,381 @@ fn canonical_hash(value: String) -> Result<String, Box<dyn std::error::Error>> {
 	Ok(format!("0x{normalized}"))
 }
 
-async fn completed_keys(path: &Path) -> Result<BTreeSet<String>, Box<dyn std::error::Error>> {
-	repair_incomplete_jsonl_tail(path).await?;
-	let contents = match tokio::fs::read_to_string(path).await {
-		Ok(contents) => contents,
-		Err(error) if error.kind() == std::io::ErrorKind::NotFound => return Ok(BTreeSet::new()),
+fn validate_pending(pending: &PendingRecord) -> Result<(), Box<dyn std::error::Error>> {
+	if pending.line.len() > MAX_RECORD_BYTES || !pending.line.ends_with('\n') {
+		return Err("pending provider outbox record is not one bounded complete line".into());
+	}
+	if pending.start >= pending.end || pending.end - pending.start != pending.line.len() as u64 {
+		return Err("pending provider outbox offsets do not match its exact bytes".into());
+	}
+	if blake3::hash(pending.line.as_bytes()).to_hex().as_str() != pending.record_hash {
+		return Err("pending provider outbox record hash mismatch".into());
+	}
+	if pending.prefix_len > SOURCE_PREFIX_BYTES || pending.prefix_hash.len() != 64 {
+		return Err("pending provider outbox prefix binding is invalid".into());
+	}
+	Ok(())
+}
+
+fn read_batch(
+	outbox: &Path,
+	lock_path: &Path,
+	cursor_path: &Path,
+	cursor: &mut Cursor,
+) -> Result<Vec<OutboxRecord>, Box<dyn std::error::Error>> {
+	let _lock = exclusive_lock(lock_path)?;
+	repair_incomplete_tail(outbox)?;
+	let mut file = File::open(outbox).map_err(|error| {
+		if error.kind() == std::io::ErrorKind::NotFound {
+			std::io::Error::new(error.kind(), "provider outbox unavailable")
+		} else {
+			error
+		}
+	})?;
+	let metadata = file.metadata()?;
+	let source = source_id(&metadata)?;
+	match cursor.source {
+		None => {
+			cursor.source = Some(source);
+			cursor.offset = 0;
+			assign_source_prefix(&mut file, cursor, metadata.len())?;
+			atomic_json(cursor_path, cursor)?;
+		},
+		Some(expected) if expected != source => {
+			return Err("provider outbox source changed without a committed rotation".into())
+		},
+		Some(_) => {},
+	}
+	if cursor.prefix_len == 0 && cursor.offset == 0 && metadata.len() > 0 {
+		assign_source_prefix(&mut file, cursor, metadata.len())?;
+		atomic_json(cursor_path, cursor)?;
+	}
+	if cursor.offset > metadata.len() {
+		return Err("provider outbox cursor is beyond the source length".into());
+	}
+	verify_source_prefix(&mut file, cursor.prefix_len, &cursor.prefix_hash)?;
+	file.seek(SeekFrom::Start(cursor.offset))?;
+	let mut reader = BufReader::with_capacity(8192, file);
+	let mut records = Vec::new();
+	let mut bytes = 0usize;
+	let mut start = cursor.offset;
+	while records.len() < MAX_BATCH_RECORDS {
+		let Some(line) = read_bounded_line(&mut reader)? else { break };
+		if bytes + line.len() > MAX_BATCH_BYTES && !records.is_empty() {
+			break;
+		}
+		if bytes + line.len() > MAX_BATCH_BYTES {
+			return Err("provider outbox record exceeds the bounded batch limit".into());
+		}
+		let end = start + line.len() as u64;
+		bytes += line.len();
+		records.push(OutboxRecord {
+			source,
+			start,
+			end,
+			line,
+			prefix_len: cursor.prefix_len,
+			prefix_hash: cursor.prefix_hash.clone(),
+		});
+		start = end;
+	}
+	Ok(records)
+}
+
+fn assign_source_prefix(
+	file: &mut File,
+	cursor: &mut Cursor,
+	source_len: u64,
+) -> Result<(), Box<dyn std::error::Error>> {
+	cursor.prefix_len = source_len.min(SOURCE_PREFIX_BYTES);
+	cursor.prefix_hash = hash_prefix(file, cursor.prefix_len)?;
+	Ok(())
+}
+
+fn verify_source_prefix(
+	file: &mut File,
+	prefix_len: u64,
+	expected: &str,
+) -> Result<(), Box<dyn std::error::Error>> {
+	if hash_prefix(file, prefix_len)? != expected {
+		return Err("provider outbox durable prefix hash changed".into());
+	}
+	Ok(())
+}
+
+fn hash_prefix(file: &mut File, len: u64) -> Result<String, Box<dyn std::error::Error>> {
+	file.seek(SeekFrom::Start(0))?;
+	let mut remaining = len;
+	let mut hasher = blake3::Hasher::new();
+	let mut buffer = [0u8; 8192];
+	while remaining > 0 {
+		let width = remaining.min(buffer.len() as u64) as usize;
+		file.read_exact(&mut buffer[..width])?;
+		hasher.update(&buffer[..width]);
+		remaining -= width as u64;
+	}
+	Ok(hasher.finalize().to_hex().to_string())
+}
+
+fn verify_pending_source(
+	outbox: &Path,
+	lock_path: &Path,
+	pending: &PendingRecord,
+) -> Result<(), Box<dyn std::error::Error>> {
+	let _lock = exclusive_lock(lock_path)?;
+	let mut file = File::open(outbox)?;
+	let metadata = file.metadata()?;
+	if source_id(&metadata)? != pending.source || metadata.len() < pending.end {
+		return Err("pending provider outbox source generation changed".into());
+	}
+	verify_source_prefix(&mut file, pending.prefix_len, &pending.prefix_hash)?;
+	file.seek(SeekFrom::Start(pending.start))?;
+	let width = (pending.end - pending.start).min(MAX_RECORD_BYTES as u64) as usize;
+	let mut exact = vec![0u8; width];
+	file.read_exact(&mut exact)?;
+	if exact.len() != (pending.end - pending.start) as usize
+		|| blake3::hash(&exact).to_hex().as_str() != pending.record_hash
+	{
+		return Err("pending provider outbox exact source bytes changed".into());
+	}
+	Ok(())
+}
+
+fn read_bounded_line<R: BufRead>(
+	reader: &mut R,
+) -> Result<Option<Vec<u8>>, Box<dyn std::error::Error>> {
+	let mut line = Vec::new();
+	loop {
+		let available = reader.fill_buf()?;
+		if available.is_empty() {
+			return if line.is_empty() {
+				Ok(None)
+			} else {
+				Err("provider outbox ended with an incomplete record".into())
+			};
+		}
+		let take = available
+			.iter()
+			.position(|byte| *byte == b'\n')
+			.map_or(available.len(), |index| index + 1);
+		if line.len() + take > MAX_RECORD_BYTES {
+			return Err("provider outbox record exceeds the bounded line limit".into());
+		}
+		let complete = available[take - 1] == b'\n';
+		line.extend_from_slice(&available[..take]);
+		reader.consume(take);
+		if complete {
+			return Ok(Some(line));
+		}
+	}
+}
+
+fn repair_incomplete_tail(path: &Path) -> Result<(), Box<dyn std::error::Error>> {
+	let mut file = OpenOptions::new().read(true).write(true).open(path).map_err(|error| {
+		if error.kind() == std::io::ErrorKind::NotFound {
+			std::io::Error::new(error.kind(), "provider outbox unavailable")
+		} else {
+			error
+		}
+	})?;
+	let len = file.metadata()?.len();
+	if len == 0 {
+		return Ok(());
+	}
+	file.seek(SeekFrom::End(-1))?;
+	let mut last = [0u8; 1];
+	file.read_exact(&mut last)?;
+	if last[0] == b'\n' {
+		return Ok(());
+	}
+	let start = len.saturating_sub(MAX_RECORD_BYTES as u64 + 1);
+	file.seek(SeekFrom::Start(start))?;
+	let mut tail = vec![0u8; (len - start) as usize];
+	file.read_exact(&mut tail)?;
+	let keep = match tail.iter().rposition(|byte| *byte == b'\n') {
+		Some(index) => start + index as u64 + 1,
+		None if start == 0 => 0,
+		None => return Err("incomplete provider outbox tail exceeds the bounded line limit".into()),
+	};
+	let file = OpenOptions::new().write(true).open(path)?;
+	file.set_len(keep)?;
+	file.sync_all()?;
+	Ok(())
+}
+
+fn record_receipt(
+	path: &Path,
+	ledger: &mut ReceiptLedger,
+	receipt: FinalizedReceipt,
+) -> Result<(), Box<dyn std::error::Error>> {
+	if let Some(existing) =
+		ledger.entries.iter().find(|entry| entry.record_hash == receipt.record_hash)
+	{
+		if existing != &receipt {
+			return Err("finalized receipt replay changed its payload".into());
+		}
+		return Ok(());
+	}
+	ledger.entries.push(receipt);
+	if ledger.entries.len() > MAX_RECEIPTS {
+		let remove = ledger.entries.len() - MAX_RECEIPTS;
+		ledger.entries.drain(..remove);
+	}
+	atomic_json(path, ledger)
+}
+
+fn advance_cursor(
+	path: &Path,
+	cursor: &mut Cursor,
+	pending: &PendingRecord,
+) -> Result<(), Box<dyn std::error::Error>> {
+	if cursor.source != Some(pending.source)
+		|| cursor.offset != pending.start
+		|| cursor.prefix_len != pending.prefix_len
+		|| cursor.prefix_hash != pending.prefix_hash
+	{
+		return Err("provider outbox cursor can advance only across the exact contiguous record".into());
+	}
+	cursor.offset = pending.end;
+	atomic_json(path, cursor)
+}
+
+fn compact_if_drained(
+	outbox: &Path,
+	lock_path: &Path,
+	paths: &StatePaths,
+	cursor: &mut Cursor,
+	threshold: u64,
+) -> Result<(), Box<dyn std::error::Error>> {
+	if cursor.offset < threshold {
+		return Ok(());
+	}
+	let _lock = exclusive_lock(lock_path)?;
+	let mut file = File::open(outbox)?;
+	let metadata = file.metadata()?;
+	let old_source = source_id(&metadata)?;
+	if cursor.source != Some(old_source) || cursor.offset != metadata.len() {
+		return Ok(());
+	}
+	verify_source_prefix(&mut file, cursor.prefix_len, &cursor.prefix_hash)?;
+	let marker = CompactionMarker {
+		version: STATE_VERSION,
+		old_source,
+		consumed_len: cursor.offset,
+		prefix_len: cursor.prefix_len,
+		prefix_hash: cursor.prefix_hash.clone(),
+	};
+	atomic_json(&paths.compaction, &marker)?;
+	install_empty_source(outbox)?;
+	let new_source = source_id(&File::open(outbox)?.metadata()?)?;
+	cursor.source = Some(new_source);
+	cursor.offset = 0;
+	cursor.prefix_len = 0;
+	cursor.prefix_hash = blake3::hash(&[]).to_hex().to_string();
+	atomic_json(&paths.cursor, cursor)?;
+	remove_durable(&paths.compaction)
+}
+
+fn recover_compaction(
+	outbox: &Path,
+	lock_path: &Path,
+	paths: &StatePaths,
+) -> Result<(), Box<dyn std::error::Error>> {
+	let Some(marker) = load_json::<CompactionMarker>(&paths.compaction)? else { return Ok(()) };
+	ensure_version(marker.version)?;
+	let _lock = exclusive_lock(lock_path)?;
+	let mut file = File::open(outbox)?;
+	let metadata = file.metadata()?;
+	let current = source_id(&metadata)?;
+	let mut cursor = load_json::<Cursor>(&paths.cursor)?.unwrap_or_default();
+	if current == marker.old_source {
+		verify_source_prefix(&mut file, marker.prefix_len, &marker.prefix_hash)?;
+		if metadata.len() != marker.consumed_len {
+			remove_durable(&paths.compaction)?;
+			return Ok(());
+		}
+		install_empty_source(outbox)?;
+	}
+	let new_source = source_id(&File::open(outbox)?.metadata()?)?;
+	cursor.source = Some(new_source);
+	cursor.offset = 0;
+	cursor.prefix_len = 0;
+	cursor.prefix_hash = blake3::hash(&[]).to_hex().to_string();
+	atomic_json(&paths.cursor, &cursor)?;
+	remove_durable(&paths.compaction)
+}
+
+fn install_empty_source(path: &Path) -> Result<(), Box<dyn std::error::Error>> {
+	let temp = suffixed(path, ".rotate.tmp");
+	let file = OpenOptions::new().create(true).truncate(true).write(true).open(&temp)?;
+	file.sync_all()?;
+	fs::rename(&temp, path)?;
+	sync_parent(path)
+}
+
+fn ensure_version(version: u16) -> Result<(), Box<dyn std::error::Error>> {
+	if version == STATE_VERSION {
+		Ok(())
+	} else {
+		Err("unsupported provider outbox state version".into())
+	}
+}
+
+fn load_json<T: DeserializeOwned>(path: &Path) -> Result<Option<T>, Box<dyn std::error::Error>> {
+	let mut file = match File::open(path) {
+		Ok(file) => file,
+		Err(error) if error.kind() == std::io::ErrorKind::NotFound => return Ok(None),
 		Err(error) => return Err(error.into()),
 	};
-	contents
-		.lines()
-		.filter(|line| !line.trim().is_empty())
-		.map(|line| {
-			serde_json::from_str::<FinalizedReceipt>(line)
-				.map(|receipt| receipt.key)
-				.map_err(Into::into)
-		})
-		.collect()
-}
-
-async fn append_receipt(
-	path: &Path,
-	receipt: &FinalizedReceipt,
-) -> Result<(), Box<dyn std::error::Error>> {
-	append_receipt_with_parent_sync(path, receipt, |parent| async move {
-		tokio::fs::File::open(parent).await?.sync_all().await?;
-		Ok::<(), Box<dyn std::error::Error>>(())
-	})
-	.await
-}
-
-async fn append_receipt_with_parent_sync<F, Fut>(
-	path: &Path,
-	receipt: &FinalizedReceipt,
-	sync_parent: F,
-) -> Result<(), Box<dyn std::error::Error>>
-where
-	F: FnOnce(PathBuf) -> Fut,
-	Fut: std::future::Future<Output = Result<(), Box<dyn std::error::Error>>>,
-{
-	if let Some(parent) = path.parent() {
-		tokio::fs::create_dir_all(parent).await?;
+	let len = file.metadata()?.len();
+	if len > MAX_STATE_BYTES {
+		return Err("provider outbox state exceeds its hard byte limit".into());
 	}
-	repair_incomplete_jsonl_tail(path).await?;
-	let mut encoded = serde_json::to_vec(receipt)?;
-	encoded.push(b'\n');
-	let mut file = tokio::fs::OpenOptions::new().create(true).append(true).open(path).await?;
-	file.write_all(&encoded).await?;
-	file.sync_data().await?;
+	let mut bytes = vec![0u8; len as usize];
+	file.read_exact(&mut bytes)?;
+	if file.metadata()?.len() != len {
+		return Err("provider outbox state changed while being read".into());
+	}
+	Ok(Some(serde_json::from_slice(&bytes)?))
+}
+
+fn atomic_json<T: Serialize>(path: &Path, value: &T) -> Result<(), Box<dyn std::error::Error>> {
+	if let Some(parent) = path.parent() {
+		fs::create_dir_all(parent)?;
+	}
+	let encoded = serde_json::to_vec(value)?;
+	if encoded.len() as u64 > MAX_STATE_BYTES {
+		return Err("provider outbox state exceeds its hard byte limit".into());
+	}
+	let temp = suffixed(path, ".tmp");
+	let mut file = OpenOptions::new().create(true).truncate(true).write(true).open(&temp)?;
+	file.write_all(&encoded)?;
+	file.sync_all()?;
+	fs::rename(&temp, path)?;
+	sync_parent(path)
+}
+
+fn remove_durable(path: &Path) -> Result<(), Box<dyn std::error::Error>> {
+	match fs::remove_file(path) {
+		Ok(()) => sync_parent(path),
+		Err(error) if error.kind() == std::io::ErrorKind::NotFound => Ok(()),
+		Err(error) => Err(error.into()),
+	}
+}
+
+fn sync_parent(path: &Path) -> Result<(), Box<dyn std::error::Error>> {
 	let parent = path
 		.parent()
 		.filter(|parent| !parent.as_os_str().is_empty())
 		.unwrap_or_else(|| Path::new("."));
-	sync_parent(parent.to_path_buf()).await
+	File::open(parent)?.sync_all()?;
+	Ok(())
 }
 
-async fn repair_incomplete_jsonl_tail(path: &Path) -> Result<(), Box<dyn std::error::Error>> {
-	let bytes = match tokio::fs::read(path).await {
-		Ok(bytes) => bytes,
-		Err(error) if error.kind() == std::io::ErrorKind::NotFound => return Ok(()),
-		Err(error) => return Err(error.into()),
-	};
-	if bytes.is_empty() || bytes.ends_with(b"\n") {
-		return Ok(());
-	}
-	let keep = bytes.iter().rposition(|byte| *byte == b'\n').map_or(0, |index| index + 1);
-	let file = tokio::fs::OpenOptions::new().write(true).open(path).await?;
-	file.set_len(keep as u64).await?;
-	file.sync_all().await?;
-	Ok(())
+fn suffixed(path: &Path, suffix: &str) -> PathBuf {
+	let mut value = path.as_os_str().to_os_string();
+	value.push(suffix);
+	PathBuf::from(value)
 }
 
 fn native_error(error: impl std::fmt::Display) -> OriginSdkError {
@@ -328,78 +790,272 @@ fn native_error(error: impl std::fmt::Display) -> OriginSdkError {
 #[cfg(test)]
 mod tests {
 	use super::*;
+	use origin_orbis_provider::ManifestDeletionSubmission;
 
-	fn receipt(key: &str) -> FinalizedReceipt {
-		FinalizedReceipt {
-			key: key.into(),
-			block_hash: format!("0x{}", "01".repeat(32)),
-			extrinsic_hash: format!("0x{}", "02".repeat(32)),
+	fn write_records(path: &Path, count: usize, payload: usize) {
+		let mut file = File::create(path).unwrap();
+		for index in 0..count {
+			let line = format!("{{\"index\":{index},\"padding\":\"{}\"}}\n", "x".repeat(payload));
+			file.write_all(line.as_bytes()).unwrap();
 		}
+		file.sync_all().unwrap();
 	}
 
-	#[tokio::test]
-	async fn torn_receipt_after_finality_is_repaired_then_retry_and_later_work_continue() {
-		let temp = tempfile::tempdir().unwrap();
-		let path = temp.path().join("receipts-v3.jsonl");
-		append_receipt(&path, &receipt("provider-root-1")).await.unwrap();
-		let mut file = tokio::fs::OpenOptions::new().append(true).open(&path).await.unwrap();
-		file.write_all(b"{\"key\":\"provider-root-2\"").await.unwrap();
-		file.sync_all().await.unwrap();
-		drop(file);
-
-		let completed = completed_keys(&path).await.unwrap();
-		assert_eq!(completed, BTreeSet::from(["provider-root-1".to_string()]));
-		append_receipt(&path, &receipt("provider-root-2")).await.unwrap();
-		append_receipt(&path, &receipt("provider-root-3")).await.unwrap();
-		assert_eq!(
-			completed_keys(&path).await.unwrap(),
-			BTreeSet::from([
-				"provider-root-1".to_string(),
-				"provider-root-2".to_string(),
-				"provider-root-3".to_string(),
-			]),
-		);
+	fn manifest_submission() -> ProviderSubmission {
+		ProviderSubmission::ManifestDeletion(ManifestDeletionSubmission {
+			manifest: format!("0x{}", "21".repeat(32)),
+			bucket_id: format!("0x{}", "22".repeat(32)),
+			provider_commitment: format!("0x{}", "23".repeat(32)),
+			evidence_hash: format!("0x{}", "24".repeat(32)),
+			tombstoned_at: 10,
+			service_key: format!("0x{}", "25".repeat(32)),
+			signature: format!("0x{}", "26".repeat(64)),
+			duty_fingerprint: format!("0x{}", "27".repeat(32)),
+		})
 	}
 
-	#[tokio::test]
-	async fn malformed_complete_receipt_fails_closed() {
-		let temp = tempfile::tempdir().unwrap();
-		let path = temp.path().join("receipts-v3.jsonl");
-		tokio::fs::write(&path, b"not-json\n").await.unwrap();
-		assert!(completed_keys(&path).await.is_err());
+	#[test]
+	fn supported_submission_maps_only_to_runtime_valid_idempotent_manifest_deletion() {
+		let (_, deletion) = command(manifest_submission()).unwrap();
+		assert!(matches!(deletion, StorageProviderCommand::AcknowledgeManifestDeletion { .. }));
 	}
 
-	#[tokio::test]
-	async fn receipt_never_reports_completion_before_parent_directory_sync() {
+	#[test]
+	fn large_history_is_read_in_hard_bounded_batches() {
 		let temp = tempfile::tempdir().unwrap();
-		let path = temp.path().join("receipts-v3.jsonl");
-		let result =
-			append_receipt_with_parent_sync(&path, &receipt("provider-root-1"), |_| async {
-				Err::<(), Box<dyn std::error::Error>>(
-					"injected receipt parent directory sync failure".into(),
-				)
-			})
-			.await;
-		assert_eq!(
-			result.unwrap_err().to_string(),
-			"injected receipt parent directory sync failure"
-		);
-		assert!(tokio::fs::read(&path).await.unwrap().ends_with(b"\n"));
+		let outbox = temp.path().join("outbox.jsonl");
+		let cursor_path = temp.path().join("cursor.json");
+		write_records(&outbox, 30_000, 64);
+		let mut cursor = Cursor::default();
+		let batch =
+			read_batch(&outbox, &suffixed(&outbox, ".lock"), &cursor_path, &mut cursor).unwrap();
+		assert_eq!(batch.len(), MAX_BATCH_RECORDS);
+		assert!(batch.iter().map(|record| record.line.len()).sum::<usize>() <= MAX_BATCH_BYTES);
+		assert!(File::open(&outbox).unwrap().metadata().unwrap().len() > MAX_BATCH_BYTES as u64);
 	}
 
-	#[tokio::test]
-	async fn live_outbox_snapshot_ignores_partial_tail_without_truncating_producer() {
+	#[test]
+	fn bounded_torn_tail_repair_preserves_complete_records() {
 		let temp = tempfile::tempdir().unwrap();
-		let path = temp.path().join("provider-submissions-v3.jsonl");
-		tokio::fs::write(&path, b"{\"first\":1}\n{\"second\":").await.unwrap();
-		assert_eq!(read_complete_jsonl_snapshot(&path).await.unwrap().unwrap(), "{\"first\":1}\n");
-		assert_eq!(tokio::fs::read(&path).await.unwrap(), b"{\"first\":1}\n{\"second\":");
-		let mut file = tokio::fs::OpenOptions::new().append(true).open(&path).await.unwrap();
-		file.write_all(b"2}\n").await.unwrap();
-		file.sync_all().await.unwrap();
-		assert_eq!(
-			read_complete_jsonl_snapshot(&path).await.unwrap().unwrap(),
-			"{\"first\":1}\n{\"second\":2}\n"
-		);
+		let outbox = temp.path().join("outbox.jsonl");
+		fs::write(&outbox, b"one\ntwo\npartial").unwrap();
+		repair_incomplete_tail(&outbox).unwrap();
+		assert_eq!(fs::read(&outbox).unwrap(), b"one\ntwo\n");
+	}
+
+	#[test]
+	fn cursor_fails_closed_when_bound_prefix_is_rewritten_in_place() {
+		let temp = tempfile::tempdir().unwrap();
+		let outbox = temp.path().join("outbox.jsonl");
+		let cursor_path = temp.path().join("cursor.json");
+		fs::write(&outbox, b"first\nsecond\n").unwrap();
+		let mut cursor = Cursor::default();
+		read_batch(&outbox, &suffixed(&outbox, ".lock"), &cursor_path, &mut cursor).unwrap();
+		fs::write(&outbox, b"FIRST\nsecond\n").unwrap();
+		assert!(read_batch(&outbox, &suffixed(&outbox, ".lock"), &cursor_path, &mut cursor)
+			.unwrap_err()
+			.to_string()
+			.contains("prefix hash changed"));
+	}
+
+	#[test]
+	fn oversized_record_and_state_fail_closed() {
+		let mut input = BufReader::new(std::io::Cursor::new(vec![b'x'; MAX_RECORD_BYTES + 2]));
+		assert!(read_bounded_line(&mut input).is_err());
+		let temp = tempfile::tempdir().unwrap();
+		let state = temp.path().join("state");
+		fs::write(&state, vec![0u8; MAX_STATE_BYTES as usize + 1]).unwrap();
+		assert!(load_json::<Cursor>(&state).is_err());
+	}
+
+	#[test]
+	fn pending_record_is_exact_bytes_and_cursor_advances_only_after_receipt() {
+		let temp = tempfile::tempdir().unwrap();
+		let paths = StatePaths::new(&temp.path().join("receipts.json"));
+		let source = SourceId { device: 1, inode: 2 };
+		let line = serde_json::to_string(&manifest_submission()).unwrap() + "\n";
+		let pending = PendingRecord {
+			version: STATE_VERSION,
+			source,
+			start: 0,
+			end: line.len() as u64,
+			record_hash: blake3::hash(line.as_bytes()).to_hex().to_string(),
+			prefix_len: 0,
+			prefix_hash: blake3::hash(&[]).to_hex().to_string(),
+			key: "manifest-deletion-1".into(),
+			line: line.clone(),
+		};
+		atomic_json(&paths.pending, &pending).unwrap();
+		assert_eq!(load_json::<PendingRecord>(&paths.pending).unwrap().unwrap().line, line);
+		assert!(load_json::<Cursor>(&paths.cursor).unwrap().is_none());
+		let mut ledger = ReceiptLedger::default();
+		record_receipt(
+			&paths.receipts,
+			&mut ledger,
+			FinalizedReceipt {
+				key: pending.key.clone(),
+				record_hash: pending.record_hash.clone(),
+				block_hash: "0x01".into(),
+				extrinsic_hash: "0x02".into(),
+			},
+		)
+		.unwrap();
+		let mut cursor = Cursor { source: Some(source), ..Cursor::default() };
+		advance_cursor(&paths.cursor, &mut cursor, &pending).unwrap();
+		assert_eq!(load_json::<Cursor>(&paths.cursor).unwrap().unwrap().offset, pending.end);
+	}
+
+	#[test]
+	fn cursor_rejects_gap_and_overlap_without_durable_advance() {
+		let temp = tempfile::tempdir().unwrap();
+		let paths = StatePaths::new(&temp.path().join("receipts.json"));
+		let source = SourceId { device: 1, inode: 2 };
+		let prefix_hash = blake3::hash(&[]).to_hex().to_string();
+		let pending = PendingRecord {
+			version: STATE_VERSION,
+			source,
+			start: 10,
+			end: 20,
+			record_hash: blake3::hash(b"record\n").to_hex().to_string(),
+			prefix_len: 0,
+			prefix_hash: prefix_hash.clone(),
+			key: "manifest-deletion-1".into(),
+			line: "record\n".into(),
+		};
+
+		let mut gap_cursor = Cursor {
+			version: STATE_VERSION,
+			source: Some(source),
+			offset: 9,
+			prefix_len: 0,
+			prefix_hash: prefix_hash.clone(),
+		};
+		assert!(advance_cursor(&paths.cursor, &mut gap_cursor, &pending).is_err());
+		assert_eq!(gap_cursor.offset, 9);
+		assert!(!paths.cursor.exists());
+
+		let mut overlap_cursor = Cursor {
+			version: STATE_VERSION,
+			source: Some(source),
+			offset: 11,
+			prefix_len: 0,
+			prefix_hash,
+		};
+		assert!(advance_cursor(&paths.cursor, &mut overlap_cursor, &pending).is_err());
+		assert_eq!(overlap_cursor.offset, 11);
+		assert!(!paths.cursor.exists());
+	}
+
+	#[test]
+	fn restart_recovers_crashes_after_finality_receipt_and_cursor_without_resubmission() {
+		let temp = tempfile::tempdir().unwrap();
+		let paths = StatePaths::new(&temp.path().join("receipts.json"));
+		let source = SourceId { device: 7, inode: 9 };
+		let line = serde_json::to_string(&manifest_submission()).unwrap() + "\n";
+		let pending = PendingRecord {
+			version: STATE_VERSION,
+			source,
+			start: 0,
+			end: line.len() as u64,
+			record_hash: blake3::hash(line.as_bytes()).to_hex().to_string(),
+			prefix_len: 0,
+			prefix_hash: blake3::hash(&[]).to_hex().to_string(),
+			key: "manifest-deletion-restart".into(),
+			line,
+		};
+		atomic_json(&paths.pending, &pending).unwrap();
+		let mut cursor = Cursor { source: Some(source), ..Cursor::default() };
+		let mut ledger = ReceiptLedger::default();
+		assert!(!recover_local_finality(&paths, &mut cursor, &ledger, &pending).unwrap());
+		assert!(paths.pending.exists());
+
+		record_receipt(
+			&paths.receipts,
+			&mut ledger,
+			FinalizedReceipt {
+				key: pending.key.clone(),
+				record_hash: pending.record_hash.clone(),
+				block_hash: "block".into(),
+				extrinsic_hash: "tx".into(),
+			},
+		)
+		.unwrap();
+		assert!(recover_local_finality(&paths, &mut cursor, &ledger, &pending).unwrap());
+		assert_eq!(cursor.offset, pending.end);
+		assert!(!paths.pending.exists());
+
+		atomic_json(&paths.pending, &pending).unwrap();
+		assert!(recover_local_finality(&paths, &mut cursor, &ReceiptLedger::default(), &pending)
+			.unwrap());
+		assert!(!paths.pending.exists());
+	}
+
+	#[test]
+	fn receipts_are_bounded_and_exact_replays_are_stable() {
+		let temp = tempfile::tempdir().unwrap();
+		let path = temp.path().join("receipts.json");
+		let mut ledger = ReceiptLedger::default();
+		for index in 0..MAX_RECEIPTS + 50 {
+			record_receipt(
+				&path,
+				&mut ledger,
+				FinalizedReceipt {
+					key: format!("key-{index}"),
+					record_hash: format!("hash-{index}"),
+					block_hash: "block".into(),
+					extrinsic_hash: "tx".into(),
+				},
+			)
+			.unwrap();
+		}
+		assert_eq!(ledger.entries.len(), MAX_RECEIPTS);
+		assert_eq!(ledger.entries.first().unwrap().key, "key-50");
+	}
+
+	#[test]
+	fn drained_rotation_rebinds_cursor_and_recovery_never_drops_late_append() {
+		let temp = tempfile::tempdir().unwrap();
+		let outbox = temp.path().join("outbox.jsonl");
+		fs::write(&outbox, b"one\ntwo\n").unwrap();
+		let paths = StatePaths::new(&temp.path().join("receipts.json"));
+		let old = source_id(&File::open(&outbox).unwrap().metadata().unwrap()).unwrap();
+		let mut cursor = Cursor {
+			source: Some(old),
+			offset: 8,
+			prefix_len: 8,
+			prefix_hash: blake3::hash(b"one\ntwo\n").to_hex().to_string(),
+			..Cursor::default()
+		};
+		atomic_json(&paths.cursor, &cursor).unwrap();
+		compact_if_drained(&outbox, &suffixed(&outbox, ".lock"), &paths, &mut cursor, 0).unwrap();
+		assert!(fs::read(&outbox).unwrap().is_empty());
+		assert_ne!(cursor.source, Some(old));
+
+		let new_source = cursor.source.unwrap();
+		let marker = CompactionMarker {
+			version: STATE_VERSION,
+			old_source: new_source,
+			consumed_len: 0,
+			prefix_len: 0,
+			prefix_hash: blake3::hash(&[]).to_hex().to_string(),
+		};
+		atomic_json(&paths.compaction, &marker).unwrap();
+		fs::write(&outbox, b"late\n").unwrap();
+		recover_compaction(&outbox, &suffixed(&outbox, ".lock"), &paths).unwrap();
+		assert_eq!(fs::read(&outbox).unwrap(), b"late\n");
+	}
+
+	#[test]
+	fn unavailable_outbox_fails_closed() {
+		let temp = tempfile::tempdir().unwrap();
+		let outbox = temp.path().join("missing");
+		let mut cursor = Cursor::default();
+		assert!(read_batch(
+			&outbox,
+			&suffixed(&outbox, ".lock"),
+			&temp.path().join("cursor"),
+			&mut cursor,
+		)
+		.is_err());
 	}
 }

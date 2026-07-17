@@ -33,7 +33,7 @@ export interface CloudStorageClient {
   readTogether(requests:readonly CloudStorageReadRequest[],signal?:AbortSignal):Promise<SdkResult<PinnedCloudStorageResult>>;
   prepare(request:CloudStorageWriteRequest,signal?:AbortSignal):Promise<SdkResult<PreparedTransaction>>;
 }
-export const CLOUD_STORAGE_NATIVE_BINDINGS={metadataHash:COMMONS_NETWORK_BINDING.metadata_hash,runtimeApis:["StorageProviderApi.v10","DriveRegistryApi.v2","S3RegistryApi.v3"],routeCount:66,appRouteCount:61,services:["TransactionStorage","StorageProvider","Drive","S3"]} as const;
+export const CLOUD_STORAGE_NATIVE_BINDINGS={metadataHash:COMMONS_NETWORK_BINDING.metadata_hash,runtimeApis:["StorageProviderApi.v10","DriveRegistryApi.v2","S3RegistryApi.v3"],routeCount:64,appRouteCount:59,services:["TransactionStorage","StorageProvider","Drive","S3"]} as const;
 export const CLOUD_STORAGE_ADMIN_EXCLUSIONS=[
  {target:"StorageProvider.register_provider",reason:"provider registry administration"},
  {target:"StorageProvider.update_provider",reason:"provider registry administration"},

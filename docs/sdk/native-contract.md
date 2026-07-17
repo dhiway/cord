@@ -22,13 +22,14 @@ SHA-256 `bfac0f6c…c9e0`. Its frozen activation state is `candidate-pending` wi
 cryptographically verified activation envelope derives `production-approved`; the current unsigned
 P5 envelope does not satisfy that gate.
 
-`native-route-contract.json` is the authoritative typed host-route inventory and now contains 138
+`native-route-contract.json` is the authoritative typed host-route inventory and now contains 136
 methods. Its generated TypeScript projection is updated independently of the network-bound
-descriptor and host schema, which remain fail-closed until the live Commons metadata identity is
-reconciled.
+descriptor, which remains fail-closed until the live Commons metadata identity is reconciled. The
+host request schema's route projection is reproducibly refreshed with
+`generate-descriptor.ts --host-schema-only` while preserving its frozen network binding.
 Each entry binds ordered parameters, result/finality, Rust query or command variant, TypeScript
 callable, runtime API or pallet call, and the pallet/call indices used by current dispatch tables.
-Rust and TypeScript harnesses execute all 138 canonical request samples. The checked-in Commons V14
+Rust and TypeScript harnesses execute all 136 canonical request samples. The checked-in Commons V14
 SCALE metadata is extracted from the current runtime Wasm and drives a byte-reproducible
 `polkadot-api` descriptor build. The route contract remains the authoritative product-policy
 projection: its closed payload schemas and canonical Rust/TypeScript factories deliberately expose
@@ -40,9 +41,14 @@ domain Revive calls, contract ABIs, and contract-address aliases are not referen
 The contract-to-native map is design coverage only, never a compatibility facade. It classifies
 2,780 source-semantic design entries; 14 adopted semantic bindings are exact M5 bindings and the
 remaining entries record intentional changes, retirements, or non-applicable source semantics.
-Executable coverage is reported separately as 138 distinct Rust and TypeScript route cases. Retired and
+Executable coverage is reported separately as 136 distinct Rust and TypeScript route cases. Retired and
 not-applicable source symbols stay explicit in the census, but no legacy client, contract facade,
 backward-compatibility layer, or data-migration path is shipped. This is a new network.
+
+`generated/orbis-descriptor.json` is an evidence-bound snapshot, not an active route-admission
+surface. It can retain retired provider method names until the current spec-33 metadata record is
+reconciled with the spec-29 frozen SDK manifests and the full descriptor/evidence set is regenerated;
+the full generator rejects that mismatch instead of silently rewriting the evidence snapshot.
 
 The P5 ratification envelope binds the matrix, coverage map, native semantic vectors, descriptor,
 host schema, and existing policy contracts. It is intentionally unsigned and the candidate genesis
