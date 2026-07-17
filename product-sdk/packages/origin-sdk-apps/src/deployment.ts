@@ -18,13 +18,16 @@
 
 
 import {
-  base64Content,
-  decimalU64,
   parseContentCid,
   rawContentAddress,
-  storageRequests,
+  s3Requests,
+  objectKey,
+  type BucketId,
   type CloudStorageClient,
   type ContentAddress,
+  type ContentHash,
+  type DecimalU64,
+  type ObjectKey,
 } from "@cord-network/origin-sdk-cloud-storage";
 import { OriginSdkError, asSdkError, type SdkResult } from "@cord-network/origin-sdk-errors";
 import type { OriginHostClient, ProductIdentity } from "@cord-network/origin-sdk-host";
@@ -80,16 +83,22 @@ export interface PrepareOriginAppDeployment {
   readonly attestation?: AttestationId;
   readonly files: readonly OriginStaticFile[];
   readonly publication: { readonly expectedRevision: string; readonly operationDeadline: BlockNumber; readonly operationId: OperationId };
+  readonly objectPublication?: {
+    readonly bucket: BucketId;
+    readonly keyPrefix?: string;
+    readonly manifestKey?: ObjectKey;
+    readonly expectedObjectVersion?: DecimalU64 | null;
+  };
 }
 
 export interface PreparedOriginAppDeployment {
   readonly bundle: OriginPackagedBundle;
   readonly manifest: OriginAppManifestV1;
   readonly storedManifest: StoredOriginAppManifest;
-  readonly retentionTransactions: readonly PreparedTransaction[];
+  readonly objectTransactions: readonly PreparedTransaction[];
   readonly uploadedCommitments: readonly ContentCommitment[];
   readonly reusedCommitments: readonly ContentCommitment[];
-  /** Call only after every retention transaction has finalized. */
+  /** Call only after every object metadata transaction has finalized. */
   prepareBinding(signal?: AbortSignal): Promise<SdkResult<PreparedTransaction>>;
 }
 
@@ -116,22 +125,6 @@ function mediaType(value: string | undefined): string {
     throw new TypeError("application file media type is invalid");
   }
   return normalized.toLowerCase();
-}
-
-function base64(bytes: Uint8Array): string {
-  const alphabet = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/";
-  let output = "";
-  for (let index = 0; index < bytes.length; index += 3) {
-    const first = bytes[index] ?? 0;
-    const second = bytes[index + 1] ?? 0;
-    const third = bytes[index + 2] ?? 0;
-    const value = (first << 16) | (second << 8) | third;
-    output += alphabet[(value >>> 18) & 63];
-    output += alphabet[(value >>> 12) & 63];
-    output += index + 1 < bytes.length ? alphabet[(value >>> 6) & 63] : "=";
-    output += index + 2 < bytes.length ? alphabet[value & 63] : "=";
-  }
-  return output;
 }
 
 /** Deterministic root index plus one raw CID block per application file. */
@@ -179,7 +172,7 @@ export function createOriginStaticPackager(): OriginBundlePackager {
   };
 }
 
-/** Host transport adapter used only for content availability; runtime retention remains separate. */
+/** Host transport adapter used for content bytes; native S3 stores only object metadata. */
 export function createHostOriginAppBlockStore(host: OriginHostClient): OriginAppBlockStore {
   return {
     async has(commitment, signal) {
@@ -217,7 +210,7 @@ export function createOriginAppDeployer(
         if (!input.files.some(({ path }) => path === input.entrypoint)) {
           throw new TypeError("application entrypoint is not present in the bundle");
         }
-        const retentionTransactions: PreparedTransaction[] = [];
+        const objectTransactions: PreparedTransaction[] = [];
         const uploadedCommitments: ContentCommitment[] = [];
         const reusedCommitments: ContentCommitment[] = [];
         for (const block of bundle.blocks) {
@@ -226,12 +219,6 @@ export function createOriginAppDeployer(
             continue;
           }
           await blocks.put(block, signal);
-          const prepared = await storage.prepare(storageRequests.storeWithCidConfig(
-            { codec: decimalU64(85), hashing: "blake2b256" },
-            base64Content(base64(block.bytes)),
-          ), signal);
-          if (!prepared.success) return prepared;
-          retentionTransactions.push(prepared.value);
           uploadedCommitments.push(block.commitment);
         }
         const manifest: OriginAppManifestV1 = {
@@ -249,18 +236,35 @@ export function createOriginAppDeployer(
         };
         const stored = await apps.storeManifest(manifest, signal);
         if (!stored.success) return stored;
-        const manifestRetention = await storage.prepare(storageRequests.storeWithCidConfig(
-          { codec: decimalU64(85), hashing: "blake2b256" },
-          base64Content(base64(stored.value.bytes)),
-        ), signal);
-        if (!manifestRetention.success) return manifestRetention;
-        retentionTransactions.push(manifestRetention.value);
         uploadedCommitments.push(stored.value.commitment);
+        if (input.objectPublication !== undefined) {
+          const prefix = input.objectPublication.keyPrefix ?? "apps/";
+          const expected = input.objectPublication.expectedObjectVersion ?? null;
+          for (const block of bundle.blocks) {
+            const prepared = await storage.prepare(s3Requests.putObject(
+              input.objectPublication.bucket,
+              objectKey(`${prefix}${block.address.cid}`),
+              block.commitment as unknown as ContentHash,
+              expected,
+            ), signal);
+            if (!prepared.success) return prepared;
+            objectTransactions.push(prepared.value);
+          }
+          const manifestKey = input.objectPublication.manifestKey ?? objectKey(`${prefix}manifest.json`);
+          const manifestPrepared = await storage.prepare(s3Requests.putObject(
+            input.objectPublication.bucket,
+            manifestKey,
+            stored.value.commitment as unknown as ContentHash,
+            expected,
+          ), signal);
+          if (!manifestPrepared.success) return manifestPrepared;
+          objectTransactions.push(manifestPrepared.value);
+        }
         return ok({
           bundle,
           manifest: stored.value.manifest,
           storedManifest: stored.value,
-          retentionTransactions,
+          objectTransactions,
           uploadedCommitments,
           reusedCommitments,
           prepareBinding: (bindingSignal) => apps.prepareManifestBinding(stored.value, input.publication, bindingSignal),

@@ -3358,7 +3358,6 @@
   "excluded_legacy_surfaces": [
     "personhood",
     "PeopleLite",
-    "preimage",
-    "TransactionStorage"
+    "preimage"
   ]
 }

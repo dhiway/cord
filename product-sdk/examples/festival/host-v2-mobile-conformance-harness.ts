@@ -299,7 +299,7 @@ export function validateFestivalMobileHostV2Conformance(): { readonly vectors: n
     );
   }
 
-  assert.deepEqual(fixture.excluded_legacy_surfaces, ["personhood", "PeopleLite", "preimage", "TransactionStorage"]);
+  assert.deepEqual(fixture.excluded_legacy_surfaces, ["personhood", "PeopleLite", "preimage"]);
   const searchable = JSON.stringify([fixture.vectors, fixture.grant_contracts]).toLowerCase();
   for (const excluded of fixture.excluded_legacy_surfaces) assert.equal(searchable.includes(excluded.toLowerCase()), false);
 

@@ -17,7 +17,6 @@
 // along with CORD. If not, see <https://www.gnu.org/licenses/>.
 
 import { page, type AccountId, type AgreementId, type BlockNumber, type BucketId, type ChallengeId, type ContainerId, type ContentCommitment, type ContentHash, type DecimalU64, type DriveId, type ObjectId, type PageInput, type ProviderAllocationId, type ProviderId, type ReservationId } from "./types.ts";
-import type { Base64Content, CidConfig, StorageRef, TransactionRef } from "./storage.ts";
 import type { ProviderEndpoint, ProviderServiceKey, ProviderStatus } from "./provider.ts";
 import type { DriveName } from "./drive.ts";
 import type { BucketName, ObjectKey, ObjectListInput } from "./s3.ts";
@@ -27,103 +26,6 @@ export interface CloudStorageReadRequest { readonly kind:"read"; readonly servic
 export interface CloudStorageWriteRequest { readonly kind:"write"; readonly service:StorageService; readonly method:string; readonly payload:Readonly<Record<string,unknown>> }
 const readRequest=(service:StorageService,method:string,payload:Readonly<Record<string,unknown>>):CloudStorageReadRequest=>({kind:"read",service,method,payload});
 const writeRequest=(service:StorageService,method:string,payload:Readonly<Record<string,unknown>>):CloudStorageWriteRequest=>({kind:"write",service,method,payload});
-
-export const storageRequests = {
-  accountAuthorization(account: AccountId) {
-    return readRequest("storage", "account_authorization", { account });
-  },
-
-  canStore(account: AccountId, data_len: number) {
-    return readRequest("storage", "can_store", { account, data_len });
-  },
-
-  canRenew(account: AccountId, entry: TransactionRef) {
-    return readRequest("storage", "can_renew", { account, entry: { ...entry } });
-  },
-
-  storedContentProvenance(reference: StorageRef) {
-    return readRequest("storage", "stored_content_provenance", {
-      reference: { ...reference },
-    });
-  },
-
-  resourceReservation(reservation_id: ReservationId) {
-    return readRequest("storage", "resource_reservation", { reservation_id });
-  },
-
-  resourceReservationLink(
-    reservation_id: ReservationId,
-    content_hash: ContentHash,
-  ) {
-    return readRequest("storage", "resource_reservation_link", {
-      reservation_id,
-      content_hash,
-    });
-  },
-
-  resourceProviderRef(reservation_id: ReservationId) {
-    return readRequest("storage", "resource_provider_ref", { reservation_id });
-  },
-
-  store(content_base64: Base64Content) {
-    return writeRequest("storage", "store", { content_base64 });
-  },
-
-  storeWithCidConfig(cid_config: CidConfig, content_base64: Base64Content) {
-    return writeRequest("storage", "store_with_cid_config", {
-      cid_config: { ...cid_config },
-      content_base64,
-    });
-  },
-
-  storeReserved(
-    reservation_id: ReservationId,
-    cid_config: CidConfig,
-    content_base64: Base64Content,
-  ) {
-    return writeRequest("storage", "store_reserved", {
-      reservation_id,
-      cid_config: { ...cid_config },
-      content_base64,
-    });
-  },
-
-  renewReserved(
-    reservation_id: ReservationId,
-    content_hash: ContentHash,
-  ) {
-    return writeRequest("storage", "renew_reserved", {
-      reservation_id,
-      content_hash,
-    });
-  },
-
-  attachProvider(
-    reservation_id: ReservationId,
-    provider_ref: ProviderAllocationId,
-  ) {
-    return writeRequest("storage", "attach_provider", {
-      reservation_id,
-      provider_ref,
-    });
-  },
-
-  renew(entry: TransactionRef) {
-    return writeRequest("storage", "renew", { entry: { ...entry } });
-  },
-
-  forceRenew(entry: TransactionRef) {
-    return writeRequest("storage", "force_renew", { entry: { ...entry } });
-  },
-
-  enableAutoRenew(content_hash: ContentHash) {
-    return writeRequest("storage", "enable_auto_renew", { content_hash });
-  },
-
-  disableAutoRenew(content_hash: ContentHash) {
-    return writeRequest("storage", "disable_auto_renew", { content_hash });
-  },
-} as const;
 
 export const providerRequests = {
   providerById(provider: ProviderId) {

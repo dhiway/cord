@@ -57,13 +57,11 @@
       "enum": [
         "accept_agreement",
         "accept_renewal",
-        "account_authorization",
         "acknowledge_manifest_deletion",
         "add_controller",
         "agreement_by_id",
         "agreement_nonce",
         "archive_drive",
-        "attach_provider",
         "attest_lite_person",
         "attestation_allowance",
         "attestation_by_id",
@@ -74,8 +72,6 @@
         "bucket_checkpoint",
         "bucket_object_keys",
         "can_accept_capacity",
-        "can_renew",
-        "can_store",
         "cancel_agreement",
         "cancel_commitment",
         "cancel_judgement_request",
@@ -91,14 +87,11 @@
         "creator_schemas",
         "delete_bucket",
         "delete_object",
-        "disable_auto_renew",
         "drive.set_controller",
         "drive_by_id",
         "drive_controllers",
-        "enable_auto_renew",
         "expire_agreement",
         "external_status",
-        "force_renew",
         "force_revoke",
         "force_schema_status",
         "force_transfer",
@@ -141,7 +134,6 @@
         "remove_expired_name",
         "remove_provider",
         "renew",
-        "renew_reserved",
         "request_judgement",
         "request_renewal",
         "reserve_name",
@@ -150,9 +142,6 @@
         "resolve_content_publication",
         "resolve_subject",
         "resolve_text",
-        "resource_provider_ref",
-        "resource_reservation",
-        "resource_reservation_link",
         "revoke",
         "revoke_batch",
         "revoke_delegated",
@@ -177,10 +166,6 @@
         "set_subject",
         "set_text",
         "set_versioning",
-        "store",
-        "store_reserved",
-        "store_with_cid_config",
-        "stored_content_provenance",
         "subject_schema_attestations",
         "submit_sponsored_intent",
         "timeout_challenge",
@@ -210,7 +195,7 @@
           "const": "60e38b74de9c0ccdedfe9c1fa2ea4bdb0346739ba2fef5e7a5ad328c0920b451"
         },
         "descriptor_contract_sha256": {
-          "const": "3a46d330dfd54d92ba38137a2cdce40ca875dffba7ebf8408fe4d4ed2c12117b"
+          "const": "385c7f99b2ed94cc77c1efc82b1158ddf3ccf6ced3435a90e05b963486f59cd6"
         },
         "activation_state": {
           "const": "candidate-pending"
@@ -2374,486 +2359,6 @@
           "properties": {
             "registrar": {},
             "enabled": {}
-          }
-        }
-      },
-      "required": [
-        "capability",
-        "method",
-        "finality",
-        "payload"
-      ]
-    },
-    {
-      "properties": {
-        "capability": {
-          "const": "storage"
-        },
-        "method": {
-          "const": "account_authorization"
-        },
-        "finality": {
-          "const": "finalized"
-        },
-        "payload": {
-          "type": "object",
-          "additionalProperties": false,
-          "required": [
-            "account"
-          ],
-          "properties": {
-            "account": {}
-          }
-        }
-      },
-      "required": [
-        "capability",
-        "method",
-        "finality",
-        "payload"
-      ]
-    },
-    {
-      "properties": {
-        "capability": {
-          "const": "storage"
-        },
-        "method": {
-          "const": "can_store"
-        },
-        "finality": {
-          "const": "finalized"
-        },
-        "payload": {
-          "type": "object",
-          "additionalProperties": false,
-          "required": [
-            "account",
-            "data_len"
-          ],
-          "properties": {
-            "account": {},
-            "data_len": {}
-          }
-        }
-      },
-      "required": [
-        "capability",
-        "method",
-        "finality",
-        "payload"
-      ]
-    },
-    {
-      "properties": {
-        "capability": {
-          "const": "storage"
-        },
-        "method": {
-          "const": "can_renew"
-        },
-        "finality": {
-          "const": "finalized"
-        },
-        "payload": {
-          "type": "object",
-          "additionalProperties": false,
-          "required": [
-            "account",
-            "entry"
-          ],
-          "properties": {
-            "account": {},
-            "entry": {}
-          }
-        }
-      },
-      "required": [
-        "capability",
-        "method",
-        "finality",
-        "payload"
-      ]
-    },
-    {
-      "properties": {
-        "capability": {
-          "const": "storage"
-        },
-        "method": {
-          "const": "stored_content_provenance"
-        },
-        "finality": {
-          "const": "finalized"
-        },
-        "payload": {
-          "type": "object",
-          "additionalProperties": false,
-          "required": [
-            "reference"
-          ],
-          "properties": {
-            "reference": {}
-          }
-        }
-      },
-      "required": [
-        "capability",
-        "method",
-        "finality",
-        "payload"
-      ]
-    },
-    {
-      "properties": {
-        "capability": {
-          "const": "storage"
-        },
-        "method": {
-          "const": "resource_reservation"
-        },
-        "finality": {
-          "const": "finalized"
-        },
-        "payload": {
-          "type": "object",
-          "additionalProperties": false,
-          "required": [
-            "reservation_id"
-          ],
-          "properties": {
-            "reservation_id": {}
-          }
-        }
-      },
-      "required": [
-        "capability",
-        "method",
-        "finality",
-        "payload"
-      ]
-    },
-    {
-      "properties": {
-        "capability": {
-          "const": "storage"
-        },
-        "method": {
-          "const": "resource_reservation_link"
-        },
-        "finality": {
-          "const": "finalized"
-        },
-        "payload": {
-          "type": "object",
-          "additionalProperties": false,
-          "required": [
-            "reservation_id",
-            "content_hash"
-          ],
-          "properties": {
-            "reservation_id": {},
-            "content_hash": {}
-          }
-        }
-      },
-      "required": [
-        "capability",
-        "method",
-        "finality",
-        "payload"
-      ]
-    },
-    {
-      "properties": {
-        "capability": {
-          "const": "storage"
-        },
-        "method": {
-          "const": "resource_provider_ref"
-        },
-        "finality": {
-          "const": "finalized"
-        },
-        "payload": {
-          "type": "object",
-          "additionalProperties": false,
-          "required": [
-            "reservation_id"
-          ],
-          "properties": {
-            "reservation_id": {}
-          }
-        }
-      },
-      "required": [
-        "capability",
-        "method",
-        "finality",
-        "payload"
-      ]
-    },
-    {
-      "properties": {
-        "capability": {
-          "const": "storage"
-        },
-        "method": {
-          "const": "store"
-        },
-        "finality": {
-          "const": "submit-and-finalize"
-        },
-        "payload": {
-          "type": "object",
-          "additionalProperties": false,
-          "required": [
-            "content_base64"
-          ],
-          "properties": {
-            "content_base64": {}
-          }
-        }
-      },
-      "required": [
-        "capability",
-        "method",
-        "finality",
-        "payload"
-      ]
-    },
-    {
-      "properties": {
-        "capability": {
-          "const": "storage"
-        },
-        "method": {
-          "const": "store_with_cid_config"
-        },
-        "finality": {
-          "const": "submit-and-finalize"
-        },
-        "payload": {
-          "type": "object",
-          "additionalProperties": false,
-          "required": [
-            "cid_config",
-            "content_base64"
-          ],
-          "properties": {
-            "cid_config": {},
-            "content_base64": {}
-          }
-        }
-      },
-      "required": [
-        "capability",
-        "method",
-        "finality",
-        "payload"
-      ]
-    },
-    {
-      "properties": {
-        "capability": {
-          "const": "storage"
-        },
-        "method": {
-          "const": "store_reserved"
-        },
-        "finality": {
-          "const": "submit-and-finalize"
-        },
-        "payload": {
-          "type": "object",
-          "additionalProperties": false,
-          "required": [
-            "reservation_id",
-            "cid_config",
-            "content_base64"
-          ],
-          "properties": {
-            "reservation_id": {},
-            "cid_config": {},
-            "content_base64": {}
-          }
-        }
-      },
-      "required": [
-        "capability",
-        "method",
-        "finality",
-        "payload"
-      ]
-    },
-    {
-      "properties": {
-        "capability": {
-          "const": "storage"
-        },
-        "method": {
-          "const": "renew_reserved"
-        },
-        "finality": {
-          "const": "submit-and-finalize"
-        },
-        "payload": {
-          "type": "object",
-          "additionalProperties": false,
-          "required": [
-            "reservation_id",
-            "content_hash"
-          ],
-          "properties": {
-            "reservation_id": {},
-            "content_hash": {}
-          }
-        }
-      },
-      "required": [
-        "capability",
-        "method",
-        "finality",
-        "payload"
-      ]
-    },
-    {
-      "properties": {
-        "capability": {
-          "const": "storage"
-        },
-        "method": {
-          "const": "attach_provider"
-        },
-        "finality": {
-          "const": "submit-and-finalize"
-        },
-        "payload": {
-          "type": "object",
-          "additionalProperties": false,
-          "required": [
-            "reservation_id",
-            "provider_ref"
-          ],
-          "properties": {
-            "reservation_id": {},
-            "provider_ref": {}
-          }
-        }
-      },
-      "required": [
-        "capability",
-        "method",
-        "finality",
-        "payload"
-      ]
-    },
-    {
-      "properties": {
-        "capability": {
-          "const": "storage"
-        },
-        "method": {
-          "const": "renew"
-        },
-        "finality": {
-          "const": "submit-and-finalize"
-        },
-        "payload": {
-          "type": "object",
-          "additionalProperties": false,
-          "required": [
-            "entry"
-          ],
-          "properties": {
-            "entry": {}
-          }
-        }
-      },
-      "required": [
-        "capability",
-        "method",
-        "finality",
-        "payload"
-      ]
-    },
-    {
-      "properties": {
-        "capability": {
-          "const": "storage"
-        },
-        "method": {
-          "const": "force_renew"
-        },
-        "finality": {
-          "const": "submit-and-finalize"
-        },
-        "payload": {
-          "type": "object",
-          "additionalProperties": false,
-          "required": [
-            "entry"
-          ],
-          "properties": {
-            "entry": {}
-          }
-        }
-      },
-      "required": [
-        "capability",
-        "method",
-        "finality",
-        "payload"
-      ]
-    },
-    {
-      "properties": {
-        "capability": {
-          "const": "storage"
-        },
-        "method": {
-          "const": "enable_auto_renew"
-        },
-        "finality": {
-          "const": "submit-and-finalize"
-        },
-        "payload": {
-          "type": "object",
-          "additionalProperties": false,
-          "required": [
-            "content_hash"
-          ],
-          "properties": {
-            "content_hash": {}
-          }
-        }
-      },
-      "required": [
-        "capability",
-        "method",
-        "finality",
-        "payload"
-      ]
-    },
-    {
-      "properties": {
-        "capability": {
-          "const": "storage"
-        },
-        "method": {
-          "const": "disable_auto_renew"
-        },
-        "finality": {
-          "const": "submit-and-finalize"
-        },
-        "payload": {
-          "type": "object",
-          "additionalProperties": false,
-          "required": [
-            "content_hash"
-          ],
-          "properties": {
-            "content_hash": {}
           }
         }
       },

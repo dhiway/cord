@@ -41,7 +41,7 @@
     },
     "versionMatrix": {
       "path": "docs/sdk/native-version-matrix.json",
-      "sha256": "9f09d1bb234a55b9d82e93316260e9f43b30724c5b880a03c443e1d4dbe8ab9e"
+      "sha256": "0fe369f1345b7a0625a8c68386245fb04da791bb5558f21176da81045f463a17"
     },
     "extensions": {
       "path": "docs/sdk/signed-extension-manifest.json",
@@ -65,7 +65,7 @@
     },
     "genesisIdentity": {
       "path": "docs/genesis/orbis-candidate-genesis-identity.json",
-      "sha256": "bfac0f6c85fac491cc9aa6fb0ff03ab1581db78c7901d094c8a9843e898c9e0d"
+      "sha256": "e0cfdc509e90b58c7c36a9cc522eab9013f281c076c100ec3f09fc9e24c074de"
     },
     "chainSpec": {
       "path": "origin/orbis/node/src/chain_spec.rs",
@@ -73,7 +73,7 @@
     },
     "nativeRouteContract": {
       "path": "docs/sdk/native-route-contract.json",
-      "sha256": "247bd86ec1f05105291be1cbd96af45dbf63d6cc7c51817064914adf20f12c2b"
+      "sha256": "ec11d606833f9504c2b1a2ab39c61cea2f6d0900a8fa56bdeab43d8292bd91d4"
     }
   },
   "signedExtensionSurfaces": {
@@ -156,7 +156,7 @@
   },
   "nativeHostContract": {
     "version": 1,
-    "methodCount": 136,
+    "methodCount": 120,
     "pageLimit": 100,
     "payloadValidation": "closed-shape-plus-core-native-types-v1",
     "methods": [
@@ -763,142 +763,6 @@
         "payloadFields": [
           "registrar",
           "enabled"
-        ]
-      },
-      {
-        "capability": "storage",
-        "method": "account_authorization",
-        "finality": "finalized",
-        "payloadFields": [
-          "account"
-        ]
-      },
-      {
-        "capability": "storage",
-        "method": "can_store",
-        "finality": "finalized",
-        "payloadFields": [
-          "account",
-          "data_len"
-        ]
-      },
-      {
-        "capability": "storage",
-        "method": "can_renew",
-        "finality": "finalized",
-        "payloadFields": [
-          "account",
-          "entry"
-        ]
-      },
-      {
-        "capability": "storage",
-        "method": "stored_content_provenance",
-        "finality": "finalized",
-        "payloadFields": [
-          "reference"
-        ]
-      },
-      {
-        "capability": "storage",
-        "method": "resource_reservation",
-        "finality": "finalized",
-        "payloadFields": [
-          "reservation_id"
-        ]
-      },
-      {
-        "capability": "storage",
-        "method": "resource_reservation_link",
-        "finality": "finalized",
-        "payloadFields": [
-          "reservation_id",
-          "content_hash"
-        ]
-      },
-      {
-        "capability": "storage",
-        "method": "resource_provider_ref",
-        "finality": "finalized",
-        "payloadFields": [
-          "reservation_id"
-        ]
-      },
-      {
-        "capability": "storage",
-        "method": "store",
-        "finality": "submit-and-finalize",
-        "payloadFields": [
-          "content_base64"
-        ]
-      },
-      {
-        "capability": "storage",
-        "method": "store_with_cid_config",
-        "finality": "submit-and-finalize",
-        "payloadFields": [
-          "cid_config",
-          "content_base64"
-        ]
-      },
-      {
-        "capability": "storage",
-        "method": "store_reserved",
-        "finality": "submit-and-finalize",
-        "payloadFields": [
-          "reservation_id",
-          "cid_config",
-          "content_base64"
-        ]
-      },
-      {
-        "capability": "storage",
-        "method": "renew_reserved",
-        "finality": "submit-and-finalize",
-        "payloadFields": [
-          "reservation_id",
-          "content_hash"
-        ]
-      },
-      {
-        "capability": "storage",
-        "method": "attach_provider",
-        "finality": "submit-and-finalize",
-        "payloadFields": [
-          "reservation_id",
-          "provider_ref"
-        ]
-      },
-      {
-        "capability": "storage",
-        "method": "renew",
-        "finality": "submit-and-finalize",
-        "payloadFields": [
-          "entry"
-        ]
-      },
-      {
-        "capability": "storage",
-        "method": "force_renew",
-        "finality": "submit-and-finalize",
-        "payloadFields": [
-          "entry"
-        ]
-      },
-      {
-        "capability": "storage",
-        "method": "enable_auto_renew",
-        "finality": "submit-and-finalize",
-        "payloadFields": [
-          "content_hash"
-        ]
-      },
-      {
-        "capability": "storage",
-        "method": "disable_auto_renew",
-        "finality": "submit-and-finalize",
-        "payloadFields": [
-          "content_hash"
         ]
       },
       {

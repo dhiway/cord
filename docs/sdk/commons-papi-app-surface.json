@@ -2,7 +2,7 @@
   "schema": "cord.commons-papi-app-surface.v1",
   "metadata_scale_sha256": "2785e1e501df231ea313a7613c7cadcdad550c79ecf87bb3797b61c64be462fe",
   "generated_declaration_sha256": "c07c6e3d35f0bc72a583442c88bcbad315d5f315ac738b9aa05d0d3bf68d9e0e",
-  "policy_route_count": 136,
+  "policy_route_count": 120,
   "policy_routes_by_capability": {
     "attestation": [
       "attestation:schema_by_id",
@@ -81,22 +81,6 @@
       "names:set_registrar"
     ],
     "storage": [
-      "storage:account_authorization",
-      "storage:can_store",
-      "storage:can_renew",
-      "storage:stored_content_provenance",
-      "storage:resource_reservation",
-      "storage:resource_reservation_link",
-      "storage:resource_provider_ref",
-      "storage:store",
-      "storage:store_with_cid_config",
-      "storage:store_reserved",
-      "storage:renew_reserved",
-      "storage:attach_provider",
-      "storage:renew",
-      "storage:force_renew",
-      "storage:enable_auto_renew",
-      "storage:disable_auto_renew",
       "storage:provider_by_id",
       "storage:providers",
       "storage:agreement_by_id",

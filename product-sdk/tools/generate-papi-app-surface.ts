@@ -33,7 +33,7 @@ const currentRuntime = JSON.parse(
 const source = readFileSync(input, "utf8");
 const file = ts.createSourceFile(input, source, ts.ScriptTarget.Latest, true, ts.ScriptKind.TS);
 const typeNames = { storage: "IStorage", calls: "ICalls", events: "IEvent", errors: "IError", constants: "IConstants" } as const;
-const pallets = ["People", "PeopleLite", "Personhood", "Resources", "Attestation", "Names", "TransactionStorage", "StorageProvider", "Drive", "S3", "Assets", "Uniques", "Nfts", "MetaTx", "Revive"] as const;
+const pallets = ["People", "PeopleLite", "Personhood", "Resources", "Attestation", "Names", "StorageProvider", "Drive", "S3", "Assets", "Uniques", "Nfts", "MetaTx", "Revive"] as const;
 const propertyName = (member: ts.TypeElement): string | undefined => member.name && ts.isIdentifier(member.name)
   ? member.name.text
   : member.name && ts.isStringLiteral(member.name) ? member.name.text : undefined;

@@ -22,10 +22,9 @@
   "excluded_legacy_surfaces": [
     "personhood",
     "PeopleLite",
-    "preimage",
-    "TransactionStorage"
+    "preimage"
   ],
-  "vector_sha256": "b88425e751d84b4667b9dadc9863ab07ba59bd44353527eec6d6fa4f9f8c2cd1",
+  "vector_sha256": "3f41c4fce4acac2b2a8b3ff6199515d03bb7227fcdc89aa227865337d0c93508",
   "source_sha256": {
     "origin-host-registry-v2.operations.json": "48934f781f5bd7f377684a5f17dd5eb3d9efa2b178b408cb0db80eb5b3d738b1",
     "origin-host-registry-v2.vectors.json": "930d9e60a8e618589100aca492176e592fd1baeaf3fe38ef3f5cc70f567ece47"

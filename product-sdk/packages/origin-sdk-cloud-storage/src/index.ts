@@ -18,7 +18,6 @@
 
 export * from "./types.ts";
 export * from "./content.ts";
-export * from "./storage.ts";
 export * from "./provider.ts";
 export * from "./drive.ts";
 export * from "./s3.ts";

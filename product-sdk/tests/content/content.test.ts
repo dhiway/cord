@@ -108,7 +108,7 @@ test("portable SHA2-256 and Blake2b-256 match canonical vectors", () => {
   assert.equal(hex(digestContent("blake2b-256", multiBlock)), "f7f3c46ba2564ff4c4c162da1f5b605f9f1c4aa6a20652a9f9a337c1a2f5b9c9");
 });
 
-test("raw Blake2b-256 CID matches the Orbis TransactionStorage fixture", () => {
+test("raw Blake2b-256 CID matches the Commons content fixture", () => {
   assert.equal(cidFixture.schema, "cord.content-cid-vector.v1");
   const bytes = text.encode(cidFixture.input_utf8);
   assert.equal(cid(bytes, cidFixture.codec, cidFixture.multihash), cidFixture.cid);

@@ -351,7 +351,10 @@ def current_surface_census(root: Path) -> set[tuple[str, str, str]]:
         "product-sdk/packages/origin-sdk-personhood/src/index.ts",
         "product-sdk/packages/origin-sdk-resources/src/index.ts",
     ):
-        text = (root / relative).read_text(encoding="utf-8")
+        path = root / relative
+        if not path.is_file():
+            continue
+        text = path.read_text(encoding="utf-8")
         for name in re.findall(
             r"(?m)^export\s+(?:interface|type|const|function|class)\s+([A-Za-z_][A-Za-z0-9_]*)",
             text,

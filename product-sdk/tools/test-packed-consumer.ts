@@ -58,7 +58,7 @@ import { submitAndFinalize } from "@cord-network/origin-sdk-tx";
 import { accountId, createIdentityClient } from "@cord-network/origin-sdk-identity";
 import { blake2b256 } from "@cord-network/origin-sdk-crypto";
 import { normalizedLabel } from "@cord-network/origin-sdk-names";
-import { digestContent, storageRequests } from "@cord-network/origin-sdk-cloud-storage";
+import { digestContent, s3Requests, objectKey } from "@cord-network/origin-sdk-cloud-storage";
 import { ORIGIN_APP_MANIFEST_VERSION } from "@cord-network/origin-sdk-apps";
 import { assetId, assetWrites, balance, commonsAsset, paymentOptions } from "@cord-network/origin-sdk-assets";
 import { createLocalStorage, utf8Codec } from "@cord-network/origin-sdk-local-storage";
@@ -66,7 +66,7 @@ import { ORIGIN_APP_CONTRACT } from "@cord-network/origin-sdk";
 const hash = "0x" + "11".repeat(32), txHash = "0x" + "22".repeat(32);
 const packedAsset = assetWrites.transfer(assetId(7), accountId("5Packed"), balance(9));
 const packedPayment = paymentOptions(commonsAsset(assetId(7)));
-if (ORIGIN_APP_CONTRACT.contractsIncluded !== false || ORIGIN_APP_MANIFEST_VERSION !== 1 || blake2b256(new Uint8Array()).length !== 32 || normalizedLabel("packed-app") !== "packed-app" || digestContent("blake2b-256", new Uint8Array()).length !== 32 || storageRequests.store("YQ==").method !== "store" || packedAsset.target !== "Assets.transfer" || packedPayment.feeAsset?.parents !== 0) throw new Error("packed apps/crypto/names/storage/assets surface failed");
+if (ORIGIN_APP_CONTRACT.contractsIncluded !== false || ORIGIN_APP_MANIFEST_VERSION !== 1 || blake2b256(new Uint8Array()).length !== 32 || normalizedLabel("packed-app") !== "packed-app" || digestContent("blake2b-256", new Uint8Array()).length !== 32 || s3Requests.putObject(hash, objectKey("packed/root"), hash, null).method !== "put_object" || packedAsset.target !== "Assets.transfer" || packedPayment.feeAsset?.parents !== 0) throw new Error("packed apps/crypto/names/storage/assets surface failed");
 const identity = {
   genesis_hash: COMMONS_NETWORK_BINDING.genesis_hash,
   spec_version: COMMONS_NETWORK_BINDING.spec_version,

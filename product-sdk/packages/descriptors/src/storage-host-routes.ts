@@ -18,114 +18,12 @@
 
 import {
   page,
-  type AccountId, type AgreementId, type Base64Content, type BlockNumber, type BucketId, type BucketName,
-  type ChallengeId, type CidConfig, type ContainerId, type ContentCommitment, type ContentHash, type DecimalU64,
-  type DriveId, type DriveName, type ObjectId, type ObjectKey, type ObjectListInput, type PageInput, type ProviderAllocationId,
-  type ProviderEndpoint, type ProviderId, type ProviderServiceKey, type ProviderStatus, type ReservationId,
-  type StorageRef, type TransactionRef,
+  type AccountId, type AgreementId, type BlockNumber, type BucketId, type BucketName,
+  type ChallengeId, type ContainerId, type ContentCommitment, type ContentHash, type DecimalU64,
+  type DriveId, type DriveName, type ObjectId, type ObjectKey, type ObjectListInput, type PageInput,
+  type ProviderEndpoint, type ProviderId, type ProviderServiceKey, type ProviderStatus,
 } from "@cord-network/origin-sdk-cloud-storage";
 import { finalizedRead, submitAndFinalize, type RequestContext } from "../../../src/host.ts";
-
-export const storageHostRoutes = {
-  accountAuthorization(context: RequestContext, account: AccountId) {
-    return finalizedRead("storage", context, "storage", "account_authorization", { account });
-  },
-
-  canStore(context: RequestContext, account: AccountId, data_len: number) {
-    return finalizedRead("storage", context, "storage", "can_store", { account, data_len });
-  },
-
-  canRenew(context: RequestContext, account: AccountId, entry: TransactionRef) {
-    return finalizedRead("storage", context, "storage", "can_renew", { account, entry: { ...entry } });
-  },
-
-  storedContentProvenance(context: RequestContext, reference: StorageRef) {
-    return finalizedRead("storage", context, "storage", "stored_content_provenance", {
-      reference: { ...reference },
-    });
-  },
-
-  resourceReservation(context: RequestContext, reservation_id: ReservationId) {
-    return finalizedRead("storage", context, "storage", "resource_reservation", { reservation_id });
-  },
-
-  resourceReservationLink(
-    context: RequestContext,
-    reservation_id: ReservationId,
-    content_hash: ContentHash,
-  ) {
-    return finalizedRead("storage", context, "storage", "resource_reservation_link", {
-      reservation_id,
-      content_hash,
-    });
-  },
-
-  resourceProviderRef(context: RequestContext, reservation_id: ReservationId) {
-    return finalizedRead("storage", context, "storage", "resource_provider_ref", { reservation_id });
-  },
-
-  store(context: RequestContext, content_base64: Base64Content) {
-    return submitAndFinalize("storage", context, "storage", "store", { content_base64 });
-  },
-
-  storeWithCidConfig(context: RequestContext, cid_config: CidConfig, content_base64: Base64Content) {
-    return submitAndFinalize("storage", context, "storage", "store_with_cid_config", {
-      cid_config: { ...cid_config },
-      content_base64,
-    });
-  },
-
-  storeReserved(
-    context: RequestContext,
-    reservation_id: ReservationId,
-    cid_config: CidConfig,
-    content_base64: Base64Content,
-  ) {
-    return submitAndFinalize("storage", context, "storage", "store_reserved", {
-      reservation_id,
-      cid_config: { ...cid_config },
-      content_base64,
-    });
-  },
-
-  renewReserved(
-    context: RequestContext,
-    reservation_id: ReservationId,
-    content_hash: ContentHash,
-  ) {
-    return submitAndFinalize("storage", context, "storage", "renew_reserved", {
-      reservation_id,
-      content_hash,
-    });
-  },
-
-  attachProvider(
-    context: RequestContext,
-    reservation_id: ReservationId,
-    provider_ref: ProviderAllocationId,
-  ) {
-    return submitAndFinalize("storage", context, "storage", "attach_provider", {
-      reservation_id,
-      provider_ref,
-    });
-  },
-
-  renew(context: RequestContext, entry: TransactionRef) {
-    return submitAndFinalize("storage", context, "storage", "renew", { entry: { ...entry } });
-  },
-
-  forceRenew(context: RequestContext, entry: TransactionRef) {
-    return submitAndFinalize("storage", context, "storage", "force_renew", { entry: { ...entry } });
-  },
-
-  enableAutoRenew(context: RequestContext, content_hash: ContentHash) {
-    return submitAndFinalize("storage", context, "storage", "enable_auto_renew", { content_hash });
-  },
-
-  disableAutoRenew(context: RequestContext, content_hash: ContentHash) {
-    return submitAndFinalize("storage", context, "storage", "disable_auto_renew", { content_hash });
-  },
-} as const;
 
 export const providerHostRoutes = {
   providerById(context: RequestContext, provider: ProviderId) {

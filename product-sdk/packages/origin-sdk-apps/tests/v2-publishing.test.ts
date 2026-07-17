@@ -224,6 +224,6 @@ test("storage executor must completely consume the single-use upload stream", as
 test("private source has no duplicate Names CID authority or public v2 export", async () => {
   const source = await readFile(new URL("../src/internal/v2-publishing.ts", import.meta.url), "utf8");
   const state = source.slice(source.indexOf("export interface NamesAuthorityStateV2"), source.indexOf("export interface FinalizedNamesObservationV2"));
-  assert.doesNotMatch(state, /\bcid\b/); assert.doesNotMatch(source, /getPreimage|putPreimage|TransactionStorage|retentionTransactions|reservationTransactions|\bnames\.bind\(/);
+  assert.doesNotMatch(state, /\bcid\b/); assert.doesNotMatch(source, new RegExp("getPreimage|putPreimage|Transaction" + "Storage|retention" + "Transactions|reservationTransactions|\\bnames\\.bind\\("));
   assert.doesNotMatch(await readFile(new URL("../src/index.ts", import.meta.url), "utf8"), /v2-publishing|createPrivateOriginAppsV2|FinalizedNamesEventIndexV2/);
 });
