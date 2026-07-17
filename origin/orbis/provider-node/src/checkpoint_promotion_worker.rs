@@ -97,12 +97,13 @@ impl PromotionDiscoveryScheduler {
 		fs::create_dir_all(&root).map_err(io_error)?;
 		let path = root.join("cursor.json");
 		let temp = root.join("cursor.json.tmp");
-		if temp.exists() {
-			fs::remove_file(&temp).map_err(io_error)?;
-			File::open(&root).and_then(|directory| directory.sync_all()).map_err(io_error)?;
-		}
+		let mut temp_present = false;
 		for entry in fs::read_dir(&root).map_err(io_error)? {
 			let entry = entry.map_err(io_error)?;
+			if entry.path() == temp && entry.file_type().map_err(io_error)?.is_file() {
+				temp_present = true;
+				continue;
+			}
 			if entry.path() != path || !entry.file_type().map_err(io_error)?.is_file() {
 				return Err(ContentError::IntegrityFailed);
 			}
@@ -116,6 +117,12 @@ impl PromotionDiscoveryScheduler {
 		} else {
 			None
 		};
+		if temp_present {
+			crate::bounded_io::remove_validated_temp_artifacts(
+				&root,
+				std::slice::from_ref(&temp),
+			)?;
+		}
 		Ok(Self { root, cursor: Mutex::new(cursor) })
 	}
 
@@ -1157,8 +1164,10 @@ mod tests {
 			scheduler.reserve(&inventory, [2; 32], pair(2).public().0).unwrap();
 			drop(scheduler);
 			let root = temp.path().join(ROOT);
+			let crash_temp = root.join("cursor.json.tmp");
+			fs::write(&crash_temp, b"partial").unwrap();
 			if unknown_entry {
-				fs::write(root.join("unexpected"), b"unexpected").unwrap();
+				fs::write(root.join("cursor.json.tmp-2"), b"unexpected").unwrap();
 			} else {
 				let path = root.join("cursor.json");
 				let mut record: serde_json::Value =
@@ -1170,7 +1179,18 @@ mod tests {
 				PromotionDiscoveryScheduler::open(temp.path()),
 				Err(ContentError::IntegrityFailed)
 			));
+			assert!(crash_temp.exists());
+			if unknown_entry {
+				assert!(root.join("cursor.json.tmp-2").exists());
+			}
 		}
+		let recovered = TempDir::new().unwrap();
+		let root = recovered.path().join(ROOT);
+		fs::create_dir_all(&root).unwrap();
+		let crash_temp = root.join("cursor.json.tmp");
+		fs::write(&crash_temp, b"partial").unwrap();
+		PromotionDiscoveryScheduler::open(recovered.path()).unwrap();
+		assert!(!crash_temp.exists());
 	}
 
 	#[test]

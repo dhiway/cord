@@ -270,11 +270,13 @@ impl CheckpointQuorumScheduler {
 		fs::create_dir_all(&root).map_err(io_error)?;
 		let path = root.join("cursor.json");
 		let temp = root.join("cursor.json.tmp");
-		if temp.exists() {
-			fs::remove_file(&temp).map_err(io_error)?;
-		}
+		let mut temp_present = false;
 		for entry in fs::read_dir(&root).map_err(io_error)? {
 			let entry = entry.map_err(io_error)?;
+			if entry.path() == temp && entry.file_type().map_err(io_error)?.is_file() {
+				temp_present = true;
+				continue;
+			}
 			if entry.path() != path || !entry.file_type().map_err(io_error)?.is_file() {
 				return Err(ContentError::IntegrityFailed);
 			}
@@ -288,6 +290,12 @@ impl CheckpointQuorumScheduler {
 		} else {
 			None
 		};
+		if temp_present {
+			crate::bounded_io::remove_validated_temp_artifacts(
+				&root,
+				std::slice::from_ref(&temp),
+			)?;
+		}
 		Ok(Self { root, record: Mutex::new(record) })
 	}
 
@@ -953,6 +961,40 @@ mod tests {
 			action_ids(std::slice::from_ref(selection)).0 == vec![1]
 		});
 		assert_eq!(action_ids(&retried).0, vec![1]);
+	}
+
+	#[test]
+	fn recovery_validation_failure_preserves_scheduler_temp() {
+		for extra_temp in [false, true] {
+			let temp = TempDir::new().unwrap();
+			let current = inventory(9);
+			let scheduler = CheckpointQuorumScheduler::open(temp.path()).unwrap();
+			let _ = admit_successes(&scheduler, &current, vec![resume(1)], Vec::new(), 0);
+			drop(scheduler);
+			let root = temp.path().join(SCHEDULER_ROOT);
+			let crash_temp = root.join("cursor.json.tmp");
+			fs::write(&crash_temp, b"partial").unwrap();
+			if extra_temp {
+				fs::write(root.join("cursor.json.tmp-2"), b"unexpected").unwrap();
+			} else {
+				fs::write(root.join("cursor.json"), b"not-json").unwrap();
+			}
+			assert!(matches!(
+				CheckpointQuorumScheduler::open(temp.path()),
+				Err(ContentError::IntegrityFailed)
+			));
+			assert!(crash_temp.exists());
+			if extra_temp {
+				assert!(root.join("cursor.json.tmp-2").exists());
+			}
+		}
+		let recovered = TempDir::new().unwrap();
+		let root = recovered.path().join(SCHEDULER_ROOT);
+		fs::create_dir_all(&root).unwrap();
+		let crash_temp = root.join("cursor.json.tmp");
+		fs::write(&crash_temp, b"partial").unwrap();
+		CheckpointQuorumScheduler::open(recovered.path()).unwrap();
+		assert!(!crash_temp.exists());
 	}
 
 	struct GatedTransport {
