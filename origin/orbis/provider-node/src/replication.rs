@@ -281,7 +281,7 @@ pub(crate) struct PreparedReplicationIntentStore {
 	root_missing: bool,
 	records: BTreeMap<String, ReplicationIntentV1>,
 	scheduler: SchedulerStateV1,
-	scheduler_missing: bool,
+	scheduler_install: Option<Vec<u8>>,
 	durable_bytes: u64,
 	temp_artifacts: Vec<PathBuf>,
 	limit: usize,
@@ -291,20 +291,18 @@ impl PreparedReplicationIntentStore {
 	pub(crate) fn apply(self) -> Result<ReplicationIntentStore, ContentError> {
 		crate::bounded_io::create_prepared_directory(&self.root, self.root_missing)?;
 		crate::bounded_io::remove_validated_temp_artifacts(&self.root, &self.temp_artifacts)?;
-		let scheduler = self.scheduler;
-		let store = ReplicationIntentStore {
+		if let Some(bytes) = &self.scheduler_install {
+			install_prepared_scheduler(&self.root, bytes)?;
+		}
+		Ok(ReplicationIntentStore {
 			root: self.root,
 			records: RwLock::new(self.records),
-			scheduler: RwLock::new(scheduler.clone()),
+			scheduler: RwLock::new(self.scheduler),
 			durable_bytes: RwLock::new(self.durable_bytes),
 			poisoned: RwLock::new(false),
 			fault: RwLock::new(None),
 			limit: self.limit,
-		};
-		if self.scheduler_missing {
-			store.persist_scheduler(&scheduler)?;
-		}
-		Ok(store)
+		})
 	}
 }
 
@@ -353,23 +351,37 @@ impl ReplicationIntentStore {
 				return Err(ContentError::IntegrityFailed);
 			}
 		}
-		let scheduler_missing = loaded.scheduler.is_none();
-		let scheduler = match loaded.scheduler {
+		let (scheduler, scheduler_install, durable_bytes) = match loaded.scheduler {
 			Some(bytes) => {
 				let scheduler: SchedulerStateV1 =
 					serde_json::from_slice(&bytes).map_err(|_| ContentError::IntegrityFailed)?;
 				validate_scheduler(&scheduler)?;
-				scheduler
+				(scheduler, None, loaded.durable_bytes)
 			},
-			None => new_scheduler()?,
+			None => {
+				let scheduler = new_scheduler()?;
+				validate_scheduler(&scheduler)?;
+				let bytes = serde_json::to_vec(&scheduler).map_err(io_error)?;
+				if bytes.len() > MAX_RECORD_BYTES {
+					return Err(ContentError::IntegrityFailed);
+				}
+				let durable_bytes = loaded
+					.durable_bytes
+					.checked_add(bytes.len() as u64)
+					.ok_or(ContentError::ProviderRecoveryTableFull)?;
+				if durable_bytes > MAX_TOTAL_RECORD_BYTES {
+					return Err(ContentError::ProviderRecoveryTableFull);
+				}
+				(scheduler, Some(bytes), durable_bytes)
+			},
 		};
 		Ok(PreparedReplicationIntentStore {
 			root,
 			root_missing,
 			records,
 			scheduler,
-			scheduler_missing,
-			durable_bytes: loaded.durable_bytes,
+			scheduler_install,
+			durable_bytes,
 			temp_artifacts: loaded.temp_artifacts,
 			limit,
 		})
@@ -1988,6 +2000,26 @@ fn validate_scheduler(state: &SchedulerStateV1) -> Result<(), ContentError> {
 	Ok(())
 }
 
+fn install_prepared_scheduler(root: &Path, bytes: &[u8]) -> Result<(), ContentError> {
+	let temp = root.join(format!("{SCHEDULER}.tmp-{}", std::process::id()));
+	let result = (|| {
+		let mut file = fs::OpenOptions::new()
+			.create_new(true)
+			.write(true)
+			.open(&temp)
+			.map_err(io_error)?;
+		file.write_all(bytes).map_err(io_error)?;
+		file.sync_all().map_err(io_error)?;
+		fs::rename(&temp, root.join(SCHEDULER)).map_err(io_error)?;
+		sync_dir(root)
+	})();
+	if result.is_err() {
+		let _ = fs::remove_file(&temp);
+		let _ = sync_dir(root);
+	}
+	result
+}
+
 fn sync_dir(path: &Path) -> Result<(), ContentError> {
 	File::open(path).and_then(|directory| directory.sync_all()).map_err(io_error)
 }
@@ -2013,6 +2045,29 @@ mod tests {
 		},
 		StreamingDescriptor,
 	};
+
+	#[test]
+	fn missing_scheduler_is_prepared_once_and_applied_as_validated_bytes() {
+		let temp = tempfile::tempdir().unwrap();
+		let root = temp.path().join(ROOT);
+		fs::create_dir(&root).unwrap();
+
+		let prepared = ReplicationIntentStore::prepare_open(temp.path()).unwrap();
+		let scheduler_bytes = prepared.scheduler_install.as_ref().unwrap().clone();
+		let durable_bytes = prepared.durable_bytes;
+		assert_eq!(durable_bytes, scheduler_bytes.len() as u64);
+		assert!(!root.join(SCHEDULER).exists());
+
+		let store = prepared.apply().unwrap();
+		assert_eq!(fs::read(root.join(SCHEDULER)).unwrap(), scheduler_bytes);
+		assert_eq!(*store.durable_bytes.read().unwrap(), durable_bytes);
+		drop(store);
+
+		let reopened = ReplicationIntentStore::prepare_open(temp.path()).unwrap();
+		assert!(reopened.scheduler_install.is_none());
+		assert_eq!(reopened.durable_bytes, durable_bytes);
+		drop(reopened.apply().unwrap());
+	}
 
 	fn bytes32(value: u16, salt: u8) -> [u8; 32] {
 		let mut bytes = [salt; 32];
