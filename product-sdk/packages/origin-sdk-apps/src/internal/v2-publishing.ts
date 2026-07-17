@@ -22,7 +22,6 @@
  */
 
 import {
-  digestContent,
   parseContentCid,
   rawContentAddress,
 } from "@cord-network/origin-sdk-cloud-storage";
@@ -233,9 +232,10 @@ function normalizePrivateManifest(value: unknown): PrivateOriginAppManifestV2 {
   if (typeof manifest.storageName !== "string" || typeof manifest.storageNameHash !== "string") {
     throw new TypeError("private app manifest storage name is invalid");
   }
-  const derivedNameHash = bytesHex(deriveStorageNameHashV2(manifest.storageName));
-  if (manifest.storageNameHash !== derivedNameHash) {
-    throw new TypeError("private app manifest storage name hash is not derived from its name");
+  originRootLabel(manifest.storageName);
+  const nativeNameHash = bytesHex(nativeNameBytes(checkedName));
+  if (manifest.storageNameHash !== nativeNameHash) {
+    throw new TypeError("private app manifest publication identifier is not its native NameId");
   }
   const content = record(manifest.content, "private app manifest content");
   exactKeys(content, ["cid", "length"], "private app manifest content");
@@ -275,7 +275,7 @@ function normalizePrivateManifest(value: unknown): PrivateOriginAppManifestV2 {
     productId: manifest.productId,
     nameId: checkedName,
     storageName: manifest.storageName,
-    storageNameHash: derivedNameHash,
+    storageNameHash: nativeNameHash,
     content: { cid: content.cid, length: content.length as number },
     metadata: {
       version: metadata.version,
@@ -307,13 +307,16 @@ export function decodePrivateOriginAppManifestV2(bytes: Uint8Array): PrivateOrig
   return manifest;
 }
 
-/** Canonical storage name key: Blake2b-256 over the exact normalized UTF-8 name. */
-export function deriveStorageNameHashV2(storageName: string): Uint8Array {
-  if (storageName.length < 1 || storageName.length > 253 || storageName.normalize("NFC") !== storageName
-    || storageName.trim() !== storageName || utf8.encode(storageName).includes(0)) {
-    throw new TypeError("storage name must be non-empty normalized UTF-8 without surrounding whitespace or NUL");
+function nativeNameBytes(value: NameId): Uint8Array {
+  if (!/^0x[0-9a-f]{64}$/.test(value)) throw new TypeError("native NameId must be a canonical 32-byte hash");
+  return Uint8Array.from(value.slice(2).match(/../g)!.map((pair) => Number.parseInt(pair, 16)));
+}
+
+function originRootLabel(storageName: string): string {
+  if (!/^[a-z0-9](?:[a-z0-9-]{0,61}[a-z0-9])?\.origin$/.test(storageName)) {
+    throw new TypeError("application storage name must be one normalized native root label under .origin");
   }
-  return digestContent("blake2b-256", utf8.encode(storageName));
+  return storageName.slice(0, -7);
 }
 
 function cidCommitment(cid: string): ContentCommitment {
@@ -337,9 +340,9 @@ function verifyApplicationBindings(input: PublishOriginAppV2Input): void {
   if (cidCommitment(input.manifestCid) !== input.contentCommitment) {
     throw new TypeError("Names content commitment does not match the manifest CID digest");
   }
-  if (!(input.nameHash instanceof Uint8Array)
-    || !equalBytes(input.nameHash, deriveStorageNameHashV2(input.storageName))) {
-    throw new TypeError("storage name hash does not match the canonical storage name");
+  originRootLabel(input.storageName);
+  if (!(input.nameHash instanceof Uint8Array) || !equalBytes(input.nameHash, nativeNameBytes(input.name))) {
+    throw new TypeError("storage publication identifier is not the canonical native NameId");
   }
   const manifest = decodePrivateOriginAppManifestV2(input.manifestBytes);
   if (manifest.productId !== input.productId || manifest.nameId !== input.name
@@ -576,15 +579,6 @@ export class FinalizedNamesEventIndexV2 {
 }
 
 export interface PrivateNamesBindingV2 {
-  bind(
-    input: {
-      readonly proof: NamesAuthorityProofV2;
-      readonly content: ContentCommitment;
-      /** Adapter guarantee: the bind must finalize at this block or a canonical descendant. */
-      readonly after: FinalityProofV2;
-    },
-    signal?: AbortSignal,
-  ): Promise<FinalizedNamesMutationV2>;
   retract(
     proof: NamesAuthorityProofV2,
     signal?: AbortSignal,
@@ -678,6 +672,13 @@ function finalized(value: unknown, label: string): FinalityProofV2 {
   return { blockNumber: record.number, blockHash: hash(bytesHex(record.hash), label) };
 }
 
+function assertAtOrAfter(descendant: FinalityProofV2, ancestor: FinalityProofV2, label: string): void {
+  if (descendant.blockNumber < ancestor.blockNumber
+    || (descendant.blockNumber === ancestor.blockNumber && descendant.blockHash !== ancestor.blockHash)) {
+    throw new TypeError(`${label} is not at or after the preceding finalized state`);
+  }
+}
+
 interface CheckpointV2 {
   readonly root: Uint8Array;
   readonly from: bigint;
@@ -746,7 +747,7 @@ function exactUpload(cid: string, source: Uint8Array): {
   };
 }
 
-/** Native-only v2 app publisher: storage publishability precedes the finalized Names bind. */
+/** Native-only v2 app publisher: Commons publication and resolution share one Names authority. */
 export function createPrivateOriginAppsV2(
   factory: PrivateStorageIntentFactoryV2,
   storage: PrivateStorageExecutorV2,
@@ -872,21 +873,20 @@ export function createPrivateOriginAppsV2(
       }
 
       index.assertAuthority(authority);
-      const bound = await names.bind({
-        proof: authority,
-        content: input.contentCommitment,
-        after: storageFinalized,
-      }, signal);
-      index.apply(bound, storageFinalized);
-      const live = index.resolve(input.name);
-      index.assertCanonicalDescendant(live.finalized, storageFinalized);
-      index.assertCanonicalDescendant(storageFinalized, publishable.finalized);
-      index.assertCanonicalDescendant(publishable.finalized, commitFinality);
-      index.assertCanonicalDescendant(commitFinality, putFinality);
-      if (live.content !== input.contentCommitment) {
-        throw new TypeError("finalized Names bind does not match the published manifest commitment");
+      const resolved = result(await execute("storage.resolve", {
+        ...common, requestId: input.requestId(),
+        payload: { name: originRootLabel(input.storageName) },
+      }, undefined, signal), ["cid", "version", "checkpoint", "finalized"], "storage.resolve result");
+      if (resolved.cid !== input.manifestCid || typeof resolved.version !== "bigint" || resolved.version < 1n
+        || !sameCheckpoint(checkpoint(resolved.checkpoint, "resolved publication checkpoint"), publishable.checkpoint)) {
+        throw new TypeError("native Names resolution does not match the published manifest");
       }
-      return { storageFinalized, namesFinalized: live.finalized };
+      const namesFinalized = finalized(resolved.finalized, "native Names resolution finality");
+      assertAtOrAfter(namesFinalized, storageFinalized, "native Names resolution finality");
+      assertAtOrAfter(storageFinalized, publishable.finalized, "storage publish finality");
+      assertAtOrAfter(publishable.finalized, commitFinality, "publishability finality");
+      assertAtOrAfter(commitFinality, putFinality, "drive commit finality");
+      return { storageFinalized, namesFinalized };
     },
 
     async retract(
@@ -910,7 +910,7 @@ export function createPrivateOriginAppsV2(
       input: ResolveOriginAppV2Input,
       signal?: AbortSignal,
     ): Promise<{ readonly cid: string; readonly length: bigint; readonly checkpoint: unknown }> {
-      deriveStorageNameHashV2(input.storageName);
+      const label = originRootLabel(input.storageName);
       const live = index.resolve(input.name);
       const native = await names.resolve(input.name, live.finalized, signal);
       const nativeState = exactAuthorityState(native.state);
@@ -923,7 +923,7 @@ export function createPrivateOriginAppsV2(
       const resolved = result(await execute("storage.resolve", {
         ...common,
         requestId: input.requestId(),
-        payload: { name: input.storageName, at },
+        payload: { name: label, at },
       }, undefined, signal), ["cid", "version", "checkpoint", "finalized"], "storage.resolve result");
       const resolveFinalized = finalized(resolved.finalized, "storage resolve finality");
       if (!sameFinality(resolveFinalized, live.finalized)

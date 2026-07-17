@@ -24,7 +24,7 @@ import { contentCommitment, nameId, type AccountId, type BlockNumber, type Conte
 import { createStorageV2Intent } from "../../origin-sdk-cloud-storage/src/internal/storage-v2-intents.ts";
 import {
   FinalizedNamesEventIndexV2, createPrivateOriginAppsV2, decodePrivateOriginAppManifestV2,
-  deriveStorageNameHashV2, encodePrivateOriginAppManifestV2,
+  encodePrivateOriginAppManifestV2,
   type FinalityProofV2, type FinalizedNamesMutationV2, type FinalizedNamesObservationV2,
   type NamesAuthorityProofV2, type NamesAuthorityStateV2, type PrivateNamesBindingV2,
   type PrivateStorageExecutorV2, type PrivateStorageIntentFactoryV2, type PrivateStorageIntentV2,
@@ -41,7 +41,7 @@ const bootstrap = () => ({ finality: "finalized" as const, canonical: true as co
 const owner = "5Owner" as AccountId, controller = "5Controller" as AccountId, nextOwner = "5Next" as AccountId;
 const name = nameId(`0x${"22".repeat(32)}`), storageName = "festival.origin";
 const contentBytes = bytes(12, 7), contentCid = rawContentAddress(contentBytes).cid;
-const nameHash = deriveStorageNameHashV2(storageName);
+const nameHash = Uint8Array.from(Buffer.from(name.slice(2), "hex"));
 const bytesHex = (value: Uint8Array) => `0x${Buffer.from(value).toString("hex")}` as `0x${string}`;
 const appManifest: PrivateOriginAppManifestV2 = {
   schema: "cord.origin.private-app-manifest", schemaVersion: 2, productId: "festival.app", nameId: name,
@@ -65,6 +65,11 @@ function newIndex(): FinalizedNamesEventIndexV2 { const index = new FinalizedNam
 function contentObs(at: FinalityProofV2, parentHash: `0x${string}`, who: AccountId, content: ContentCommitment | null, eventIndex = 5): FinalizedNamesObservationV2 {
   return { finality: "finalized", canonical: true, finalized: at, parentHash, eventIndex,
     event: { event: "content_set", data: { name, present: content !== null } }, postState: { name, owner: who, controllers: [controller], active: true, content } };
+}
+function activatePublication(index: FinalizedNamesEventIndexV2, names: NamesBinding): void {
+  index.advance(block(2n, "2", "1")); index.advance(block(3n, "3", "2"));
+  const observation = contentObs(fp(3n, "3"), hex("2"), owner, commitment);
+  index.append(observation); names.state = observation.postState; names.finalized = observation.finalized;
 }
 function publishInput(overrides: Partial<PublishOriginAppV2Input> = {}): PublishOriginAppV2Input {
   let request = 20, operation = 40;
@@ -99,18 +104,14 @@ class StorageExecutor implements PrivateStorageExecutorV2 {
     this.operations.push(intent.operation); this.onOperation?.(intent.operation);
     if (intent.operation === "storage.object.put") { assert.ok(upload); this.uploadStreams.push(upload); const body = await collect(upload); assert.equal(upload.length, BigInt(body.length)); assert.equal(upload.cid, rawContentAddress(body).cid); this.uploads.push(body); }
     else assert.equal(upload, undefined);
+    if (intent.operation === "storage.resolve") assert.equal((intent.payload as Record<string, unknown>).name, "festival");
     if (intent.operation === "storage.object.status") return resultFor(intent.operation, ++this.statusCalls > 1);
     return resultFor(intent.operation, true, this.resolveFinality);
   }
 }
 class NamesBinding implements PrivateNamesBindingV2 {
-  binds = 0; retracts = 0;
+  retracts = 0;
   state: NamesAuthorityStateV2 = { name, owner, controllers: [controller], active: true, content: null }; finalized = fp(1n, "1");
-  bindBlocks: readonly VerifiedFinalizedBlockV2[] = [block(2n, "2", "1"), block(3n, "3", "2")]; bindFinality = fp(3n, "3"); bindParent = hex("2");
-  async bind(input: { proof: NamesAuthorityProofV2; content: ContentCommitment; after: FinalityProofV2 }) {
-    this.binds += 1; assert.deepEqual(input.after, fp(2n, "2")); const observation = contentObs(this.bindFinality, this.bindParent, input.proof.owner, input.content);
-    this.state = observation.postState; this.finalized = observation.finalized; return { finalizedBlocks: this.bindBlocks, observation };
-  }
   async retract(proof: NamesAuthorityProofV2): Promise<FinalizedNamesMutationV2> {
     this.retracts += 1; const observation = contentObs(fp(4n, "4"), hex("3"), proof.owner, null, 8); this.state = observation.postState; this.finalized = observation.finalized;
     return { finalizedBlocks: [block(4n, "4", "3")], observation };
@@ -119,13 +120,14 @@ class NamesBinding implements PrivateNamesBindingV2 {
 }
 const resolveInput = () => ({ productId: "festival.app", name, storageName, bucketId, readerGrantId: bytes(32, 10), deadlineBlock: 100n, requestId: () => bytes(16, 90) });
 
- test("private v2 journey streams exact bytes and binds Names after canonical storage publication", async () => {
+ test("private v2 journey streams exact bytes through canonical native Names publication", async () => {
   const index = newIndex(), storage = new StorageExecutor(), names = new NamesBinding(); let cacheChecks = 0;
   const apps = createPrivateOriginAppsV2(factory, storage, names, index, { async has() { cacheChecks += 1; return true; } });
   assert.deepEqual(await apps.publish(publishInput()), { storageFinalized: fp(2n, "2"), namesFinalized: fp(3n, "3") });
   assert.equal(cacheChecks, 1); assert.deepEqual(storage.uploads, [contentBytes]);
   await assert.rejects(() => collect(storage.uploadStreams[0]!), /single-consumption/);
-  assert.deepEqual(storage.operations, ["storage.object.put", "storage.drive.commit", "storage.object.status", "storage.object.status", "storage.publish"]);
+  assert.deepEqual(storage.operations, ["storage.object.put", "storage.drive.commit", "storage.object.status", "storage.object.status", "storage.publish", "storage.resolve"]);
+  activatePublication(index, names);
   assert.equal(index.resolve(name).content, commitment); assert.equal((await apps.resolve(resolveInput())).cid, manifestCid);
   assert.deepEqual(await apps.retract(name, controller), fp(4n, "4")); assert.throws(() => index.resolve(name), /not live/);
 });
@@ -142,21 +144,20 @@ test("Names index requires verified bootstrap, empty-block advancement, and actu
   assert.deepEqual(index.head, fp(3n, "3")); assert.throws(() => index.advance(block(5n, "5", "9")), /gap or reorg/);
 });
 
-for (const race of ["transfer", "revoke"] as const) test(`publish rejects finalized Names ${race} race before binding`, async () => {
+for (const race of ["transfer", "revoke"] as const) test(`publish rejects finalized Names ${race} race before confirmation`, async () => {
   const index = newIndex(); let raced = false;
   const storage = new StorageExecutor((operation) => { if (operation !== "storage.publish" || raced) return; raced = true; index.advance(block(2n, "2", "1"));
     index.append({ finality: "finalized", canonical: true, finalized: fp(2n, "2"), parentHash: hex("1"), eventIndex: 9,
       event: race === "transfer" ? { event: "name_transferred", data: { name, from: owner, to: nextOwner } } : { event: "emergency_name_revoked", data: { name } },
       postState: race === "transfer" ? { name, owner: nextOwner, controllers: [], active: true, content: null } : { name, owner, controllers: [], active: false, content: null } }); });
-  const names = new NamesBinding(); await assert.rejects(() => createPrivateOriginAppsV2(factory, storage, names, index).publish(publishInput()), /authority changed/); assert.equal(names.binds, 0);
+  const names = new NamesBinding(); await assert.rejects(() => createPrivateOriginAppsV2(factory, storage, names, index).publish(publishInput()), /authority changed/);
 });
 
-test("publication rejects forked or older Names finality relative to storage", async () => {
-  for (const hostile of ["fork", "older"] as const) { const names = new NamesBinding();
-    if (hostile === "fork") { names.bindBlocks = [block(2n, "9", "1"), block(3n, "3", "9")]; names.bindParent = hex("9"); }
-    else { names.bindBlocks = []; names.bindFinality = fp(1n, "1"); names.bindParent = hex("0"); }
+test("publication rejects forked or older native resolution finality", async () => {
+  for (const hostile of ["fork", "older"] as const) { const names = new NamesBinding(), storage = new StorageExecutor();
+    storage.resolveFinality = hostile === "fork" ? wf(2n, 9) : wf(1n, 1);
     const index = newIndex();
-    await assert.rejects(() => createPrivateOriginAppsV2(factory, new StorageExecutor(), names, index).publish(publishInput()), /same verified canonical chain/, hostile);
+    await assert.rejects(() => createPrivateOriginAppsV2(factory, storage, names, index).publish(publishInput()), /not at or after/, hostile);
     assert.deepEqual(index.head, fp(1n, "1"), "a rejected mutation must not poison the finalized index");
     assert.equal(index.authority(name, controller).blockNumber, 1n);
   }
@@ -165,7 +166,7 @@ test("publication rejects forked or older Names finality relative to storage", a
 test("content, manifest, name, receipt, and stream are cryptographically cross-bound", async () => {
   for (const [changes, message] of [
     [{ contentBytes: bytes(12, 99) }, /content CID does not match/], [{ manifestBytes: bytes(16, 99) }, /manifest CID does not match/],
-    [{ contentCommitment: contentCommitment(`0x${"77".repeat(32)}`) }, /content commitment does not match/], [{ nameHash: bytes(32, 99) }, /storage name hash does not match/],
+    [{ contentCommitment: contentCommitment(`0x${"77".repeat(32)}`) }, /content commitment does not match/], [{ nameHash: bytes(32, 99) }, /publication identifier is not the canonical native NameId/],
   ] as const) { const storage = new StorageExecutor(); await assert.rejects(() => createPrivateOriginAppsV2(factory, storage, new NamesBinding(), newIndex()).publish(publishInput(changes)), message); assert.deepEqual(storage.operations, []); }
   for (const receipt of [{ cid: rawContentAddress(bytes(12, 99)).cid, length: 12n }, { cid: contentCid, length: 13n }]) {
     const storage: PrivateStorageExecutorV2 = { async execute(intent, upload) { if (intent.operation === "storage.object.put") { assert.ok(upload); assert.equal(rawContentAddress(await collect(upload)).cid, contentCid); return { ...resultFor(intent.operation) as object, receipt: { provider: bytes(32, 1), ...receipt, signature: bytes(64, 2) } }; } return resultFor(intent.operation); } };
@@ -177,6 +178,7 @@ for (const hostile of ["names-older", "names-fork", "names-owner", "names-contro
   test(`resolve rejects hostile ${hostile} authority`, async () => {
     const index = newIndex(), storage = new StorageExecutor(), names = new NamesBinding();
     const apps = createPrivateOriginAppsV2(factory, storage, names, index); await apps.publish(publishInput());
+    activatePublication(index, names);
     if (hostile === "names-older") names.finalized = fp(2n, "2"); if (hostile === "names-fork") names.finalized = fp(3n, "9");
     if (hostile === "names-owner") names.state = { ...names.state, owner: nextOwner };
     if (hostile === "names-controllers") names.state = { ...names.state, controllers: [] };
@@ -192,8 +194,8 @@ test("private manifest has one canonical schema and rejects swapped bindings or 
   const otherContent = rawContentAddress(bytes(4, 44)).cid;
   const swapped: readonly PrivateOriginAppManifestV2[] = [
     { ...appManifest, productId: "another.app" },
-    { ...appManifest, nameId: nameId(`0x${"44".repeat(32)}`) },
-    { ...appManifest, storageName: "other.origin", storageNameHash: bytesHex(deriveStorageNameHashV2("other.origin")) },
+    { ...appManifest, nameId: nameId(`0x${"44".repeat(32)}`), storageNameHash: `0x${"44".repeat(32)}` },
+    { ...appManifest, storageName: "other.origin" },
     { ...appManifest, content: { cid: otherContent, length: 4 } },
     { ...appManifest, content: { ...appManifest.content, length: appManifest.content.length + 1 } },
   ];
@@ -221,6 +223,6 @@ test("storage executor must completely consume the single-use upload stream", as
 test("private source has no duplicate Names CID authority or public v2 export", async () => {
   const source = await readFile(new URL("../src/internal/v2-publishing.ts", import.meta.url), "utf8");
   const state = source.slice(source.indexOf("export interface NamesAuthorityStateV2"), source.indexOf("export interface FinalizedNamesObservationV2"));
-  assert.doesNotMatch(state, /\bcid\b/); assert.doesNotMatch(source, /getPreimage|putPreimage|TransactionStorage|retentionTransactions|reservationTransactions/);
+  assert.doesNotMatch(state, /\bcid\b/); assert.doesNotMatch(source, /getPreimage|putPreimage|TransactionStorage|retentionTransactions|reservationTransactions|\bnames\.bind\(/);
   assert.doesNotMatch(await readFile(new URL("../src/index.ts", import.meta.url), "utf8"), /v2-publishing|createPrivateOriginAppsV2|FinalizedNamesEventIndexV2/);
 });

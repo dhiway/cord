@@ -76,6 +76,7 @@ interface ManifestInfo {
   readonly manifest: unknown; readonly bucket_id: unknown; readonly state: unknown;
   readonly checkpoint: number | bigint | null;
 }
+interface ContentPublicationInfo { readonly content: unknown; readonly revision: number | bigint }
 
 class CommonsHostFailure extends Error {
   readonly code: number;
@@ -162,10 +163,6 @@ function acceptedEvent(requestId: Uint8Array): Uint8Array {
   return encodeHostV2Value({ 0: 2, 1: requestId, 2: 0, 3: 0, 4: { 0: 0 } });
 }
 
-function progressEvent(requestId: Uint8Array, sequence: number, state: bigint): Uint8Array {
-  return encodeHostV2Value({ 0: 2, 1: requestId, 2: sequence, 3: 1, 4: { 0: state } });
-}
-
 function errorEvent(requestId: Uint8Array, sequence: number, code: number, message: string): Uint8Array {
   const binding = HOST_V2_ERROR_BINDINGS[String(code) as keyof typeof HOST_V2_ERROR_BINDINGS];
   if (!binding) throw new TypeError(`Host-v2 error ${code} is not generated`);
@@ -232,26 +229,38 @@ export class PrivateCordCommonsRuntimeBridgeV2 implements PrivateCommonsRuntimeB
     const binding = HOST_V2_OPERATION_BINDINGS[input.operation];
     const request = decodeHostV2(binding.frame as HostV2TypeName, input.request).value as WireMap;
     const requestId = bytes(request[1], 16, "request ID");
-    yield { event: acceptedEvent(requestId), terminalBlock: input.authority.number };
     let sequence = 1;
+    let accepted = false;
     try {
       if (Number(request[3]) !== binding.code || request[2] === "") throw new CommonsHostFailure(100, "request binding is invalid");
       if (uint(request[7], "request deadline") <= input.authority.number) throw new CommonsHostFailure(106, "request deadline has expired");
       const payload = request[8] as WireMap;
       let result: HostV2Map; let terminal = input.authority;
       switch (input.operation) {
-        case "storage.bucket.get": ({ result, terminal } = await this.#bucketGet(payload, input.authority, input.signal)); break;
+        case "storage.bucket.get":
+          yield { event: acceptedEvent(requestId), terminalBlock: input.authority.number };
+          accepted = true;
+          ({ result, terminal } = await this.#bucketGet(payload, input.authority, input.signal)); break;
         case "storage.bucket.create": {
-          const executed = await this.#bucketCreate(request, payload, input.authority, requestId, sequence, input.signal);
-          sequence = executed.nextSequence; result = executed.result; terminal = executed.terminal; break;
+          const executed = await this.#bucketCreate(request, payload, input.authority, sequence, input.signal);
+          sequence = executed.nextSequence; result = executed.result; terminal = executed.terminal;
+          yield { event: acceptedEvent(requestId), terminalBlock: terminal.number };
+          accepted = true; break;
         }
-        case "storage.checkpoint.status": ({ result, terminal } = await this.#checkpointStatus(payload, input.authority, input.signal)); break;
+        case "storage.checkpoint.status":
+          yield { event: acceptedEvent(requestId), terminalBlock: input.authority.number };
+          accepted = true;
+          ({ result, terminal } = await this.#checkpointStatus(payload, input.authority, input.signal)); break;
         case "storage.publish": {
-          yield { event: progressEvent(requestId, sequence++, 0n), terminalBlock: input.authority.number };
-          const executed = await this.#publish(payload, input.authority, requestId, sequence, input.signal);
-          sequence = executed.nextSequence; result = executed.result; terminal = executed.terminal; break;
+          const executed = await this.#publish(request, payload, input.authority, sequence, input.signal);
+          sequence = executed.nextSequence; result = executed.result; terminal = executed.terminal;
+          yield { event: acceptedEvent(requestId), terminalBlock: terminal.number };
+          accepted = true; break;
         }
-        case "storage.resolve": ({ result, terminal } = await this.#resolve(payload, input.authority, input.signal)); break;
+        case "storage.resolve":
+          yield { event: acceptedEvent(requestId), terminalBlock: input.authority.number };
+          accepted = true;
+          ({ result, terminal } = await this.#resolve(payload, input.authority, input.signal)); break;
         default: throw new TypeError(`Commons Host-v2 operation ${input.operation} has no descriptor-backed implementation`);
       }
       yield { event: resultEvent(requestId, sequence, result), terminalBlock: terminal.number };
@@ -259,6 +268,7 @@ export class PrivateCordCommonsRuntimeBridgeV2 implements PrivateCommonsRuntimeB
       const code = runtimeErrorCode(error);
       if (code === undefined || !binding.allowedErrors.includes(code as never)) throw error;
       const message = error instanceof Error ? error.message : "Commons runtime rejected the operation";
+      if (!accepted) yield { event: acceptedEvent(requestId), terminalBlock: input.authority.number };
       yield { event: errorEvent(requestId, sequence, code, message), terminalBlock: input.authority.number };
     }
   }
@@ -290,7 +300,7 @@ export class PrivateCordCommonsRuntimeBridgeV2 implements PrivateCommonsRuntimeB
     };
   }
 
-  async #bucketCreate(request: WireMap, payload: WireMap, authority: PrivateFinalizedHostAuthorityV2, requestId: Uint8Array, sequence: number, signal?: AbortSignal) {
+  async #bucketCreate(request: WireMap, payload: WireMap, authority: PrivateFinalizedHostAuthorityV2, sequence: number, signal?: AbortSignal) {
     const replicaCount = Number(uint(payload[0], "replica count"));
     const providers = payload[1];
     if (!Array.isArray(providers) || providers.length !== replicaCount + 1 || replicaCount < 2 || replicaCount > 3) {
@@ -300,12 +310,13 @@ export class PrivateCordCommonsRuntimeBridgeV2 implements PrivateCommonsRuntimeB
     const prepared = await this.#runtime.prepare(hex(authority.hash), "StorageProvider.create_bucket", {
       policy: hex(request[4], 32, "bucket policy grant"), primary: hex(providers[0], 32, "primary provider"),
       replicas: providers.slice(1).map((provider, index) => hex(provider, 32, `replica ${index}`)),
+      operation_id: hex(request[5], 16, "bucket operation ID"),
     }, undefined, signal);
     const receipt = await this.#submit(prepared, signal);
-    const terminal = exactFinality(await this.#finality.verify(receipt.blockHash, signal));
+    const terminal = await this.#verifiedReceipt(receipt.blockHash, authority, signal);
     const events = await this.#events.events(receipt, signal);
     const created = events.find((event) => event.pallet === "StorageProvider" && event.event === "BucketCreated");
-    if (!created) throw new TypeError("finalized StorageProvider.BucketCreated event is absent");
+    if (!created || hex(created.fields.operation_id, 16, "bucket event operation ID") !== hex(request[5], 16, "bucket operation ID")) throw new TypeError("finalized StorageProvider.BucketCreated event is absent or misbound");
     return {
       nextSequence: sequence,
       terminal,
@@ -342,10 +353,7 @@ export class PrivateCordCommonsRuntimeBridgeV2 implements PrivateCommonsRuntimeB
     };
   }
 
-  async #publish(payload: WireMap, authority: PrivateFinalizedHostAuthorityV2, requestId: Uint8Array, sequence: number, signal?: AbortSignal) {
-    if (payload[2] !== undefined && uint(payload[2], "expected publication version") !== 1n) {
-      throw new CommonsHostFailure(251, "native Names publication version is one");
-    }
+  async #publish(request: WireMap, payload: WireMap, authority: PrivateFinalizedHostAuthorityV2, sequence: number, signal?: AbortSignal) {
     const name = hex(payload[0], 32, "Names identifier");
     const cid = payload[1];
     if (typeof cid !== "string") throw new CommonsHostFailure(204, "publication CID is invalid");
@@ -361,15 +369,21 @@ export class PrivateCordCommonsRuntimeBridgeV2 implements PrivateCommonsRuntimeB
     if (manifest.value === null || enumName(manifest.value.state) !== "publishable") {
       throw new CommonsHostFailure(209, "content is not publishable at finalized Commons state");
     }
-    const prepared = await this.#runtime.prepare(hex(authority.hash), "Names.set_content", { name, content: commitment }, undefined, signal);
+    const operationId = hex(request[5], 16, "publication operation ID");
+    const prepared = await this.#runtime.prepare(hex(authority.hash), "Names.publish_content", {
+      name, content: commitment, expected_revision: payload[2] === undefined ? undefined : uint(payload[2], "expected publication revision"),
+      operation_id: operationId,
+    }, undefined, signal);
     const receipt = await this.#submit(prepared, signal);
-    const terminal = exactFinality(await this.#finality.verify(receipt.blockHash, signal));
+    const terminal = await this.#verifiedReceipt(receipt.blockHash, authority, signal);
     const events = await this.#events.events(receipt, signal);
     const observation = events.find((event) => event.pallet === "Names" && event.event === "ContentSet"
-      && hex(event.fields.name, 32, "Names event identifier") === name && event.fields.present === true);
+      && hex(event.fields.name, 32, "Names event identifier") === name && event.fields.present === true
+      && hex(event.fields.operation_id, 16, "Names event operation ID") === operationId);
     if (!observation) throw new TypeError("finalized Names.ContentSet observation is absent or misbound");
-    const resolved = versioned<unknown>(await this.#runtime.read(receipt.blockHash, "NamesApi.resolve_content", { name }, signal), "Names content");
-    if (resolved.value === null || hex(resolved.value, 32, "resolved Names content") !== commitment) {
+    const resolved = versioned<ContentPublicationInfo>(await this.#runtime.read(receipt.blockHash, "NamesApi.resolve_content_publication", { name }, signal), "Names content publication");
+    if (resolved.value === null || hex(resolved.value.content, 32, "resolved Names content") !== commitment
+      || uint(resolved.value.revision, "resolved publication revision") !== uint(observation.fields.revision, "Names event revision")) {
       throw new TypeError("finalized Names post-state does not contain the published commitment");
     }
     return { nextSequence: sequence, terminal, result: { 0: bytes(name, 32, "name hash"), 1: cid, 2: finalityMap(terminal) } as HostV2Map };
@@ -381,12 +395,12 @@ export class PrivateCordCommonsRuntimeBridgeV2 implements PrivateCommonsRuntimeB
     const name = versioned<unknown>(await this.#runtime.read(hex(at.hash), "NamesApi.root_name_by_normalized_label", { label }, signal), "root name");
     if (name.value === null) throw new CommonsHostFailure(210, "native Names label was not found");
     const nameId = hex(name.value, 32, "resolved name ID");
-    const content = versioned<unknown>(await this.#runtime.read(hex(at.hash), "NamesApi.resolve_content", { name: nameId }, signal), "Names content");
+    const content = versioned<ContentPublicationInfo>(await this.#runtime.read(hex(at.hash), "NamesApi.resolve_content_publication", { name: nameId }, signal), "Names content publication");
     if (content.value === null) throw new CommonsHostFailure(210, "native Names record has no live content");
-    if (payload[1] !== undefined && uint(payload[1], "requested publication version") !== BigInt(content.version)) {
+    if (payload[1] !== undefined && uint(payload[1], "requested publication version") !== uint(content.value.revision, "publication revision")) {
       throw new CommonsHostFailure(210, "requested publication version is unavailable");
     }
-    const commitment = bytes(content.value, 32, "Names content commitment");
+    const commitment = bytes(content.value.content, 32, "Names content commitment");
     const manifest = versioned<ManifestInfo>(await this.#runtime.read(hex(at.hash), "StorageProviderApi.canonical_manifest", { manifest: hex(commitment) }, signal), "canonical manifest");
     if (manifest.value === null || enumName(manifest.value.state) !== "publishable" || manifest.value.checkpoint === null) {
       throw new CommonsHostFailure(209, "resolved content is not checkpoint-publishable");
@@ -398,7 +412,7 @@ export class PrivateCordCommonsRuntimeBridgeV2 implements PrivateCommonsRuntimeB
     }
     return {
       terminal: at,
-      result: { 0: cidForCommitment(commitment), 1: BigInt(content.version), 2: this.#checkpointMap(checkpoint), 3: finalityMap(at) } as HostV2Map,
+      result: { 0: cidForCommitment(commitment), 1: uint(content.value.revision, "publication revision"), 2: this.#checkpointMap(checkpoint), 3: finalityMap(at) } as HostV2Map,
     };
   }
 
@@ -411,5 +425,13 @@ export class PrivateCordCommonsRuntimeBridgeV2 implements PrivateCommonsRuntimeB
       if (status.type === "finalized") return { blockHash: status.blockHash, transactionHash: status.transactionHash };
     }
     throw new TypeError("Commons transaction stream closed before finalized state");
+  }
+
+  async #verifiedReceipt(receiptHash: HashHex, authority: PrivateFinalizedHostAuthorityV2, signal?: AbortSignal): Promise<PrivateFinalizedHostAuthorityV2> {
+    const verified = exactFinality(await this.#finality.verify(receiptHash, signal));
+    if (hex(verified.hash) !== receiptHash || verified.number < authority.number) {
+      throw new TypeError("Commons transaction receipt is not the verified finalized descendant returned by finality");
+    }
+    return verified;
   }
 }

@@ -819,7 +819,7 @@ test("concrete Commons bridge publishes and resolves through exact native finali
     async read(at: `0x${string}`, target: string, payload: Readonly<Record<string, unknown>>) {
       calls.push({ kind: "read", at, target, payload });
       if (target === "NamesApi.root_name_by_normalized_label") return { version: 1, value: nameHex };
-      if (target === "NamesApi.resolve_content") return { version: 1, value: digestHex };
+      if (target === "NamesApi.resolve_content_publication") return { version: 1, value: { content: digestHex, revision: 1 } };
       if (target === "StorageProviderApi.canonical_manifest") return {
         version: 11, value: { manifest: digestHex, bucket_id: bucketHex, state: "Publishable", checkpoint: 77 },
       };
@@ -831,8 +831,8 @@ test("concrete Commons bridge publishes and resolves through exact native finali
     },
     async prepare(at: `0x${string}`, target: string, payload: Readonly<Record<string, unknown>>) {
       calls.push({ kind: "prepare", at, target, payload });
-      assert.equal(target, "Names.set_content");
-      assert.deepEqual(payload, { name: nameHex, content: digestHex });
+      assert.equal(target, "Names.publish_content");
+      assert.deepEqual(payload, { name: nameHex, content: digestHex, expected_revision: undefined, operation_id: `0x${Buffer.from(publishFrame[5]).toString("hex")}` });
       return { async *signSubmitAndWatch(exactSigner: unknown) {
         assert.equal(exactSigner, signer); yield { type: "broadcast" as const };
         yield { type: "finalized" as const, blockHash: finalized100, transactionHash: `0x${"77".repeat(32)}` as const };
@@ -848,7 +848,7 @@ test("concrete Commons bridge publishes and resolves through exact native finali
     },
     events: { async events(receipt) {
       assert.deepEqual(receipt, { blockHash: finalized100, transactionHash: `0x${"77".repeat(32)}` });
-      return [{ pallet: "Names", event: "ContentSet", fields: { name: nameHex, present: true }, eventIndex: 9 }];
+      return [{ pallet: "Names", event: "ContentSet", fields: { name: nameHex, present: true, revision: 1, operation_id: `0x${Buffer.from(publishFrame[5]).toString("hex")}` }, eventIndex: 9 }];
     } },
   });
   let providerTraffic = 0;
@@ -865,10 +865,10 @@ test("concrete Commons bridge publishes and resolves through exact native finali
   assert.deepEqual(verified, [finalized100]); assert.equal(providerTraffic, 0);
   assert.deepEqual(calls.map(({ kind, at, target }) => `${kind}:${at}:${target}`), [
     `read:${finalized99}:StorageProviderApi.canonical_manifest`,
-    `prepare:${finalized99}:Names.set_content`,
-    `read:${finalized100}:NamesApi.resolve_content`,
+    `prepare:${finalized99}:Names.publish_content`,
+    `read:${finalized100}:NamesApi.resolve_content_publication`,
     `read:${finalized99}:NamesApi.root_name_by_normalized_label`,
-    `read:${finalized99}:NamesApi.resolve_content`,
+    `read:${finalized99}:NamesApi.resolve_content_publication`,
     `read:${finalized99}:StorageProviderApi.canonical_manifest`,
     `read:${finalized99}:StorageProviderApi.checkpoint`,
   ]);
@@ -888,6 +888,47 @@ test("concrete Commons bridge publishes and resolves through exact native finali
     assert.equal((await router.invoke("storage.publish", encodeHostV2("RequestV2", hostile))).error?.code, 204);
   }
   assert.equal(calls.length, callCount, "non-canonical CIDs reached the runtime transport");
+});
+
+test("Commons bucket creation binds operation replay receipt before Accepted", async () => {
+  const vector = frozen.vectors.find((candidate: any) => candidate.id === "1000-positive");
+  const frame = decodeHostV2("RequestV2", bytes(vector.wire_hex)).value as any;
+  frame[7] = 101;
+  frame[8][0] = 2;
+  frame[8][1] = [frame[8][1][0], frame[8][1][0], frame[8][1][0]];
+  const request = encodeHostV2("RequestV2", frame);
+  const operationId = `0x${Buffer.from(frame[5]).toString("hex")}` as const;
+  const bucketId = `0x${"71".repeat(32)}` as const; const finalized99 = `0x${"42".repeat(32)}` as const; const finalized100 = `0x${"43".repeat(32)}` as const;
+  const trace: string[] = []; const signer = {};
+  const commons = new PrivateCordCommonsRuntimeBridgeV2({
+    signer: signer as never,
+    runtime: {
+      async read() { throw new Error("bucket creation must not perform an unbound read"); },
+      async prepare(at, target, payload) {
+        trace.push("prepare"); assert.equal(at, finalized99); assert.equal(target, "StorageProvider.create_bucket");
+        assert.equal(payload.operation_id, operationId);
+        return { async *signSubmitAndWatch(exactSigner: unknown) {
+          assert.equal(exactSigner, signer); yield { type: "broadcast" as const }; trace.push("finalized");
+          yield { type: "finalized" as const, blockHash: finalized100, transactionHash: `0x${"77".repeat(32)}` as const };
+        } };
+      },
+    },
+    finality: {
+      async finalized() { return { number: 99n, hash: finalized99, proof: Uint8Array.of(1) }; },
+      async verify(hash) { trace.push("verify"); assert.equal(hash, finalized100); return { number: 100n, hash, proof: Uint8Array.of(2) }; },
+    },
+    events: { async events() { trace.push("events"); return [{
+      pallet: "StorageProvider", event: "BucketCreated",
+      fields: { bucket_id: bucketId, version: 1, operation_id: operationId, replayed: false }, eventIndex: 4,
+    }]; } },
+  });
+  const authority = await commons.finalizedAuthority({ operation: "storage.bucket.create", code: 1000, productId: frame[2], requestId: frame[1] });
+  const responses: { kind: number; block: bigint }[] = [];
+  for await (const response of commons.dispatch({ operation: "storage.bucket.create", request, authority })) {
+    responses.push({ kind: Number((decodeHostV2("EventV2", response.event).value as any)[3]), block: response.terminalBlock }); trace.push(`event:${responses.at(-1)!.kind}`);
+  }
+  assert.deepEqual(responses, [{ kind: 0, block: 100n }, { kind: 2, block: 100n }]);
+  assert.deepEqual(trace, ["prepare", "finalized", "verify", "events", "event:0", "event:2"]);
 });
 
 test("real provider MessagePorts accept exactly the four provider-byte operations", async () => {
