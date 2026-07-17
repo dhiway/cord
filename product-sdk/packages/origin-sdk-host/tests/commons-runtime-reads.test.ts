@@ -325,16 +325,20 @@ test("S3 list rejects a page snapshot that differs from the finalized bucket ver
 });
 
 test("S3 list rejects an opaque cursor reused across bucket or prefix authority", async () => {
-  const bucket = hex(0x51);
-  let reads = 0;
-  const { events } = await dispatchS3((frame) => {
-    frame[8] = { 0: "festival-bucket", 1: textEncoder.encode("images/"), 2: snapshotCursor(7n, hex(0x52), textEncoder.encode("images/"), "images/a"), 3: 1 };
-  }, async (_at, target) => {
-    reads += 1; assert.equal(target, "S3RegistryApi.bucket_by_name");
-    return { version: 9, value: { bucket_id: bucket, name: textEncoder.encode("festival-bucket"), status: "Active", version: 7n } };
-  });
-  assert.equal(reads, 1);
-  assert.deepEqual([Number(events[1][4][0]), events[1][4][1]], [261, "STORAGE_CURSOR_STALE"]);
+  const bucket = hex(0x51); const prefix = textEncoder.encode("images/");
+  for (const [cursorBucket, cursorPrefix] of [
+    [hex(0x52), prefix], [bucket, textEncoder.encode("private/")],
+  ] as const) {
+    let reads = 0;
+    const { events } = await dispatchS3((frame) => {
+      frame[8] = { 0: "festival-bucket", 1: prefix, 2: snapshotCursor(7n, cursorBucket, cursorPrefix, "images/a"), 3: 1 };
+    }, async (_at, target) => {
+      reads += 1; assert.equal(target, "S3RegistryApi.bucket_by_name");
+      return { version: 9, value: { bucket_id: bucket, name: textEncoder.encode("festival-bucket"), status: "Active", version: 7n } };
+    });
+    assert.equal(reads, 1);
+    assert.deepEqual([Number(events[1][4][0]), events[1][4][1]], [261, "STORAGE_CURSOR_STALE"]);
+  }
 });
 
 test("S3 list fails closed when a finalized page object is bound to another bucket", async () => {
