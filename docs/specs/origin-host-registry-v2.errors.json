@@ -629,6 +629,20 @@
       "name": "IDENTITY_RETIRED_SET_FULL",
       "retryable": false,
       "details": "closed integer-keyed map defined by operation Error production"
+    },
+    {
+      "family": "E_IDENTITY",
+      "code": 412,
+      "name": "IDENTITY_AUTHORITY_UNAVAILABLE",
+      "retryable": true,
+      "details": "closed integer-keyed map defined by operation Error production"
+    },
+    {
+      "family": "E_IDENTITY",
+      "code": 413,
+      "name": "IDENTITY_EFFECT_CONFLICT",
+      "retryable": false,
+      "details": "closed integer-keyed map defined by operation Error production"
     }
   ]
 }

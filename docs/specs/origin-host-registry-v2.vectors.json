@@ -1,8 +1,8 @@
 {
   "protocol": "cord.origin.host/2",
   "encoding": "RFC8949-4.2.3.1-length-first",
-  "registry_sha256": "d17c24596fbae30c300d57ae8e51bc0c7b149ab2e91c2b9c751bedd3fbc1eeba",
-  "cbor_sha256": "9ef6624ba14275b9e30cca8ff786255011962e05986a12aac0071c85427be71c",
+  "registry_sha256": "e88cff81e8296a4451eb9eb94e1b8db064031311c85ef9ad08984b6bc057c64e",
+  "cbor_sha256": "a7ec689167928e54f2231625de2a9f20ab43977afcfdafdcdcec50cac10ed003",
   "vectors": [
     {
       "id": "wire-1001-canonical",
@@ -2754,7 +2754,29 @@
       "code": 411,
       "retryable": false,
       "concrete": true
+    },
+    {
+      "id": "error-412-identity_authority_unavailable",
+      "kind": "exact-error-event",
+      "valid": true,
+      "wire_hex": "a500020150111111111111111111111111111111110201030304a40019019c01781e4944454e544954595f415554484f524954595f554e415641494c41424c4502f503a0",
+      "wire_sha256": "a1b89b32e39594bc556a09ae06e9c3d25a84d0e8b9299b861bb868f62f5732bd",
+      "expected": "IDENTITY_AUTHORITY_UNAVAILABLE",
+      "code": 412,
+      "retryable": true,
+      "concrete": true
+    },
+    {
+      "id": "error-413-identity_effect_conflict",
+      "kind": "exact-error-event",
+      "valid": true,
+      "wire_hex": "a500020150111111111111111111111111111111110201030304a40019019d0178184944454e544954595f4546464543545f434f4e464c49435402f403a0",
+      "wire_sha256": "19952be867bebbc3afc936f94fbdaec23bf51a2cd6d0993d8aa1c0b9e85b22b8",
+      "expected": "IDENTITY_EFFECT_CONFLICT",
+      "code": 413,
+      "retryable": false,
+      "concrete": true
     }
   ],
-  "concrete_wire_vectors": 200
+  "concrete_wire_vectors": 202
 }

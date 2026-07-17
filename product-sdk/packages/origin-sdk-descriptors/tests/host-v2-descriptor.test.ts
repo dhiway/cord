@@ -138,7 +138,7 @@ test("deterministic generator rejects checked-in descriptor drift", () => {
     encoding: "utf8",
   });
   assert.equal(checked.status, 0, checked.stderr);
-  assert.match(checked.stdout, /PASS private host v2 descriptor: 34 operations \/ 89 errors/);
+	assert.match(checked.stdout, /PASS private host v2 descriptor: 34 operations \/ 91 errors/);
 });
 
 test("projection fails closed on operation and error drift", async () => {

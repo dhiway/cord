@@ -20,13 +20,13 @@
 
 export const HOST_V2_PROTOCOL = "cord.origin.host/2" as const;
 export const HOST_V2_MAJOR = 2 as const;
-export const HOST_V2_MINOR = 0 as const;
+export const HOST_V2_MINOR = 1 as const;
 
 export const HOST_V2_SOURCE_HASHES = {
-  cddl: "d17c24596fbae30c300d57ae8e51bc0c7b149ab2e91c2b9c751bedd3fbc1eeba",
-  operations: "a50a80ec2f4ab36785fcfbbc38b6512ca4e355e5a48a4cbe9b5083968db15aca",
-  errors: "f9734782c6ade5eb8c0cbea5ad93a9808a6cc6a88363fec6f7bfc023de58d8ca",
-  schema: "f6ce027cb6b4f93038f96d045e8abbeee751c901015d3e9bd58e2833beedc18b",
+  cddl: "e88cff81e8296a4451eb9eb94e1b8db064031311c85ef9ad08984b6bc057c64e",
+  operations: "ee5cea2087f5f4f4dd89f0907a15a8046a51c088ec874f085a6b7cd698f10f01",
+  errors: "7220011e9fd393e21ccfe76f86496d793e597fc795d69ac3daf70510e151b7e6",
+  schema: "906fc06646cd5b20be7c13baf27669985d226fafdec3c979f37403bce944da15",
 } as const;
 
 export const HOST_V2_RUNTIME_SOURCE_HASHES = {
@@ -296,7 +296,7 @@ export function projectPrivateHostV2Descriptor(
   network: FrozenCommonsNetworkBinding,
 ) {
   assertFrozenOperations(operations);
-  if (errors.errors.length !== 89) throw new TypeError(`host v2 error count drift: ${errors.errors.length}`);
+	if (errors.errors.length !== 91) throw new TypeError(`host v2 error count drift: ${errors.errors.length}`);
   const errorCodes = errors.errors.map(({ code }) => code);
   if (new Set(errorCodes).size !== errorCodes.length) throw new TypeError("duplicate host v2 error code");
   const projected = operations.operations.map(projectOperation);

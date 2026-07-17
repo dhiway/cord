@@ -136,9 +136,9 @@ test("generated runtime bindings exactly project all frozen authorities", () => 
   assert.equal(HOST_V2_MAJOR, operationRegistry.major);
   assert.equal(HOST_V2_MINOR, operationRegistry.minor);
   assert.equal(HOST_V2_REGISTRY_SHA256, fixture.registry_sha256);
-  assert.equal(Object.keys(HOST_V2_SCHEMAS).length, 363);
+  assert.equal(Object.keys(HOST_V2_SCHEMAS).length, 365);
   assert.equal(Object.keys(HOST_V2_OPERATION_BINDINGS).length, 34);
-  assert.equal(Object.keys(HOST_V2_ERROR_BINDINGS).length, 89);
+  assert.equal(Object.keys(HOST_V2_ERROR_BINDINGS).length, 91);
 
   for (const operation of operationRegistry.operations) {
     const binding = HOST_V2_OPERATION_BINDINGS[operation.name];
@@ -180,9 +180,9 @@ test("all 34 frozen operation frames round-trip and their schema negatives fail"
   }
 });
 
-test("all 89 frozen error events round-trip through the closed error union", () => {
+test("all 91 frozen error events round-trip through the closed error union", () => {
   const errorVectors = fixture.vectors.filter(({ id }) => id.startsWith("error-"));
-  assert.equal(errorVectors.length, 89);
+  assert.equal(errorVectors.length, 91);
   for (const { id } of errorVectors) {
     const canonical = vector(id);
     const decoded = decodeHostV2("EventV2", canonical);

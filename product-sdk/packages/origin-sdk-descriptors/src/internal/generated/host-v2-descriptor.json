@@ -3,7 +3,7 @@
   "protocol": {
     "id": "cord.origin.host/2",
     "major": 2,
-    "minor": 0
+    "minor": 1
   },
   "visibility": {
     "public": false,
@@ -11,10 +11,10 @@
     "cutover": "P4/P5"
   },
   "sources": {
-    "cddl": "d17c24596fbae30c300d57ae8e51bc0c7b149ab2e91c2b9c751bedd3fbc1eeba",
-    "operations": "a50a80ec2f4ab36785fcfbbc38b6512ca4e355e5a48a4cbe9b5083968db15aca",
-    "errors": "f9734782c6ade5eb8c0cbea5ad93a9808a6cc6a88363fec6f7bfc023de58d8ca",
-    "schema": "f6ce027cb6b4f93038f96d045e8abbeee751c901015d3e9bd58e2833beedc18b"
+    "cddl": "e88cff81e8296a4451eb9eb94e1b8db064031311c85ef9ad08984b6bc057c64e",
+    "operations": "ee5cea2087f5f4f4dd89f0907a15a8046a51c088ec874f085a6b7cd698f10f01",
+    "errors": "7220011e9fd393e21ccfe76f86496d793e597fc795d69ac3daf70510e151b7e6",
+    "schema": "906fc06646cd5b20be7c13baf27669985d226fafdec3c979f37403bce944da15"
   },
   "runtimeSources": {
     "metadataIdentity": "8c9dc98ce3f2578031be5bf1be7291d3118fc0b6e79c81f5fee97d73ca53ba43",
@@ -48,7 +48,7 @@
     }
   },
   "operationCount": 34,
-  "errorCount": 89,
+  "errorCount": 91,
   "requiredNegotiationFeatures": [
     "identity.account",
     "identity.entitlements",
@@ -603,7 +603,9 @@
         408,
         409,
         410,
-        411
+        411,
+        412,
+        413
       ],
       "E_PROOF_AUTH": [
         220,

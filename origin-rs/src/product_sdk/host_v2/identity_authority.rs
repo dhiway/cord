@@ -117,7 +117,7 @@ pub(crate) enum IdentityAuthorityErrorV2 {
 }
 
 impl IdentityAuthorityErrorV2 {
-	fn code(self, operation: u16) -> ErrorCode {
+	fn code(self, _operation: u16) -> ErrorCode {
 		match self {
 			Self::KeystoreUnavailable | Self::Unavailable => ErrorCode::HostOutboxUnavailable,
 			Self::GrantsUnavailable | Self::GrantRequired => ErrorCode::GrantRequired,
@@ -132,14 +132,8 @@ impl IdentityAuthorityErrorV2 {
 			Self::ProofExpired => ErrorCode::IdentityProofExpired,
 			Self::OldIncarnation => ErrorCode::IdentityOldIncarnation,
 			Self::EpochInvalid => ErrorCode::IdentityEpochInvalid,
-			Self::AuthorityUnavailable => match operation {
-				1102 => ErrorCode::IdentityDisclosureDenied,
-				1103 | 1104 => ErrorCode::IdentityHumanityUnavailable,
-				1106 => ErrorCode::IdentityEntitlementUnavailable,
-				1200 => ErrorCode::SigningConsentRequired,
-				_ => ErrorCode::HostOutboxUnavailable,
-			},
-			Self::EffectConflict => ErrorCode::IdentityChallengeReplay,
+			Self::AuthorityUnavailable => ErrorCode::IdentityAuthorityUnavailable,
+			Self::EffectConflict => ErrorCode::IdentityEffectConflict,
 		}
 	}
 }
@@ -215,6 +209,7 @@ pub(crate) struct HostProfileDisclosureV2 {
 
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub(crate) struct ProfileDisclosureRequestV2 {
+	pub(crate) effect_id: [u8; 32],
 	pub(crate) operation_id: [u8; 16],
 	pub(crate) grant_id: [u8; 32],
 	pub(crate) product_id: String,
@@ -229,6 +224,7 @@ pub(crate) struct ProfileDisclosureRequestV2 {
 
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub(crate) struct IdentityConsentRequestV2 {
+	pub(crate) effect_id: [u8; 32],
 	pub(crate) operation_id: [u8; 16],
 	pub(crate) operation: u16,
 	pub(crate) grant_id: [u8; 32],
@@ -239,6 +235,7 @@ pub(crate) struct IdentityConsentRequestV2 {
 
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub(crate) struct TransactionSigningRequestV2 {
+	pub(crate) effect_id: [u8; 32],
 	pub(crate) operation_id: [u8; 16],
 	pub(crate) grant_id: [u8; 32],
 	pub(crate) genesis_hash: [u8; 32],
@@ -286,24 +283,34 @@ pub(crate) trait FinalizedIdentitySourceV2: Send {
 	) -> Result<bool, IdentityAuthorityErrorV2>;
 }
 
+/// Production host adapter contract for disclosure side effects. Implementations must bind the
+/// complete request to the nonzero `effect_id`, recover the original result after restart, and
+/// never apply the disclosure more than once for that identifier.
 pub(crate) trait HostIdentityDeliveryV2: Send {
 	fn account(&mut self, session: &str) -> Result<HostAccountSessionV2, IdentityAuthorityErrorV2>;
-	fn disclose(
+	fn recover_or_disclose(
 		&mut self,
+		effect_id: [u8; 32],
 		request: &ProfileDisclosureRequestV2,
 	) -> Result<HostProfileDisclosureV2, IdentityAuthorityErrorV2>;
 }
 
+/// Production consent adapter contract. A repeated `effect_id` with the same request must return
+/// the original receipt; reuse with a different request must fail with `EffectConflict`.
 pub(crate) trait FreshIdentityConsentV2: Send {
-	fn consume(
+	fn recover_or_consume(
 		&mut self,
+		effect_id: [u8; 32],
 		request: &IdentityConsentRequestV2,
 	) -> Result<[u8; 32], IdentityAuthorityErrorV2>;
 }
 
+/// Production signing adapter contract. Implementations recover or execute one finalized signing
+/// effect for the stable `effect_id`; they must not sign a second time after a lost response.
 pub(crate) trait FinalizedTransactionSignerV2: Send {
-	fn sign_and_finalize(
+	fn recover_or_sign_and_finalize(
 		&mut self,
+		effect_id: [u8; 32],
 		request: &TransactionSigningRequestV2,
 	) -> Result<FinalizedTransactionEffectV2, IdentityAuthorityErrorV2>;
 }
@@ -325,6 +332,7 @@ pub(crate) struct DurableIdentityOperationV2 {
 	pub(crate) operation: u16,
 	pub(crate) request_hash: [u8; 32],
 	pub(crate) grant_id: [u8; 32],
+	pub(crate) external_effect_id: [u8; 32],
 	pub(crate) effect_hash: [u8; 32],
 	pub(crate) finalized_number: u64,
 	pub(crate) finalized_hash: [u8; 32],
@@ -373,6 +381,7 @@ impl DurableIdentityStateV2 {
 		}
 		for (id, operation) in &self.operations {
 			if *id != operation.operation_id ||
+				operation.external_effect_id == [0; 32] ||
 				operation.events.len() > 3 ||
 				(operation.consent_recorded == (operation.consent_receipt == [0; 32])) ||
 				(operation.completed &&
@@ -807,50 +816,65 @@ where
 		}
 		let operation_id =
 			authorized.operation_id.ok_or(IdentityAuthorityErrorV2::GrantScopeDenied)?;
-		let intent_effect = effect_hash(&[
+		let external_effect_id = effect_hash(&[
+			b"profile-disclosure",
+			&operation_id,
 			&authorized.request_hash,
-			&expires_at.to_be_bytes(),
-			&authorized.head.block_number.to_be_bytes(),
-			&authorized.head.block_hash,
+			&authorized.grant.id,
+			&core.store.context().genesis_hash,
 		]);
-		let reservation = DurableIdentityOperationV2 {
-			operation_id,
-			operation: authorized.operation,
-			request_hash: authorized.request_hash,
-			grant_id: authorized.grant.id,
-			effect_hash: intent_effect,
-			finalized_number: authorized.head.block_number,
-			finalized_hash: authorized.head.block_hash,
-			consent_receipt: [0; 32],
-			consent_recorded: false,
-			events: Vec::new(),
-			completed: false,
+		let mut prepared = match core.store.operation(operation_id)? {
+			Some(record) => {
+				validate_replay_record(&record, &authorized)?;
+				record
+			},
+			None => {
+				let record = DurableIdentityOperationV2 {
+					operation_id,
+					operation: authorized.operation,
+					request_hash: authorized.request_hash,
+					grant_id: authorized.grant.id,
+					external_effect_id,
+					effect_hash: external_effect_id,
+					finalized_number: authorized.head.block_number,
+					finalized_hash: authorized.head.block_hash,
+					consent_receipt: [0; 32],
+					consent_recorded: false,
+					events: Vec::new(),
+					completed: false,
+				};
+				core.store.prepare_operation(record.clone(), None)?;
+				record
+			},
 		};
-		core.store.prepare_operation(reservation, None)?;
-		let mut prepared = core
-			.store
-			.operation(operation_id)?
-			.ok_or(IdentityAuthorityErrorV2::EffectConflict)?;
 		validate_replay_record(&prepared, &authorized)?;
-		if prepared.effect_hash != intent_effect {
+		if prepared.external_effect_id != external_effect_id ||
+			prepared.effect_hash != external_effect_id
+		{
 			return Err(IdentityAuthorityErrorV2::EffectConflict);
 		}
 		if !prepared.consent_recorded {
-			let receipt = core.consent.consume(&IdentityConsentRequestV2 {
+			let consent = IdentityConsentRequestV2 {
+				effect_id: external_effect_id,
 				operation_id,
 				operation: authorized.operation,
 				grant_id: authorized.grant.id,
 				request_hash: authorized.request_hash,
-				effect_hash: intent_effect,
-				finalized: authorized.head,
-			})?;
+				effect_hash: external_effect_id,
+				finalized: FinalizedIdentityEffectV2 {
+					block_number: prepared.finalized_number,
+					block_hash: prepared.finalized_hash,
+				},
+			};
+			let receipt = core.consent.recover_or_consume(external_effect_id, &consent)?;
 			core.store.record_consent(operation_id, receipt)?;
 			prepared = core
 				.store
 				.operation(operation_id)?
 				.ok_or(IdentityAuthorityErrorV2::EffectConflict)?;
 		}
-		let disclosure = core.host.disclose(&ProfileDisclosureRequestV2 {
+		let disclosure_request = ProfileDisclosureRequestV2 {
+			effect_id: external_effect_id,
 			operation_id,
 			grant_id: authorized.grant.id,
 			product_id: authorized.product_id.clone(),
@@ -860,9 +884,18 @@ where
 			expires_at,
 			request_hash: authorized.request_hash,
 			consent_receipt: prepared.consent_receipt,
-			intent_finality: authorized.head,
-		})?;
-		validate_query_finality(&mut core.runtime, authorized.head, None, disclosure.finalized)?;
+			intent_finality: FinalizedIdentityEffectV2 {
+				block_number: prepared.finalized_number,
+				block_hash: prepared.finalized_hash,
+			},
+		};
+		let disclosure = core.host.recover_or_disclose(external_effect_id, &disclosure_request)?;
+		validate_query_finality(
+			&mut core.runtime,
+			authorized.head,
+			Some(prepared.finalized_hash),
+			disclosure.finalized,
+		)?;
 		if disclosure.valid_until <= disclosure.finalized.block_number ||
 			disclosure.valid_until > expires_at
 		{
@@ -1065,12 +1098,12 @@ where
 		}
 		let operation_id =
 			authorized.operation_id.ok_or(IdentityAuthorityErrorV2::GrantScopeDenied)?;
-		let intent_effect = effect_hash(&[
-			&payload_hash,
-			&policy_hash,
-			&expires_at.to_be_bytes(),
-			&authorized.head.block_number.to_be_bytes(),
-			&authorized.head.block_hash,
+		let external_effect_id = effect_hash(&[
+			b"transaction-sign",
+			&operation_id,
+			&authorized.request_hash,
+			&authorized.grant.id,
+			&core.store.context().genesis_hash,
 		]);
 		let prepared = match core.store.operation(operation_id)? {
 			Some(record) => {
@@ -1083,7 +1116,8 @@ where
 					operation: authorized.operation,
 					request_hash: authorized.request_hash,
 					grant_id: authorized.grant.id,
-					effect_hash: intent_effect,
+					external_effect_id,
+					effect_hash: external_effect_id,
 					finalized_number: authorized.head.block_number,
 					finalized_hash: authorized.head.block_hash,
 					consent_receipt: [0; 32],
@@ -1095,27 +1129,35 @@ where
 				record
 			},
 		};
-		if prepared.effect_hash != intent_effect {
+		if prepared.external_effect_id != external_effect_id ||
+			prepared.effect_hash != external_effect_id
+		{
 			return Err(IdentityAuthorityErrorV2::EffectConflict);
 		}
 		let prepared = if prepared.consent_recorded {
 			prepared
 		} else {
-			let consent_receipt = core.consent.consume(&IdentityConsentRequestV2 {
+			let consent = IdentityConsentRequestV2 {
+				effect_id: external_effect_id,
 				operation_id,
 				operation: authorized.operation,
 				grant_id: authorized.grant.id,
 				request_hash: authorized.request_hash,
-				effect_hash: intent_effect,
-				finalized: authorized.head,
-			})?;
+				effect_hash: external_effect_id,
+				finalized: FinalizedIdentityEffectV2 {
+					block_number: prepared.finalized_number,
+					block_hash: prepared.finalized_hash,
+				},
+			};
+			let consent_receipt = core.consent.recover_or_consume(external_effect_id, &consent)?;
 			core.store.record_consent(operation_id, consent_receipt)?;
 			core.store
 				.operation(operation_id)?
 				.ok_or(IdentityAuthorityErrorV2::EffectConflict)?
 		};
 		let genesis_hash = core.store.context().genesis_hash;
-		let effect = core.signer.sign_and_finalize(&TransactionSigningRequestV2 {
+		let signing_request = TransactionSigningRequestV2 {
+			effect_id: external_effect_id,
 			operation_id,
 			grant_id: authorized.grant.id,
 			genesis_hash,
@@ -1127,7 +1169,9 @@ where
 				block_number: prepared.finalized_number,
 				block_hash: prepared.finalized_hash,
 			},
-		})?;
+		};
+		let effect =
+			core.signer.recover_or_sign_and_finalize(external_effect_id, &signing_request)?;
 		if !core.runtime.is_finalized(effect.finalized)? {
 			return Err(IdentityAuthorityErrorV2::AuthorityUnavailable);
 		}
@@ -1399,44 +1443,64 @@ where
 	C: FreshIdentityConsentV2,
 {
 	let operation_id = authorized.operation_id.ok_or(IdentityAuthorityErrorV2::GrantScopeDenied)?;
-	let effect_hash = execution_hash(&execution);
-	core.store.prepare_operation(
-		DurableIdentityOperationV2 {
-			operation_id,
-			operation: authorized.operation,
-			request_hash: authorized.request_hash,
-			grant_id: authorized.grant.id,
-			effect_hash,
-			finalized_number: authorized.head.block_number,
-			finalized_hash: authorized.head.block_hash,
-			consent_receipt: [0; 32],
-			consent_recorded: false,
-			events: execution.events.clone(),
-			completed: false,
+	let result_effect_hash = execution_hash(&execution);
+	let external_effect_id = effect_hash(&[
+		b"identity-consent",
+		&operation_id,
+		&authorized.request_hash,
+		&authorized.grant.id,
+		&core.store.context().genesis_hash,
+	]);
+	let (prepared, execution) = match core.store.operation(operation_id)? {
+		Some(prepared) => {
+			validate_replay_record(&prepared, authorized)?;
+			if prepared.external_effect_id != external_effect_id || prepared.events.is_empty() {
+				return Err(IdentityAuthorityErrorV2::EffectConflict);
+			}
+			let exact_execution = execution_from_events(prepared.events.clone())?;
+			(prepared, exact_execution)
 		},
-		challenge,
-	)?;
-	let prepared = core
-		.store
-		.operation(operation_id)?
-		.ok_or(IdentityAuthorityErrorV2::EffectConflict)?;
+		None => {
+			let prepared = DurableIdentityOperationV2 {
+				operation_id,
+				operation: authorized.operation,
+				request_hash: authorized.request_hash,
+				grant_id: authorized.grant.id,
+				external_effect_id,
+				effect_hash: result_effect_hash,
+				finalized_number: authorized.head.block_number,
+				finalized_hash: authorized.head.block_hash,
+				consent_receipt: [0; 32],
+				consent_recorded: false,
+				events: execution.events.clone(),
+				completed: false,
+			};
+			core.store.prepare_operation(prepared.clone(), challenge)?;
+			(prepared, execution)
+		},
+	};
 	validate_replay_record(&prepared, authorized)?;
 	if !prepared.consent_recorded {
-		let consent_receipt = core.consent.consume(&IdentityConsentRequestV2 {
+		let consent = IdentityConsentRequestV2 {
+			effect_id: external_effect_id,
 			operation_id,
 			operation: authorized.operation,
 			grant_id: authorized.grant.id,
 			request_hash: authorized.request_hash,
-			effect_hash,
-			finalized: authorized.head,
-		})?;
+			effect_hash: prepared.effect_hash,
+			finalized: FinalizedIdentityEffectV2 {
+				block_number: prepared.finalized_number,
+				block_hash: prepared.finalized_hash,
+			},
+		};
+		let consent_receipt = core.consent.recover_or_consume(external_effect_id, &consent)?;
 		core.store.record_consent(operation_id, consent_receipt)?;
 	}
 	core.store.complete_operation(
 		operation_id,
-		effect_hash,
-		authorized.head.block_number,
-		authorized.head.block_hash,
+		prepared.effect_hash,
+		prepared.finalized_number,
+		prepared.finalized_hash,
 		execution.events.clone(),
 	)?;
 	Ok(execution)
@@ -1846,6 +1910,7 @@ fn same_operation(left: &DurableIdentityOperationV2, right: &DurableIdentityOper
 		left.operation == right.operation &&
 		left.request_hash == right.request_hash &&
 		left.grant_id == right.grant_id &&
+		left.external_effect_id == right.external_effect_id &&
 		left.effect_hash == right.effect_hash &&
 		left.finalized_number == right.finalized_number &&
 		left.finalized_hash == right.finalized_hash &&
@@ -2022,7 +2087,7 @@ fn set_private_file(file: &File) -> Result<(), IdentityAuthorityErrorV2> {
 
 #[cfg(test)]
 mod tests {
-	use std::sync::atomic::{AtomicBool, AtomicUsize, Ordering};
+	use std::sync::atomic::{AtomicBool, AtomicU64, AtomicUsize, Ordering};
 
 	use super::*;
 	use crate::product_sdk::host_v2::execution::{HostRequestMetaV2, ProviderOutboxContextV2};
@@ -2059,6 +2124,7 @@ mod tests {
 			operation: 1102,
 			request_hash: [8; 32],
 			grant_id: [6; 32],
+			external_effect_id: [16; 32],
 			effect_hash: [9; 32],
 			finalized_number: 100,
 			finalized_hash: [10; 32],
@@ -2218,6 +2284,7 @@ mod tests {
 	#[derive(Clone)]
 	struct RuntimeFixture {
 		available: Arc<AtomicBool>,
+		head: Arc<AtomicU64>,
 	}
 
 	impl FinalizedIdentitySourceV2 for RuntimeFixture {
@@ -2225,7 +2292,7 @@ mod tests {
 			if !self.available.load(Ordering::SeqCst) {
 				return Err(IdentityAuthorityErrorV2::AuthorityUnavailable);
 			}
-			Ok(finality())
+			Ok(runtime_finality(self.head.load(Ordering::SeqCst)))
 		}
 
 		fn profile(
@@ -2246,7 +2313,7 @@ mod tests {
 			_subject: [u8; 32],
 			_at: Option<[u8; 32]>,
 		) -> Result<FinalizedHumanityAuthorityV2, IdentityAuthorityErrorV2> {
-			Ok(humanity_authority())
+			Ok(humanity_authority_at(self.head.load(Ordering::SeqCst)))
 		}
 
 		fn humanity_proof(
@@ -2255,7 +2322,7 @@ mod tests {
 			_audience: &str,
 			_claims: &[String],
 		) -> Result<FinalizedHumanityAuthorityV2, IdentityAuthorityErrorV2> {
-			Ok(humanity_authority())
+			Ok(humanity_authority_at(self.head.load(Ordering::SeqCst)))
 		}
 
 		fn entitlement(
@@ -2278,13 +2345,19 @@ mod tests {
 			&mut self,
 			finality: FinalizedIdentityEffectV2,
 		) -> Result<bool, IdentityAuthorityErrorV2> {
-			Ok(finality == super::tests::finality() || finality == signing_finality())
+			Ok(finality == super::tests::finality() ||
+				finality == signing_finality() ||
+				finality == runtime_finality(finality.block_number))
 		}
 	}
 
 	#[derive(Clone)]
 	struct HostFixture {
 		available: Arc<AtomicBool>,
+		calls: Arc<AtomicUsize>,
+		effects_applied: Arc<AtomicUsize>,
+		fail_after_effect_once: Arc<AtomicBool>,
+		effects: Arc<Mutex<BTreeMap<[u8; 32], ([u8; 32], HostProfileDisclosureV2)>>>,
 	}
 
 	impl HostIdentityDeliveryV2 for HostFixture {
@@ -2298,18 +2371,46 @@ mod tests {
 			Ok(HostAccountSessionV2 { account: [31; 32], expires_at: 150 })
 		}
 
-		fn disclose(
+		fn recover_or_disclose(
 			&mut self,
+			effect_id: [u8; 32],
 			request: &ProfileDisclosureRequestV2,
 		) -> Result<HostProfileDisclosureV2, IdentityAuthorityErrorV2> {
 			if !self.available.load(Ordering::SeqCst) {
 				return Err(IdentityAuthorityErrorV2::AuthorityUnavailable);
 			}
-			Ok(HostProfileDisclosureV2 {
+			if effect_id != request.effect_id {
+				return Err(IdentityAuthorityErrorV2::EffectConflict);
+			}
+			self.calls.fetch_add(1, Ordering::SeqCst);
+			let binding = effect_hash(&[
+				&request.operation_id,
+				&request.request_hash,
+				&request.grant_id,
+				&request.consent_receipt,
+				&request.expires_at.to_be_bytes(),
+				&request.intent_finality.block_number.to_be_bytes(),
+				&request.intent_finality.block_hash,
+			]);
+			let mut effects = self.effects.lock().unwrap();
+			if let Some((existing_binding, disclosure)) = effects.get(&effect_id) {
+				return if *existing_binding == binding {
+					Ok(disclosure.clone())
+				} else {
+					Err(IdentityAuthorityErrorV2::EffectConflict)
+				};
+			}
+			let disclosure = HostProfileDisclosureV2 {
 				commitment: [32; 32],
 				valid_until: 130,
 				finalized: request.intent_finality,
-			})
+			};
+			effects.insert(effect_id, (binding, disclosure.clone()));
+			self.effects_applied.fetch_add(1, Ordering::SeqCst);
+			if self.fail_after_effect_once.swap(false, Ordering::SeqCst) {
+				return Err(IdentityAuthorityErrorV2::AuthorityUnavailable);
+			}
+			Ok(disclosure)
 		}
 	}
 
@@ -2317,21 +2418,32 @@ mod tests {
 	struct ConsentFixture {
 		available: Arc<AtomicBool>,
 		calls: Arc<AtomicUsize>,
-		receipts: Arc<Mutex<BTreeMap<[u8; 16], ([u8; 32], [u8; 32])>>>,
+		receipts: Arc<Mutex<BTreeMap<[u8; 32], ([u8; 32], [u8; 32])>>>,
 	}
 
 	impl FreshIdentityConsentV2 for ConsentFixture {
-		fn consume(
+		fn recover_or_consume(
 			&mut self,
+			effect_id: [u8; 32],
 			request: &IdentityConsentRequestV2,
 		) -> Result<[u8; 32], IdentityAuthorityErrorV2> {
 			if !self.available.load(Ordering::SeqCst) {
 				return Err(IdentityAuthorityErrorV2::AuthorityUnavailable);
 			}
-			let binding =
-				effect_hash(&[&request.request_hash, &request.grant_id, &request.effect_hash]);
+			if effect_id != request.effect_id {
+				return Err(IdentityAuthorityErrorV2::EffectConflict);
+			}
+			let binding = effect_hash(&[
+				&request.operation_id,
+				&request.operation.to_be_bytes(),
+				&request.request_hash,
+				&request.grant_id,
+				&request.effect_hash,
+				&request.finalized.block_number.to_be_bytes(),
+				&request.finalized.block_hash,
+			]);
 			let mut receipts = self.receipts.lock().unwrap();
-			if let Some((existing_binding, receipt)) = receipts.get(&request.operation_id) {
+			if let Some((existing_binding, receipt)) = receipts.get(&effect_id) {
 				return if *existing_binding == binding {
 					Ok(*receipt)
 				} else {
@@ -2345,7 +2457,7 @@ mod tests {
 				&request.grant_id,
 				&request.effect_hash,
 			]);
-			receipts.insert(request.operation_id, (binding, receipt));
+			receipts.insert(effect_id, (binding, receipt));
 			Ok(receipt)
 		}
 	}
@@ -2355,21 +2467,41 @@ mod tests {
 		available: Arc<AtomicBool>,
 		fail_after_effect_once: Arc<AtomicBool>,
 		calls: Arc<AtomicUsize>,
-		effects: Arc<Mutex<BTreeMap<[u8; 16], FinalizedTransactionEffectV2>>>,
+		effects_applied: Arc<AtomicUsize>,
+		effects: Arc<Mutex<BTreeMap<[u8; 32], ([u8; 32], FinalizedTransactionEffectV2)>>>,
 	}
 
 	impl FinalizedTransactionSignerV2 for SignerFixture {
-		fn sign_and_finalize(
+		fn recover_or_sign_and_finalize(
 			&mut self,
+			effect_id: [u8; 32],
 			request: &TransactionSigningRequestV2,
 		) -> Result<FinalizedTransactionEffectV2, IdentityAuthorityErrorV2> {
 			if !self.available.load(Ordering::SeqCst) {
 				return Err(IdentityAuthorityErrorV2::AuthorityUnavailable);
 			}
+			if effect_id != request.effect_id {
+				return Err(IdentityAuthorityErrorV2::EffectConflict);
+			}
 			self.calls.fetch_add(1, Ordering::SeqCst);
+			let binding = effect_hash(&[
+				&request.operation_id,
+				&request.grant_id,
+				&request.genesis_hash,
+				&request.payload_hash,
+				&request.policy_hash,
+				&request.consent_receipt,
+				&request.expires_at.to_be_bytes(),
+				&request.intent_finality.block_number.to_be_bytes(),
+				&request.intent_finality.block_hash,
+			]);
 			let mut effects = self.effects.lock().unwrap();
-			if let Some(effect) = effects.get(&request.operation_id) {
-				return Ok(effect.clone());
+			if let Some((existing_binding, effect)) = effects.get(&effect_id) {
+				return if *existing_binding == binding {
+					Ok(effect.clone())
+				} else {
+					Err(IdentityAuthorityErrorV2::EffectConflict)
+				};
 			}
 			let effect = FinalizedTransactionEffectV2 {
 				transaction_hash: effect_hash(&[
@@ -2380,7 +2512,8 @@ mod tests {
 				]),
 				finalized: signing_finality(),
 			};
-			effects.insert(request.operation_id, effect.clone());
+			effects.insert(effect_id, (binding, effect.clone()));
+			self.effects_applied.fetch_add(1, Ordering::SeqCst);
 			if self.fail_after_effect_once.swap(false, Ordering::SeqCst) {
 				return Err(IdentityAuthorityErrorV2::AuthorityUnavailable);
 			}
@@ -2391,27 +2524,39 @@ mod tests {
 	#[derive(Clone)]
 	struct FixtureControls {
 		runtime_available: Arc<AtomicBool>,
+		runtime_head: Arc<AtomicU64>,
 		host_available: Arc<AtomicBool>,
+		host_calls: Arc<AtomicUsize>,
+		host_effects_applied: Arc<AtomicUsize>,
+		host_fail_after_effect_once: Arc<AtomicBool>,
+		host_effects: Arc<Mutex<BTreeMap<[u8; 32], ([u8; 32], HostProfileDisclosureV2)>>>,
 		consent_available: Arc<AtomicBool>,
 		consent_calls: Arc<AtomicUsize>,
-		consent_receipts: Arc<Mutex<BTreeMap<[u8; 16], ([u8; 32], [u8; 32])>>>,
+		consent_receipts: Arc<Mutex<BTreeMap<[u8; 32], ([u8; 32], [u8; 32])>>>,
 		signer_available: Arc<AtomicBool>,
 		signer_fail_after_effect_once: Arc<AtomicBool>,
 		signer_calls: Arc<AtomicUsize>,
-		signer_effects: Arc<Mutex<BTreeMap<[u8; 16], FinalizedTransactionEffectV2>>>,
+		signer_effects_applied: Arc<AtomicUsize>,
+		signer_effects: Arc<Mutex<BTreeMap<[u8; 32], ([u8; 32], FinalizedTransactionEffectV2)>>>,
 	}
 
 	impl Default for FixtureControls {
 		fn default() -> Self {
 			Self {
 				runtime_available: Arc::new(AtomicBool::new(true)),
+				runtime_head: Arc::new(AtomicU64::new(100)),
 				host_available: Arc::new(AtomicBool::new(true)),
+				host_calls: Arc::new(AtomicUsize::new(0)),
+				host_effects_applied: Arc::new(AtomicUsize::new(0)),
+				host_fail_after_effect_once: Arc::new(AtomicBool::new(false)),
+				host_effects: Arc::new(Mutex::new(BTreeMap::new())),
 				consent_available: Arc::new(AtomicBool::new(true)),
 				consent_calls: Arc::new(AtomicUsize::new(0)),
 				consent_receipts: Arc::new(Mutex::new(BTreeMap::new())),
 				signer_available: Arc::new(AtomicBool::new(true)),
 				signer_fail_after_effect_once: Arc::new(AtomicBool::new(false)),
 				signer_calls: Arc::new(AtomicUsize::new(0)),
+				signer_effects_applied: Arc::new(AtomicUsize::new(0)),
 				signer_effects: Arc::new(Mutex::new(BTreeMap::new())),
 			}
 		}
@@ -2426,8 +2571,17 @@ mod tests {
 			context(),
 			Some(keystore()),
 			Some(all_grants()),
-			RuntimeFixture { available: Arc::clone(&controls.runtime_available) },
-			HostFixture { available: Arc::clone(&controls.host_available) },
+			RuntimeFixture {
+				available: Arc::clone(&controls.runtime_available),
+				head: Arc::clone(&controls.runtime_head),
+			},
+			HostFixture {
+				available: Arc::clone(&controls.host_available),
+				calls: Arc::clone(&controls.host_calls),
+				effects_applied: Arc::clone(&controls.host_effects_applied),
+				fail_after_effect_once: Arc::clone(&controls.host_fail_after_effect_once),
+				effects: Arc::clone(&controls.host_effects),
+			},
 			ConsentFixture {
 				available: Arc::clone(&controls.consent_available),
 				calls: Arc::clone(&controls.consent_calls),
@@ -2437,6 +2591,7 @@ mod tests {
 				available: Arc::clone(&controls.signer_available),
 				fail_after_effect_once: Arc::clone(&controls.signer_fail_after_effect_once),
 				calls: Arc::clone(&controls.signer_calls),
+				effects_applied: Arc::clone(&controls.signer_effects_applied),
 				effects: Arc::clone(&controls.signer_effects),
 			},
 		)
@@ -2447,16 +2602,26 @@ mod tests {
 		FinalizedIdentityEffectV2 { block_number: 100, block_hash: [41; 32] }
 	}
 
+	fn runtime_finality(block_number: u64) -> FinalizedIdentityEffectV2 {
+		if block_number == 100 {
+			return finality();
+		}
+		FinalizedIdentityEffectV2 {
+			block_number,
+			block_hash: effect_hash(&[b"fixture-finality", &block_number.to_be_bytes()]),
+		}
+	}
+
 	fn signing_finality() -> FinalizedIdentityEffectV2 {
 		FinalizedIdentityEffectV2 { block_number: 101, block_hash: [42; 32] }
 	}
 
-	fn humanity_authority() -> FinalizedHumanityAuthorityV2 {
+	fn humanity_authority_at(block_number: u64) -> FinalizedHumanityAuthorityV2 {
 		FinalizedHumanityAuthorityV2 {
 			status: 1,
 			fresh_until: 150,
 			commitment: [43; 32],
-			finalized: finality(),
+			finalized: runtime_finality(block_number),
 		}
 	}
 
@@ -2577,12 +2742,12 @@ mod tests {
 			assert_error(&execution, 1100, expected);
 		}
 		for (operation, expected) in [
-			(1100, ErrorCode::HostOutboxUnavailable),
-			(1102, ErrorCode::IdentityDisclosureDenied),
-			(1103, ErrorCode::IdentityHumanityUnavailable),
-			(1104, ErrorCode::IdentityHumanityUnavailable),
-			(1106, ErrorCode::IdentityEntitlementUnavailable),
-			(1200, ErrorCode::SigningConsentRequired),
+			(1100, ErrorCode::IdentityAuthorityUnavailable),
+			(1102, ErrorCode::IdentityAuthorityUnavailable),
+			(1103, ErrorCode::IdentityAuthorityUnavailable),
+			(1104, ErrorCode::IdentityAuthorityUnavailable),
+			(1106, ErrorCode::IdentityAuthorityUnavailable),
+			(1200, ErrorCode::IdentityAuthorityUnavailable),
 		] {
 			let execution = error_execution::<IdentityAccountError>(
 				[98; 16],
@@ -2598,7 +2763,7 @@ mod tests {
 			IdentityAuthorityErrorV2::EffectConflict,
 		)
 		.unwrap();
-		assert_error(&conflict, 1200, ErrorCode::IdentityChallengeReplay);
+		assert_error(&conflict, 1200, ErrorCode::IdentityEffectConflict);
 	}
 
 	#[test]
@@ -2847,8 +3012,9 @@ mod tests {
 				outbox: &outbox,
 			})
 			.unwrap();
-		assert_error(&first, 1200, ErrorCode::SigningConsentRequired);
+		assert_error(&first, 1200, ErrorCode::IdentityAuthorityUnavailable);
 		drop(backend);
+		controls.runtime_head.store(101, Ordering::SeqCst);
 
 		let mut backend = authority(root.path(), &controls);
 		let recovered = backend
@@ -2872,6 +3038,8 @@ mod tests {
 		assert_eq!(recovered.events, replayed.events);
 		assert_eq!(controls.consent_calls.load(Ordering::SeqCst), 1);
 		assert_eq!(controls.signer_calls.load(Ordering::SeqCst), 2);
+		assert_eq!(controls.signer_effects_applied.load(Ordering::SeqCst), 1);
+		assert_eq!(controls.signer_effects.lock().unwrap().len(), 1);
 
 		let changed = frame::<TransactionSignFrame>(
 			1200,
@@ -2891,7 +3059,75 @@ mod tests {
 				outbox: &outbox,
 			})
 			.unwrap();
-		assert_error(&conflict, 1200, ErrorCode::IdentityChallengeReplay);
+		assert_error(&conflict, 1200, ErrorCode::IdentityEffectConflict);
+	}
+
+	#[test]
+	fn disclosure_lost_success_recovers_one_stable_external_effect_after_restart() {
+		let root = tempfile::tempdir().unwrap();
+		let controls = FixtureControls::default();
+		controls.host_fail_after_effect_once.store(true, Ordering::SeqCst);
+		let operation_id = [76; 16];
+		let request = frame::<IdentityProfileDiscloseFrame>(
+			1102,
+			[77; 16],
+			Some(operation_id),
+			map(vec![
+				(0, Value::Text("festival.example".into())),
+				(1, Value::Array(vec![Value::Text("email".into())])),
+				(2, Value::Text("ticket".into())),
+				(3, uint(140)),
+			]),
+		);
+		let mut backend = authority(root.path(), &controls);
+		let failed = backend
+			.identity_profile_disclose(HostCallV2 {
+				frame: &request,
+				authority: &grant_id(1102),
+				meta: meta([77; 16], Some(operation_id)),
+				outbox: &outbox(),
+			})
+			.unwrap();
+		assert_error(&failed, 1102, ErrorCode::IdentityAuthorityUnavailable);
+		let stable_effect_id = backend
+			.core
+			.lock()
+			.unwrap()
+			.store
+			.operation(operation_id)
+			.unwrap()
+			.unwrap()
+			.external_effect_id;
+		assert!(controls.host_effects.lock().unwrap().contains_key(&stable_effect_id));
+		assert_eq!(controls.consent_calls.load(Ordering::SeqCst), 1);
+		assert_eq!(controls.host_calls.load(Ordering::SeqCst), 1);
+		assert_eq!(controls.host_effects_applied.load(Ordering::SeqCst), 1);
+		drop(backend);
+		controls.runtime_head.store(101, Ordering::SeqCst);
+
+		let mut backend = authority(root.path(), &controls);
+		let recovered = backend
+			.identity_profile_disclose(HostCallV2 {
+				frame: &request,
+				authority: &grant_id(1102),
+				meta: meta([77; 16], Some(operation_id)),
+				outbox: &outbox(),
+			})
+			.unwrap();
+		assert_execution(&recovered, 3);
+		assert_eq!(controls.consent_calls.load(Ordering::SeqCst), 1);
+		assert_eq!(controls.host_calls.load(Ordering::SeqCst), 2);
+		assert_eq!(controls.host_effects_applied.load(Ordering::SeqCst), 1);
+		let replay = backend
+			.identity_profile_disclose(HostCallV2 {
+				frame: &request,
+				authority: &grant_id(1102),
+				meta: meta([77; 16], Some(operation_id)),
+				outbox: &outbox(),
+			})
+			.unwrap();
+		assert_eq!(recovered.events, replay.events);
+		assert_eq!(controls.host_calls.load(Ordering::SeqCst), 2);
 	}
 
 	#[test]
@@ -2966,6 +3202,7 @@ mod tests {
 			.unwrap();
 		assert_error(&failed, 1104, ErrorCode::HostOutboxUnavailable);
 		assert_eq!(after_controls.consent_calls.load(Ordering::SeqCst), 1);
+		assert_eq!(after_controls.consent_receipts.lock().unwrap().len(), 1);
 		let reserved = after.core.lock().unwrap().store.operation(operation_id).unwrap().unwrap();
 		assert!(!reserved.consent_recorded);
 		assert!(after_root.path().join(ROOT).read_dir().unwrap().all(|entry| !entry
@@ -2974,6 +3211,7 @@ mod tests {
 			.to_string_lossy()
 			.ends_with(".tmp")));
 		drop(after);
+		after_controls.runtime_head.store(101, Ordering::SeqCst);
 		let mut after = authority(after_root.path(), &after_controls);
 		assert_execution(
 			&after
@@ -2987,6 +3225,7 @@ mod tests {
 			3,
 		);
 		assert_eq!(after_controls.consent_calls.load(Ordering::SeqCst), 1);
+		assert_eq!(after_controls.consent_receipts.lock().unwrap().len(), 1);
 	}
 
 	#[test]
@@ -3024,6 +3263,6 @@ mod tests {
 				outbox: &outbox(),
 			})
 			.unwrap();
-		assert_error(&unavailable, 1100, ErrorCode::HostOutboxUnavailable);
+		assert_error(&unavailable, 1100, ErrorCode::IdentityAuthorityUnavailable);
 	}
 }

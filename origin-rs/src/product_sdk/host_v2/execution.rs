@@ -844,8 +844,9 @@ mod tests {
 			Ok(HostAccountSessionV2 { account: [8; 32], expires_at: 10 })
 		}
 
-		fn disclose(
+		fn recover_or_disclose(
 			&mut self,
+			_effect_id: [u8; 32],
 			_request: &ProfileDisclosureRequestV2,
 		) -> Result<HostProfileDisclosureV2, IdentityAuthorityErrorV2> {
 			Err(IdentityAuthorityErrorV2::AuthorityUnavailable)
@@ -853,8 +854,9 @@ mod tests {
 	}
 
 	impl FreshIdentityConsentV2 for IdentityFactoryFixture {
-		fn consume(
+		fn recover_or_consume(
 			&mut self,
+			_effect_id: [u8; 32],
 			_request: &IdentityConsentRequestV2,
 		) -> Result<[u8; 32], IdentityAuthorityErrorV2> {
 			Err(IdentityAuthorityErrorV2::AuthorityUnavailable)
@@ -862,8 +864,9 @@ mod tests {
 	}
 
 	impl FinalizedTransactionSignerV2 for IdentityFactoryFixture {
-		fn sign_and_finalize(
+		fn recover_or_sign_and_finalize(
 			&mut self,
+			_effect_id: [u8; 32],
 			_request: &TransactionSigningRequestV2,
 		) -> Result<FinalizedTransactionEffectV2, IdentityAuthorityErrorV2> {
 			Err(IdentityAuthorityErrorV2::AuthorityUnavailable)

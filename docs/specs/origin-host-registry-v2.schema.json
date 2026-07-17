@@ -2148,6 +2148,12 @@
         },
         {
           "$ref": "#/$defs/Error411"
+        },
+        {
+          "$ref": "#/$defs/Error412"
+        },
+        {
+          "$ref": "#/$defs/Error413"
         }
       ]
     },
@@ -8257,10 +8263,58 @@
         "3",
         "4"
       ]
+    },
+    "Error412": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "0": {
+          "const": 412
+        },
+        "1": {
+          "const": "IDENTITY_AUTHORITY_UNAVAILABLE"
+        },
+        "2": {
+          "const": true
+        },
+        "3": {
+          "$ref": "#/$defs/ErrorDetails"
+        }
+      },
+      "required": [
+        "0",
+        "1",
+        "2",
+        "3"
+      ]
+    },
+    "Error413": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "0": {
+          "const": 413
+        },
+        "1": {
+          "const": "IDENTITY_EFFECT_CONFLICT"
+        },
+        "2": {
+          "const": false
+        },
+        "3": {
+          "$ref": "#/$defs/ErrorDetails"
+        }
+      },
+      "required": [
+        "0",
+        "1",
+        "2",
+        "3"
+      ]
     }
   },
   "x-cord-generated-from": {
-    "cddl_sha256": "d17c24596fbae30c300d57ae8e51bc0c7b149ab2e91c2b9c751bedd3fbc1eeba",
-    "operations_sha256": "a50a80ec2f4ab36785fcfbbc38b6512ca4e355e5a48a4cbe9b5083968db15aca"
+    "cddl_sha256": "e88cff81e8296a4451eb9eb94e1b8db064031311c85ef9ad08984b6bc057c64e",
+    "operations_sha256": "ee5cea2087f5f4f4dd89f0907a15a8046a51c088ec874f085a6b7cd698f10f01"
   }
 }

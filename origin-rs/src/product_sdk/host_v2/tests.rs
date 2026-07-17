@@ -689,10 +689,10 @@ fn generated_runtime_bindings_exactly_project_all_frozen_authorities() {
 	assert_eq!(generated::MAJOR, operations()["major"].as_u64().unwrap() as u8);
 	assert_eq!(generated::MINOR, operations()["minor"].as_u64().unwrap() as u16);
 	assert_eq!(generated::OPERATIONS.len(), 34);
-	assert_eq!(generated::ERRORS.len(), 89);
+	assert_eq!(generated::ERRORS.len(), 91);
 	let semantic: serde_json::Value =
 		serde_json::from_str(generated::SEMANTIC_TABLE_JSON).expect("semantic table is JSON");
-	assert_eq!(semantic["schemas"].as_object().unwrap().len(), 363);
+	assert_eq!(semantic["schemas"].as_object().unwrap().len(), 365);
 
 	let operation_registry = operations();
 	for operation in operation_registry["operations"].as_array().unwrap() {
@@ -888,7 +888,7 @@ fn every_frozen_error_event_round_trips_through_the_closed_union() {
 		.iter()
 		.filter(|vector| vector["id"].as_str().is_some_and(|id| id.starts_with("error-")))
 		.collect();
-	assert_eq!(error_vectors.len(), 89);
+	assert_eq!(error_vectors.len(), 91);
 	for error in error_vectors {
 		let id = error["id"].as_str().unwrap();
 		let wire = vector(id);
@@ -1882,8 +1882,11 @@ fn desktop_get_resume_uses_persisted_generation_not_a_short_verified_byte_cursor
 		.unwrap();
 	read_frame(&mut server).unwrap();
 	read_frame(&mut server).unwrap();
-	write_frame(&mut server, &object_get_progress(input.request_id, 2, u64::from(SHORT_BATCH_BYTES)))
-		.unwrap();
+	write_frame(
+		&mut server,
+		&object_get_progress(input.request_id, 2, u64::from(SHORT_BATCH_BYTES)),
+	)
+	.unwrap();
 	write_frame(&mut server, &object_get_result(input.request_id, 3)).unwrap();
 	let terminal_ack = confirm_next_provider_ack(&server);
 	let terminal = desktop

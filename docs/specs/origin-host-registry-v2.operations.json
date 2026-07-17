@@ -1,7 +1,7 @@
 {
   "protocol": "cord.origin.host/2",
   "major": 2,
-  "minor": 0,
+  "minor": 1,
   "operations": [
     {
       "code": 1000,
@@ -6231,6 +6231,16 @@
           "code": 411,
           "name": "IDENTITY_RETIRED_SET_FULL",
           "retryable": false
+        },
+        {
+          "code": 412,
+          "name": "IDENTITY_AUTHORITY_UNAVAILABLE",
+          "retryable": true
+        },
+        {
+          "code": 413,
+          "name": "IDENTITY_EFFECT_CONFLICT",
+          "retryable": false
         }
       ]
     },
@@ -6438,6 +6448,16 @@
         {
           "code": 411,
           "name": "IDENTITY_RETIRED_SET_FULL",
+          "retryable": false
+        },
+        {
+          "code": 412,
+          "name": "IDENTITY_AUTHORITY_UNAVAILABLE",
+          "retryable": true
+        },
+        {
+          "code": 413,
+          "name": "IDENTITY_EFFECT_CONFLICT",
           "retryable": false
         }
       ]
@@ -6647,6 +6667,16 @@
           "code": 411,
           "name": "IDENTITY_RETIRED_SET_FULL",
           "retryable": false
+        },
+        {
+          "code": 412,
+          "name": "IDENTITY_AUTHORITY_UNAVAILABLE",
+          "retryable": true
+        },
+        {
+          "code": 413,
+          "name": "IDENTITY_EFFECT_CONFLICT",
+          "retryable": false
         }
       ]
     },
@@ -6854,6 +6884,16 @@
         {
           "code": 411,
           "name": "IDENTITY_RETIRED_SET_FULL",
+          "retryable": false
+        },
+        {
+          "code": 412,
+          "name": "IDENTITY_AUTHORITY_UNAVAILABLE",
+          "retryable": true
+        },
+        {
+          "code": 413,
+          "name": "IDENTITY_EFFECT_CONFLICT",
           "retryable": false
         }
       ]
@@ -7063,6 +7103,16 @@
           "code": 411,
           "name": "IDENTITY_RETIRED_SET_FULL",
           "retryable": false
+        },
+        {
+          "code": 412,
+          "name": "IDENTITY_AUTHORITY_UNAVAILABLE",
+          "retryable": true
+        },
+        {
+          "code": 413,
+          "name": "IDENTITY_EFFECT_CONFLICT",
+          "retryable": false
         }
       ]
     },
@@ -7270,6 +7320,16 @@
         {
           "code": 411,
           "name": "IDENTITY_RETIRED_SET_FULL",
+          "retryable": false
+        },
+        {
+          "code": 412,
+          "name": "IDENTITY_AUTHORITY_UNAVAILABLE",
+          "retryable": true
+        },
+        {
+          "code": 413,
+          "name": "IDENTITY_EFFECT_CONFLICT",
           "retryable": false
         }
       ]
@@ -7479,6 +7539,16 @@
           "code": 411,
           "name": "IDENTITY_RETIRED_SET_FULL",
           "retryable": false
+        },
+        {
+          "code": 412,
+          "name": "IDENTITY_AUTHORITY_UNAVAILABLE",
+          "retryable": true
+        },
+        {
+          "code": 413,
+          "name": "IDENTITY_EFFECT_CONFLICT",
+          "retryable": false
         }
       ]
     },
@@ -7687,6 +7757,16 @@
         {
           "code": 411,
           "name": "IDENTITY_RETIRED_SET_FULL",
+          "retryable": false
+        },
+        {
+          "code": 412,
+          "name": "IDENTITY_AUTHORITY_UNAVAILABLE",
+          "retryable": true
+        },
+        {
+          "code": 413,
+          "name": "IDENTITY_EFFECT_CONFLICT",
           "retryable": false
         }
       ]
