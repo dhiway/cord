@@ -29,14 +29,18 @@ import {
   type NamesAuthorityProofV2, type NamesAuthorityStateV2, type PrivateNamesBindingV2,
   type PrivateStorageExecutorV2, type PrivateStorageIntentFactoryV2, type PrivateStorageIntentV2,
   type PrivateOriginAppManifestV2, type PrivateStorageUploadV2, type PublishOriginAppV2Input,
-  type StorageOperationV2, type VerifiedFinalizedBlockV2,
+  PRIVATE_APP_HOST_V2_CAPABILITIES, type StorageOperationV2, type VerifiedFinalizedNamesBlockV2,
 } from "../src/internal/v2-publishing.ts";
 
 const bytes = (length: number, fill: number) => new Uint8Array(length).fill(fill);
+const equalBytesForTest = (left: Uint8Array, right: Uint8Array) => left.length === right.length && left.every((byte, index) => byte === right[index]);
 const hex = (fill: string) => `0x${fill.repeat(64)}` as `0x${string}`;
 const fp = (number: bigint, fill: string): FinalityProofV2 => ({ blockHash: hex(fill), blockNumber: number });
 const wf = (number: bigint, fill: number) => ({ number, hash: bytes(32, Number.parseInt(`${fill}${fill}`, 16)) });
-const block = (number: bigint, fill: string, parent: string): VerifiedFinalizedBlockV2 => ({ finality: "finalized", canonical: true, verified: true, finalized: fp(number, fill), parentHash: hex(parent) });
+const block = (number: bigint, fill: string, parent: string, observations: readonly FinalizedNamesObservationV2[] = []): VerifiedFinalizedNamesBlockV2 => ({
+  finality: "finalized", canonical: true, verified: true, finalized: fp(number, fill), parentHash: hex(parent),
+  namesEventsExhaustive: true, observations,
+});
 const bootstrap = () => ({ finality: "finalized" as const, canonical: true as const, verified: true as const, finalized: fp(0n, "0") });
 const owner = "5Owner" as AccountId, controller = "5Controller" as AccountId, nextOwner = "5Next" as AccountId;
 const name = nameId(`0x${"22".repeat(32)}`), storageName = "festival.origin";
@@ -59,12 +63,21 @@ const factory: PrivateStorageIntentFactoryV2 = { create(operation, input) { retu
 function registration(): FinalizedNamesObservationV2 {
   return { finality: "finalized", canonical: true, finalized: fp(1n, "1"), parentHash: hex("0"), eventIndex: 3,
     event: { event: "name_registered", data: { name, parent: null, label: "festival" as NormalizedLabel, owner, expires_at: "100" as BlockNumber } },
-    postState: { name, owner, controllers: [controller], active: true, content: null } };
+    postState: { name, owner, controllers: [], active: true, expiresAt: 100n, content: null } };
 }
-function newIndex(): FinalizedNamesEventIndexV2 { const index = new FinalizedNamesEventIndexV2(bootstrap()); index.advance(block(1n, "1", "0")); index.append(registration()); return index; }
+function controllerAdded(): FinalizedNamesObservationV2 {
+  return { finality: "finalized", canonical: true, finalized: fp(1n, "1"), parentHash: hex("0"), eventIndex: 4,
+    event: { event: "controller_added", data: { name, controller } },
+    postState: { name, owner, controllers: [controller], active: true, expiresAt: 100n, content: null } };
+}
+function newIndex(): FinalizedNamesEventIndexV2 {
+  const index = new FinalizedNamesEventIndexV2(bootstrap());
+  index.advance(block(1n, "1", "0", [registration(), controllerAdded()]));
+  return index;
+}
 function contentObs(at: FinalityProofV2, parentHash: `0x${string}`, who: AccountId, content: ContentCommitment | null, eventIndex = 5): FinalizedNamesObservationV2 {
   return { finality: "finalized", canonical: true, finalized: at, parentHash, eventIndex,
-    event: { event: "content_set", data: { name, present: content !== null } }, postState: { name, owner: who, controllers: [controller], active: true, content } };
+    event: { event: "content_set", data: { name, present: content !== null } }, postState: { name, owner: who, controllers: [controller], active: true, expiresAt: 100n, content } };
 }
 function publishInput(overrides: Partial<PublishOriginAppV2Input> = {}): PublishOriginAppV2Input {
   let request = 20, operation = 40;
@@ -92,11 +105,12 @@ async function collect(upload: PrivateStorageUploadV2): Promise<Uint8Array> {
 }
 class StorageExecutor implements PrivateStorageExecutorV2 {
   readonly operations: StorageOperationV2[] = []; readonly uploads: Uint8Array[] = []; readonly uploadStreams: PrivateStorageUploadV2[] = [];
+  readonly intents: PrivateStorageIntentV2[] = [];
   statusCalls = 0; resolveFinality = wf(3n, 3);
   readonly onOperation?: (operation: StorageOperationV2) => void;
   constructor(onOperation?: (operation: StorageOperationV2) => void) { this.onOperation = onOperation; }
   async execute<Operation extends StorageOperationV2>(intent: PrivateStorageIntentV2<Operation>, upload: Operation extends "storage.object.put" ? PrivateStorageUploadV2 : undefined): Promise<unknown> {
-    this.operations.push(intent.operation); this.onOperation?.(intent.operation);
+    this.operations.push(intent.operation); this.intents.push(intent); this.onOperation?.(intent.operation);
     if (intent.operation === "storage.object.put") { assert.ok(upload); this.uploadStreams.push(upload); const body = await collect(upload); assert.equal(upload.length, BigInt(body.length)); assert.equal(upload.cid, rawContentAddress(body).cid); this.uploads.push(body); }
     else assert.equal(upload, undefined);
     if (intent.operation === "storage.object.status") return resultFor(intent.operation, ++this.statusCalls > 1);
@@ -105,15 +119,18 @@ class StorageExecutor implements PrivateStorageExecutorV2 {
 }
 class NamesBinding implements PrivateNamesBindingV2 {
   binds = 0; retracts = 0;
-  state: NamesAuthorityStateV2 = { name, owner, controllers: [controller], active: true, content: null }; finalized = fp(1n, "1");
-  bindBlocks: readonly VerifiedFinalizedBlockV2[] = [block(2n, "2", "1"), block(3n, "3", "2")]; bindFinality = fp(3n, "3"); bindParent = hex("2");
+  state: NamesAuthorityStateV2 = { name, owner, controllers: [controller], active: true, expiresAt: 100n, content: null }; finalized = fp(1n, "1");
+  bindChain?: (observation: FinalizedNamesObservationV2) => readonly VerifiedFinalizedNamesBlockV2[];
+  bindFinality = fp(3n, "3"); bindParent = hex("2");
+  onBind?: () => void; onRetract?: () => void;
   async bind(input: { proof: NamesAuthorityProofV2; content: ContentCommitment; after: FinalityProofV2 }) {
     this.binds += 1; assert.deepEqual(input.after, fp(2n, "2")); const observation = contentObs(this.bindFinality, this.bindParent, input.proof.owner, input.content);
-    this.state = observation.postState; this.finalized = observation.finalized; return { finalizedBlocks: this.bindBlocks, observation };
+    this.onBind?.(); this.state = observation.postState!; this.finalized = observation.finalized;
+    return { finalizedBlocks: this.bindChain?.(observation) ?? [block(2n, "2", "1"), block(3n, "3", "2", [observation])], observation };
   }
   async retract(proof: NamesAuthorityProofV2): Promise<FinalizedNamesMutationV2> {
-    this.retracts += 1; const observation = contentObs(fp(4n, "4"), hex("3"), proof.owner, null, 8); this.state = observation.postState; this.finalized = observation.finalized;
-    return { finalizedBlocks: [block(4n, "4", "3")], observation };
+    this.retracts += 1; const observation = contentObs(fp(4n, "4"), hex("3"), proof.owner, null, 8); this.state = observation.postState!; this.finalized = observation.finalized;
+    this.onRetract?.(); return { finalizedBlocks: [block(4n, "4", "3", [observation])], observation };
   }
   async resolve(_name: typeof name, _at: FinalityProofV2) { return { state: this.state, finalized: this.finalized }; }
 }
@@ -135,31 +152,83 @@ test("Names index requires verified bootstrap, empty-block advancement, and actu
   assert.throws(() => new FinalizedNamesEventIndexV2({ ...bootstrap(), finalized: fp(9n, "9") }), /only at genesis/);
   const index = new FinalizedNamesEventIndexV2(bootstrap());
   assert.throws(() => index.advance({ ...block(1n, "1", "0"), verified: false } as never), /verified canonical/);
-  index.advance(block(1n, "1", "0")); index.append(registration());
-  index.append(contentObs(fp(1n, "1"), hex("0"), owner, commitment, 7));
-  assert.throws(() => index.append(contentObs(fp(1n, "1"), hex("0"), owner, commitment, 7)), /monotonic system event index/);
+  const content = contentObs(fp(1n, "1"), hex("0"), owner, commitment, 7);
+  assert.throws(() => index.advance({ ...block(1n, "1", "0"), namesEventsExhaustive: false } as never), /exhaustive ordered/);
+  assert.throws(() => index.advance(block(1n, "1", "0", [registration(), controllerAdded(), content, content])), /monotonic system event index/);
+  index.advance(block(1n, "1", "0", [registration(), controllerAdded(), content]));
   index.advance(block(2n, "2", "1")); index.advance(block(3n, "3", "2"));
   assert.deepEqual(index.head, fp(3n, "3")); assert.throws(() => index.advance(block(5n, "5", "9")), /gap or reorg/);
 });
 
+test("Names registration, renewal, expiry, removal, and controller authority are exactly reconstructed", () => {
+  const fabricated = new FinalizedNamesEventIndexV2(bootstrap());
+  assert.throws(() => fabricated.advance(block(1n, "1", "0", [
+    { ...registration(), postState: { ...registration().postState!, controllers: [controller] } },
+  ])), /registration post-state/);
+  assert.equal(newIndex().authority(name, controller).controller, controller, "controller authority requires its own event");
+
+  const expiring = new FinalizedNamesEventIndexV2(bootstrap());
+  const registered = { ...registration(), postState: { ...registration().postState!, expiresAt: 3n },
+    event: { ...registration().event, data: { ...registration().event.data, expires_at: "3" as BlockNumber } } } as FinalizedNamesObservationV2;
+  expiring.advance(block(1n, "1", "0", [registered]));
+  const renewed: FinalizedNamesObservationV2 = { finality: "finalized", canonical: true, finalized: fp(2n, "2"), parentHash: hex("1"), eventIndex: 2,
+    event: { event: "name_renewed", data: { name, expires_at: "4" as BlockNumber } },
+    postState: { name, owner, controllers: [], active: true, expiresAt: 4n, content: null } };
+  expiring.advance(block(2n, "2", "1", [renewed])); expiring.advance(block(3n, "3", "2"));
+  assert.equal(expiring.authority(name, owner).owner, owner);
+  expiring.advance(block(4n, "4", "3")); assert.throws(() => expiring.authority(name, owner), /not active/);
+  const removed: FinalizedNamesObservationV2 = { finality: "finalized", canonical: true, finalized: fp(5n, "5"), parentHash: hex("4"), eventIndex: 1,
+    event: { event: "expired_name_removed", data: { name } }, postState: { name, owner, controllers: [], active: false, expiresAt: 4n, content: null } };
+  expiring.advance(block(5n, "5", "4", [removed])); assert.throws(() => expiring.resolve(name), /not live/);
+});
+
 for (const race of ["transfer", "revoke"] as const) test(`publish rejects finalized Names ${race} race before binding`, async () => {
   const index = newIndex(); let raced = false;
-  const storage = new StorageExecutor((operation) => { if (operation !== "storage.publish" || raced) return; raced = true; index.advance(block(2n, "2", "1"));
-    index.append({ finality: "finalized", canonical: true, finalized: fp(2n, "2"), parentHash: hex("1"), eventIndex: 9,
+  const storage = new StorageExecutor((operation) => { if (operation !== "storage.publish" || raced) return; raced = true; const observation: FinalizedNamesObservationV2 = { finality: "finalized", canonical: true, finalized: fp(2n, "2"), parentHash: hex("1"), eventIndex: 9,
       event: race === "transfer" ? { event: "name_transferred", data: { name, from: owner, to: nextOwner } } : { event: "emergency_name_revoked", data: { name } },
-      postState: race === "transfer" ? { name, owner: nextOwner, controllers: [], active: true, content: null } : { name, owner, controllers: [], active: false, content: null } }); });
+      postState: race === "transfer" ? { name, owner: nextOwner, controllers: [], active: true, expiresAt: 100n, content: null } : { name, owner, controllers: [], active: false, expiresAt: 100n, content: null } };
+    index.advance(block(2n, "2", "1", [observation])); });
   const names = new NamesBinding(); await assert.rejects(() => createPrivateOriginAppsV2(factory, storage, names, index).publish(publishInput()), /authority changed/); assert.equal(names.binds, 0);
 });
 
 test("publication rejects forked or older Names finality relative to storage", async () => {
   for (const hostile of ["fork", "older"] as const) { const names = new NamesBinding();
-    if (hostile === "fork") { names.bindBlocks = [block(2n, "9", "1"), block(3n, "3", "9")]; names.bindParent = hex("9"); }
-    else { names.bindBlocks = []; names.bindFinality = fp(1n, "1"); names.bindParent = hex("0"); }
+    if (hostile === "fork") { names.bindChain = (observation) => [block(2n, "9", "1"), block(3n, "3", "9", [observation])]; names.bindParent = hex("9"); }
+    else { names.bindChain = () => []; names.bindFinality = fp(1n, "1"); names.bindParent = hex("0"); }
     const index = newIndex();
-    await assert.rejects(() => createPrivateOriginAppsV2(factory, new StorageExecutor(), names, index).publish(publishInput()), /same verified canonical chain/, hostile);
+    await assert.rejects(() => createPrivateOriginAppsV2(factory, new StorageExecutor(), names, index).publish(publishInput()), /same verified canonical chain|absent from its exhaustive/, hostile);
     assert.deepEqual(index.head, fp(1n, "1"), "a rejected mutation must not poison the finalized index");
     assert.equal(index.authority(name, controller).blockNumber, 1n);
   }
+});
+
+for (const race of ["transfer", "controller-removal"] as const) test(`publish rejects Names ${race} while native bind is pending`, async () => {
+  const index = newIndex(), names = new NamesBinding();
+  names.onBind = () => {
+    const observation: FinalizedNamesObservationV2 = race === "transfer"
+      ? { finality: "finalized", canonical: true, finalized: fp(2n, "2"), parentHash: hex("1"), eventIndex: 5,
+        event: { event: "name_transferred", data: { name, from: owner, to: nextOwner } },
+        postState: { name, owner: nextOwner, controllers: [], active: true, expiresAt: 100n, content: null } }
+      : { finality: "finalized", canonical: true, finalized: fp(2n, "2"), parentHash: hex("1"), eventIndex: 5,
+        event: { event: "controller_removed", data: { name, controller } },
+        postState: { name, owner, controllers: [], active: true, expiresAt: 100n, content: null } };
+    index.advance(block(2n, "2", "1", [observation]));
+  };
+  await assert.rejects(() => createPrivateOriginAppsV2(factory, new StorageExecutor(), names, index).publish(publishInput()), /authority changed/);
+  assert.deepEqual(index.head, fp(2n, "2")); assert.equal(names.binds, 1);
+});
+
+test("retract rejects controller removal while native mutation is pending", async () => {
+  const index = newIndex(), names = new NamesBinding(), apps = createPrivateOriginAppsV2(factory, new StorageExecutor(), names, index);
+  await apps.publish(publishInput());
+  names.onRetract = () => {
+    const observation: FinalizedNamesObservationV2 = { finality: "finalized", canonical: true, finalized: fp(4n, "4"), parentHash: hex("3"), eventIndex: 6,
+      event: { event: "controller_removed", data: { name, controller } },
+      postState: { name, owner, controllers: [], active: true, expiresAt: 100n, content: commitment } };
+    index.advance(block(4n, "4", "3", [observation]));
+  };
+  await assert.rejects(() => apps.retract(name, controller), /authority changed/);
+  assert.equal(index.resolve(name).content, commitment);
 });
 
 test("content, manifest, name, receipt, and stream are cryptographically cross-bound", async () => {
@@ -171,6 +240,28 @@ test("content, manifest, name, receipt, and stream are cryptographically cross-b
     const storage: PrivateStorageExecutorV2 = { async execute(intent, upload) { if (intent.operation === "storage.object.put") { assert.ok(upload); assert.equal(rawContentAddress(await collect(upload)).cid, contentCid); return { ...resultFor(intent.operation) as object, receipt: { provider: bytes(32, 1), ...receipt, signature: bytes(64, 2) } }; } return resultFor(intent.operation); } };
     await assert.rejects(() => createPrivateOriginAppsV2(factory, storage, new NamesBinding(), newIndex()).publish(publishInput()), /receipt is not bound/);
   }
+});
+
+test("publish snapshots every mutable input and allocated ID before the first await", async () => {
+  const input = publishInput(), storage = new StorageExecutor(), originalWriter = input.writerGrantId.slice();
+  const apps = createPrivateOriginAppsV2(factory, storage, new NamesBinding(), newIndex(), {
+    async has() {
+      input.contentBytes.fill(99); input.manifestBytes.fill(98); input.nameHash.fill(97);
+      input.bucketId.fill(96); input.writerGrantId.fill(95); input.readerGrantId.fill(94); input.publishGrantId.fill(93);
+      const mutable = input as unknown as Record<string, unknown>;
+      mutable.productId = "mutated.app"; mutable.storageName = "mutated.origin";
+      mutable.contentCid = rawContentAddress(bytes(3, 3)).cid; mutable.manifestCid = rawContentAddress(bytes(3, 4)).cid;
+      mutable.requestId = () => bytes(16, 0xee); mutable.operationId = () => bytes(16, 0xdd);
+      return false;
+    },
+  });
+  await apps.publish(input);
+  assert.deepEqual(storage.uploads, [contentBytes]);
+  assert.ok(storage.intents.every((intent) => intent.productId === "festival.app"));
+  assert.deepEqual(storage.intents[0]!.grantId, originalWriter);
+  const committed = storage.intents.find((intent) => intent.operation === "storage.drive.commit")!;
+  assert.deepEqual((committed.payload as Record<string, unknown>).bytes, manifestBytes);
+  assert.ok(storage.intents.every((intent) => !equalBytesForTest(intent.requestId, bytes(16, 0xee))));
 });
 
 for (const hostile of ["names-older", "names-fork", "names-owner", "names-controllers", "storage-older", "storage-fork", "cid"] as const) {
@@ -187,6 +278,13 @@ for (const hostile of ["names-older", "names-fork", "names-owner", "names-contro
 }
 
 test("private manifest has one canonical schema and rejects swapped bindings or noncanonical bytes", async () => {
+  assert.deepEqual(PRIVATE_APP_HOST_V2_CAPABILITIES, [
+    "identity.account", "identity.entitlements", "identity.humanity", "identity.profile", "identity.subject",
+    "storage.content", "storage.control", "storage.deletion", "storage.drive", "storage.encryption", "storage.proof",
+    "storage.publish", "storage.replica", "storage.s3", "transaction.sign",
+  ]);
+  const authoritative = JSON.parse(await readFile(new URL("../../../../docs/specs/origin-host-registry-v2.operations.json", import.meta.url), "utf8")) as { operations: readonly { feature_id: string }[] };
+  assert.deepEqual(PRIVATE_APP_HOST_V2_CAPABILITIES, [...new Set(authoritative.operations.map((operation) => operation.feature_id))].sort());
   assert.deepEqual(decodePrivateOriginAppManifestV2(manifestBytes), appManifest);
   assert.deepEqual(encodePrivateOriginAppManifestV2(decodePrivateOriginAppManifestV2(manifestBytes)), manifestBytes);
   const otherContent = rawContentAddress(bytes(4, 44)).cid;
@@ -211,6 +309,9 @@ test("private manifest has one canonical schema and rejects swapped bindings or 
     /not in canonical encoding/,
   );
   assert.throws(() => decodePrivateOriginAppManifestV2(bytes(16, 8)), /not canonical UTF-8 JSON/);
+  for (const requestedCapabilities of [["unknown.feature"], ["storage.content", "storage.content"], ["storage.content", "identity.profile"]]) {
+    assert.throws(() => encodePrivateOriginAppManifestV2({ ...appManifest, metadata: { ...appManifest.metadata, requestedCapabilities } } as never), /unique supported Host-v2 features in canonical order/);
+  }
 });
 
 test("storage executor must completely consume the single-use upload stream", async () => {
