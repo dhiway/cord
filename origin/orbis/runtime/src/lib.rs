@@ -2295,6 +2295,8 @@ parameter_types! {
 	pub const NamesMaxRootNames: u32 = 10_000;
 	pub const NamesMaxNameDepth: u32 = 16;
 	pub const NamesMaxCommitmentsPerAccount: u32 = 32;
+	pub const NamesMaxContentOperationReceipts: u32 = 64;
+	pub const NamesMaxContentOperationReceiptLifetime: BlockNumber = 128;
 	pub const NamesMinCommitmentAge: BlockNumber = 2;
 	pub const NamesMaxCommitmentAge: BlockNumber = 600;
 	pub const NamesRegistrationPeriod: BlockNumber = 365 * DAYS;
@@ -2323,6 +2325,8 @@ impl pallet_orbis_names::Config for Runtime {
 	type MaxRootNames = NamesMaxRootNames;
 	type MaxNameDepth = NamesMaxNameDepth;
 	type MaxCommitmentsPerAccount = NamesMaxCommitmentsPerAccount;
+	type MaxContentOperationReceipts = NamesMaxContentOperationReceipts;
+	type MaxContentOperationReceiptLifetime = NamesMaxContentOperationReceiptLifetime;
 	type MinCommitmentAge = NamesMinCommitmentAge;
 	type MaxCommitmentAge = NamesMaxCommitmentAge;
 	type RegistrationPeriod = NamesRegistrationPeriod;
@@ -2357,6 +2361,8 @@ parameter_types! {
 	pub const ProviderMaxEndpointBytes: u32 = 512;
 	pub const ProviderMaxEntityIdBytes: u32 = 64;
 	pub const ProviderMaxBuckets: u32 = 4_096;
+	pub const ProviderMaxBucketOperationReceipts: u32 = 256;
+	pub const ProviderMaxBucketOperationReceiptLifetime: BlockNumber = 128;
 	pub const ProviderMaxBucketGrants: u32 = 256;
 	pub const ProviderMaxHostDelegationsPerBucket: u32 = 256;
 	pub const ProviderMaxCapabilityProductIdBytes: u32 = 128;
@@ -2579,6 +2585,8 @@ impl pallet_orbis_storage_provider::Config for Runtime {
 	type MaxEntityIdBytes = ProviderMaxEntityIdBytes;
 	type MaxProviders = ConstU32<1_024>;
 	type MaxBuckets = ProviderMaxBuckets;
+	type MaxBucketOperationReceipts = ProviderMaxBucketOperationReceipts;
+	type MaxBucketOperationReceiptLifetime = ProviderMaxBucketOperationReceiptLifetime;
 	type MaxBucketGrants = ProviderMaxBucketGrants;
 	type MaxHostDelegationsPerBucket = ProviderMaxHostDelegationsPerBucket;
 	type MaxCapabilityProductIdBytes = ProviderMaxCapabilityProductIdBytes;
@@ -4374,6 +4382,17 @@ pallet_revive::impl_runtime_apis_plus_revive_traits!(
 				.then(|| pallet_orbis_names::Names::<Runtime>::get(name))
 				.flatten()
 				.and_then(|record| record.content);
+			names_api::Versioned::new(value)
+		}
+
+		fn resolve_content_publication(name: Hash) -> names_api::Versioned<names_api::ContentPublication<[u8; 32]>> {
+			let value = Names::is_name_active(name)
+				.then(|| pallet_orbis_names::Names::<Runtime>::get(name))
+				.flatten()
+				.map(|record| names_api::ContentPublication {
+					content: record.content,
+					revision: pallet_orbis_names::ContentRevisions::<Runtime>::get(name),
+				});
 			names_api::Versioned::new(value)
 		}
 

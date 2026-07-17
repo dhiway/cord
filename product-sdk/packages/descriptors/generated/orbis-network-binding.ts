@@ -22,7 +22,7 @@ export const ORBIS_NETWORK_BINDING = {
   "spec_version": 29,
   "transaction_version": 8,
   "metadata_hash": "0x50c8958f0171889a4b01093a5dd5272faf8802018f24a4ac22b231d37b2adc45",
-  "descriptor_contract_sha256": "3677f5054782a0ff35fe65637ef4da918395247058168b35ec4044af5a32c0f8",
+  "descriptor_contract_sha256": "3a46d330dfd54d92ba38137a2cdce40ca875dffba7ebf8408fe4d4ed2c12117b",
   "chain_spec_source_sha256": "60e38b74de9c0ccdedfe9c1fa2ea4bdb0346739ba2fef5e7a5ad328c0920b451",
   "activation_state": "candidate-pending",
   "production_activation_ready": false

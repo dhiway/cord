@@ -3617,9 +3617,9 @@ export const NATIVE_ROUTE_CONTRACT = {
       ]
     },
     {
-      "id": "names:resolve_content",
+      "id": "names:resolve_content_publication",
       "capability": "names",
-      "method": "resolve_content",
+      "method": "resolve_content_publication",
       "finality": "finalized",
       "parameters": [
         {
@@ -3635,17 +3635,17 @@ export const NATIVE_ROUTE_CONTRACT = {
       },
       "rust": {
         "declaration": "NamesQuery",
-        "variant": "ResolveContent",
+        "variant": "ResolveContentPublication",
         "result": "NamesResponse"
       },
       "typescript": {
         "object": "names",
-        "callable": "resolveContent"
+        "callable": "resolveContentPublication"
       },
       "runtime": {
         "kind": "runtime-api",
         "source": "origin/orbis/pallets/names/runtime-api/src/lib.rs",
-        "target": "resolve_content",
+        "target": "resolve_content_publication",
         "pallet": "Names",
         "pallet_index": 116,
         "runtime_api_version": 1,
@@ -4390,9 +4390,9 @@ export const NATIVE_ROUTE_CONTRACT = {
       ]
     },
     {
-      "id": "names:set_content",
+      "id": "names:publish_content",
       "capability": "names",
-      "method": "set_content",
+      "method": "publish_content",
       "finality": "submit-and-finalize",
       "parameters": [
         {
@@ -4415,25 +4415,49 @@ export const NATIVE_ROUTE_CONTRACT = {
               }
             ]
           }
+        },
+        {
+          "name": "expected_revision",
+          "schema": {
+            "type": "string",
+            "pattern": "^(0|[1-9][0-9]{0,19})$"
+          }
+        },
+        {
+          "name": "operation_deadline",
+          "schema": {
+            "type": "string",
+            "pattern": "^(0|[1-9][0-9]{0,19})$"
+          }
+        },
+        {
+          "name": "operation_id",
+          "schema": {
+            "type": "string",
+            "pattern": "^0x[0-9a-f]{32}$"
+          }
         }
       ],
       "sample_payload": {
         "name": "0x1111111111111111111111111111111111111111111111111111111111111111",
-        "content": null
+        "content": null,
+        "expected_revision": "0",
+        "operation_deadline": "10",
+        "operation_id": "0x11111111111111111111111111111111"
       },
       "rust": {
         "declaration": "NamesCommand",
-        "variant": "SetContent",
+        "variant": "PublishContent",
         "result": "FinalizedNativeExtrinsic"
       },
       "typescript": {
         "object": "names",
-        "callable": "setContent"
+        "callable": "publishContent"
       },
       "runtime": {
         "kind": "pallet-call",
         "source": "origin/orbis/pallets/names/src/lib.rs",
-        "target": "set_content",
+        "target": "publish_content",
         "pallet": "Names",
         "pallet_index": 116,
         "call_index": 11
@@ -4444,7 +4468,10 @@ export const NATIVE_ROUTE_CONTRACT = {
       },
       "canonical_arguments": [
         "0x1111111111111111111111111111111111111111111111111111111111111111",
-        null
+        null,
+        "0",
+        "10",
+        "0x11111111111111111111111111111111"
       ]
     },
     {
@@ -11214,14 +11241,17 @@ export const NATIVE_ROUTE_CONTRACT = {
                     "const": "names"
                   },
                   "method": {
-                    "const": "set_content"
+                    "const": "publish_content"
                   },
                   "payload": {
                     "type": "object",
                     "additionalProperties": false,
                     "required": [
                       "name",
-                      "content"
+                      "content",
+                      "expected_revision",
+                      "operation_deadline",
+                      "operation_id"
                     ],
                     "properties": {
                       "name": {
@@ -11238,6 +11268,18 @@ export const NATIVE_ROUTE_CONTRACT = {
                             "pattern": "^0x[0-9a-f]{64}$"
                           }
                         ]
+                      },
+                      "expected_revision": {
+                        "type": "string",
+                        "pattern": "^(0|[1-9][0-9]{0,19})$"
+                      },
+                      "operation_deadline": {
+                        "type": "string",
+                        "pattern": "^(0|[1-9][0-9]{0,19})$"
+                      },
+                      "operation_id": {
+                        "type": "string",
+                        "pattern": "^0x[0-9a-f]{32}$"
                       }
                     }
                   }
@@ -15734,14 +15776,17 @@ export const NATIVE_ROUTE_CONTRACT = {
                             "const": "names"
                           },
                           "method": {
-                            "const": "set_content"
+                            "const": "publish_content"
                           },
                           "payload": {
                             "type": "object",
                             "additionalProperties": false,
                             "required": [
                               "name",
-                              "content"
+                              "content",
+                              "expected_revision",
+                              "operation_deadline",
+                              "operation_id"
                             ],
                             "properties": {
                               "name": {
@@ -15758,6 +15803,18 @@ export const NATIVE_ROUTE_CONTRACT = {
                                     "pattern": "^0x[0-9a-f]{64}$"
                                   }
                                 ]
+                              },
+                              "expected_revision": {
+                                "type": "string",
+                                "pattern": "^(0|[1-9][0-9]{0,19})$"
+                              },
+                              "operation_deadline": {
+                                "type": "string",
+                                "pattern": "^(0|[1-9][0-9]{0,19})$"
+                              },
+                              "operation_id": {
+                                "type": "string",
+                                "pattern": "^0x[0-9a-f]{32}$"
                               }
                             }
                           }
@@ -17831,7 +17888,12 @@ export const NATIVE_ROUTE_CONTRACT = {
   "signature_schema_basis": {
     "host_payload": "product-sdk core validation rules and direct callable canonical arguments",
     "rust_binding": "canonical samples deserialize into the named Rust query/command variants and validate or prepare successfully",
-    "runtime_metadata": "checked-in Commons V14 SCALE metadata is extracted from the current runtime Wasm and drives the reproducible PAPI descriptor; this route contract remains the authoritative product-policy projection",
+    "runtime_metadata": "checked-in Commons V14 SCALE metadata is historical spec 29 inventory and does not bind the current spec 33 source runtime; native SDK admission remains disabled until current metadata is regenerated",
     "sdk_host_operation": "prepare_sponsored_intent is an SDK/host operation bound to current Orbis state; it is not represented as a runtime API or pallet call"
+  },
+  "papi_availability": {
+    "runtime_metadata_current": false,
+    "sdk_admission": false,
+    "reason": "checked-in PAPI metadata predates the current Commons runtime"
   }
 } as const;

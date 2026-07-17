@@ -26,9 +26,9 @@ import { validateStorageV2EventEnvelope, validateStorageV2Payload } from "./stor
 
 export const STORAGE_V2_PROTOCOL = "cord.origin.host/2" as const;
 export const STORAGE_V2_MAJOR = 2 as const;
-export const STORAGE_V2_MINOR = 0 as const;
+export const STORAGE_V2_MINOR = 1 as const;
 export const STORAGE_V2_REGISTRY_SHA256 =
-  "d17c24596fbae30c300d57ae8e51bc0c7b149ab2e91c2b9c751bedd3fbc1eeba" as const;
+  "42e4e9660d7e2c26f15565a2448f9d2b384cb5c73321422a3b9ae9107f364b57" as const;
 
 export type Bytes16 = Uint8Array & { readonly __storageV2Bytes16: unique symbol };
 export type Bytes32 = Uint8Array & { readonly __storageV2Bytes32: unique symbol };
@@ -121,7 +121,7 @@ export interface StorageV2PayloadMap {
   "storage.s3.get": { bucket: string; key: Uint8Array; version?: bigint };
   "storage.s3.list": { bucket: string; prefix?: Uint8Array; cursor?: Uint8Array; limit: number };
   "storage.s3.delete": { bucket: string; key: Uint8Array; ifMatch?: string; transferId: OperationId };
-  "storage.publish": { nameHash: Hash32; cid: ContentId; expectedVersion?: bigint };
+  "storage.publish": { nameHash: Hash32; cid: ContentId; expectedVersion: bigint };
   "storage.resolve": { name: string; version?: bigint; at?: Hash32 };
   "storage.keys.export": { bucketId: BucketId; keyVersion: number; recipientKey: Uint8Array };
   "storage.keys.import": { bucketId: BucketId; wrappedKey: Uint8Array; replace: 0 | 1; keyVersion: number };
@@ -142,7 +142,7 @@ export interface StorageV2ResultMap {
   "storage.object.status": { state: 0 | 1 | 2 | 3 | 4; receipt?: StorageV2ProviderReceipt; checkpoint?: StorageV2Checkpoint; replicas: number; publishable: boolean; finalized: StorageV2Finality };
   "storage.checkpoint.status": { checkpoint: StorageV2Checkpoint; sequence: number; block: bigint; quorum: number; finalized: StorageV2Finality };
   "storage.checkpoint.subscribe": { operationId: OperationId; cursor: bigint };
-  "storage.replica.status": { primary: ProviderId; providers: readonly ProviderId[]; healthy: number; lastCheckpoint: bigint; pending: number; finalized: StorageV2Finality };
+  "storage.replica.status": { primary: ProviderId; providers: readonly ProviderId[]; confirmed: number; lag: bigint; eligibility: number; finalized: StorageV2Finality };
   "storage.replica.subscribe": { operationId: OperationId; cursor: bigint };
   "storage.deletion.status": { version: bigint; confirmations: number; root: Hash32; finalized: StorageV2Finality };
   "storage.deletion.subscribe": { operationId: OperationId; cursor: bigint };

@@ -127,6 +127,13 @@
       "details": "closed integer-keyed map defined by operation Error production"
     },
     {
+      "family": "E_COMMON",
+      "code": 117,
+      "name": "REQUEST_DEADLINE_TOO_FAR",
+      "retryable": false,
+      "details": "closed integer-keyed map defined by operation Error production"
+    },
+    {
       "family": "E_CONTENT",
       "code": 200,
       "name": "STORAGE_CHUNK_OUT_OF_ORDER",
@@ -207,6 +214,13 @@
       "family": "E_CONTENT",
       "code": 211,
       "name": "ENCRYPTION_NONCE_REUSE",
+      "retryable": false,
+      "details": "closed integer-keyed map defined by operation Error production"
+    },
+    {
+      "family": "E_CONTENT",
+      "code": 212,
+      "name": "STORAGE_OPERATION_RECEIPT_CAPACITY_REACHED",
       "retryable": false,
       "details": "closed integer-keyed map defined by operation Error production"
     },

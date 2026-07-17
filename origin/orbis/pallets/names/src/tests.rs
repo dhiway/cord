@@ -132,13 +132,129 @@ fn ownership_controllers_resolvers_and_primary_are_native() {
 		assert_ok!(Names::set_address(RuntimeOrigin::signed(2), name, Some(address)));
 		assert_ok!(Names::set_subject(RuntimeOrigin::signed(2), name, Some(KNOWN_SUBJECT)));
 		assert_ok!(Names::set_attestation(RuntimeOrigin::signed(2), name, Some(LIVE_ATTESTATION)));
-		assert_ok!(Names::set_content(RuntimeOrigin::signed(2), name, Some(H256::repeat_byte(7))));
+		assert_ok!(Names::publish_content(
+			RuntimeOrigin::signed(2),
+			name,
+			Some(H256::repeat_byte(7)),
+			None,
+			10,
+			[7; 16]
+		));
 		assert_ok!(Names::set_primary_name(RuntimeOrigin::signed(1), Some(name)));
 		assert_eq!(Names::primary_name(&1), Some(name));
 		assert_ok!(Names::transfer(RuntimeOrigin::signed(1), name, 3));
 		assert_eq!(Names::primary_name(&1), None);
 		assert!(Names::controllers(name).is_empty());
 		assert_eq!(Names::name_record(name).unwrap().owner, 3);
+	});
+}
+
+#[test]
+fn content_publication_is_revisioned_idempotent_and_cleaned_with_the_name() {
+	new_test_ext().execute_with(|| {
+		let name = commit_and_register(1, None, b"publication");
+		let first = H256::repeat_byte(7);
+		let second = H256::repeat_byte(8);
+		let operation_id = [0x90; 16];
+		assert_ok!(Names::publish_content(
+			RuntimeOrigin::signed(1),
+			name,
+			Some(first),
+			Some(0),
+			10,
+			operation_id,
+		));
+		assert_eq!(crate::ContentRevisions::<Test>::get(name), 1);
+		assert_ok!(Names::publish_content(
+			RuntimeOrigin::signed(1),
+			name,
+			Some(first),
+			Some(0),
+			10,
+			operation_id,
+		));
+		assert!(matches!(
+			System::events().last().map(|record| &record.event),
+			Some(RuntimeEvent::Names(Event::ContentSet {
+				name: observed, revision: 1, operation_id: replayed_id, replayed: true, ..
+			})) if *observed == name && replayed_id == &operation_id
+		));
+		assert_noop!(
+			Names::publish_content(
+				RuntimeOrigin::signed(1),
+				name,
+				Some(first),
+				Some(0),
+				11,
+				operation_id,
+			),
+			Error::<Test>::OperationIdConflict
+		);
+		assert_noop!(
+			Names::publish_content(
+				RuntimeOrigin::signed(1),
+				name,
+				Some(second),
+				Some(1),
+				10,
+				operation_id,
+			),
+			Error::<Test>::OperationIdConflict
+		);
+		assert_noop!(
+			Names::publish_content(
+				RuntimeOrigin::signed(1),
+				name,
+				Some(second),
+				Some(0),
+				10,
+				[0x10; 16],
+			),
+			Error::<Test>::ContentRevisionConflict
+		);
+		assert_ok!(Names::publish_content(
+			RuntimeOrigin::signed(1),
+			name,
+			Some(second),
+			Some(1),
+			10,
+			[0x10; 16],
+		));
+		assert_eq!(crate::ContentRevisions::<Test>::get(name), 2);
+		assert_noop!(
+			Names::publish_content(RuntimeOrigin::signed(1), name, None, Some(2), 10, [0x80; 16],),
+			Error::<Test>::ContentOperationReceiptCapacityReached
+		);
+		assert_eq!(crate::ContentRevisions::<Test>::get(name), 2);
+		assert_eq!(
+			crate::ContentOperationReceiptIds::<Test>::get(1).as_slice(),
+			&[operation_id, [0x10; 16]]
+		);
+		System::set_block_number(10);
+		assert_noop!(
+			Names::publish_content(
+				RuntimeOrigin::signed(1),
+				name,
+				Some(first),
+				Some(0),
+				10,
+				operation_id,
+			),
+			Error::<Test>::OperationDeadlineExpired
+		);
+		assert_eq!(crate::ContentRevisions::<Test>::get(name), 2);
+		assert_ok!(Names::publish_content(
+			RuntimeOrigin::signed(1),
+			name,
+			None,
+			Some(2),
+			20,
+			[0x80; 16],
+		));
+		assert_eq!(crate::ContentRevisions::<Test>::get(name), 3);
+		assert_eq!(crate::ContentOperationReceiptIds::<Test>::get(1).as_slice(), &[[0x80; 16]]);
+		assert_ok!(Names::release(RuntimeOrigin::signed(1), name));
+		assert_eq!(crate::ContentRevisions::<Test>::get(name), 0);
 	});
 }
 

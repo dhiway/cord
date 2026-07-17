@@ -50,6 +50,7 @@ export const STORAGE_V2_ERRORS = {
   114: ["HOST_OUTBOX_FULL", true],
   115: ["HOST_OUTBOX_CORRUPT", false],
   116: ["HOST_OUTBOX_EXPIRED", false],
+  117: ["REQUEST_DEADLINE_TOO_FAR", false],
   200: ["STORAGE_CHUNK_OUT_OF_ORDER", false],
   201: ["STORAGE_CHUNK_TOO_LARGE", false],
   202: ["STORAGE_CHUNK_MISSING", false],
@@ -62,6 +63,7 @@ export const STORAGE_V2_ERRORS = {
   209: ["STORAGE_NOT_PUBLISHABLE", true],
   210: ["STORAGE_NOT_FOUND", false],
   211: ["ENCRYPTION_NONCE_REUSE", false],
+  212: ["STORAGE_OPERATION_RECEIPT_CAPACITY_REACHED", false],
   220: ["STORAGE_CHECKPOINT_WRONG_DOMAIN", false],
   221: ["STORAGE_CHECKPOINT_WRONG_VERSION", false],
   222: ["STORAGE_CHECKPOINT_WRONG_BUCKET", false],
@@ -122,6 +124,8 @@ export const STORAGE_V2_ERRORS = {
   409: ["IDENTITY_RECOVERY_INSTALL_FAILED", false],
   410: ["IDENTITY_OLD_INCARNATION", false],
   411: ["IDENTITY_RETIRED_SET_FULL", false],
+  412: ["IDENTITY_AUTHORITY_UNAVAILABLE", true],
+  413: ["IDENTITY_EFFECT_CONFLICT", false],
 } as const satisfies Record<number, readonly [name: string, retryable: boolean]>;
 
 function shape(value: unknown, required: readonly string[], optional: readonly string[] = []): Record<string, unknown> {
@@ -226,7 +230,7 @@ export function validateStorageV2Payload<Operation extends StorageV2Operation>(
     case "storage.s3.delete":
       p = shape(value, ["bucket", "key", "transferId"], ["ifMatch"]); nfcText(p.bucket, 1, 128, "bucket"); rangedBytes(p.key, 1, 1024, "key"); if (p.ifMatch !== undefined) nfcText(p.ifMatch, 64, 64, "ifMatch"); fixedBytes(p.transferId, 16, "transferId"); return;
     case "storage.publish":
-      p = shape(value, ["nameHash", "cid"], ["expectedVersion"]); fixedBytes(p.nameHash, 32, "nameHash"); cid(p.cid, "cid"); if (p.expectedVersion !== undefined) u64(p.expectedVersion, "expectedVersion"); return;
+      p = shape(value, ["nameHash", "cid", "expectedVersion"]); fixedBytes(p.nameHash, 32, "nameHash"); cid(p.cid, "cid"); u64(p.expectedVersion, "expectedVersion"); return;
     case "storage.resolve":
       p = shape(value, ["name"], ["version", "at"]); nfcText(p.name, 1, 256, "name"); if (p.version !== undefined) u64(p.version, "version"); if (p.at !== undefined) fixedBytes(p.at, 32, "at"); return;
     case "storage.keys.export":
@@ -262,7 +266,7 @@ export function validateStorageV2Result<Operation extends StorageV2Operation>(op
     case "storage.object.status": p=shape(value,["state","replicas","publishable","finalized"],["receipt","checkpoint"]);enumValue(p.state,4,"state");if(p.receipt!==undefined)receipt(p.receipt);if(p.checkpoint!==undefined)checkpoint(p.checkpoint);uint(p.replicas,U32_MAX,"replicas");if(typeof p.publishable!=="boolean")throw new TypeError("publishable must be boolean");finality(p.finalized);return;
     case "storage.checkpoint.status": p=shape(value,["checkpoint","sequence","block","quorum","finalized"]);checkpoint(p.checkpoint);uint(p.sequence,U32_MAX,"sequence");u64(p.block,"block");uint(p.quorum,U32_MAX,"quorum");finality(p.finalized);return;
     case "storage.checkpoint.subscribe": case "storage.replica.subscribe": case "storage.deletion.subscribe": subscription(value);return;
-    case "storage.replica.status": p=shape(value,["primary","providers","healthy","lastCheckpoint","pending","finalized"]);fixedBytes(p.primary,32,"primary");providers(p.providers,"providers");uint(p.healthy,U32_MAX,"healthy");u64(p.lastCheckpoint,"lastCheckpoint");uint(p.pending,U32_MAX,"pending");finality(p.finalized);return;
+    case "storage.replica.status": { p=shape(value,["primary","providers","confirmed","lag","eligibility","finalized"]);fixedBytes(p.primary,32,"primary");providers(p.providers,"providers");const count=(p.providers as readonly unknown[]).length;uint(p.confirmed,count,"confirmed");u64(p.lag,"lag");uint(p.eligibility,count+1,"eligibility");finality(p.finalized);return; }
     case "storage.deletion.status": p=shape(value,["version","confirmations","root","finalized"]);u64(p.version,"version");uint(p.confirmations,U32_MAX,"confirmations");fixedBytes(p.root,32,"root");finality(p.finalized);return;
     case "storage.drive.read": p=shape(value,["manifest","entry","version","finalized"]);cid(p.manifest,"manifest");cid(p.entry,"entry");u64(p.version,"version");finality(p.finalized);return;
     case "storage.drive.commit": p=shape(value,["manifest","version","checkpoint","finalized"]);cid(p.manifest,"manifest");u64(p.version,"version");checkpoint(p.checkpoint);finality(p.finalized);return;
@@ -317,7 +321,7 @@ export function validateStorageV2EventEnvelope(
 
 export interface StorageV2ErrorDetails { readonly message?: string; readonly lower?: bigint; readonly upper?: bigint; readonly hash?: Uint8Array }
 function errorFamily(code: number): "common" | "content" | "proof" | "control" | "drive-s3" | "other" {
-  if (code >= 100 && code <= 116) return "common";
+  if (code >= 100 && code <= 117) return "common";
   if (code >= 200 && code <= 211) return "content";
   if (code >= 220 && code <= 241) return "proof";
   if (code >= 250 && code <= 261) return "control";
@@ -327,7 +331,8 @@ function errorFamily(code: number): "common" | "content" | "proof" | "control" |
 function allowedErrorFamilies(operation: StorageV2Operation): readonly string[] {
   if (operation.startsWith("storage.bucket.")) return ["common","control"];
   if (["storage.object.put"].includes(operation)) return ["common","content","proof"];
-  if (["storage.object.delete","storage.publish"].includes(operation)) return ["common","content","control"];
+  if (operation === "storage.publish") return ["common","content","control"];
+  if (operation === "storage.object.delete") return ["common","content","control"];
   if (["storage.object.get","storage.object.range","storage.object.status","storage.deletion.status","storage.deletion.subscribe","storage.resolve"].includes(operation)) return ["common","content"];
   if (["storage.checkpoint.status","storage.checkpoint.subscribe"].includes(operation)) return ["common","proof"];
   if (["storage.replica.status","storage.replica.subscribe","storage.drive.share"].includes(operation)) return ["common","control"];
@@ -336,8 +341,13 @@ function allowedErrorFamilies(operation: StorageV2Operation): readonly string[] 
   if (operation === "storage.s3.delete") return ["common","drive-s3"];
   return ["common"];
 }
+function isAllowedError(operation: StorageV2Operation, code: number): boolean {
+  if (code === 212) return operation === "storage.bucket.create" || operation === "storage.publish";
+  if (code === 206 && operation === "storage.bucket.create") return true;
+  return allowedErrorFamilies(operation).includes(errorFamily(code));
+}
 export function validateStorageV2Error(operation: StorageV2Operation, error: StorageV2ErrorEvent): void {
   const frozen=STORAGE_V2_ERRORS[error.code as keyof typeof STORAGE_V2_ERRORS];
-  if(frozen===undefined||error.name!==frozen[0]||error.retryable!==frozen[1]||!allowedErrorFamilies(operation).includes(errorFamily(error.code)))throw new TypeError("error code/name/retryability/scope drift");
+  if(frozen===undefined||error.name!==frozen[0]||error.retryable!==frozen[1]||!isAllowedError(operation,error.code))throw new TypeError("error code/name/retryability/scope drift");
   if(error.details!==undefined){const p=shape(error.details,[],["message","lower","upper","hash"]);if(p.message!==undefined)nfcText(p.message,1,256,"details.message");if(p.lower!==undefined)u64(p.lower,"details.lower");if(p.upper!==undefined)u64(p.upper,"details.upper");if(p.hash!==undefined)fixedBytes(p.hash,32,"details.hash");}
 }

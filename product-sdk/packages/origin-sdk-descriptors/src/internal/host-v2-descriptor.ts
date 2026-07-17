@@ -20,26 +20,26 @@
 
 export const HOST_V2_PROTOCOL = "cord.origin.host/2" as const;
 export const HOST_V2_MAJOR = 2 as const;
-export const HOST_V2_MINOR = 1 as const;
+export const HOST_V2_MINOR = 0 as const;
 
 export const HOST_V2_SOURCE_HASHES = {
-  cddl: "e88cff81e8296a4451eb9eb94e1b8db064031311c85ef9ad08984b6bc057c64e",
-  operations: "ee5cea2087f5f4f4dd89f0907a15a8046a51c088ec874f085a6b7cd698f10f01",
-  errors: "7220011e9fd393e21ccfe76f86496d793e597fc795d69ac3daf70510e151b7e6",
-  schema: "906fc06646cd5b20be7c13baf27669985d226fafdec3c979f37403bce944da15",
+  cddl: "08fdf21728020b04a99e4b41d9924e0bda810d7b357576f938f6ce3e2c1be375",
+  operations: "48934f781f5bd7f377684a5f17dd5eb3d9efa2b178b408cb0db80eb5b3d738b1",
+  errors: "0a8780d4026e221a357782405f2b26c87ec88f11885146577615f73cf1bf7ef5",
+  schema: "259cdb6600b8824d81bce7d33c1e8a51b09c88b43133babaf092400c38714d5f",
 } as const;
 
 export const HOST_V2_RUNTIME_SOURCE_HASHES = {
   metadataIdentity: "8c9dc98ce3f2578031be5bf1be7291d3118fc0b6e79c81f5fee97d73ca53ba43",
   metadataScale: "2785e1e501df231ea313a7613c7cadcdad550c79ecf87bb3797b61c64be462fe",
-  papiManifest: "863725ddb75dca2cda5550d8f28cebcbf0be38c06a3f038da05b3574b8ba3aaa",
+  papiManifest: "673d04218c99e6c17630a9fedf7689fa8b06761219c92a5e6f9b92ea25a8c595",
 } as const;
 
 export const LEGACY_PUBLIC_DESCRIPTOR_HASHES = {
   packageIndex: "5a416585aafda8454366fb48126617e59a0063cc0617c971a14cebf347304cd1",
   packageManifest: "fb9a653b3b1894d096e457724f2182d3443be8965c9249f9566e7adf7b38e1e2",
-  runtimeDescriptor: "62b0c9621c410dd3fbb919848306ea6601841fe83235a807af3cda61554cc729",
-  networkBinding: "20b0774c093fd8be510aac8d33a2fd46a54a845bc7caff3b9e536d9ea82519a1",
+  runtimeDescriptor: "6892d39913d2a755aec8fb129c3d8529b500884f934520102ab129896f174584",
+  networkBinding: "b3295d484e146e147b2e00edba5023db89f90de12507470845ebd073ad804bf1",
 } as const;
 
 export type HostV2OperationSignature = readonly [
@@ -296,7 +296,7 @@ export function projectPrivateHostV2Descriptor(
   network: FrozenCommonsNetworkBinding,
 ) {
   assertFrozenOperations(operations);
-	if (errors.errors.length !== 91) throw new TypeError(`host v2 error count drift: ${errors.errors.length}`);
+  if (errors.errors.length !== 91) throw new TypeError(`host v2 error count drift: ${errors.errors.length}`);
   const errorCodes = errors.errors.map(({ code }) => code);
   if (new Set(errorCodes).size !== errorCodes.length) throw new TypeError("duplicate host v2 error code");
   const projected = operations.operations.map(projectOperation);

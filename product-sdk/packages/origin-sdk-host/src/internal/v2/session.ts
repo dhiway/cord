@@ -359,10 +359,10 @@ export class HostV2Session {
       return this.sequenceFault("host-v2 event sequence is duplicated or skipped");
     }
     const kind = event[3];
-    if (sequence === 0 && kind !== 0) return this.sequenceFault("first host-v2 event must be accepted");
+    if (sequence === 0 && kind !== 0 && kind !== 3) return this.sequenceFault("first host-v2 event must be accepted or terminal error");
     if (sequence !== 0 && kind === 0) return this.sequenceFault("accepted host-v2 event may occur only once");
     if (kind === 0) this.accepted = true;
-    if (!this.accepted) return this.sequenceFault("host-v2 event preceded acceptance");
+    if (!this.accepted && kind !== 3) return this.sequenceFault("host-v2 event preceded acceptance");
     this.nextSequence += 1;
     this.terminal = kind === 2 || kind === 3 || kind === 4;
     this.closed = this.terminal;

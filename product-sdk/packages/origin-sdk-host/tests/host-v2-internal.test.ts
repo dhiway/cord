@@ -57,6 +57,10 @@ const fixture = JSON.parse(readFileSync(
   resolve(repositoryRoot, "docs/specs/origin-host-registry-v2.vectors.json"),
   "utf8",
 )) as { registry_sha256: string; vectors: Array<{ id: string; wire_hex: string; code?: number }> };
+const schemaRegistry = JSON.parse(readFileSync(
+  resolve(repositoryRoot, "docs/specs/origin-host-registry-v2.schema.json"),
+  "utf8",
+)) as { $defs: Record<string, unknown> };
 const operationRegistry = JSON.parse(readFileSync(
   resolve(repositoryRoot, "docs/specs/origin-host-registry-v2.operations.json"),
   "utf8",
@@ -136,9 +140,9 @@ test("generated runtime bindings exactly project all frozen authorities", () => 
   assert.equal(HOST_V2_MAJOR, operationRegistry.major);
   assert.equal(HOST_V2_MINOR, operationRegistry.minor);
   assert.equal(HOST_V2_REGISTRY_SHA256, fixture.registry_sha256);
-  assert.equal(Object.keys(HOST_V2_SCHEMAS).length, 365);
-  assert.equal(Object.keys(HOST_V2_OPERATION_BINDINGS).length, 34);
-  assert.equal(Object.keys(HOST_V2_ERROR_BINDINGS).length, 91);
+  assert.equal(Object.keys(HOST_V2_SCHEMAS).length, Object.keys(schemaRegistry.$defs).length);
+  assert.equal(Object.keys(HOST_V2_OPERATION_BINDINGS).length, operationRegistry.operations.length);
+  assert.equal(Object.keys(HOST_V2_ERROR_BINDINGS).length, errorRegistry.errors.length);
 
   for (const operation of operationRegistry.operations) {
     const binding = HOST_V2_OPERATION_BINDINGS[operation.name];
@@ -166,7 +170,7 @@ test("generated runtime bindings exactly project all frozen authorities", () => 
   }
 });
 
-test("all 34 frozen operation frames round-trip and their schema negatives fail", () => {
+test(`all ${operationRegistry.operations.length} frozen operation frames round-trip and their schema negatives fail`, () => {
   for (const operation of operationRegistry.operations) {
     const production = HOST_V2_OPERATION_BINDINGS[operation.name].frame as HostV2TypeName;
     for (const id of operation.positive_vectors) {
@@ -180,9 +184,9 @@ test("all 34 frozen operation frames round-trip and their schema negatives fail"
   }
 });
 
-test("all 91 frozen error events round-trip through the closed error union", () => {
+test(`all ${errorRegistry.errors.length} frozen error events round-trip through the closed error union`, () => {
   const errorVectors = fixture.vectors.filter(({ id }) => id.startsWith("error-"));
-  assert.equal(errorVectors.length, 91);
+  assert.equal(errorVectors.length, errorRegistry.errors.length);
   for (const { id } of errorVectors) {
     const canonical = vector(id);
     const decoded = decodeHostV2("EventV2", canonical);
@@ -362,5 +366,10 @@ test("session snapshots its ID, enforces sequence law, and permanently closes on
   const beforeAccepted = new HostV2Session(negotiated(), new Uint8Array(16).fill(0x11));
   assert.throws(() => beforeAccepted.accept(progress(new Uint8Array(16).fill(0x11), 0)), HostV2SessionError);
   assert.equal(beforeAccepted.isClosed, true);
+  const rejected = decodeHostV2("EventV2", vector("error-100-wire_schema_invalid")).value as any;
+  rejected[2] = 0;
+  const rejectedBeforeAccepted = new HostV2Session(negotiated(), new Uint8Array(16).fill(0x11));
+  assert.equal(rejectedBeforeAccepted.accept(encodeHostV2("EventV2", rejected))[3], 3);
+  assert.equal(rejectedBeforeAccepted.isTerminal, true);
   assert.throws(() => new HostV2Session(negotiated(), new Uint8Array(15) as never), HostV2CodecError);
 });

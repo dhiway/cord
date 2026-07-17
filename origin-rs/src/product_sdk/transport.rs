@@ -924,11 +924,20 @@ pub fn prepare_names_command(command: &NamesCommand) -> DomainResult<DynamicPayl
 				option_hash(attestation.as_ref().map(|id| id.as_hash()))?,
 			],
 		),
-		NamesCommand::SetContent { name, content } => (
-			"set_content",
+		NamesCommand::PublishContent {
+			name,
+			content,
+			expected_revision,
+			operation_deadline,
+			operation_id,
+		} => (
+			"publish_content",
 			vec![
 				hash_value(name.as_hash())?,
 				option_hash(content.as_ref().map(|id| id.as_hash()))?,
+				option_value(Some(Value::u128(*expected_revision as u128))),
+				Value::u128(*operation_deadline as u128),
+				Value::from_bytes(operation_id.as_bytes()?),
 			],
 		),
 		NamesCommand::SetText { name, key, value } => (

@@ -1,4 +1,3 @@
-#!/usr/bin/env python3
 # This file is part of CORD – https://cord.network
 
 # Copyright (C) Dhiway Networks Pvt. Ltd.
@@ -122,8 +121,16 @@ if papi.get("metadata", {}).get("scale_sha256") != metadata_identity.get("scale_
 descriptor = json.loads(
     (ROOT / "product-sdk/packages/descriptors/generated/orbis-descriptor.json").read_text()
 )
-if descriptor.get("productionPapiDescriptorGenerated") is not True:
-    fail("Commons PAPI descriptor is not marked generated")
+if descriptor.get("firstSupportedNativeSdk") is not False:
+    fail("stale Commons descriptor must fail closed for native SDK admission")
+if descriptor.get("productionPapiDescriptorGenerated") is not False:
+    fail("stale Commons PAPI inventory must not be marked production-generated")
+availability = descriptor.get("papiAvailability", {})
+if availability.get("runtimeMetadataCurrent") is not False or availability.get("sdkAdmission") is not False:
+    fail("stale Commons PAPI inventory must remain unavailable")
+current_source = descriptor.get("currentSourceRuntime", {})
+if current_source.get("specVersion") != 33 or current_source.get("metadataBoundNativeSdk") is not False:
+    fail("current Commons source runtime must be recorded without metadata-bound SDK admission")
 
 routes = json.loads((ROOT / "docs/sdk/native-route-contract.json").read_text())
 expected_route_count = 136

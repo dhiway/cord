@@ -24,7 +24,7 @@ use validation::{StorageV2Error, StorageV2Progress, StorageV2Result};
 
 pub(crate) const STORAGE_V2_PROTOCOL: &str = "cord.origin.host/2";
 pub(crate) const STORAGE_V2_REGISTRY_SHA256: &str =
-	"d17c24596fbae30c300d57ae8e51bc0c7b149ab2e91c2b9c751bedd3fbc1eeba";
+	"71d71f02b7c1b4e55892c88bb6cdeba53852f981625f7bf831b79c97520264e3";
 
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
 pub(crate) struct Id16(pub [u8; 16]);
@@ -39,6 +39,7 @@ pub(crate) type BucketId = Id32;
 pub(crate) type ProviderId = Id32;
 pub(crate) type Subject = Id32;
 pub(crate) type Hash32 = Id32;
+pub(crate) type NameId = Id32;
 
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
 pub(crate) enum GrantScope {
@@ -353,7 +354,7 @@ pub(crate) enum StorageV2Payload {
 	Publish {
 		name_hash: Hash32,
 		cid: String,
-		expected_version: Option<u64>,
+		expected_version: u64,
 	},
 	Resolve {
 		name: String,
@@ -966,6 +967,15 @@ mod tests {
 			.validate(),
 			Err(validation::ValidationError::Bounds)
 		);
+
+		let resolved = StorageV2Result::Resolve {
+			name_id: id32(7),
+			cid: "bafk".into(),
+			version: 1,
+			checkpoint: validation::Checkpoint { root: id32(1), from: 1, to: 2, replicas: 2 },
+			finalized: validation::Finality { number: 2, hash: id32(2) },
+		};
+		assert_eq!(resolved.validate(), Ok(()));
 
 		let invalid_result = StorageV2Result::ObjectRange {
 			cid: "bafk".into(),

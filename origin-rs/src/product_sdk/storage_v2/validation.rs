@@ -256,6 +256,7 @@ pub(crate) enum StorageV2Result {
 		finalized: Finality,
 	},
 	Resolve {
+		name_id: NameId,
 		cid: String,
 		version: u64,
 		checkpoint: Checkpoint,
@@ -812,15 +813,13 @@ fn encode_payload(encoder: &mut Encoder, payload: &StorageV2Payload) {
 			encoder.bytes(&transfer_id.0)
 		},
 		StorageV2Payload::Publish { name_hash, cid, expected_version } => {
-			encoder.map(2 + usize::from(expected_version.is_some()));
+			encoder.map(3);
 			key!(0);
 			encoder.bytes(&name_hash.0);
 			key!(1);
 			encoder.text(cid);
-			if let Some(version) = expected_version {
-				key!(2);
-				encoder.uint(*version)
-			}
+			key!(2);
+			encoder.uint(*expected_version)
 		},
 		StorageV2Payload::Resolve { name, version, at } => {
 			encoder.map(1 + usize::from(version.is_some()) + usize::from(at.is_some()));
@@ -990,7 +989,7 @@ fn payload_keys(operation: StorageV2Operation) -> (&'static [u64], &'static [u64
 		StorageV2Operation::S3Get => (&[0, 1], &[2]),
 		StorageV2Operation::S3List => (&[0, 3], &[1, 2]),
 		StorageV2Operation::S3Delete => (&[0, 1, 3], &[2]),
-		StorageV2Operation::Publish => (&[0, 1], &[2]),
+		StorageV2Operation::Publish => (&[0, 1, 2], &[]),
 		StorageV2Operation::Resolve => (&[0], &[1, 2]),
 		StorageV2Operation::KeysExport => (&[0, 1, 2], &[]),
 		StorageV2Operation::KeysImport => (&[0, 1, 2, 3], &[]),

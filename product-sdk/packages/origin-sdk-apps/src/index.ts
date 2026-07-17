@@ -34,9 +34,11 @@ import {
   nameId,
   type AccountId,
   type AttestationId,
+  type BlockNumber,
   type ContentCommitment,
   type NameId,
   type NamesRuntimeAdapter,
+  type OperationId,
 } from "@cord-network/origin-sdk-names";
 import { err, ok } from "@cord-network/origin-sdk-result";
 import type { PreparedTransaction } from "@cord-network/origin-sdk-tx";
@@ -100,7 +102,7 @@ export interface ResolvedOriginApp {
 
 export interface OriginAppsClient {
   storeManifest(manifest: OriginAppManifestV1, signal?: AbortSignal): Promise<SdkResult<StoredOriginAppManifest>>;
-  prepareManifestBinding(stored: StoredOriginAppManifest, signal?: AbortSignal): Promise<SdkResult<PreparedTransaction>>;
+  prepareManifestBinding(stored: StoredOriginAppManifest, publication: { readonly expectedRevision: string; readonly operationDeadline: BlockNumber; readonly operationId: OperationId }, signal?: AbortSignal): Promise<SdkResult<PreparedTransaction>>;
   resolveApp(name: NameId, signal?: AbortSignal): Promise<SdkResult<ResolvedOriginApp>>;
 }
 
@@ -293,7 +295,7 @@ export function createOriginAppsClient(
         }));
       }
     },
-    async prepareManifestBinding(stored, signal) {
+    async prepareManifestBinding(stored, publication, signal) {
       try {
         const normalized = normalizeManifest(stored.manifest);
         const bytes = encodeOriginAppManifest(normalized);
@@ -303,10 +305,13 @@ export function createOriginAppsClient(
         }
         const snapshot = await chain.finalizedSnapshot(signal);
         if (!snapshot.success) return snapshot;
-        return ok(await runtime.setContent(
+        return ok(await runtime.publishContent(
           snapshot.value.block.hash,
           normalized.nameId,
           stored.commitment,
+          publication.expectedRevision,
+          publication.operationDeadline,
+          publication.operationId,
           signal,
         ));
       } catch (error) {
@@ -328,15 +333,16 @@ export function createOriginAppsClient(
       const record = await snapshot.value.read((hash) => runtime.nameById(hash, name, signal), signal);
       if (!record.success) return record;
       if (record.value.value === null) return appError("name_not_found", "Application name record is missing");
-      const linkedContent = await snapshot.value.read((hash) => runtime.resolveContent(hash, name, signal), signal);
-      if (!linkedContent.success) return linkedContent;
-      if (linkedContent.value.value === null) return appError("app_not_published", "Application name has no manifest commitment");
+      const publication = await snapshot.value.read((hash) => runtime.resolveContentPublication(hash, name, signal), signal);
+      if (!publication.success) return publication;
+      const linkedContent = publication.value.value?.content ?? null;
+      if (linkedContent === null) return appError("app_not_published", "Application name has no manifest commitment");
       const linkedAttestation = await snapshot.value.read(
         (hash) => runtime.resolveAttestation(hash, name, signal), signal,
       );
       if (!linkedAttestation.success) return linkedAttestation;
       try {
-        const bytes = await content.get(linkedContent.value.value, signal);
+        const bytes = await content.get(linkedContent, signal);
         const manifest = decodeOriginAppManifest(bytes);
         if (manifest.nameId !== name) {
           return appError("manifest_name_mismatch", "Manifest does not belong to the resolved native name");
@@ -347,7 +353,7 @@ export function createOriginAppsClient(
         }
         return ok({
           manifest,
-          manifestCommitment: linkedContent.value.value,
+          manifestCommitment: linkedContent,
           owner: record.value.value.owner,
           finalized: { hash: at, number: snapshot.value.block.number },
           launch: {

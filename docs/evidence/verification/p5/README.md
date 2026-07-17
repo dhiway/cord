@@ -1,16 +1,20 @@
 # P5 native SDK freeze
 
-The first supported clean-break Rust and TypeScript SDK contract is frozen by:
+This directory records a historical P5 candidate campaign. It does not establish native SDK
+admission for the current Orbis spec-33 source runtime. The historical
+`sdk-native-coverage.report.json` was removed because its spec-29 PASS verdict was no longer an
+authoritative statement about the current runtime.
+
+The retained structural inputs are:
 
 - `docs/sdk/native-version-matrix.json` — Origin/Orbis runtime, transaction, metadata, API,
   storage-schema, and service-protocol versions;
 - `docs/sdk/vectors/native-sdk-v1.json` — shared attestation, DotNS, and storage-provider
   semantic vectors (not raw extrinsic bytes or contract ABI fixtures);
-- `product-sdk/packages/descriptors/generated/orbis-descriptor.json` — 143 exact typed native
-  host methods, including identity/personhood and sponsored transaction operations; and
-- `sdk-native-coverage.report.json` — 2,780 classified design entries and 14 exact adopted
-  semantic bindings, reported separately from the 143 distinct routes actually executed by both
-  Rust and TypeScript harnesses.
+- `product-sdk/packages/descriptors/generated/orbis-descriptor.json` — a historical descriptor
+  snapshot that is not an active route-admission surface; and
+- `docs/sdk/native-route-contract.json` — 136 product-policy routes whose structural harnesses do
+  not claim a current metadata binding.
 
 `sdk-freeze-ratification-envelope.json` binds those contracts with canonical payload SHA-256
 `68d367d5a5a76390b1f80c88b075714f4ad730e0843edcd748ea8ce87785513c`.
@@ -22,7 +26,7 @@ production-approved genesis. SDK network contracts freeze it as `candidate-pendi
 mode rejects it.
 Fresh runtime, SDK, security, performance, and architecture owner signatures are required.
 
-Focused reproduction:
+Focused structural checks (not production-admission evidence):
 
 ```sh
 npm --prefix product-sdk run check:descriptors

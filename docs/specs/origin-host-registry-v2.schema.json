@@ -1934,6 +1934,9 @@
           "$ref": "#/$defs/Error116"
         },
         {
+          "$ref": "#/$defs/Error117"
+        },
+        {
           "$ref": "#/$defs/Error200"
         },
         {
@@ -1968,6 +1971,9 @@
         },
         {
           "$ref": "#/$defs/Error211"
+        },
+        {
+          "$ref": "#/$defs/Error212"
         },
         {
           "$ref": "#/$defs/Error220"
@@ -2565,6 +2571,30 @@
         "3"
       ]
     },
+    "Error117": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "0": {
+          "const": 117
+        },
+        "1": {
+          "const": "REQUEST_DEADLINE_TOO_FAR"
+        },
+        "2": {
+          "const": false
+        },
+        "3": {
+          "$ref": "#/$defs/ErrorDetails"
+        }
+      },
+      "required": [
+        "0",
+        "1",
+        "2",
+        "3"
+      ]
+    },
     "Error200": {
       "type": "object",
       "additionalProperties": false,
@@ -2838,6 +2868,30 @@
         },
         "1": {
           "const": "ENCRYPTION_NONCE_REUSE"
+        },
+        "2": {
+          "const": false
+        },
+        "3": {
+          "$ref": "#/$defs/ErrorDetails"
+        }
+      },
+      "required": [
+        "0",
+        "1",
+        "2",
+        "3"
+      ]
+    },
+    "Error212": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "0": {
+          "const": 212
+        },
+        "1": {
+          "const": "STORAGE_OPERATION_RECEIPT_CAPACITY_REACHED"
         },
         "2": {
           "const": false
@@ -5798,7 +5852,8 @@
       },
       "required": [
         "0",
-        "1"
+        "1",
+        "2"
       ]
     },
     "StoragePublishAccepted": {
@@ -5869,13 +5924,17 @@
         },
         "3": {
           "$ref": "#/$defs/Fin"
+        },
+        "4": {
+          "$ref": "#/$defs/Hash32"
         }
       },
       "required": [
         "0",
         "1",
         "2",
-        "3"
+        "3",
+        "4"
       ]
     },
     "StorageResolveError": {
@@ -8314,7 +8373,7 @@
     }
   },
   "x-cord-generated-from": {
-    "cddl_sha256": "e88cff81e8296a4451eb9eb94e1b8db064031311c85ef9ad08984b6bc057c64e",
-    "operations_sha256": "ee5cea2087f5f4f4dd89f0907a15a8046a51c088ec874f085a6b7cd698f10f01"
+    "cddl_sha256": "42e4e9660d7e2c26f15565a2448f9d2b384cb5c73321422a3b9ae9107f364b57",
+    "operations_sha256": "0263f2d550e07a982b8c4a5f4b5edc471ee721ab28e8acab5f25f109e5e96abc"
   }
 }

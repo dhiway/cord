@@ -587,7 +587,7 @@ async function invokeExactHost<Op extends Operation>(
       if (accepted || sequence !== 1) throw new TypeError("host/runtime accepted event is duplicated or reordered");
       accepted = true; continue;
     }
-    if (!accepted) throw new TypeError("host/runtime terminal or progress event preceded acceptance");
+    if (!accepted && !(kind === 3 && sequence === 1)) throw new TypeError("host/runtime terminal or progress event preceded acceptance");
     if (kind === 1) continue;
     if (kind === 2) {
       encodeHostV2(binding.result as HostV2TypeName, event[4] as never);
@@ -638,7 +638,7 @@ function privatePayload(operation: StorageOperationV2, payload: Readonly<Record<
     case "storage.object.get": return { 0: payload.bucketId, 1: payload.cid } as HostV2Map;
     case "storage.object.status": return { 0: payload.bucketId, 1: payload.cid } as HostV2Map;
     case "storage.drive.commit": return { 0: payload.bucketId, 1: payload.manifest, 2: payload.bytes, 3: payload.expectedVersion, 4: payload.mode } as HostV2Map;
-    case "storage.publish": return { 0: payload.nameHash, 1: payload.cid, ...(payload.expectedVersion === undefined ? {} : { 2: payload.expectedVersion }) } as unknown as HostV2Map;
+    case "storage.publish": return { 0: payload.nameHash, 1: payload.cid, 2: payload.expectedVersion } as unknown as HostV2Map;
     case "storage.resolve": return { 0: payload.name, ...(payload.version === undefined ? {} : { 1: payload.version }), ...(payload.at === undefined ? {} : { 2: payload.at }) } as unknown as HostV2Map;
   }
 }
@@ -663,7 +663,7 @@ function decodeResult(operation: Operation, p: WireMap): unknown {
     case "storage.object.status": return { state: Number(p[0]), ...(p[1] ? { receipt: receipt(p[1] as WireMap) } : {}), ...(p[2] ? { checkpoint: cp(2) } : {}), replicas: Number(p[3]), publishable: p[4], finalized: fin(5) };
     case "storage.checkpoint.status": return { checkpoint: cp(0), sequence: Number(p[1]), block: u64(p[2]), quorum: Number(p[3]), finalized: fin(4) };
     case "storage.checkpoint.subscribe": case "storage.replica.subscribe": case "storage.deletion.subscribe": { const a = p[0] as WireMap; return { operationId: a[0], cursor: u64(a[1]) }; }
-    case "storage.replica.status": return { primary: p[0], providers: p[1], healthy: Number(p[2]), lastCheckpoint: u64(p[3]), pending: Number(p[4]), finalized: fin(5) };
+    case "storage.replica.status": return { primary: p[0], providers: p[1], confirmed: Number(p[2]), lag: u64(p[3]), eligibility: Number(p[4]), finalized: fin(5) };
     case "storage.deletion.status": return { version: u64(p[0]), confirmations: Number(p[1]), root: p[2], finalized: fin(3) };
     case "storage.drive.read": return { manifest: p[0], entry: p[1], version: u64(p[2]), finalized: fin(3) };
     case "storage.drive.commit": return { manifest: p[0], version: u64(p[1]), checkpoint: cp(2), finalized: fin(3) };
@@ -672,7 +672,7 @@ function decodeResult(operation: Operation, p: WireMap): unknown {
     case "storage.s3.list": return { cids: p[0], ...(p[1] ? { cursor: p[1] } : {}), version: u64(p[2]), finalized: fin(3) };
     case "storage.s3.delete": return { version: u64(p[0]), remainingHistory: Number(p[1]), finalized: fin(2) };
     case "storage.publish": return { nameHash: p[0], cid: p[1], finalized: fin(2) };
-    case "storage.resolve": return { cid: p[0], version: u64(p[1]), checkpoint: cp(2), finalized: fin(3) };
+    case "storage.resolve": return { cid: p[0], version: u64(p[1]), checkpoint: cp(2), finalized: fin(3), nameId: p[4] };
     case "storage.keys.export": return { wrappedKey: p[0], algorithm: p[1], keyVersion: p[2] };
     case "storage.keys.import": return { keyId: p[0], keyVersion: p[1] };
     case "identity.account": return { account: p[0], sessionExpiresAt: u64(p[1]), finalized: identityFinality(p[2] as WireMap) };

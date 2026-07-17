@@ -67,7 +67,7 @@ pub trait WeightInfo {
 	fn set_provider_status() -> Weight;
 	fn remove_provider() -> Weight;
 	fn heartbeat() -> Weight;
-	fn create_bucket(r: u32, ) -> Weight;
+	fn create_bucket(r: u32, retained_receipts: u32, ) -> Weight;
 	fn change_bucket_grant() -> Weight;
 	fn propose_agreement(r: u32, ) -> Weight;
 	fn accept_agreement(r: u32, ) -> Weight;
@@ -252,7 +252,7 @@ impl<T: frame_system::Config> WeightInfo for SubstrateWeight<T> {
 	/// Storage: `StorageProvider::DutyAdmissionCount` (r:0 w:1)
 	/// Proof: `StorageProvider::DutyAdmissionCount` (`max_values`: Some(1), `max_size`: Some(4), added: 499, mode: `MaxEncodedLen`)
 	/// The range of component `r` is `[2, 4]`.
-	fn create_bucket(r: u32, ) -> Weight {
+	fn create_bucket(r: u32, retained_receipts: u32, ) -> Weight {
 		// Proof Size summary in bytes:
 		//  Measured:  `668 + r * (389 ±0)`
 		//  Estimated: `132559 + r * (3396 ±0)`
@@ -260,10 +260,14 @@ impl<T: frame_system::Config> WeightInfo for SubstrateWeight<T> {
 		Weight::from_parts(52_228_453, 132559)
 			// Standard Error: 38_982
 			.saturating_add(Weight::from_parts(8_000_000, 0).saturating_mul(r.into()))
-			.saturating_add(T::DbWeight::get().reads(10_u64))
+			// Conservatively charge the full expired-only receipt scan and prune window.
+			.saturating_add(Weight::from_parts(1_000_000, 4000).saturating_mul(retained_receipts.into()))
+			.saturating_add(T::DbWeight::get().reads(12_u64))
 			.saturating_add(T::DbWeight::get().reads((3_u64).saturating_mul(r.into())))
-			.saturating_add(T::DbWeight::get().writes(7_u64))
+			.saturating_add(T::DbWeight::get().reads(retained_receipts.into()))
+			.saturating_add(T::DbWeight::get().writes(9_u64))
 			.saturating_add(T::DbWeight::get().writes((1_u64).saturating_mul(r.into())))
+			.saturating_add(T::DbWeight::get().writes(retained_receipts.into()))
 			.saturating_add(Weight::from_parts(0, 3396).saturating_mul(r.into()))
 	}
 	/// Storage: `StorageProvider::Buckets` (r:1 w:1)
@@ -1029,7 +1033,7 @@ impl WeightInfo for () {
 	/// Storage: `StorageProvider::DutyAdmissionCount` (r:0 w:1)
 	/// Proof: `StorageProvider::DutyAdmissionCount` (`max_values`: Some(1), `max_size`: Some(4), added: 499, mode: `MaxEncodedLen`)
 	/// The range of component `r` is `[2, 4]`.
-	fn create_bucket(r: u32, ) -> Weight {
+	fn create_bucket(r: u32, retained_receipts: u32, ) -> Weight {
 		// Proof Size summary in bytes:
 		//  Measured:  `668 + r * (389 ±0)`
 		//  Estimated: `132559 + r * (3396 ±0)`
@@ -1037,10 +1041,14 @@ impl WeightInfo for () {
 		Weight::from_parts(52_228_453, 132559)
 			// Standard Error: 38_982
 			.saturating_add(Weight::from_parts(8_000_000, 0).saturating_mul(r.into()))
-			.saturating_add(RocksDbWeight::get().reads(10_u64))
+			// Conservatively charge the full expired-only receipt scan and prune window.
+			.saturating_add(Weight::from_parts(1_000_000, 4000).saturating_mul(retained_receipts.into()))
+			.saturating_add(RocksDbWeight::get().reads(12_u64))
 			.saturating_add(RocksDbWeight::get().reads((3_u64).saturating_mul(r.into())))
-			.saturating_add(RocksDbWeight::get().writes(7_u64))
+			.saturating_add(RocksDbWeight::get().reads(retained_receipts.into()))
+			.saturating_add(RocksDbWeight::get().writes(9_u64))
 			.saturating_add(RocksDbWeight::get().writes((1_u64).saturating_mul(r.into())))
+			.saturating_add(RocksDbWeight::get().writes(retained_receipts.into()))
 			.saturating_add(Weight::from_parts(0, 3396).saturating_mul(r.into()))
 	}
 	/// Storage: `StorageProvider::Buckets` (r:1 w:1)

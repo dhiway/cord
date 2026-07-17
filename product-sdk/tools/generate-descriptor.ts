@@ -83,6 +83,18 @@ const extensions = readJson(rel.extensions);
 const versionMatrix = readJson(rel.versionMatrix);
 const metadata = readJson(rel.metadata);
 const vectors = readJson(rel.vectors);
+const metadataIdentity = readJson(versionMatrix.networks.orbis.metadata_inventory_source);
+const currentSourceRuntime = versionMatrix.networks.orbis.current_source_runtime;
+if (currentSourceRuntime.metadata_source !== rel.metadata
+  || currentSourceRuntime.spec_version !== metadata.spec_version
+  || currentSourceRuntime.transaction_version !== metadata.transaction_version
+  || currentSourceRuntime.metadata_hash !== metadata.metadata_hash)
+  throw new Error("current Commons source runtime identity does not match its metadata record");
+const papiAvailable = metadataIdentity.spec_version === currentSourceRuntime.spec_version
+  && metadataIdentity.transaction_version === currentSourceRuntime.transaction_version
+  && metadataIdentity.runtime_rfc78_hash === currentSourceRuntime.metadata_hash;
+const papiUnavailableReason = papiAvailable ? null
+  : `checked-in PAPI metadata spec ${metadataIdentity.spec_version}/transaction ${metadataIdentity.transaction_version}/${metadataIdentity.runtime_rfc78_hash} does not match current Commons source runtime spec ${currentSourceRuntime.spec_version}/transaction ${currentSourceRuntime.transaction_version}/${currentSourceRuntime.metadata_hash}`;
 const ratification = readJson(rel.ratification);
 const productionActivationReady = ratification.derived_status.production_activation_ready === true;
 const finalGenesisStatus = ratification.payload.production_activation.final_genesis_status;
@@ -94,31 +106,40 @@ const activationState = productionActivationReady ? "production-approved" : "can
 const values = [
   compatibility.network.orbis_spec_version,
   extensions.runtime.spec_version,
-  metadata.spec_version,
   vectors.runtime.spec_version
 ];
 const transactions = [
   compatibility.network.orbis_transaction_version,
   extensions.runtime.transaction_version,
-  metadata.transaction_version,
   vectors.runtime.transaction_version
 ];
 if (!values.every((value) => value === versionMatrix.networks.orbis.spec_version) || !transactions.every((value) => value === versionMatrix.networks.orbis.transaction_version)) {
-  throw new Error(`Orbis version drift: spec=${values.join(",")}, transaction=${transactions.join(",")}`);
+  throw new Error(`Orbis inventory version drift: spec=${values.join(",")}, transaction=${transactions.join(",")}`);
 }
-if (vectors.runtime.metadata_hash !== metadata.metadata_hash || versionMatrix.networks.orbis.metadata_hash !== metadata.metadata_hash) throw new Error("metadata hash drift between native vector, matrix and metadata manifests");
+if (vectors.runtime.metadata_hash !== metadataIdentity.runtime_rfc78_hash
+  || versionMatrix.networks.orbis.metadata_hash !== metadataIdentity.runtime_rfc78_hash)
+  throw new Error("metadata hash drift between native vector, matrix and checked-in PAPI inventory");
 
 const descriptor = {
   contractVersion: 1,
   kind: "cord-native-host-contract-manifest",
   release: versionMatrix.release,
-  firstSupportedNativeSdk: true,
+  firstSupportedNativeSdk: papiAvailable,
   runtime: {
     name: "orbis",
     paraId: compatibility.network.para_id,
     specVersion: versionMatrix.networks.orbis.spec_version,
     transactionVersion: versionMatrix.networks.orbis.transaction_version,
-    metadataHash: metadata.metadata_hash
+    metadataHash: metadataIdentity.runtime_rfc78_hash
+  },
+  currentSourceRuntime: {
+    name: "commons",
+    source: currentSourceRuntime.runtime_source,
+    metadataRecord: currentSourceRuntime.metadata_source,
+    specVersion: currentSourceRuntime.spec_version,
+    transactionVersion: currentSourceRuntime.transaction_version,
+    metadataHash: currentSourceRuntime.metadata_hash,
+    metadataBoundNativeSdk: papiAvailable,
   },
   fixtureIdentity: ratification.payload.fixture_identity,
   networkActivation: {
@@ -139,12 +160,19 @@ const descriptor = {
     methods: NATIVE_HOST_METHODS
   },
   descriptorProvenance: {
-    runtimeMetadataBinding: "checked-in-v14-scale-plus-reproduced-rfc78-wasm-metadata-hash",
+  runtimeMetadataBinding: papiAvailable
+    ? "checked-in-v14-scale-plus-reproduced-rfc78-wasm-metadata-hash"
+    : "unavailable-version-set-drift-between-inventory-papi-and-current-source-runtime",
     papiDescriptor: "polkadot-api-2.1.6-byte-reproducible-generation",
     methodInventory: "authoritative-typed-native-route-contract",
     driftValidation: "metadata-hash-pallet-call-index-runtime-api-and-rust-typescript-route-harness",
   },
-  productionPapiDescriptorGenerated: true
+  papiAvailability: {
+    runtimeMetadataCurrent: papiAvailable,
+    sdkAdmission: papiAvailable,
+    reason: papiUnavailableReason,
+  },
+  productionPapiDescriptorGenerated: papiAvailable
 };
 const serialized = `${JSON.stringify(descriptor, null, 2)}\n`;
 const output = resolve(sdkRoot, "packages/descriptors/generated/orbis-descriptor.json");
@@ -187,7 +215,7 @@ if (process.argv.includes("--check")) {
   if (readFileSync(bindingOutput, "utf8") !== bindingSerialized) throw new Error("network binding drift; run npm run generate:descriptors");
   if (readFileSync(packageBindingOutput, "utf8") !== packageBindingSerialized) throw new Error("package network binding drift; run npm run generate:descriptors");
   if (readFileSync(hostSchemaPath, "utf8") !== hostSerialized) throw new Error("host schema drift; run npm run generate:descriptors");
-  process.stdout.write(`PASS descriptor contract is current for Orbis spec ${descriptor.runtime.specVersion} / transaction ${descriptor.runtime.transactionVersion}\n`);
+  process.stdout.write(`PASS descriptor inventory is reproducible and native SDK admission is unavailable for current Commons spec ${descriptor.currentSourceRuntime.specVersion}\n`);
 } else {
   mkdirSync(dirname(output), { recursive: true });
   writeFileSync(output, serialized);

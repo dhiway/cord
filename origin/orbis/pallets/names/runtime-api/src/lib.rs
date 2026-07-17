@@ -160,6 +160,23 @@ pub struct NameStatus<BlockNumber> {
 	pub expires_at: Option<BlockNumber>,
 }
 
+#[derive(
+	Clone,
+	Debug,
+	Decode,
+	DecodeAsType,
+	DecodeWithMemTracking,
+	Encode,
+	Eq,
+	MaxEncodedLen,
+	PartialEq,
+	TypeInfo,
+)]
+pub struct ContentPublication<ContentCommitment> {
+	pub content: Option<ContentCommitment>,
+	pub revision: u64,
+}
+
 sp_api::decl_runtime_apis! {
 	/// Read API for the native Orbis Names pallet.
 	#[api_version(1)]
@@ -210,6 +227,9 @@ sp_api::decl_runtime_apis! {
 
 		/// Resolve the canonical storage content commitment of an active name.
 		fn resolve_content(name: NameId) -> Versioned<ContentCommitment>;
+
+		/// Resolve content together with its consensus CAS revision.
+		fn resolve_content_publication(name: NameId) -> Versioned<ContentPublication<ContentCommitment>>;
 
 		/// Resolve one bounded text record of an active name.
 		fn resolve_text(name: NameId, key: TextKey) -> Versioned<TextValue>;

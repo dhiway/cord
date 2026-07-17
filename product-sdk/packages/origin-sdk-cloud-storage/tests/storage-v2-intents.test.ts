@@ -23,6 +23,7 @@ import test from "node:test";
 import {
   STORAGE_V2_OPERATIONS,
   STORAGE_V2_PROTOCOL,
+  STORAGE_V2_MINOR,
   StorageV2EventSequence,
   createStorageV2Intent,
   storageV2Bytes16,
@@ -64,7 +65,7 @@ test("private storage v2 contracts exactly project frozen operations 1000-1061",
   const { registry, operations } = await frozenStorageOperations();
   assert.equal(registry.protocol, STORAGE_V2_PROTOCOL);
   assert.equal(registry.major, 2);
-  assert.equal(registry.minor, 0);
+  assert.equal(registry.minor, STORAGE_V2_MINOR);
   assert.equal(operations.length, 26);
   assert.deepEqual(Object.keys(STORAGE_V2_OPERATIONS), operations.map(({ name }) => name));
   for (const operation of operations) {

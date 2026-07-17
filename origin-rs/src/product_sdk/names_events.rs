@@ -30,7 +30,7 @@ use super::{
 			NamesEvent, NamesEventKind, NamesEventSubscription, FinalizedNamesEvent,
 			FinalizedNamesOutcome, Label, TextKey,
 		},
-		AccountId, DomainResult, Hash32, NameId, RegistrationCommitment,
+		AccountId, DomainResult, Hash32, NameId, OperationId, RegistrationCommitment,
 	},
 	NativeError, NativeErrorCode,
 };
@@ -68,7 +68,8 @@ wire!(ControllerRemovedWire, "ControllerRemoved", { name: RuntimeHash, controlle
 wire!(AddressSetWire, "AddressSet", { name: RuntimeHash, present: bool });
 wire!(SubjectSetWire, "SubjectSet", { name: RuntimeHash, present: bool });
 wire!(AttestationSetWire, "AttestationSet", { name: RuntimeHash, present: bool });
-wire!(ContentSetWire, "ContentSet", { name: RuntimeHash, present: bool });
+wire!(ContentSetWire, "ContentSet", { name: RuntimeHash, present: bool, revision: u64, operation_id: [u8; 16], replayed: bool });
+wire!(ContentOperationReceiptPrunedWire, "ContentOperationReceiptPruned", { owner: RuntimeAccountId, operation_id: [u8; 16] });
 wire!(TextSetWire, "TextSet", { name: RuntimeHash, key: Vec<u8>, present: bool });
 wire!(PrimaryNameSetWire, "PrimaryNameSet", { owner: RuntimeAccountId, name: Option<RuntimeHash> });
 wire!(NameReservedWire, "NameReserved", { name: RuntimeHash, beneficiary: Option<RuntimeAccountId>, expires_at: Option<u32> });
@@ -92,6 +93,7 @@ enum NamesEventWire {
 	SubjectSet(SubjectSetWire),
 	AttestationSet(AttestationSetWire),
 	ContentSet(ContentSetWire),
+	ContentOperationReceiptPruned(ContentOperationReceiptPrunedWire),
 	TextSet(TextSetWire),
 	PrimaryNameSet(PrimaryNameSetWire),
 	NameReserved(NameReservedWire),
@@ -196,6 +198,7 @@ fn decode_event(details: &subxt::events::EventDetails<OrbisConfig>) -> DomainRes
 		"SubjectSet" => NamesEventWire::SubjectSet(decode!(SubjectSetWire)),
 		"AttestationSet" => NamesEventWire::AttestationSet(decode!(AttestationSetWire)),
 		"ContentSet" => NamesEventWire::ContentSet(decode!(ContentSetWire)),
+		"ContentOperationReceiptPruned" => NamesEventWire::ContentOperationReceiptPruned(decode!(ContentOperationReceiptPrunedWire)),
 		"TextSet" => NamesEventWire::TextSet(decode!(TextSetWire)),
 		"PrimaryNameSet" => NamesEventWire::PrimaryNameSet(decode!(PrimaryNameSetWire)),
 		"NameReserved" => NamesEventWire::NameReserved(decode!(NameReservedWire)),
@@ -265,8 +268,12 @@ fn decode_wire_event(wire: NamesEventWire) -> DomainResult<NamesEvent> {
 		NamesEventWire::AttestationSet(w) => {
 			NamesEvent::AttestationSet { name: name(w.name), present: w.present }
 		},
-		NamesEventWire::ContentSet(w) => {
-			NamesEvent::ContentSet { name: name(w.name), present: w.present }
+		NamesEventWire::ContentSet(w) => NamesEvent::ContentSet {
+			name: name(w.name), present: w.present, revision: w.revision,
+			operation_id: OperationId::from_bytes(w.operation_id), replayed: w.replayed,
+		},
+		NamesEventWire::ContentOperationReceiptPruned(w) => NamesEvent::ContentOperationReceiptPruned {
+			owner: domain_account(&w.owner)?, operation_id: OperationId::from_bytes(w.operation_id),
 		},
 		NamesEventWire::TextSet(w) => NamesEvent::TextSet {
 			name: name(w.name),
@@ -375,7 +382,8 @@ mod tests {
 			NamesEventWire::AddressSet(AddressSetWire { name: hash(4), present: true }),
 			NamesEventWire::SubjectSet(SubjectSetWire { name: hash(4), present: true }),
 			NamesEventWire::AttestationSet(AttestationSetWire { name: hash(4), present: true }),
-			NamesEventWire::ContentSet(ContentSetWire { name: hash(4), present: true }),
+			NamesEventWire::ContentSet(ContentSetWire { name: hash(4), present: true, revision: 1, operation_id: [5; 16], replayed: false }),
+			NamesEventWire::ContentOperationReceiptPruned(ContentOperationReceiptPrunedWire { owner: account(1), operation_id: [6; 16] }),
 			NamesEventWire::TextSet(TextSetWire {
 				name: hash(4),
 				key: b"url".to_vec(),
@@ -413,6 +421,7 @@ mod tests {
 			NamesEventKind::SubjectSet,
 			NamesEventKind::AttestationSet,
 			NamesEventKind::ContentSet,
+			NamesEventKind::ContentOperationReceiptPruned,
 			NamesEventKind::TextSet,
 			NamesEventKind::PrimaryNameSet,
 			NamesEventKind::NameReserved,
@@ -429,7 +438,7 @@ mod tests {
 			assert_eq!(event.kind(), kind);
 			enqueue_if_selected(&mut pending, &kinds, finalized.clone(), index as u32, event);
 		}
-		assert_eq!(pending.len(), 21);
+		assert_eq!(pending.len(), 22);
 		for (index, item) in pending.into_iter().enumerate() {
 			assert_eq!(item.event.event_index, index as u32);
 			assert_eq!(item.event.event.kind(), kinds[index]);

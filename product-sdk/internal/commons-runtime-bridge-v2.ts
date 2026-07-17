@@ -22,6 +22,7 @@
  */
 
 import { parseContentCid } from "../packages/origin-sdk-cloud-storage/src/content.ts";
+import { blake2b256 } from "../packages/origin-sdk-crypto/src/index.ts";
 import type { OriginSigner } from "../packages/origin-sdk-signer/src/index.ts";
 import type { CommonsRuntimeExecutor } from "../packages/origin-sdk/src/runtime.ts";
 import { decodeHostV2, encodeHostV2Value, type HostV2Map } from "../packages/origin-sdk-host/src/internal/v2/codec.ts";
@@ -76,6 +77,17 @@ interface ManifestInfo {
   readonly manifest: unknown; readonly bucket_id: unknown; readonly state: unknown;
   readonly checkpoint: number | bigint | null;
 }
+interface ContentPublicationInfo { readonly content: unknown; readonly revision: number | bigint }
+interface S3BucketInfo { readonly bucket_id: unknown; readonly name: unknown; readonly status: unknown; readonly version: number | bigint }
+interface S3ObjectInfo {
+  readonly bucket_id: unknown; readonly key: unknown; readonly content_hash: unknown;
+  readonly deleted: boolean;
+}
+interface SnapshotCursor { readonly snapshot_version: number | bigint; readonly last_key: unknown }
+interface SnapshotPage {
+  readonly version: number; readonly items: readonly unknown[];
+  readonly next_cursor: SnapshotCursor | null; readonly snapshot_version: number | bigint;
+}
 
 class CommonsHostFailure extends Error {
   readonly code: number;
@@ -91,6 +103,13 @@ function bytes(value: unknown, length: number, label: string): Uint8Array {
     return Uint8Array.from(value.slice(2).match(/../g)!.map((pair) => Number.parseInt(pair, 16)));
   }
   throw new TypeError(`${label} must contain ${length} bytes`);
+}
+
+function boundedBytes(value: unknown, minimum: number, maximum: number, label: string): Uint8Array {
+  if (!(value instanceof Uint8Array) || value.length < minimum || value.length > maximum) {
+    throw new TypeError(`${label} must contain ${minimum}-${maximum} bytes`);
+  }
+  return value.slice();
 }
 
 function hex(value: unknown, length = 32, label = "runtime hash"): HashHex {
@@ -129,6 +148,79 @@ function enumName(value: unknown): string {
   throw new TypeError("runtime enum has an unknown descriptor shape");
 }
 
+function runtimeEnum(value: unknown, label: string): { readonly name: string; readonly value: unknown } {
+  if (typeof value === "string") return { name: value.toLowerCase(), value: undefined };
+  if (!value || typeof value !== "object" || Array.isArray(value)) {
+    throw new TypeError(`${label} has an unknown descriptor enum shape`);
+  }
+  const record = value as Record<string, unknown>;
+  if (typeof record.type === "string") return { name: record.type.toLowerCase(), value: record.value };
+  const keys = Object.keys(record);
+  if (keys.length === 1) return { name: keys[0]!.toLowerCase(), value: record[keys[0]!] };
+  throw new TypeError(`${label} has an unknown descriptor enum shape`);
+}
+
+function compareBytes(left: Uint8Array, right: Uint8Array): number {
+  const length = Math.min(left.length, right.length);
+  for (let index = 0; index < length; index += 1) {
+    if (left[index] !== right[index]) return left[index]! - right[index]!;
+  }
+  return left.length - right.length;
+}
+
+function startsWith(value: Uint8Array, prefix: Uint8Array): boolean {
+  return prefix.length <= value.length && prefix.every((byte, index) => value[index] === byte);
+}
+
+function s3PrefixBinding(prefix: Uint8Array | null): Uint8Array {
+  const domain = utf8.encode("cord.origin.host/2/s3-list-prefix/v1");
+  const encoded = prefix === null ? Uint8Array.of(...domain, 0) : Uint8Array.of(...domain, 1, ...prefix);
+  return blake2b256(encoded);
+}
+interface BoundSnapshotCursor {
+  readonly snapshot_version: bigint; readonly bucket_id: Uint8Array;
+  readonly prefix_binding: Uint8Array; readonly last_key: Uint8Array;
+}
+function decodeSnapshotCursor(value: unknown): BoundSnapshotCursor {
+  const encoded = boundedBytes(value, 74, 1_097, "S3 snapshot cursor");
+  if (encoded[0] !== 1) throw new TypeError("S3 snapshot cursor format is unsupported");
+  const view = new DataView(encoded.buffer, encoded.byteOffset, encoded.byteLength);
+  return {
+    snapshot_version: view.getBigUint64(1), bucket_id: encoded.slice(9, 41),
+    prefix_binding: encoded.slice(41, 73), last_key: encoded.slice(73),
+  };
+}
+function encodeSnapshotCursor(value: BoundSnapshotCursor): Uint8Array {
+  const encoded = new Uint8Array(73 + value.last_key.length);
+  encoded[0] = 1;
+  new DataView(encoded.buffer).setBigUint64(1, value.snapshot_version);
+  encoded.set(value.bucket_id, 9); encoded.set(value.prefix_binding, 41); encoded.set(value.last_key, 73);
+  return encoded;
+}
+
+function s3ListFailure(value: unknown): CommonsHostFailure {
+  const error = enumName(value);
+  switch (error) {
+    case "bucketnotfound": return new CommonsHostFailure(324, "S3 bucket was not found");
+    case "bucketdeleted": return new CommonsHostFailure(324, "S3 bucket is deleted");
+    case "cursorstale": return new CommonsHostFailure(261, "S3 object cursor is stale");
+    case "pagelimitinvalid": return new CommonsHostFailure(100, "S3 object page limit is invalid");
+    case "cursorkeyinvalid": return new CommonsHostFailure(321, "S3 object cursor key is invalid");
+    default: throw new TypeError(`S3 list returned unknown error ${error}`);
+  }
+}
+
+function nativeS3BucketName(value: unknown): { readonly name: string; readonly bytes: Uint8Array } {
+  if (typeof value !== "string" || !/^[a-z0-9](?:[a-z0-9-]*[a-z0-9])$/.test(value)) {
+    throw new CommonsHostFailure(320, "S3 bucket name does not satisfy the native policy");
+  }
+  const encoded = utf8.encode(value);
+  if (encoded.length < 3 || encoded.length > 63) {
+    throw new CommonsHostFailure(320, "S3 bucket name does not satisfy the native policy");
+  }
+  return { name: value, bytes: encoded };
+}
+
 function varint(value: number): number[] {
   const result: number[] = [];
   do { let byte = value & 0x7f; value = Math.floor(value / 128); if (value > 0) byte |= 0x80; result.push(byte); } while (value > 0);
@@ -162,10 +254,6 @@ function acceptedEvent(requestId: Uint8Array): Uint8Array {
   return encodeHostV2Value({ 0: 2, 1: requestId, 2: 0, 3: 0, 4: { 0: 0 } });
 }
 
-function progressEvent(requestId: Uint8Array, sequence: number, state: bigint): Uint8Array {
-  return encodeHostV2Value({ 0: 2, 1: requestId, 2: sequence, 3: 1, 4: { 0: state } });
-}
-
 function errorEvent(requestId: Uint8Array, sequence: number, code: number, message: string): Uint8Array {
   const binding = HOST_V2_ERROR_BINDINGS[String(code) as keyof typeof HOST_V2_ERROR_BINDINGS];
   if (!binding) throw new TypeError(`Host-v2 error ${code} is not generated`);
@@ -179,9 +267,18 @@ function runtimeErrorCode(error: unknown): number | undefined {
   if (error instanceof CommonsHostFailure) return error.code;
   if (!error || typeof error !== "object") return undefined;
   const raw = (error as { code?: unknown }).code;
-  if (typeof raw === "number") return raw;
+  if (typeof raw === "number") return HOST_V2_ERROR_BINDINGS[String(raw) as keyof typeof HOST_V2_ERROR_BINDINGS] ? raw : undefined;
   if (typeof raw !== "string") return undefined;
   const normalized = raw.replace(/([a-z0-9])([A-Z])/g, "$1_$2").replace(/[.\- ]/g, "_").toUpperCase();
+  const runtimeErrors: Readonly<Record<string, number>> = {
+    OPERATION_DEADLINE_EXPIRED: 106,
+    OPERATION_DEADLINE_TOO_FAR: 117,
+    OPERATION_ID_CONFLICT: 206,
+    CONTENT_OPERATION_RECEIPT_CAPACITY_REACHED: 212,
+    BUCKET_OPERATION_RECEIPT_CAPACITY_REACHED: 212,
+  };
+  const runtime = Object.entries(runtimeErrors).find(([name]) => normalized === name || normalized.endsWith(`_${name}`));
+  if (runtime) return runtime[1];
   const match = Object.entries(HOST_V2_ERROR_BINDINGS).find(([, binding]) => binding.name === normalized);
   return match ? Number(match[0]) : undefined;
 }
@@ -232,26 +329,48 @@ export class PrivateCordCommonsRuntimeBridgeV2 implements PrivateCommonsRuntimeB
     const binding = HOST_V2_OPERATION_BINDINGS[input.operation];
     const request = decodeHostV2(binding.frame as HostV2TypeName, input.request).value as WireMap;
     const requestId = bytes(request[1], 16, "request ID");
-    yield { event: acceptedEvent(requestId), terminalBlock: input.authority.number };
     let sequence = 1;
+    let accepted = false;
     try {
       if (Number(request[3]) !== binding.code || request[2] === "") throw new CommonsHostFailure(100, "request binding is invalid");
-      if (uint(request[7], "request deadline") <= input.authority.number) throw new CommonsHostFailure(106, "request deadline has expired");
+      const requestDeadline = uint(request[7], "request deadline");
+      if (requestDeadline <= input.authority.number) throw new CommonsHostFailure(106, "request deadline has expired");
+      if (requestDeadline > input.authority.number + 128n) throw new CommonsHostFailure(117, "request deadline exceeds the Commons operation window");
       const payload = request[8] as WireMap;
       let result: HostV2Map; let terminal = input.authority;
       switch (input.operation) {
-        case "storage.bucket.get": ({ result, terminal } = await this.#bucketGet(payload, input.authority, input.signal)); break;
+        case "storage.bucket.get":
+          yield { event: acceptedEvent(requestId), terminalBlock: input.authority.number };
+          accepted = true;
+          ({ result, terminal } = await this.#bucketGet(payload, input.authority, input.signal)); break;
         case "storage.bucket.create": {
-          const executed = await this.#bucketCreate(request, payload, input.authority, requestId, sequence, input.signal);
-          sequence = executed.nextSequence; result = executed.result; terminal = executed.terminal; break;
+          const executed = await this.#bucketCreate(request, payload, input.authority, sequence, input.signal);
+          sequence = executed.nextSequence; result = executed.result; terminal = executed.terminal;
+          yield { event: acceptedEvent(requestId), terminalBlock: terminal.number };
+          accepted = true; break;
         }
-        case "storage.checkpoint.status": ({ result, terminal } = await this.#checkpointStatus(payload, input.authority, input.signal)); break;
+        case "storage.checkpoint.status":
+          yield { event: acceptedEvent(requestId), terminalBlock: input.authority.number };
+          accepted = true;
+          ({ result, terminal } = await this.#checkpointStatus(payload, input.authority, input.signal)); break;
+        case "storage.replica.status":
+          yield { event: acceptedEvent(requestId), terminalBlock: input.authority.number };
+          accepted = true;
+          ({ result, terminal } = await this.#replicaStatus(payload, input.authority, input.signal)); break;
+        case "storage.s3.list":
+          yield { event: acceptedEvent(requestId), terminalBlock: input.authority.number };
+          accepted = true;
+          ({ result, terminal } = await this.#s3List(payload, input.authority, input.signal)); break;
         case "storage.publish": {
-          yield { event: progressEvent(requestId, sequence++, 0n), terminalBlock: input.authority.number };
-          const executed = await this.#publish(payload, input.authority, requestId, sequence, input.signal);
-          sequence = executed.nextSequence; result = executed.result; terminal = executed.terminal; break;
+          const executed = await this.#publish(request, payload, input.authority, sequence, input.signal);
+          sequence = executed.nextSequence; result = executed.result; terminal = executed.terminal;
+          yield { event: acceptedEvent(requestId), terminalBlock: terminal.number };
+          accepted = true; break;
         }
-        case "storage.resolve": ({ result, terminal } = await this.#resolve(payload, input.authority, input.signal)); break;
+        case "storage.resolve":
+          yield { event: acceptedEvent(requestId), terminalBlock: input.authority.number };
+          accepted = true;
+          ({ result, terminal } = await this.#resolve(payload, input.authority, input.signal)); break;
         default: throw new TypeError(`Commons Host-v2 operation ${input.operation} has no descriptor-backed implementation`);
       }
       yield { event: resultEvent(requestId, sequence, result), terminalBlock: terminal.number };
@@ -259,7 +378,7 @@ export class PrivateCordCommonsRuntimeBridgeV2 implements PrivateCommonsRuntimeB
       const code = runtimeErrorCode(error);
       if (code === undefined || !binding.allowedErrors.includes(code as never)) throw error;
       const message = error instanceof Error ? error.message : "Commons runtime rejected the operation";
-      yield { event: errorEvent(requestId, sequence, code, message), terminalBlock: input.authority.number };
+      yield { event: errorEvent(requestId, accepted ? sequence : 0, code, message), terminalBlock: input.authority.number };
     }
   }
 
@@ -290,7 +409,7 @@ export class PrivateCordCommonsRuntimeBridgeV2 implements PrivateCommonsRuntimeB
     };
   }
 
-  async #bucketCreate(request: WireMap, payload: WireMap, authority: PrivateFinalizedHostAuthorityV2, requestId: Uint8Array, sequence: number, signal?: AbortSignal) {
+  async #bucketCreate(request: WireMap, payload: WireMap, authority: PrivateFinalizedHostAuthorityV2, sequence: number, signal?: AbortSignal) {
     const replicaCount = Number(uint(payload[0], "replica count"));
     const providers = payload[1];
     if (!Array.isArray(providers) || providers.length !== replicaCount + 1 || replicaCount < 2 || replicaCount > 3) {
@@ -300,12 +419,14 @@ export class PrivateCordCommonsRuntimeBridgeV2 implements PrivateCommonsRuntimeB
     const prepared = await this.#runtime.prepare(hex(authority.hash), "StorageProvider.create_bucket", {
       policy: hex(request[4], 32, "bucket policy grant"), primary: hex(providers[0], 32, "primary provider"),
       replicas: providers.slice(1).map((provider, index) => hex(provider, 32, `replica ${index}`)),
+	  operation_deadline: uint(request[7], "bucket operation deadline"),
+      operation_id: hex(request[5], 16, "bucket operation ID"),
     }, undefined, signal);
     const receipt = await this.#submit(prepared, signal);
-    const terminal = exactFinality(await this.#finality.verify(receipt.blockHash, signal));
+    const terminal = await this.#verifiedReceipt(receipt.blockHash, authority, signal);
     const events = await this.#events.events(receipt, signal);
     const created = events.find((event) => event.pallet === "StorageProvider" && event.event === "BucketCreated");
-    if (!created) throw new TypeError("finalized StorageProvider.BucketCreated event is absent");
+    if (!created || hex(created.fields.operation_id, 16, "bucket event operation ID") !== hex(request[5], 16, "bucket operation ID")) throw new TypeError("finalized StorageProvider.BucketCreated event is absent or misbound");
     return {
       nextSequence: sequence,
       terminal,
@@ -342,10 +463,170 @@ export class PrivateCordCommonsRuntimeBridgeV2 implements PrivateCommonsRuntimeB
     };
   }
 
-  async #publish(payload: WireMap, authority: PrivateFinalizedHostAuthorityV2, requestId: Uint8Array, sequence: number, signal?: AbortSignal) {
-    if (payload[2] !== undefined && uint(payload[2], "expected publication version") !== 1n) {
-      throw new CommonsHostFailure(251, "native Names publication version is one");
+  async #replicaStatus(payload: WireMap, authority: PrivateFinalizedHostAuthorityV2, signal?: AbortSignal) {
+    const bucketId = hex(payload[0], 32, "replica bucket ID");
+    const response = versioned<ControlBucket>(await this.#runtime.read(
+      hex(authority.hash), "StorageProviderApi.control_bucket", { bucket_id: bucketId }, signal,
+    ), "control bucket");
+    if (response.value === null) throw new CommonsHostFailure(250, "bucket was not found at finalized state");
+    const bucket = response.value;
+    if (hex(bucket.bucket_id) !== bucketId || !Array.isArray(bucket.replicas)
+      || bucket.replicas.length < 2 || bucket.replicas.length > 4) {
+      throw new TypeError("control bucket response is not bound to the requested bucket");
     }
+    const primary = bytes(bucket.primary, 32, "bucket primary");
+    const replicas = bucket.replicas.map((provider) => bytes(provider, 32, "bucket replica"));
+    const providerIds = [primary, ...replicas].map((provider) => hex(provider));
+    if (new Set(providerIds).size !== providerIds.length) {
+      throw new TypeError("control bucket provider authority contains duplicate members");
+    }
+    const checkpoint = await this.#checkpoint(payload, authority, signal);
+    const checkpointBlock = uint(checkpoint.checkpoint_block, "checkpoint block");
+    if (checkpointBlock > authority.number) {
+      throw new TypeError("checkpoint is ahead of its finalized authority");
+    }
+    const replicaCheckpoints = await Promise.all(replicas.map(async (provider) => {
+      const value = await this.#runtime.read<unknown>(
+        hex(authority.hash), "StorageProviderApi.replica_checkpoint",
+        { bucket_id: bucketId, provider: hex(provider) }, signal,
+      );
+      if (value === null || value === undefined) return null;
+      const confirmed = uint(value, "replica checkpoint");
+      if (confirmed > checkpointBlock) {
+        throw new TypeError("replica checkpoint is ahead of the canonical checkpoint");
+      }
+      return confirmed;
+    }));
+    if (replicaCheckpoints.some((confirmed) => confirmed === null)) {
+      throw new CommonsHostFailure(255, "replica checkpoint lag is unavailable at finalized state");
+    }
+    const exactCheckpoints = replicaCheckpoints as readonly bigint[];
+    const confirmed = exactCheckpoints.filter((block) => block === checkpointBlock).length;
+    const lag = exactCheckpoints.reduce((maximum, block) => {
+      const distance = checkpointBlock - block;
+      return distance > maximum ? distance : maximum;
+    }, 0n);
+    const eligibility = await Promise.all([primary, ...replicas].map(async (provider) => {
+      const eligible = await this.#runtime.read<unknown>(
+        hex(authority.hash), "StorageProviderApi.provider_is_eligible", { provider: hex(provider) }, signal,
+      );
+      if (typeof eligible !== "boolean") throw new TypeError("provider eligibility response is not boolean");
+      return eligible;
+    }));
+    return {
+      terminal: authority,
+      result: {
+        0: primary, 1: replicas, 2: confirmed, 3: lag,
+        4: eligibility.filter(Boolean).length, 5: finalityMap(authority),
+      } as HostV2Map,
+    };
+  }
+
+  async #s3List(payload: WireMap, authority: PrivateFinalizedHostAuthorityV2, signal?: AbortSignal) {
+    const bucketName = nativeS3BucketName(payload[0]);
+    const prefix = payload[1] === undefined ? null : boundedBytes(payload[1], 0, 1_024, "S3 object prefix");
+    let cursor: BoundSnapshotCursor | null = null;
+    if (payload[2] !== undefined) {
+      try { cursor = decodeSnapshotCursor(payload[2]); }
+      catch (error) {
+        if (error instanceof TypeError) throw new CommonsHostFailure(261, error.message);
+        throw error;
+      }
+    }
+    const limit = Number(uint(payload[3], "S3 page limit"));
+    if (!Number.isSafeInteger(limit) || limit < 1 || limit > 100) {
+      throw new CommonsHostFailure(100, "S3 page limit must be between 1 and 100");
+    }
+    const bucketResponse = versioned<S3BucketInfo>(await this.#runtime.read(
+      hex(authority.hash), "S3RegistryApi.bucket_by_name", { name: bucketName.bytes }, signal,
+    ), "S3 bucket");
+    if (bucketResponse.version !== 9) throw new TypeError("S3 bucket response version is unsupported");
+    if (bucketResponse.value === null) throw new CommonsHostFailure(324, "S3 bucket was not found");
+    const bucket = bucketResponse.value;
+    const bucketIdBytes = bytes(bucket.bucket_id, 32, "S3 bucket ID");
+    const bucketId = hex(bucketIdBytes, 32, "S3 bucket ID");
+    const bucketVersion = uint(bucket.version, "S3 bucket version");
+    if (!equal(boundedBytes(bucket.name, 3, 63, "S3 bucket name"), bucketName.bytes)) {
+      throw new TypeError("S3 bucket response is not bound to the requested name");
+    }
+    const bucketStatus = enumName(bucket.status);
+    if (bucketStatus === "deleted") throw new CommonsHostFailure(324, "S3 bucket is deleted");
+    if (bucketStatus !== "active" && bucketStatus !== "archived") {
+      throw new TypeError("S3 bucket response has an unknown status");
+    }
+    const prefixBinding = s3PrefixBinding(prefix);
+    if (cursor !== null && (cursor.snapshot_version !== bucketVersion
+      || !equal(cursor.bucket_id, bucketIdBytes) || !equal(cursor.prefix_binding, prefixBinding))) {
+      throw new CommonsHostFailure(261, "S3 snapshot cursor is stale or belongs to a different bucket or prefix");
+    }
+    const runtimePage = runtimeEnum(await this.#runtime.read(
+      hex(authority.hash), "S3RegistryApi.object_keys",
+      {
+        bucket_id: bucketId, prefix,
+        cursor: cursor === null ? null : { snapshot_version: cursor.snapshot_version, last_key: cursor.last_key },
+        limit,
+      }, signal,
+    ), "S3 object page");
+    if (runtimePage.name === "err") throw s3ListFailure(runtimePage.value);
+    if (runtimePage.name !== "ok" || !runtimePage.value || typeof runtimePage.value !== "object" || Array.isArray(runtimePage.value)) {
+      throw new TypeError("S3 object page did not return an Ok snapshot");
+    }
+    const page = runtimePage.value as SnapshotPage;
+    if (page.version !== 9 || !Array.isArray(page.items) || !("next_cursor" in page)
+      || page.items.length > limit || page.items.length > 100) {
+      throw new TypeError("S3 object page exceeds the current bounded response contract");
+    }
+    const snapshotVersion = uint(page.snapshot_version, "S3 snapshot version");
+    if (snapshotVersion !== bucketVersion) {
+      throw new TypeError("S3 object page snapshot is not bound to the finalized bucket version");
+    }
+    if (cursor !== null && cursor.snapshot_version !== snapshotVersion) {
+      throw new TypeError("S3 object page changed the requested snapshot version");
+    }
+    const keys = page.items.map((key) => boundedBytes(key, 1, 1_024, "S3 object key"));
+    for (let index = 0; index < keys.length; index += 1) {
+      const previous = index === 0 ? cursor?.last_key : keys[index - 1];
+      if (previous && compareBytes(keys[index]!, previous) <= 0) {
+        throw new TypeError("S3 object page is not in strictly increasing key order");
+      }
+      if (prefix !== null && !startsWith(keys[index]!, prefix)) {
+        throw new TypeError("S3 object page escaped the requested prefix");
+      }
+    }
+    let nextCursor: Uint8Array | undefined;
+    if (page.next_cursor !== null && page.next_cursor !== undefined) {
+      const nextVersion = uint(page.next_cursor.snapshot_version, "next S3 snapshot version");
+      const nextKey = boundedBytes(page.next_cursor.last_key, 1, 1_024, "next S3 cursor key");
+      if (nextVersion !== snapshotVersion || keys.length === 0 || !equal(nextKey, keys[keys.length - 1]!)) {
+        throw new TypeError("S3 object cursor does not identify the last returned key");
+      }
+      nextCursor = encodeSnapshotCursor({ snapshot_version: nextVersion, bucket_id: bucketIdBytes, prefix_binding: prefixBinding, last_key: nextKey });
+    }
+    const cids = await Promise.all(keys.map(async (key) => {
+      const response = versioned<S3ObjectInfo>(await this.#runtime.read(
+        hex(authority.hash), "S3RegistryApi.object", { bucket_id: bucketId, key }, signal,
+      ), "S3 object");
+      if (response.version !== 9 || response.value === null) {
+        throw new TypeError("S3 object page references an unavailable object");
+      }
+      const object = response.value;
+      if (hex(object.bucket_id, 32, "S3 object bucket") !== bucketId
+        || !equal(boundedBytes(object.key, 1, 1_024, "S3 object key"), key)
+        || object.deleted !== false || object.content_hash === null || object.content_hash === undefined) {
+        throw new TypeError("S3 object response is inconsistent with its finalized page");
+      }
+      return cidForCommitment(bytes(object.content_hash, 32, "S3 object content hash"));
+    }));
+    return {
+      terminal: authority,
+      result: {
+        0: cids, ...(nextCursor === undefined ? {} : { 1: nextCursor }),
+        2: snapshotVersion, 3: finalityMap(authority),
+      } as HostV2Map,
+    };
+  }
+
+  async #publish(request: WireMap, payload: WireMap, authority: PrivateFinalizedHostAuthorityV2, sequence: number, signal?: AbortSignal) {
     const name = hex(payload[0], 32, "Names identifier");
     const cid = payload[1];
     if (typeof cid !== "string") throw new CommonsHostFailure(204, "publication CID is invalid");
@@ -357,19 +638,22 @@ export class PrivateCordCommonsRuntimeBridgeV2 implements PrivateCommonsRuntimeB
       throw new CommonsHostFailure(204, "Names publication CID must use canonical base32lower encoding");
     }
     const commitment = hex(parsed.digest, 32, "content commitment");
-    const manifest = versioned<ManifestInfo>(await this.#runtime.read(hex(authority.hash), "StorageProviderApi.canonical_manifest", { manifest: commitment }, signal), "canonical manifest");
-    if (manifest.value === null || enumName(manifest.value.state) !== "publishable") {
-      throw new CommonsHostFailure(209, "content is not publishable at finalized Commons state");
-    }
-    const prepared = await this.#runtime.prepare(hex(authority.hash), "Names.set_content", { name, content: commitment }, undefined, signal);
+    const operationId = hex(request[5], 16, "publication operation ID");
+    const prepared = await this.#runtime.prepare(hex(authority.hash), "Names.publish_content", {
+      name, content: commitment, expected_revision: uint(payload[2], "expected publication revision"),
+	  operation_deadline: uint(request[7], "publication operation deadline"),
+      operation_id: operationId,
+    }, undefined, signal);
     const receipt = await this.#submit(prepared, signal);
-    const terminal = exactFinality(await this.#finality.verify(receipt.blockHash, signal));
+    const terminal = await this.#verifiedReceipt(receipt.blockHash, authority, signal);
     const events = await this.#events.events(receipt, signal);
     const observation = events.find((event) => event.pallet === "Names" && event.event === "ContentSet"
-      && hex(event.fields.name, 32, "Names event identifier") === name && event.fields.present === true);
+      && hex(event.fields.name, 32, "Names event identifier") === name && event.fields.present === true
+      && hex(event.fields.operation_id, 16, "Names event operation ID") === operationId);
     if (!observation) throw new TypeError("finalized Names.ContentSet observation is absent or misbound");
-    const resolved = versioned<unknown>(await this.#runtime.read(receipt.blockHash, "NamesApi.resolve_content", { name }, signal), "Names content");
-    if (resolved.value === null || hex(resolved.value, 32, "resolved Names content") !== commitment) {
+    const resolved = versioned<ContentPublicationInfo>(await this.#runtime.read(receipt.blockHash, "NamesApi.resolve_content_publication", { name }, signal), "Names content publication");
+    if (resolved.value === null || hex(resolved.value.content, 32, "resolved Names content") !== commitment
+      || uint(resolved.value.revision, "resolved publication revision") !== uint(observation.fields.revision, "Names event revision")) {
       throw new TypeError("finalized Names post-state does not contain the published commitment");
     }
     return { nextSequence: sequence, terminal, result: { 0: bytes(name, 32, "name hash"), 1: cid, 2: finalityMap(terminal) } as HostV2Map };
@@ -381,12 +665,12 @@ export class PrivateCordCommonsRuntimeBridgeV2 implements PrivateCommonsRuntimeB
     const name = versioned<unknown>(await this.#runtime.read(hex(at.hash), "NamesApi.root_name_by_normalized_label", { label }, signal), "root name");
     if (name.value === null) throw new CommonsHostFailure(210, "native Names label was not found");
     const nameId = hex(name.value, 32, "resolved name ID");
-    const content = versioned<unknown>(await this.#runtime.read(hex(at.hash), "NamesApi.resolve_content", { name: nameId }, signal), "Names content");
+    const content = versioned<ContentPublicationInfo>(await this.#runtime.read(hex(at.hash), "NamesApi.resolve_content_publication", { name: nameId }, signal), "Names content publication");
     if (content.value === null) throw new CommonsHostFailure(210, "native Names record has no live content");
-    if (payload[1] !== undefined && uint(payload[1], "requested publication version") !== BigInt(content.version)) {
+    if (payload[1] !== undefined && uint(payload[1], "requested publication version") !== uint(content.value.revision, "publication revision")) {
       throw new CommonsHostFailure(210, "requested publication version is unavailable");
     }
-    const commitment = bytes(content.value, 32, "Names content commitment");
+    const commitment = bytes(content.value.content, 32, "Names content commitment");
     const manifest = versioned<ManifestInfo>(await this.#runtime.read(hex(at.hash), "StorageProviderApi.canonical_manifest", { manifest: hex(commitment) }, signal), "canonical manifest");
     if (manifest.value === null || enumName(manifest.value.state) !== "publishable" || manifest.value.checkpoint === null) {
       throw new CommonsHostFailure(209, "resolved content is not checkpoint-publishable");
@@ -398,7 +682,13 @@ export class PrivateCordCommonsRuntimeBridgeV2 implements PrivateCommonsRuntimeB
     }
     return {
       terminal: at,
-      result: { 0: cidForCommitment(commitment), 1: BigInt(content.version), 2: this.#checkpointMap(checkpoint), 3: finalityMap(at) } as HostV2Map,
+      result: {
+        0: cidForCommitment(commitment),
+        1: uint(content.value.revision, "publication revision"),
+        2: this.#checkpointMap(checkpoint),
+        3: finalityMap(at),
+        4: bytes(nameId, 32, "resolved name ID"),
+      } as HostV2Map,
     };
   }
 
@@ -411,5 +701,13 @@ export class PrivateCordCommonsRuntimeBridgeV2 implements PrivateCommonsRuntimeB
       if (status.type === "finalized") return { blockHash: status.blockHash, transactionHash: status.transactionHash };
     }
     throw new TypeError("Commons transaction stream closed before finalized state");
+  }
+
+  async #verifiedReceipt(receiptHash: HashHex, authority: PrivateFinalizedHostAuthorityV2, signal?: AbortSignal): Promise<PrivateFinalizedHostAuthorityV2> {
+    const verified = exactFinality(await this.#finality.verify(receiptHash, signal));
+    if (hex(verified.hash) !== receiptHash || verified.number < authority.number) {
+      throw new TypeError("Commons transaction receipt is not the verified finalized descendant returned by finality");
+    }
+    return verified;
   }
 }

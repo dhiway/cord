@@ -72,6 +72,13 @@ fn operations() -> serde_json::Value {
 	.expect("frozen operations are JSON")
 }
 
+fn schema() -> serde_json::Value {
+	serde_json::from_str(include_str!(
+		"../../../../docs/specs/origin-host-registry-v2.schema.json"
+	))
+	.expect("frozen schema is JSON")
+}
+
 fn errors() -> serde_json::Value {
 	serde_json::from_str(include_str!("../../../../docs/specs/origin-host-registry-v2.errors.json"))
 		.expect("frozen errors are JSON")
@@ -321,6 +328,25 @@ fn accepted(request_id: [u8; 16], sequence: u64) -> Vec<u8> {
 	.expect("accepted fixture is closed")
 	.canonical()
 	.to_vec()
+}
+
+fn terminal_error(sequence: u64) -> Vec<u8> {
+	let mut value: Value =
+		ciborium::from_reader(vector("error-100-wire_schema_invalid").as_slice())
+			.expect("frozen terminal error is CBOR");
+	let Value::Map(fields) = &mut value else { panic!("terminal error is a map") };
+	let sequence_field = fields
+		.iter_mut()
+		.find_map(|(key, value)| {
+			matches!(key, Value::Integer(key) if u64::try_from(*key).ok() == Some(2))
+				.then_some(value)
+		})
+		.expect("terminal error sequence is present");
+	*sequence_field = Value::Integer(sequence.into());
+	Dto::<EventV2>::from_value(value)
+		.expect("terminal error remains closed")
+		.canonical()
+		.to_vec()
 }
 
 fn progress(request_id: [u8; 16], sequence: u64) -> Vec<u8> {
@@ -688,11 +714,11 @@ fn generated_runtime_bindings_exactly_project_all_frozen_authorities() {
 	assert_eq!(generated::PROTOCOL, "cord.origin.host/2");
 	assert_eq!(generated::MAJOR, operations()["major"].as_u64().unwrap() as u8);
 	assert_eq!(generated::MINOR, operations()["minor"].as_u64().unwrap() as u16);
-	assert_eq!(generated::OPERATIONS.len(), 34);
-	assert_eq!(generated::ERRORS.len(), 91);
+	assert_eq!(generated::OPERATIONS.len(), operations()["operations"].as_array().unwrap().len());
+	assert_eq!(generated::ERRORS.len(), errors()["errors"].as_array().unwrap().len());
 	let semantic: serde_json::Value =
 		serde_json::from_str(generated::SEMANTIC_TABLE_JSON).expect("semantic table is JSON");
-	assert_eq!(semantic["schemas"].as_object().unwrap().len(), 365);
+	assert_eq!(semantic["schemas"].as_object().unwrap().len(), schema()["$defs"].as_object().unwrap().len());
 
 	let operation_registry = operations();
 	for operation in operation_registry["operations"].as_array().unwrap() {
@@ -888,7 +914,7 @@ fn every_frozen_error_event_round_trips_through_the_closed_union() {
 		.iter()
 		.filter(|vector| vector["id"].as_str().is_some_and(|id| id.starts_with("error-")))
 		.collect();
-	assert_eq!(error_vectors.len(), 91);
+	assert_eq!(error_vectors.len(), errors()["errors"].as_array().unwrap().len());
 	for error in error_vectors {
 		let id = error["id"].as_str().unwrap();
 		let wire = vector(id);
@@ -1012,6 +1038,12 @@ fn session_enforces_sequence_and_permanently_closes_on_fault_or_terminal() {
 	assert!(session.is_terminal());
 	assert!(session.is_closed());
 	assert!(matches!(session.accept(&error), Err(SessionError::Sequence(_))));
+
+	let mut rejected = Session::new(negotiated(), request_id);
+	assert!(rejected.accept(&terminal_error(0)).is_ok());
+	assert!(rejected.is_terminal());
+	assert!(rejected.is_closed());
+	assert_eq!(rejected.next_sequence(), 1);
 
 	let mut skipped = Session::new(negotiated(), request_id);
 	assert!(skipped.accept(&accepted(request_id, 0)).is_ok());

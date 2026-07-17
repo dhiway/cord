@@ -436,8 +436,8 @@ fn commons_storage_control_worst_case_weights_fit_the_runtime_block_budget() {
 		("provider.heartbeat", StorageWeights::heartbeat(), StorageWeights::heartbeat()),
 		(
 			"provider.create_bucket",
-			StorageWeights::create_bucket(2),
-			StorageWeights::create_bucket(4),
+			StorageWeights::create_bucket(2, ProviderMaxBucketOperationReceipts::get()),
+			StorageWeights::create_bucket(4, ProviderMaxBucketOperationReceipts::get()),
 		),
 		(
 			"provider.change_grant",
@@ -2037,6 +2037,8 @@ fn admit_canonical_manifest_with_provider_commitment(
 		sp_core::H256::repeat_byte(0x33),
 		provider_accounts[0].clone(),
 		replicas,
+		System::block_number().saturating_add(10),
+		[158; 16]
 	));
 	let bucket_id = pallet_orbis_storage_provider::BucketIds::<Runtime>::get()[0];
 	let leaf = MmrLeafV1 {
@@ -2301,7 +2303,14 @@ fn native_identity_attestation_name_asset_and_storage_journey() {
 			name,
 			Some(attestation),
 		));
-		assert_ok!(Names::set_content(RuntimeOrigin::signed(owner.clone()), name, Some(audit),));
+		assert_ok!(Names::publish_content(
+			RuntimeOrigin::signed(owner.clone()),
+			name,
+			Some(audit),
+			None,
+			System::block_number().saturating_add(10),
+			[7; 16]
+		));
 
 		let drive_name: pallet_orbis_drive::DriveNameOf<Runtime> =
 			b"festival".to_vec().try_into().unwrap();
@@ -6702,6 +6711,8 @@ fn runtime_checkpoint_duty_admission_is_exactly_255_256_257() {
 				sp_core::H256::from_low_u64_be(index as u64 + 1),
 				provider(1),
 				replicas.clone(),
+				System::block_number().saturating_add(10),
+				(index as u128).to_le_bytes()
 			));
 			let count = index + 1;
 			if matches!(count, 1 | 127 | 128 | 129) {
@@ -6754,6 +6765,8 @@ fn runtime_checkpoint_duty_admission_is_exactly_255_256_257() {
 				sp_core::H256::from_low_u64_be(256),
 				provider(1),
 				replicas.clone(),
+				System::block_number().saturating_add(10),
+				256u128.to_le_bytes()
 			),
 			StorageError::<Runtime>::CheckpointDutyLimit
 		);
@@ -6821,6 +6834,8 @@ fn runtime_checkpoint_duty_admission_is_exactly_255_256_257() {
 			provider_full_bucket_hash,
 			provider(1),
 			replicas,
+			System::block_number().saturating_add(10),
+			[13; 16]
 		));
 		let provider_full_bucket = pallet_orbis_storage_provider::BucketIds::<Runtime>::get()
 			.last()

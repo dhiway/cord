@@ -2,13 +2,22 @@
   "contractVersion": 1,
   "kind": "cord-native-host-contract-manifest",
   "release": "origin-orbis-native-v1",
-  "firstSupportedNativeSdk": true,
+  "firstSupportedNativeSdk": false,
   "runtime": {
     "name": "orbis",
     "paraId": 1006,
     "specVersion": 29,
     "transactionVersion": 8,
     "metadataHash": "0x50c8958f0171889a4b01093a5dd5272faf8802018f24a4ac22b231d37b2adc45"
+  },
+  "currentSourceRuntime": {
+    "name": "commons",
+    "source": "origin/orbis/runtime/src/lib.rs",
+    "metadataRecord": "origin/orbis/runtime/vectors/transaction-policy-v8/metadata-hash.json",
+    "specVersion": 33,
+    "transactionVersion": 8,
+    "metadataHash": "0x824731ed7cab6037cdfa3f88e40f78556f77f016136fd563acd6c7a414c29f8e",
+    "metadataBoundNativeSdk": false
   },
   "fixtureIdentity": {
     "status": "deterministic-clean-break-candidate-not-production-approved",
@@ -32,7 +41,7 @@
     },
     "versionMatrix": {
       "path": "docs/sdk/native-version-matrix.json",
-      "sha256": "1442b5b8301b0a6756b0aec64227504db8578502311b978e41b3e2fe693120a9"
+      "sha256": "9f09d1bb234a55b9d82e93316260e9f43b30724c5b880a03c443e1d4dbe8ab9e"
     },
     "extensions": {
       "path": "docs/sdk/signed-extension-manifest.json",
@@ -40,7 +49,7 @@
     },
     "metadata": {
       "path": "origin/orbis/runtime/vectors/transaction-policy-v8/metadata-hash.json",
-      "sha256": "b05ccc01671b2bd0bd578b89437eddb171fbdc314816f40ce14454fb12e467ac"
+      "sha256": "0e5f0388f3f1f7fed0c5b3d870474aa7809448abe75e72b6fc1e941601aacbdf"
     },
     "metadataScale": {
       "path": "product-sdk/packages/descriptors/.papi/metadata/commons.scale",
@@ -48,7 +57,7 @@
     },
     "papiDescriptor": {
       "path": "product-sdk/packages/descriptors/generated/commons-papi-manifest.json",
-      "sha256": "863725ddb75dca2cda5550d8f28cebcbf0be38c06a3f038da05b3574b8ba3aaa"
+      "sha256": "673d04218c99e6c17630a9fedf7689fa8b06761219c92a5e6f9b92ea25a8c595"
     },
     "vectors": {
       "path": "docs/sdk/vectors/native-sdk-v1.json",
@@ -64,7 +73,7 @@
     },
     "nativeRouteContract": {
       "path": "docs/sdk/native-route-contract.json",
-      "sha256": "2f19961bbf42a91a4c0335657b0ca73bc2dfa889e86f83fe7f72bdf1582397d0"
+      "sha256": "247bd86ec1f05105291be1cbd96af45dbf63d6cc7c51817064914adf20f12c2b"
     }
   },
   "signedExtensionSurfaces": {
@@ -147,7 +156,7 @@
   },
   "nativeHostContract": {
     "version": 1,
-    "methodCount": 143,
+    "methodCount": 136,
     "pageLimit": 100,
     "payloadValidation": "closed-shape-plus-core-native-types-v1",
     "methods": [
@@ -519,7 +528,7 @@
       },
       {
         "capability": "names",
-        "method": "resolve_content",
+        "method": "resolve_content_publication",
         "finality": "finalized",
         "payloadFields": [
           "name"
@@ -650,11 +659,14 @@
       },
       {
         "capability": "names",
-        "method": "set_content",
+        "method": "publish_content",
         "finality": "submit-and-finalize",
         "payloadFields": [
           "name",
-          "content"
+          "content",
+          "expected_revision",
+          "operation_deadline",
+          "operation_id"
         ]
       },
       {
@@ -926,26 +938,6 @@
       },
       {
         "capability": "storage",
-        "method": "owner_agreements",
-        "finality": "finalized",
-        "payloadFields": [
-          "owner",
-          "cursor",
-          "limit"
-        ]
-      },
-      {
-        "capability": "storage",
-        "method": "container_agreements",
-        "finality": "finalized",
-        "payloadFields": [
-          "container_ref",
-          "cursor",
-          "limit"
-        ]
-      },
-      {
-        "capability": "storage",
         "method": "agreement_nonce",
         "finality": "finalized",
         "payloadFields": [
@@ -972,14 +964,6 @@
       },
       {
         "capability": "storage",
-        "method": "open_challenge_count",
-        "finality": "finalized",
-        "payloadFields": [
-          "agreement_id"
-        ]
-      },
-      {
-        "capability": "storage",
         "method": "can_accept_capacity",
         "finality": "finalized",
         "payloadFields": [
@@ -989,26 +973,10 @@
       },
       {
         "capability": "storage",
-        "method": "provider_checkpoint",
+        "method": "bucket_checkpoint",
         "finality": "finalized",
         "payloadFields": [
-          "provider"
-        ]
-      },
-      {
-        "capability": "storage",
-        "method": "provider_root",
-        "finality": "finalized",
-        "payloadFields": [
-          "provider"
-        ]
-      },
-      {
-        "capability": "storage",
-        "method": "deletion_acknowledgement",
-        "finality": "finalized",
-        "payloadFields": [
-          "agreement_id"
+          "bucket"
         ]
       },
       {
@@ -1097,11 +1065,13 @@
       },
       {
         "capability": "storage",
-        "method": "submit_checkpoint",
+        "method": "acknowledge_manifest_deletion",
         "finality": "submit-and-finalize",
         "payloadFields": [
-          "challenge_id",
-          "proof_commitment"
+          "manifest",
+          "evidence_hash",
+          "service_key",
+          "signature"
         ]
       },
       {
@@ -1119,29 +1089,6 @@
         "payloadFields": [
           "agreement_id",
           "expires_at"
-        ]
-      },
-      {
-        "capability": "storage",
-        "method": "acknowledge_deletion",
-        "finality": "submit-and-finalize",
-        "payloadFields": [
-          "agreement_id",
-          "content_commitment",
-          "tombstone_root",
-          "root_sequence",
-          "leaf_index",
-          "leaf_count",
-          "inclusion_proof"
-        ]
-      },
-      {
-        "capability": "storage",
-        "method": "commit_provider_root",
-        "finality": "submit-and-finalize",
-        "payloadFields": [
-          "sequence",
-          "appended_leaves"
         ]
       },
       {
@@ -1282,6 +1229,7 @@
         "finality": "finalized",
         "payloadFields": [
           "bucket",
+          "prefix",
           "cursor",
           "limit"
         ]
@@ -1416,10 +1364,15 @@
     ]
   },
   "descriptorProvenance": {
-    "runtimeMetadataBinding": "checked-in-v14-scale-plus-reproduced-rfc78-wasm-metadata-hash",
+    "runtimeMetadataBinding": "unavailable-version-set-drift-between-inventory-papi-and-current-source-runtime",
     "papiDescriptor": "polkadot-api-2.1.6-byte-reproducible-generation",
     "methodInventory": "authoritative-typed-native-route-contract",
     "driftValidation": "metadata-hash-pallet-call-index-runtime-api-and-rust-typescript-route-harness"
   },
-  "productionPapiDescriptorGenerated": true
+  "papiAvailability": {
+    "runtimeMetadataCurrent": false,
+    "sdkAdmission": false,
+    "reason": "checked-in PAPI metadata spec 29/transaction 8/0x50c8958f0171889a4b01093a5dd5272faf8802018f24a4ac22b231d37b2adc45 does not match current Commons source runtime spec 33/transaction 8/0x824731ed7cab6037cdfa3f88e40f78556f77f016136fd563acd6c7a414c29f8e"
+  },
+  "productionPapiDescriptorGenerated": false
 }

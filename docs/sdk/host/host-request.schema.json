@@ -132,6 +132,7 @@
         "providers",
         "prune_agreement",
         "prune_expired_commitment",
+        "publish_content",
         "put_object",
         "register",
         "register_provider",
@@ -146,7 +147,7 @@
         "reserve_name",
         "resolve_address",
         "resolve_attestation",
-        "resolve_content",
+        "resolve_content_publication",
         "resolve_subject",
         "resolve_text",
         "resource_provider_ref",
@@ -165,7 +166,6 @@
         "set_address",
         "set_archived",
         "set_attestation",
-        "set_content",
         "set_emergency_pause",
         "set_identity",
         "set_label_protection",
@@ -210,7 +210,7 @@
           "const": "60e38b74de9c0ccdedfe9c1fa2ea4bdb0346739ba2fef5e7a5ad328c0920b451"
         },
         "descriptor_contract_sha256": {
-          "const": "3677f5054782a0ff35fe65637ef4da918395247058168b35ec4044af5a32c0f8"
+          "const": "3a46d330dfd54d92ba38137a2cdce40ca875dffba7ebf8408fe4d4ed2c12117b"
         },
         "activation_state": {
           "const": "candidate-pending"
@@ -1561,7 +1561,7 @@
           "const": "names"
         },
         "method": {
-          "const": "resolve_content"
+          "const": "resolve_content_publication"
         },
         "finality": {
           "const": "finalized"
@@ -2018,7 +2018,7 @@
           "const": "names"
         },
         "method": {
-          "const": "set_content"
+          "const": "publish_content"
         },
         "finality": {
           "const": "submit-and-finalize"
@@ -2028,11 +2028,17 @@
           "additionalProperties": false,
           "required": [
             "name",
-            "content"
+            "content",
+            "expected_revision",
+            "operation_deadline",
+            "operation_id"
           ],
           "properties": {
             "name": {},
-            "content": {}
+            "content": {},
+            "expected_revision": {},
+            "operation_deadline": {},
+            "operation_id": {}
           }
         }
       },
@@ -4429,5 +4435,10 @@
       ]
     }
   ],
-  "$comment": "Payload field types and bounds are enforced by product-sdk/packages/core/src/contract.ts; this schema freezes exact closed shapes, semantic routes and finality."
+  "$comment": "Payload field types and bounds are enforced by product-sdk/packages/core/src/contract.ts; this schema freezes exact closed shapes, semantic routes and finality.",
+  "x-papi-availability": {
+    "runtime_metadata_current": false,
+    "sdk_admission": false,
+    "reason": "checked-in PAPI metadata predates the current Commons runtime"
+  }
 }

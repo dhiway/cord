@@ -51,7 +51,7 @@ use super::{
 			IdentityPersonhoodResponse, IdentityStatusView, PersonalId, PersonhoodStatusView,
 		},
 		names::{
-			Address, Label, NameStatus as DomainNameStatus, NameView as DomainNameView, NamesQuery,
+			Address, ContentPublication as DomainContentPublication, Label, NameStatus as DomainNameStatus, NameView as DomainNameView, NamesQuery,
 			NamesRead, NamesResponse, TextValue,
 		},
 		s3::{
@@ -830,14 +830,17 @@ impl FinalizedReadBinding for OrbisFinalizedReadBinding {
 					response.value.map(attestation_id),
 				)?))
 			},
-			NamesQuery::ResolveContent { name } => {
-				let response: names_api::Versioned<[u8; 32]> = self
-					.call_at(hash, "NamesApi", "resolve_content", vec![hash_arg(name.as_hash())?])
+			NamesQuery::ResolveContentPublication { name } => {
+				let response: names_api::Versioned<names_api::ContentPublication<[u8; 32]>> = self
+					.call_at(hash, "NamesApi", "resolve_content_publication", vec![hash_arg(name.as_hash())?])
 					.await?;
-				Ok(NamesResponse::Content(finalized_value(
+				Ok(NamesResponse::ContentPublication(finalized_value(
 					hash,
 					response.version,
-					response.value.map(content_id),
+					response.value.map(|publication| DomainContentPublication {
+						content: publication.content.map(content_id),
+						revision: publication.revision,
+					}),
 				)?))
 			},
 			NamesQuery::ResolveText { name, key } => {
