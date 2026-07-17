@@ -173,6 +173,13 @@ export class PrivateDurableBrowserHostV2 implements PrivateProviderByteBridgeV2 
     if (!binding) throw new TypeError("Host-v2 operation is not in the generated registry");
     const request = decodeHostV2(binding.frame as HostV2TypeName, exactRequest).value as WireMap;
     if (Number(request[3]) !== binding.code) throw new TypeError("Host-v2 request code mismatches its generated binding");
+    if (operation === "storage.object.put") {
+      if (!upload) throw new TypeError("storage.object.put requires an exact one-shot upload");
+      const payload = request[8] as WireMap;
+      if (upload.cid !== payload[1] || upload.length !== BigInt(payload[2] as number | bigint)) {
+        throw new TypeError("one-shot upload CID or length mismatches its object.put intent");
+      }
+    } else if (upload) throw new TypeError("one-shot upload is only valid for storage.object.put");
     const finalized = await this.#finality.finalized(signal);
     const authority = await this.#authority.resolve({
       operation, code: binding.code, productId: request[2] as string,
@@ -194,19 +201,17 @@ export class PrivateDurableBrowserHostV2 implements PrivateProviderByteBridgeV2 
       17: finalized.number, 18: BigInt(capability[13]), 19: finalized.number + 256n,
       20: this.#outbox.activeKeyVersion,
     };
-    await this.#durable.prepareAndSend({ entry }, io(signal));
-    const uploadWindow = upload ? new ProviderUploadAckWindowV2(signal) : undefined;
-    const uploadSending = upload ? this.#streamUpload(operationId, upload, uploadWindow!, signal) : undefined;
-    if (uploadSending) void uploadSending.catch(() => undefined);
+    const uploadChunks = upload ? await this.#materializeUpload(operationId, upload, signal) : undefined;
+    await this.#durable.prepareAndSend({ entry, ...(uploadChunks ? { uploadChunks } : {}) }, io(signal));
     let cancelRequested = false; let cancelSent: Promise<void> | undefined;
     const requestCancel = (): Promise<void> => {
       if (cancelSent) return cancelSent;
-      cancelRequested = true; uploadWindow?.seal();
+      cancelRequested = true;
       const exact = encodeHostV2("CancelledEventV2", { 0: 2, 1: entry[6], 2: nextSequence, 3: 4, 4: { 0: 107 } });
       cancelSent = this.#durable.prepareCancelAndSend(exact, io(signal)).then(() => undefined); return cancelSent;
     };
     let nextSequence = 0;
-    try { while (true) {
+    while (true) {
       const received = this.#resumeTokens
         ? await this.#durable.receiveProviderEvent(finalized.number, io(signal))
         : await this.#durable.receiveEvent(finalized.number, io(signal));
@@ -215,12 +220,7 @@ export class PrivateDurableBrowserHostV2 implements PrivateProviderByteBridgeV2 
       if (Number(event[3]) === 0 && control) await control.bind(requestCancel);
       if (cancelRequested && Number(event[3]) !== 4) throw new TypeError("cancelled provider operation emitted a later progress or effect");
       onEvent?.(received.event.slice());
-      if (Number(event[3]) === 1 && uploadWindow) {
-        const chunksAcked = (event[4] as WireMap)[2];
-        if (chunksAcked !== undefined) uploadWindow.advance(Number(chunksAcked));
-      }
       if (received.successorToken) {
-        uploadWindow?.seal();
         const hostKeyId = bytes(capability[4], 32, "host key audience");
         const intendedCursor = await this.#verifyResumeToken(operation, exactRequest, hostKeyId, received.successorToken, finalized.number, finalized.hash, signal);
         const installed = await this.#durable.installSuccessor(received.successorToken, intendedCursor, io(signal));
@@ -230,7 +230,6 @@ export class PrivateDurableBrowserHostV2 implements PrivateProviderByteBridgeV2 
         return { continuation: { operation, request: exactRequest.slice(), token: received.successorToken.slice(), predecessorOutboxId: installed.outboxId, cursor: intendedCursor, hostKeyId } };
       }
       if (!received.terminal) continue;
-      uploadWindow?.seal();
       if (cancelRequested && Number(event[3]) !== 4) throw new TypeError("provider cancellation did not terminate as CancelledEventV2");
       if (cancelRequested && !this.#acknowledgements) throw new TypeError("durable provider cancellation requires authenticated acknowledgement confirmation");
       if (this.#acknowledgements) {
@@ -239,12 +238,10 @@ export class PrivateDurableBrowserHostV2 implements PrivateProviderByteBridgeV2 
       }
       if (Number(event[3]) === 4) return {};
       if (event[3] === 3) {
-        if (uploadSending) void uploadSending.catch(() => undefined);
         return { error: decodeError(event[4] as WireMap) };
       }
-      uploadWindow?.complete(); if (uploadSending) await uploadSending;
       return { value: decodeResult(operation, event[4] as WireMap) };
-    } } finally { uploadWindow?.seal(); }
+    }
   }
 
   async resume(continuation: PrivateBrowserProviderContinuationV2, signal?: AbortSignal, onEvent?: (event: Uint8Array) => void): Promise<PrivateInvocationResultV2> {
@@ -321,44 +318,22 @@ export class PrivateDurableBrowserHostV2 implements PrivateProviderByteBridgeV2 
     return cursor + 1;
   }
 
-  async #streamUpload(operationId: Uint8Array, upload: PrivateStorageUploadV2, window: ProviderUploadAckWindowV2, signal?: AbortSignal): Promise<void> {
+  async #materializeUpload(operationId: Uint8Array, upload: PrivateStorageUploadV2, signal?: AbortSignal): Promise<readonly Uint8Array[]> {
     let sequence = 0; let length = 0n;
+    const chunks: Uint8Array[] = [];
     for await (const source of upload.bytes) {
       if (signal?.aborted) throw signal.reason ?? new Error("upload aborted");
       for (let offset = 0; offset < source.length; offset += 262_144) {
+        if (sequence >= 256) throw new TypeError("one-shot upload exceeds the 256-chunk object bound");
         const chunk = source.slice(offset, offset + 262_144); length += BigInt(chunk.length);
-        await window.beforeSend(sequence); const digest = blake2b256(chunk);
-        const exact = encodeHostV2("ProviderTransferChunkV1", { 0: 1, 1: operationId, 2: sequence++, 3: chunk, 4: digest });
-        window.sent(sequence); await this.#durable.sendProviderTransferChunk(exact, io(signal));
+        if (length > 67_108_864n) throw new TypeError("one-shot upload exceeds the 64 MiB object bound");
+        const digest = blake2b256(chunk);
+        chunks.push(encodeHostV2("ProviderTransferChunkV1", { 0: 1, 1: operationId, 2: sequence++, 3: chunk, 4: digest }));
       }
     }
     if (length !== upload.length) throw new TypeError("one-shot upload length mismatches its object.put intent");
+    return chunks;
   }
-}
-
-class ProviderUploadAckWindowV2 {
-  #sent = 0; #acked = 0; #sealed = false; #waiters = new Set<() => void>();
-  readonly #signal?: AbortSignal; readonly #onAbort: () => void;
-  constructor(signal?: AbortSignal) {
-    this.#signal = signal; this.#onAbort = () => this.seal();
-    if (signal?.aborted) this.#sealed = true;
-    else signal?.addEventListener("abort", this.#onAbort, { once: true });
-  }
-  async beforeSend(sequence: number): Promise<void> {
-    while (!this.#sealed && sequence - this.#acked >= 4) await new Promise<void>((resolve) => this.#waiters.add(resolve));
-    if (this.#sealed) throw new TypeError("provider upload terminated before progress acknowledgement");
-  }
-  sent(count: number): void {
-    if (this.#sealed) throw new TypeError("provider upload attempted a post-terminal send");
-    if (count !== this.#sent + 1) throw new TypeError("provider upload send cursor is non-contiguous"); this.#sent = count;
-  }
-  advance(count: number): void {
-    if (!Number.isSafeInteger(count) || count < this.#acked || count > this.#sent) throw new TypeError("provider chunks_acked cursor is invalid");
-    this.#acked = count; this.#wake();
-  }
-  complete(): void { if (this.#acked !== this.#sent) throw new TypeError("provider terminal result preceded upload acknowledgement"); }
-  seal(): void { if (this.#sealed) return; this.#sealed = true; this.#signal?.removeEventListener("abort", this.#onAbort); this.#wake(); }
-  #wake(): void { for (const resolve of this.#waiters) resolve(); this.#waiters.clear(); }
 }
 
 /** Exhaustive authority router. Only the four provider-byte operations can reach the durable provider port. */
@@ -424,7 +399,12 @@ export class PrivateDurableBrowserStorageV2 implements StorageV2Transport, Priva
     intent: PrivateStorageIntentV2<Op>, upload: Op extends "storage.object.put" ? PrivateStorageUploadV2 : undefined,
     signal?: AbortSignal,
   ): Promise<unknown> {
-    const result = await this.#host.invoke(intent.operation, encodePrivateIntent(intent), upload, signal);
+    let result = await this.#host.invoke(intent.operation, encodePrivateIntent(intent), upload, signal);
+    let resumptions = 0;
+    while (result.continuation) {
+      if (resumptions++ >= 256) throw new TypeError("provider continuation count exceeds the 64 MiB chunk bound");
+      result = await this.#host.resumeProvider(result.continuation, signal);
+    }
     if (result.error) throw Object.assign(new Error(result.error.name), result.error);
     return result.value;
   }
@@ -523,8 +503,9 @@ export async function runPrivateBrowserRustProviderV2(
     const frame = decodeHostV2("RequestV2", request).value as WireMap;
     const operation = operationForCode(Number(frame[3]));
     if (!PROVIDER_BYTE_OPERATIONS.has(operation)) throw new TypeError("non-provider Host-v2 request reached the provider MessagePort");
-    const length = Number(frame[3]) === 1010 ? BigInt((frame[8] as WireMap)[2] as bigint | number) : undefined;
-    const upload = length === undefined ? undefined : receiveUpload(transport, bytes(frame[5], 16, "operation ID"), length, options);
+    const upload = Number(frame[3]) === 1010 && authorityMessage.production === "ResumeTokenV1"
+      ? receiveOneUpload(transport, bytes(frame[5], 16, "operation ID"), Number((decodeHostV2("ResumeTokenV1", authority).value as WireMap)[9]), options)
+      : undefined;
     const cancellations = receiveProviderCancellations(transport, bytes(frame[1], 16, "request ID"), options);
     for await (const response of bridge.dispatch({ request, authority, ...(upload ? { upload } : {}), cancellations, ...(options.signal ? { signal: options.signal } : {}) })) {
       if (response.successor) {
@@ -561,18 +542,11 @@ async function* receiveProviderCancellations(
   }
 }
 
-async function* receiveUpload(transport: BrowserHostV2Transport, operationId: Uint8Array, declared: bigint, options: BrowserHostV2IoOptions): AsyncIterable<Uint8Array> {
-  let received = 0n; let sequence = 0;
-  while (received < declared) {
-    const exact = await transport.receive("ProviderTransferChunkV1", options);
-    const chunk = decodeHostV2("ProviderTransferChunkV1", exact).value;
-    if (!equal(chunk[1], operationId) || Number(chunk[2]) !== sequence++) throw new TypeError("provider upload chunk binding is invalid");
-    const digest = blake2b256(chunk[3]);
-    if (!equal(digest, chunk[4])) throw new TypeError("provider upload chunk digest is invalid");
-    received += BigInt(chunk[3].length);
-    if (received > declared) throw new TypeError("provider upload exceeds declared length");
-    yield exact;
-  }
+async function* receiveOneUpload(transport: BrowserHostV2Transport, operationId: Uint8Array, expectedIndex: number, options: BrowserHostV2IoOptions): AsyncIterable<Uint8Array> {
+  const exact = await transport.receive("ProviderTransferChunkV1", options); const chunk = decodeHostV2("ProviderTransferChunkV1", exact).value;
+  if (!equal(chunk[1], operationId) || Number(chunk[2]) !== expectedIndex) throw new TypeError("provider upload chunk binding is invalid");
+  const digest = blake2b256(chunk[3]); if (!equal(digest, chunk[4])) throw new TypeError("provider upload chunk digest is invalid");
+  yield exact;
 }
 
 async function invokeExactHost<Op extends Operation>(
