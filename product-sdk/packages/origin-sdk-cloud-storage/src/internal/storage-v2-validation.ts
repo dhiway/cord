@@ -19,6 +19,7 @@
 import type {
   StorageV2Checkpoint,
   StorageV2ErrorEvent,
+  StorageV2Event,
   StorageV2Operation,
   StorageV2PayloadMap,
   StorageV2Progress,
@@ -281,6 +282,37 @@ export function validateStorageV2Progress(operation: StorageV2Operation, progres
     const p=shape(progress,["kind","requestId","seq","offset","bytes"]);u64(p.offset,"offset");rangedBytes(p.bytes,0,4_194_304,"bytes");return;
   }
   const p=shape(progress,["kind","requestId","seq","completed"],["total","chunksAcked","replicasConfirmed"]);u64(p.completed,"completed");if(p.total!==undefined)u64(p.total,"total");if(p.chunksAcked!==undefined)u64(p.chunksAcked,"chunksAcked");if(p.replicasConfirmed!==undefined)u64(p.replicasConfirmed,"replicasConfirmed");
+}
+
+function eventHeader(value: Record<string, unknown>, kind: string): void {
+  if (value.kind !== kind) throw new TypeError(`storage event kind must be ${kind}`);
+  fixedBytes(value.requestId, 16, "event.requestId");
+  uint(value.seq, U32_MAX, "event.seq");
+}
+
+/** Close an untrusted event envelope before sequence or terminal state is mutated. */
+export function validateStorageV2EventEnvelope(
+  operation: StorageV2Operation,
+  event: StorageV2Event<StorageV2Operation>,
+): void {
+  let value: Record<string, unknown>;
+  switch (event.kind) {
+    case "accepted":
+      value=shape(event,["kind","requestId","seq","state"]);eventHeader(value,"accepted");
+      if(value.seq!==0)throw new TypeError("accepted event seq must be zero");enumValue(value.state,4,"accepted.state");return;
+    case "progress":
+      validateStorageV2Progress(operation,event);eventHeader(event as unknown as Record<string,unknown>,"progress");return;
+    case "result":
+      value=shape(event,["kind","requestId","seq","value"]);eventHeader(value,"result");
+      validateStorageV2Result(operation,value.value as StorageV2ResultMap[StorageV2Operation]);return;
+    case "error":
+      value=shape(event,["kind","requestId","seq","code","name","retryable"],["details"]);eventHeader(value,"error");
+      validateStorageV2Error(operation,event);return;
+    case "cancelled":
+      value=shape(event,["kind","requestId","seq"]);eventHeader(value,"cancelled");return;
+    default:
+      throw new TypeError("unknown storage event kind");
+  }
 }
 
 export interface StorageV2ErrorDetails { readonly message?: string; readonly lower?: bigint; readonly upper?: bigint; readonly hash?: Uint8Array }

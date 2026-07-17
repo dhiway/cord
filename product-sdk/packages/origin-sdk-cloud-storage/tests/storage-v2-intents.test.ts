@@ -31,10 +31,16 @@ import {
   validateStorageV2Resume,
   type StorageV2Operation,
 } from "../src/internal/storage-v2-intents.ts";
-import { encodeStorageV2Intent, storageV2Hex } from "../src/internal/storage-v2-codec.ts";
+import {
+  decodeCanonicalStorageV2Frame,
+  encodeStorageV2Intent,
+  encodeStorageV2WireValue,
+  storageV2Hex,
+} from "../src/internal/storage-v2-codec.ts";
 import {
   STORAGE_V2_ERRORS,
   validateStorageV2Error,
+  validateStorageV2EventEnvelope,
   validateStorageV2Payload,
   validateStorageV2Progress,
   validateStorageV2Result,
@@ -232,6 +238,55 @@ test("typed TS codec emits the frozen canonical CBOR frame", async () => {
   const golden=vectors.vectors.find(({id})=>id==="1000-positive");
   assert.ok(golden);
   assert.equal(storageV2Hex(encodeStorageV2Intent(intent)),golden.wire_hex);
+});
+
+test("TS canonical codec actually decodes and re-encodes all 26 frozen positive frames", async () => {
+  const vectors=JSON.parse(await readFile(resolve(import.meta.dirname,"../../../..","docs/specs/origin-host-registry-v2.vectors.json"),"utf8")) as {vectors:Array<{id:string;wire_hex:string}>};
+  const positives=vectors.vectors.filter(({id})=>/^(100[0-3]|101[0-4]|102[0-5]|103[0-2]|104[0-3]|105[01]|106[01])-positive$/.test(id));
+  assert.equal(positives.length,26);
+  for(const vector of positives){
+    const wire=Uint8Array.from(Buffer.from(vector.wire_hex,"hex"));
+    const decoded=decodeCanonicalStorageV2Frame(wire);
+    assert.deepEqual(encodeStorageV2WireValue(decoded),wire,vector.id);
+  }
+});
+
+test("TS storage decoder rejects noncanonical, unknown, and open frames", async () => {
+  const vectors=JSON.parse(await readFile(resolve(import.meta.dirname,"../../../..","docs/specs/origin-host-registry-v2.vectors.json"),"utf8")) as {vectors:Array<{id:string;wire_hex:string}>};
+  const wire=(id:string)=>Uint8Array.from(Buffer.from(vectors.vectors.find((value)=>value.id===id)!.wire_hex,"hex"));
+  for(const id of ["wire-noncanonical-long-version","wire-noncanonical-indefinite-map","wire-noncanonical-reversed-map","wire-noncanonical-tag"]){
+    assert.throws(()=>decodeCanonicalStorageV2Frame(wire(id)),/noncanonical/i,id);
+  }
+  const valid=decodeCanonicalStorageV2Frame(wire("1000-positive"));
+  assert.throws(()=>decodeCanonicalStorageV2Frame(encodeStorageV2WireValue(new Map([...valid,[9,0]]))),/unknown fields/);
+  assert.throws(()=>decodeCanonicalStorageV2Frame(encodeStorageV2WireValue(new Map([...valid].map(([key,value])=>[key,key===3?65535:value])))),/unknown storage operation/);
+  const payload=valid.get(8) as ReadonlyMap<number,import("../src/internal/storage-v2-codec.ts").StorageV2WireValue>;
+  const openPayload=new Map([...payload,[9,0]]);
+  assert.throws(()=>decodeCanonicalStorageV2Frame(encodeStorageV2WireValue(new Map([...valid].map(([key,value])=>[key,key===8?openPayload:value])))),/unknown fields/);
+});
+
+test("untrusted event DTOs are closed before sequence state mutates", () => {
+  const requestId=bytes16(0x11);
+  const accepted={kind:"accepted",requestId,seq:0,state:0} as const;
+  validateStorageV2EventEnvelope("storage.object.put",accepted);
+  for(const event of [
+    {...accepted,extra:true},
+    {...accepted,kind:"bogus"},
+    {...accepted,requestId:new Uint8Array(15)},
+    {...accepted,seq:1},
+    {...accepted,state:5},
+    {kind:"progress",requestId,seq:0xffff_ffff+1,completed:0n},
+    {kind:"progress",requestId,seq:1,completed:0n,extra:true},
+    {kind:"result",requestId,seq:1,value:{},extra:true},
+    {kind:"error",requestId,seq:1,code:114,name:"HOST_OUTBOX_FULL",retryable:true,extra:true},
+    {kind:"cancelled",requestId,seq:1,extra:true},
+  ]) assert.throws(()=>validateStorageV2EventEnvelope("storage.object.put",event as never));
+
+  const sequence=new StorageV2EventSequence("storage.object.put",requestId);
+  assert.throws(()=>sequence.accept({...accepted,extra:true} as never));
+  sequence.accept(accepted);
+  sequence.accept({kind:"cancelled",requestId,seq:1});
+  assert.equal(sequence.terminal,true);
 });
 
 test("resume state is operation-specific and v2 remains outside the public entrypoint", async () => {

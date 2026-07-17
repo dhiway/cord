@@ -22,12 +22,7 @@
  */
 
 
-import {
-  validateStorageV2Error,
-  validateStorageV2Payload,
-  validateStorageV2Progress,
-  validateStorageV2Result,
-} from "./storage-v2-validation.ts";
+import { validateStorageV2EventEnvelope, validateStorageV2Payload } from "./storage-v2-validation.ts";
 
 export const STORAGE_V2_PROTOCOL = "cord.origin.host/2" as const;
 export const STORAGE_V2_MAJOR = 2 as const;
@@ -346,6 +341,7 @@ export class StorageV2EventSequence<Operation extends StorageV2Operation> {
 
   accept(event: StorageV2Event<Operation>): void {
     if (this.#terminal) throw new TypeError("event received after terminal storage v2 event");
+    validateStorageV2EventEnvelope(this.#operation, event as StorageV2Event<StorageV2Operation>);
     if (event.requestId.length !== this.#requestId.length
       || event.requestId.some((value, index) => value !== this.#requestId[index])) {
       throw new TypeError("event requestId does not match intent");
@@ -354,9 +350,6 @@ export class StorageV2EventSequence<Operation extends StorageV2Operation> {
     if (this.#next === 0 && event.kind !== "accepted") throw new TypeError("first event must be accepted");
     if (this.#next > 0 && event.kind === "accepted") throw new TypeError("accepted event must appear exactly once");
     if (this.#cancelRequested && event.kind !== "cancelled") throw new TypeError("cancelled operation cannot emit later progress or effects");
-    if (event.kind === "progress") validateStorageV2Progress(this.#operation, event as StorageV2Progress<StorageV2Operation>);
-    if (event.kind === "result") validateStorageV2Result(this.#operation, event.value);
-    if (event.kind === "error") validateStorageV2Error(this.#operation, event);
     this.#next += 1;
     this.#terminal = event.kind === "result" || event.kind === "error" || event.kind === "cancelled";
     if (this.#terminal) this.#resumeAuthority = false;

@@ -772,6 +772,80 @@ mod tests {
 			.find(|value| value["id"] == "1000-positive")
 			.unwrap();
 		assert_eq!(hex::encode(validation::encode_intent(&intent).unwrap()), golden["wire_hex"]);
+		for operation in STORAGE_V2_OPERATIONS {
+			let id = format!("{}-positive", operation.code());
+			let vector = vectors["vectors"]
+				.as_array()
+				.unwrap()
+				.iter()
+				.find(|value| value["id"] == id)
+				.unwrap();
+			let wire = hex::decode(vector["wire_hex"].as_str().unwrap()).unwrap();
+			assert_eq!(validation::decode_canonical_storage_frame(&wire).unwrap(), wire, "{id}");
+		}
+	}
+
+	#[test]
+	fn rust_storage_decoder_rejects_noncanonical_unknown_and_open_frames() {
+		use ciborium::value::Value;
+		let vectors: serde_json::Value = serde_json::from_str(include_str!(
+			"../../../docs/specs/origin-host-registry-v2.vectors.json"
+		))
+		.unwrap();
+		let wire = |id: &str| {
+			hex::decode(
+				vectors["vectors"]
+					.as_array()
+					.unwrap()
+					.iter()
+					.find(|value| value["id"] == id)
+					.unwrap()["wire_hex"]
+					.as_str()
+					.unwrap(),
+			)
+			.unwrap()
+		};
+		for id in [
+			"wire-noncanonical-long-version",
+			"wire-noncanonical-indefinite-map",
+			"wire-noncanonical-reversed-map",
+			"wire-noncanonical-tag",
+		] {
+			assert!(validation::decode_canonical_storage_frame(&wire(id)).is_err(), "{id}");
+		}
+		let valid = wire("1000-positive");
+		let mut unknown: Value = ciborium::from_reader(valid.as_slice()).unwrap();
+		let Value::Map(fields) = &mut unknown else { panic!("frame map") };
+		fields.push((Value::Integer(9.into()), Value::Integer(0.into())));
+		let unknown = validation::encode_wire_value(&unknown).unwrap();
+		assert!(validation::decode_canonical_storage_frame(&unknown).is_err());
+
+		let mut unknown_operation: Value = ciborium::from_reader(valid.as_slice()).unwrap();
+		let Value::Map(fields) = &mut unknown_operation else { panic!("frame map") };
+		let operation = fields
+			.iter_mut()
+			.find_map(|(key, value)| {
+				matches!(key, Value::Integer(key) if u64::try_from(*key).ok() == Some(3))
+					.then_some(value)
+			})
+			.unwrap();
+		*operation = Value::Integer(65_535.into());
+		let unknown_operation = validation::encode_wire_value(&unknown_operation).unwrap();
+		assert!(validation::decode_canonical_storage_frame(&unknown_operation).is_err());
+
+		let mut open_payload: Value = ciborium::from_reader(valid.as_slice()).unwrap();
+		let Value::Map(fields) = &mut open_payload else { panic!("frame map") };
+		let payload = fields
+			.iter_mut()
+			.find_map(|(key, value)| {
+				matches!(key, Value::Integer(key) if u64::try_from(*key).ok() == Some(8))
+					.then_some(value)
+			})
+			.unwrap();
+		let Value::Map(payload) = payload else { panic!("payload map") };
+		payload.push((Value::Integer(9.into()), Value::Integer(0.into())));
+		let open_payload = validation::encode_wire_value(&open_payload).unwrap();
+		assert!(validation::decode_canonical_storage_frame(&open_payload).is_err());
 	}
 
 	#[test]

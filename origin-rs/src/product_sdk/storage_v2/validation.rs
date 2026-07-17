@@ -27,6 +27,7 @@ pub(crate) enum ValidationError {
 	OperationMismatch,
 	ProgressMismatch,
 	ErrorMismatch,
+	Wire,
 }
 
 pub(super) fn valid_text(value: &str, min: usize, max: usize) -> bool {
@@ -889,4 +890,160 @@ pub(crate) fn encode_intent(intent: &StorageV2Intent) -> Result<Vec<u8>, Validat
 	e.uint(8);
 	encode_payload(&mut e, &intent.payload);
 	Ok(e.0)
+}
+
+fn wire_uint(value: &ciborium::value::Value) -> Option<u64> {
+	let ciborium::value::Value::Integer(value) = value else { return None };
+	u64::try_from(*value).ok()
+}
+
+pub(crate) fn encode_wire_value(
+	value: &ciborium::value::Value,
+) -> Result<Vec<u8>, ValidationError> {
+	use ciborium::value::Value;
+	let mut encoder = Encoder(Vec::new());
+	match value {
+		Value::Integer(_) => encoder.uint(wire_uint(value).ok_or(ValidationError::Wire)?),
+		Value::Bytes(value) => encoder.bytes(value),
+		Value::Text(value) if valid_text(value, 0, usize::MAX) => encoder.text(value),
+		Value::Text(_) => return Err(ValidationError::Wire),
+		Value::Bool(value) => encoder.0.push(if *value { 0xf5 } else { 0xf4 }),
+		Value::Array(values) => {
+			encoder.array(values.len());
+			for value in values {
+				encoder.0.extend(encode_wire_value(value)?);
+			}
+		},
+		Value::Map(values) => {
+			let mut keys = std::collections::BTreeSet::new();
+			let mut entries = Vec::with_capacity(values.len());
+			for (key, value) in values {
+				let number = wire_uint(key).ok_or(ValidationError::Wire)?;
+				if !keys.insert(number) {
+					return Err(ValidationError::Wire);
+				}
+				entries.push((encode_wire_value(key)?, encode_wire_value(value)?));
+			}
+			entries.sort_by(|left, right| {
+				left.0.len().cmp(&right.0.len()).then_with(|| left.0.cmp(&right.0))
+			});
+			encoder.map(entries.len());
+			for (key, value) in entries {
+				encoder.0.extend(key);
+				encoder.0.extend(value);
+			}
+		},
+		_ => return Err(ValidationError::Wire),
+	}
+	Ok(encoder.0)
+}
+
+fn map_fields(
+	value: &ciborium::value::Value,
+) -> Result<Vec<(u64, &ciborium::value::Value)>, ValidationError> {
+	let ciborium::value::Value::Map(values) = value else { return Err(ValidationError::Wire) };
+	let mut fields = Vec::with_capacity(values.len());
+	let mut seen = std::collections::BTreeSet::new();
+	for (key, value) in values {
+		let key = wire_uint(key).ok_or(ValidationError::Wire)?;
+		if !seen.insert(key) {
+			return Err(ValidationError::Wire);
+		}
+		fields.push((key, value));
+	}
+	Ok(fields)
+}
+
+fn close_fields(
+	fields: &[(u64, &ciborium::value::Value)],
+	required: &[u64],
+	optional: &[u64],
+) -> Result<(), ValidationError> {
+	if required.iter().any(|key| !fields.iter().any(|(actual, _)| actual == key))
+		|| fields.iter().any(|(key, _)| !required.contains(key) && !optional.contains(key))
+	{
+		return Err(ValidationError::Wire);
+	}
+	Ok(())
+}
+
+fn payload_keys(operation: StorageV2Operation) -> (&'static [u64], &'static [u64]) {
+	match operation {
+		StorageV2Operation::BucketCreate => (&[0, 1, 2], &[]),
+		StorageV2Operation::BucketGet => (&[0], &[1]),
+		StorageV2Operation::BucketGrant => (&[0, 1, 2, 3, 4], &[]),
+		StorageV2Operation::BucketRevoke => (&[0, 1, 2], &[]),
+		StorageV2Operation::ObjectPut => (&[0, 1, 2, 3, 4], &[]),
+		StorageV2Operation::ObjectGet => (&[0, 1], &[]),
+		StorageV2Operation::ObjectRange => (&[0, 1, 2, 3], &[]),
+		StorageV2Operation::ObjectDelete => (&[0, 1, 2], &[]),
+		StorageV2Operation::ObjectStatus => (&[0, 1], &[]),
+		StorageV2Operation::CheckpointStatus => (&[0], &[1]),
+		StorageV2Operation::CheckpointSubscribe => (&[0, 1], &[]),
+		StorageV2Operation::ReplicaStatus => (&[0], &[]),
+		StorageV2Operation::ReplicaSubscribe => (&[0, 1], &[]),
+		StorageV2Operation::DeletionStatus => (&[0, 1], &[]),
+		StorageV2Operation::DeletionSubscribe => (&[0, 1, 2], &[]),
+		StorageV2Operation::DriveRead => (&[0, 1], &[2]),
+		StorageV2Operation::DriveCommit | StorageV2Operation::DriveShare => (&[0, 1, 2, 3, 4], &[]),
+		StorageV2Operation::S3Put => (&[0, 1, 2, 3, 4, 6], &[5]),
+		StorageV2Operation::S3Get => (&[0, 1], &[2]),
+		StorageV2Operation::S3List => (&[0, 3], &[1, 2]),
+		StorageV2Operation::S3Delete => (&[0, 1, 3], &[2]),
+		StorageV2Operation::Publish => (&[0, 1], &[2]),
+		StorageV2Operation::Resolve => (&[0], &[1, 2]),
+		StorageV2Operation::KeysExport => (&[0, 1, 2], &[]),
+		StorageV2Operation::KeysImport => (&[0, 1, 2, 3], &[]),
+	}
+}
+
+fn optional_bytes(value: Option<&ciborium::value::Value>, minimum: usize, maximum: usize) -> bool {
+	match value {
+		None => true,
+		Some(ciborium::value::Value::Bytes(value)) => (minimum..=maximum).contains(&value.len()),
+		Some(_) => false,
+	}
+}
+
+pub(crate) fn decode_canonical_storage_frame(bytes: &[u8]) -> Result<Vec<u8>, ValidationError> {
+	use ciborium::value::Value;
+	let value: Value = ciborium::from_reader(bytes).map_err(|_| ValidationError::Wire)?;
+	let canonical = encode_wire_value(&value)?;
+	if canonical != bytes {
+		return Err(ValidationError::Wire);
+	}
+	let fields = map_fields(&value)?;
+	let field = |key| fields.iter().find_map(|(actual, value)| (*actual == key).then_some(*value));
+	if field(0).and_then(wire_uint) != Some(2) {
+		return Err(ValidationError::Wire);
+	}
+	let code = field(3).and_then(wire_uint).ok_or(ValidationError::Wire)?;
+	let operation = STORAGE_V2_OPERATIONS
+		.iter()
+		.copied()
+		.find(|operation| u64::from(operation.code()) == code)
+		.ok_or(ValidationError::Wire)?;
+	let contract = operation.contract();
+	let mut required = vec![0, 1, 2, 3, 7, 8];
+	if contract.grant_scope != GrantScope::Public {
+		required.push(4);
+	}
+	if contract.operation_id_required {
+		required.push(5);
+	}
+	close_fields(&fields, &required, &[6])?;
+	if !matches!(field(1), Some(Value::Bytes(value)) if value.len() == 16)
+		|| !matches!(field(2), Some(Value::Text(value)) if valid_text(value, 1, 128))
+		|| !optional_bytes(field(4), 32, 32)
+		|| !optional_bytes(field(5), 16, 16)
+		|| !optional_bytes(field(6), 1, 64)
+		|| field(7).and_then(wire_uint).is_none()
+	{
+		return Err(ValidationError::Wire);
+	}
+	let payload = field(8).ok_or(ValidationError::Wire)?;
+	let payload_fields = map_fields(payload)?;
+	let (required, optional) = payload_keys(operation);
+	close_fields(&payload_fields, required, optional)?;
+	Ok(canonical)
 }
