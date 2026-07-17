@@ -1581,22 +1581,41 @@ fn read_durable_journal(root: &Path) -> Result<super::JournalState, ContentError
 	Ok(state)
 }
 
-pub(super) fn validate_private_query_blobs(store: &StreamingStore) -> Result<(), ContentError> {
+pub(super) struct PrivateQueryBlobRecoveryPlan {
+	pub(super) orphans: Vec<String>,
+	#[cfg(unix)]
+	directory: ResponseDirectory,
+}
+
+pub(super) fn validate_private_query_blobs(
+	store: &StreamingStore,
+) -> Result<PrivateQueryBlobRecoveryPlan, ContentError> {
 	#[cfg(not(unix))]
 	return Err(ContentError::IntegrityFailed);
 	#[cfg(unix)]
 	{
 		let state = store.read_state()?;
 		let directory = acquire_response_directory(&store.root)?;
-		validate_private_query_blobs_in_directory(&state, &directory)
+		let orphans = validate_private_query_blobs_in_directory(&state, &directory)?;
+		Ok(PrivateQueryBlobRecoveryPlan { orphans, directory })
 	}
+}
+
+pub(super) fn apply_private_query_blob_recovery_plan(
+	_root: &Path,
+	plan: &PrivateQueryBlobRecoveryPlan,
+) -> Result<(), ContentError> {
+	#[cfg(not(unix))]
+	return Err(ContentError::IntegrityFailed);
+	#[cfg(unix)]
+	remove_private_query_orphans_in_directory(&plan.directory, &plan.orphans)
 }
 
 #[cfg(unix)]
 fn validate_private_query_blobs_in_directory(
 	state: &super::JournalState,
 	directory: &ResponseDirectory,
-) -> Result<(), ContentError> {
+) -> Result<Vec<String>, ContentError> {
 	let mut artifacts = Vec::new();
 	for entry in Dir::read_from(&directory.fd).map_err(blob_io)? {
 		let entry = entry.map_err(blob_io)?;
@@ -1638,7 +1657,15 @@ fn validate_private_query_blobs_in_directory(
 	if seen.len() != referenced.len() {
 		return Err(ContentError::IntegrityFailed);
 	}
-	for orphan in &orphans {
+	Ok(orphans)
+}
+
+#[cfg(unix)]
+fn remove_private_query_orphans_in_directory(
+	directory: &ResponseDirectory,
+	orphans: &[String],
+) -> Result<(), ContentError> {
+	for orphan in orphans {
 		unix_fs::unlinkat(&directory.fd, orphan.as_str(), AtFlags::empty()).map_err(blob_io)?;
 	}
 	if !orphans.is_empty() {
@@ -3611,6 +3638,56 @@ mod tests {
 	}
 
 	#[test]
+	fn later_streaming_artifact_failure_preserves_valid_and_orphan_response_blobs() {
+		let fixture = query_fixture(b"cross-root-atomic-blob-audit".to_vec());
+		let get = request(&fixture, GET, None);
+		let authority = capability(&fixture, GET, fixture.bytes.len() as u64, 116);
+		fixture
+			.streaming
+			.private_object_query(
+				&get,
+				&authority,
+				&fixture.authority,
+				&fixture.topology,
+				&fixture.mmr,
+				&fixture.service,
+				[42; 16],
+			)
+			.unwrap();
+		let state = fixture.streaming.read_state().unwrap().clone();
+		let referenced = state.private_queries.values().next().unwrap().response_blob.clone();
+		let directory = acquire_response_directory(&fixture.streaming.root).unwrap();
+		let orphan = "0".repeat(64);
+		let orphan_bytes = encode_response_blob(&[b"orphan".to_vec()]).unwrap();
+		persist_response_blob_in_directory(&directory, &orphan, &orphan_bytes).unwrap();
+		let referenced_path = fixture
+			.streaming
+			.root
+			.join(RESPONSE_DIR)
+			.join(response_blob_name(&referenced).unwrap());
+		let referenced_bytes = std::fs::read(&referenced_path).unwrap();
+		let orphan_path = fixture
+			.streaming
+			.root
+			.join(RESPONSE_DIR)
+			.join(response_blob_name(&orphan).unwrap());
+		let staging = fixture.streaming.root.join(super::super::STAGING);
+		std::fs::write(staging.join("unowned-a"), b"a").unwrap();
+		std::fs::write(staging.join("unowned-b"), b"b").unwrap();
+		let QueryFixture { temp, streaming, mmr, .. } = fixture;
+		drop(directory);
+		drop(mmr);
+		drop(streaming);
+
+		assert!(matches!(
+			StreamingStore::open(temp.path()),
+			Err(ContentError::IntegrityFailed)
+		));
+		assert_eq!(std::fs::read(referenced_path).unwrap(), referenced_bytes);
+		assert_eq!(std::fs::read(orphan_path).unwrap(), orphan_bytes);
+	}
+
+	#[test]
 	fn bounded_gc_retains_live_then_removes_expired_record_and_replay() {
 		let fixture = query_fixture(b"gc".to_vec());
 		let get = request(&fixture, GET, None);
@@ -3837,7 +3914,8 @@ mod tests {
 		std::fs::write(outside.join("sentinel"), b"untouched").unwrap();
 		symlink(&outside, &response_path).unwrap();
 
-		validate_private_query_blobs_in_directory(&state, &directory).unwrap();
+		let orphans = validate_private_query_blobs_in_directory(&state, &directory).unwrap();
+		remove_private_query_orphans_in_directory(&directory, &orphans).unwrap();
 		assert!(!held_path.join("orphan.bin").exists());
 		let blob = "a".repeat(64);
 		let bytes = encode_response_blob(&[b"held-write".to_vec()]).unwrap();
