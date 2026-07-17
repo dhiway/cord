@@ -132,6 +132,7 @@
         "providers",
         "prune_agreement",
         "prune_expired_commitment",
+        "publish_content",
         "put_object",
         "register",
         "register_provider",
@@ -146,7 +147,7 @@
         "reserve_name",
         "resolve_address",
         "resolve_attestation",
-        "resolve_content",
+        "resolve_content_publication",
         "resolve_subject",
         "resolve_text",
         "resource_provider_ref",
@@ -165,7 +166,6 @@
         "set_address",
         "set_archived",
         "set_attestation",
-        "set_content",
         "set_emergency_pause",
         "set_identity",
         "set_label_protection",
@@ -1561,7 +1561,7 @@
           "const": "names"
         },
         "method": {
-          "const": "resolve_content"
+          "const": "resolve_content_publication"
         },
         "finality": {
           "const": "finalized"
@@ -2018,7 +2018,7 @@
           "const": "names"
         },
         "method": {
-          "const": "set_content"
+          "const": "publish_content"
         },
         "finality": {
           "const": "submit-and-finalize"
@@ -2028,11 +2028,15 @@
           "additionalProperties": false,
           "required": [
             "name",
-            "content"
+            "content",
+            "expected_revision",
+            "operation_id"
           ],
           "properties": {
             "name": {},
-            "content": {}
+            "content": {},
+            "expected_revision": {},
+            "operation_id": {}
           }
         }
       },

@@ -313,8 +313,9 @@ impl Session {
 			_ => None,
 		}
 		.ok_or_else(|| SessionError::Sequence("event kind missing".into()))?;
-		if sequence_number == 0 && kind != 0 {
-			return self.sequence_fault("first event must be accepted");
+		let terminal_error_before_acceptance = sequence_number == 0 && kind == 3;
+		if sequence_number == 0 && kind != 0 && !terminal_error_before_acceptance {
+			return self.sequence_fault("first event must be accepted or a terminal error");
 		}
 		if sequence_number != 0 && kind == 0 {
 			return self.sequence_fault("accepted event may occur only once");
@@ -322,7 +323,7 @@ impl Session {
 		if kind == 0 {
 			self.accepted = true;
 		}
-		if !self.accepted {
+		if !self.accepted && !terminal_error_before_acceptance {
 			return self.sequence_fault("event preceded acceptance");
 		}
 		self.next_sequence += 1;

@@ -39,6 +39,7 @@ pub(crate) type BucketId = Id32;
 pub(crate) type ProviderId = Id32;
 pub(crate) type Subject = Id32;
 pub(crate) type Hash32 = Id32;
+pub(crate) type NameId = Id32;
 
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
 pub(crate) enum GrantScope {
@@ -353,7 +354,7 @@ pub(crate) enum StorageV2Payload {
 	Publish {
 		name_hash: Hash32,
 		cid: String,
-		expected_version: Option<u64>,
+		expected_version: u64,
 	},
 	Resolve {
 		name: String,
@@ -966,6 +967,15 @@ mod tests {
 			.validate(),
 			Err(validation::ValidationError::Bounds)
 		);
+
+		let resolved = StorageV2Result::Resolve {
+			name_id: id32(7),
+			cid: "bafk".into(),
+			version: 1,
+			checkpoint: validation::Checkpoint { root: id32(1), from: 1, to: 2, replicas: 2 },
+			finalized: validation::Finality { number: 2, hash: id32(2) },
+		};
+		assert_eq!(resolved.validate(), Ok(()));
 
 		let invalid_result = StorageV2Result::ObjectRange {
 			cid: "bafk".into(),

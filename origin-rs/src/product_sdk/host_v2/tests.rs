@@ -257,6 +257,25 @@ fn accepted(request_id: [u8; 16], sequence: u64) -> Vec<u8> {
 	.to_vec()
 }
 
+fn terminal_error(sequence: u64) -> Vec<u8> {
+	let mut value: Value =
+		ciborium::from_reader(vector("error-100-wire_schema_invalid").as_slice())
+			.expect("frozen terminal error is CBOR");
+	let Value::Map(fields) = &mut value else { panic!("terminal error is a map") };
+	let sequence_field = fields
+		.iter_mut()
+		.find_map(|(key, value)| {
+			matches!(key, Value::Integer(key) if u64::try_from(*key).ok() == Some(2))
+				.then_some(value)
+		})
+		.expect("terminal error sequence is present");
+	*sequence_field = Value::Integer(sequence.into());
+	Dto::<EventV2>::from_value(value)
+		.expect("terminal error remains closed")
+		.canonical()
+		.to_vec()
+}
+
 fn progress(request_id: [u8; 16], sequence: u64) -> Vec<u8> {
 	Dto::<ProgressEventV2>::from_value(Value::Map(vec![
 		(Value::Integer(0.into()), Value::Integer(2.into())),
@@ -682,6 +701,12 @@ fn session_enforces_sequence_and_permanently_closes_on_fault_or_terminal() {
 	assert!(session.is_terminal());
 	assert!(session.is_closed());
 	assert!(matches!(session.accept(&error), Err(SessionError::Sequence(_))));
+
+	let mut rejected = Session::new(negotiated(), request_id);
+	assert!(rejected.accept(&terminal_error(0)).is_ok());
+	assert!(rejected.is_terminal());
+	assert!(rejected.is_closed());
+	assert_eq!(rejected.next_sequence(), 1);
 
 	let mut skipped = Session::new(negotiated(), request_id);
 	assert!(skipped.accept(&accepted(request_id, 0)).is_ok());

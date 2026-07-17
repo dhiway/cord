@@ -52,7 +52,7 @@
       "names:resolve_address",
       "names:resolve_subject",
       "names:resolve_attestation",
-      "names:resolve_content",
+      "names:resolve_content_publication",
       "names:resolve_text",
       "names:primary_name",
       "names:name_status",
@@ -67,7 +67,7 @@
       "names:set_address",
       "names:set_subject",
       "names:set_attestation",
-      "names:set_content",
+      "names:publish_content",
       "names:set_text",
       "names:set_primary_name",
       "names:release",
@@ -555,6 +555,9 @@
         "Commitments",
         "CommitmentCount",
         "Names",
+        "ContentRevisions",
+        "ContentOperationReceipts",
+        "ContentOperationReceiptIds",
         "Controllers",
         "Registrars",
         "BootstrapReservations",
@@ -581,7 +584,7 @@
         "set_address",
         "set_subject",
         "set_attestation",
-        "set_content",
+        "publish_content",
         "set_text",
         "set_primary_name",
         "release",
@@ -608,6 +611,7 @@
         "SubjectSet",
         "AttestationSet",
         "ContentSet",
+        "ContentOperationReceiptPruned",
         "TextSet",
         "PrimaryNameSet",
         "NameReserved",
@@ -654,7 +658,10 @@
         "InvalidSalt",
         "NotRegistrar",
         "TooManyRegistrars",
-        "RegistrarNotFound"
+        "RegistrarNotFound",
+        "OperationIdConflict",
+        "ContentRevisionConflict",
+        "ContentOperationReceiptLimitDisabled"
       ],
       "constants": [
         "MaxLabelLength",
@@ -674,7 +681,8 @@
         "MinCommitmentAge",
         "MaxCommitmentAge",
         "RegistrationPeriod",
-        "MaxRenewalPeriod"
+        "MaxRenewalPeriod",
+        "MaxContentOperationReceipts"
       ]
     },
     "TransactionStorage": {
