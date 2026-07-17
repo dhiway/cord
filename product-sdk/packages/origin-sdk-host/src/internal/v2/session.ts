@@ -50,9 +50,18 @@ interface NegotiatedHostV2Data {
 }
 
 const negotiatedStates = new WeakMap<object, NegotiatedHostV2Data>();
+const pristineWeakMapGet = Function.call.bind(WeakMap.prototype.get) as (
+  map: WeakMap<object, NegotiatedHostV2Data>,
+  key: object,
+) => NegotiatedHostV2Data | undefined;
+const pristineWeakMapSet = Function.call.bind(WeakMap.prototype.set) as (
+  map: WeakMap<object, NegotiatedHostV2Data>,
+  key: object,
+  value: NegotiatedHostV2Data,
+) => WeakMap<object, NegotiatedHostV2Data>;
 
 function negotiatedState(value: object): NegotiatedHostV2Data {
-  const state = negotiatedStates.get(value);
+  const state = pristineWeakMapGet(negotiatedStates, value);
   if (!state) {
     throw new HostV2NegotiationError(
       "WIRE_DESCRIPTOR_MISMATCH",
@@ -79,7 +88,7 @@ class NegotiatedHostV2State {
         "host-v2 negotiation authority is private",
       );
     }
-    negotiatedStates.set(this, Object.freeze({
+    pristineWeakMapSet(negotiatedStates, this, Object.freeze({
       minor,
       genesis: genesis.slice(),
       finalizedSpecVersion,

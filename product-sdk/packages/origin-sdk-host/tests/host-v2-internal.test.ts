@@ -313,6 +313,25 @@ test("negotiated authority is opaque, immutable, and rejects brand or prototype 
   assert.throws(() => Object.defineProperty(prototype, "minor", { get: () => 65_535 }));
   assert.throws(() => Object.setPrototypeOf(authority, { minor: 65_535 }));
 
+  const originalWeakMapGet = WeakMap.prototype.get;
+  try {
+    WeakMap.prototype.get = function poisonedWeakMapGet() {
+      return {
+        minor: 65_535,
+        genesis: new Uint8Array(32).fill(0xff),
+        finalizedSpecVersion: 0,
+        finalizedTransactionVersion: 0,
+        features: [],
+      } as never;
+    };
+    assert.throws(
+      () => new HostV2Session(plainObject, requestId),
+      (error) => error instanceof HostV2NegotiationError && error.code === "WIRE_DESCRIPTOR_MISMATCH",
+    );
+  } finally {
+    WeakMap.prototype.get = originalWeakMapGet;
+  }
+
   const session = new HostV2Session(authority, requestId);
   const sessionGenesis = session.negotiation.genesis;
   sessionGenesis.fill(0xaa);
