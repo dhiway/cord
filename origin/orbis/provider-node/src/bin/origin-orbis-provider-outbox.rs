@@ -266,14 +266,28 @@ async fn consume<T: ProviderOutboxTransport>(
 	let paths = StatePaths::new(receipts);
 	let _consumer = exclusive_lock(&paths.consumer_lock)?;
 	let outbox_lock_path = suffixed(outbox, ".lock");
-	recover_compaction(outbox, &outbox_lock_path, &paths)?;
 	let mut cursor = load_json::<Cursor>(&paths.cursor)?.unwrap_or_default();
 	let mut ledger = load_json::<ReceiptLedger>(&paths.receipts)?.unwrap_or_default();
+	let pending = load_json::<PendingRecord>(&paths.pending)?;
+	let marker = load_json::<CompactionMarker>(&paths.compaction)?;
 	validate_cursor(&cursor)?;
 	validate_ledger(&ledger)?;
+	if let Some(pending) = &pending {
+		validate_pending(pending)?;
+	}
+	if let Some(marker) = &marker {
+		validate_marker(marker)?;
+	}
+	recover_compaction(
+		outbox,
+		&outbox_lock_path,
+		&paths,
+		&mut cursor,
+		marker.as_ref(),
+		pending.is_some(),
+	)?;
 
-	if let Some(pending) = load_json::<PendingRecord>(&paths.pending)? {
-		validate_pending(&pending)?;
+	if let Some(pending) = pending {
 		verify_pending_source(outbox, &outbox_lock_path, &pending)?;
 		if !recover_local_finality(&paths, &mut cursor, &ledger, &pending)? {
 			finalize_pending(
@@ -523,7 +537,7 @@ fn validate_ledger(ledger: &ReceiptLedger) -> Result<(), Box<dyn std::error::Err
 		validate_receipt(receipt)?;
 		if ledger.entries[..index]
 			.iter()
-			.any(|existing| existing.record_hash == receipt.record_hash || existing == receipt)
+			.any(|existing| receipt_binding_matches(existing, receipt))
 		{
 			return Err("finalized provider receipt ledger contains duplicate bindings".into());
 		}
@@ -554,6 +568,16 @@ fn receipt_matches_pending(receipt: &FinalizedReceipt, pending: &PendingRecord) 
 		&& receipt.prefix_hash == pending.prefix_hash
 }
 
+fn receipt_binding_matches(left: &FinalizedReceipt, right: &FinalizedReceipt) -> bool {
+	left.key == right.key
+		&& left.record_hash == right.record_hash
+		&& left.source == right.source
+		&& left.start == right.start
+		&& left.end == right.end
+		&& left.prefix_len == right.prefix_len
+		&& left.prefix_hash == right.prefix_hash
+}
+
 fn is_hash(value: &str) -> bool {
 	value.len() == 64
 		&& value.bytes().all(|byte| byte.is_ascii_hexdigit() && !byte.is_ascii_uppercase())
@@ -571,36 +595,45 @@ fn read_batch(
 ) -> Result<Vec<OutboxRecord>, Box<dyn std::error::Error>> {
 	validate_cursor(cursor)?;
 	let _lock = exclusive_lock(lock_path)?;
-	repair_incomplete_tail(outbox)?;
-	let mut file = File::open(outbox).map_err(|error| {
-		if error.kind() == std::io::ErrorKind::NotFound {
-			std::io::Error::new(error.kind(), "provider outbox unavailable")
-		} else {
-			error
-		}
-	})?;
+	let open_outbox = || {
+		File::open(outbox).map_err(|error| {
+			if error.kind() == std::io::ErrorKind::NotFound {
+				std::io::Error::new(error.kind(), "provider outbox unavailable")
+			} else {
+				error
+			}
+		})
+	};
+	let mut file = open_outbox()?;
+	let original_metadata = file.metadata()?;
+	let source = source_id(&original_metadata)?;
+	if cursor.source.is_some() {
+		validate_cursor_source(cursor, source, original_metadata.len())?;
+		verify_source_prefix(&mut file, cursor.prefix_len, &cursor.prefix_hash)?;
+	}
+	let repaired_len = complete_tail_len(&mut file, original_metadata.len())?;
+	if cursor.source.is_some() && (cursor.offset > repaired_len || cursor.prefix_len > repaired_len)
+	{
+		return Err("provider outbox cursor binding crosses its incomplete tail".into());
+	}
+	drop(file);
+	repair_incomplete_tail_exact(outbox, source, original_metadata.len(), repaired_len)?;
+	let mut file = open_outbox()?;
 	let metadata = file.metadata()?;
-	let source = source_id(&metadata)?;
+	let repaired_source = source_id(&metadata)?;
+	if repaired_source != source {
+		return Err("provider outbox source changed while repairing its incomplete tail".into());
+	}
 	match cursor.source {
 		None => {
-			cursor.source = Some(source);
+			cursor.source = Some(repaired_source);
 			cursor.offset = 0;
 			assign_source_prefix(&mut file, cursor, metadata.len())?;
 			atomic_json(cursor_path, cursor)?;
 		},
-		Some(expected) if expected != source => {
-			return Err("provider outbox source changed without a committed rotation".into())
-		},
 		Some(_) => {},
 	}
-	if cursor.prefix_len == 0 && cursor.offset == 0 && metadata.len() > 0 {
-		assign_source_prefix(&mut file, cursor, metadata.len())?;
-		atomic_json(cursor_path, cursor)?;
-	}
-	if cursor.offset > metadata.len() {
-		return Err("provider outbox cursor is beyond the source length".into());
-	}
-	validate_cursor_source(cursor, source, metadata.len())?;
+	validate_cursor_source(cursor, repaired_source, metadata.len())?;
 	verify_source_prefix(&mut file, cursor.prefix_len, &cursor.prefix_hash)?;
 	file.seek(SeekFrom::Start(cursor.offset))?;
 	let mut reader = BufReader::with_capacity(8192, file);
@@ -618,7 +651,7 @@ fn read_batch(
 		let end = start + line.len() as u64;
 		bytes += line.len();
 		records.push(OutboxRecord {
-			source,
+			source: repaired_source,
 			start,
 			end,
 			line,
@@ -723,35 +756,60 @@ fn read_bounded_line<R: BufRead>(
 }
 
 fn repair_incomplete_tail(path: &Path) -> Result<(), Box<dyn std::error::Error>> {
-	let mut file = OpenOptions::new().read(true).write(true).open(path).map_err(|error| {
+	let mut file = OpenOptions::new().read(true).open(path).map_err(|error| {
 		if error.kind() == std::io::ErrorKind::NotFound {
 			std::io::Error::new(error.kind(), "provider outbox unavailable")
 		} else {
 			error
 		}
 	})?;
-	let len = file.metadata()?.len();
+	let metadata = file.metadata()?;
+	let source = source_id(&metadata)?;
+	let len = metadata.len();
+	let keep = complete_tail_len(&mut file, len)?;
+	drop(file);
+	repair_incomplete_tail_exact(path, source, len, keep)
+}
+
+fn complete_tail_len(file: &mut File, len: u64) -> Result<u64, Box<dyn std::error::Error>> {
 	if len == 0 {
-		return Ok(());
+		return Ok(0);
 	}
 	file.seek(SeekFrom::End(-1))?;
 	let mut last = [0u8; 1];
 	file.read_exact(&mut last)?;
 	if last[0] == b'\n' {
-		return Ok(());
+		return Ok(len);
 	}
 	let start = len.saturating_sub(MAX_RECORD_BYTES as u64 + 1);
 	file.seek(SeekFrom::Start(start))?;
 	let mut tail = vec![0u8; (len - start) as usize];
 	file.read_exact(&mut tail)?;
-	let keep = match tail.iter().rposition(|byte| *byte == b'\n') {
+	Ok(match tail.iter().rposition(|byte| *byte == b'\n') {
 		Some(index) => start + index as u64 + 1,
 		None if start == 0 => 0,
 		None => return Err("incomplete provider outbox tail exceeds the bounded line limit".into()),
-	};
-	let file = OpenOptions::new().write(true).open(path)?;
-	file.set_len(keep)?;
-	file.sync_all()?;
+	})
+}
+
+fn repair_incomplete_tail_exact(
+	path: &Path,
+	expected_source: SourceId,
+	expected_len: u64,
+	expected_keep: u64,
+) -> Result<(), Box<dyn std::error::Error>> {
+	let mut file = OpenOptions::new().read(true).write(true).open(path)?;
+	let metadata = file.metadata()?;
+	if source_id(&metadata)? != expected_source || metadata.len() != expected_len {
+		return Err("provider outbox source changed before incomplete-tail repair".into());
+	}
+	if complete_tail_len(&mut file, metadata.len())? != expected_keep {
+		return Err("provider outbox incomplete tail changed before repair".into());
+	}
+	if expected_keep < expected_len {
+		file.set_len(expected_keep)?;
+		file.sync_all()?;
+	}
 	Ok(())
 }
 
@@ -763,7 +821,7 @@ fn record_receipt(
 	validate_ledger(ledger)?;
 	validate_receipt(&receipt)?;
 	if let Some(existing) =
-		ledger.entries.iter().find(|entry| entry.record_hash == receipt.record_hash)
+		ledger.entries.iter().find(|entry| receipt_binding_matches(entry, &receipt))
 	{
 		if existing != &receipt {
 			return Err("finalized receipt replay changed its payload".into());
@@ -843,15 +901,17 @@ fn recover_compaction(
 	outbox: &Path,
 	lock_path: &Path,
 	paths: &StatePaths,
+	cursor: &mut Cursor,
+	marker: Option<&CompactionMarker>,
+	pending_present: bool,
 ) -> Result<(), Box<dyn std::error::Error>> {
-	let Some(marker) = load_json::<CompactionMarker>(&paths.compaction)? else { return Ok(()) };
+	let Some(marker) = marker else { return Ok(()) };
 	validate_marker(&marker)?;
-	if paths.pending.exists() {
+	if pending_present {
 		return Err(
 			"provider outbox cannot recover compaction while a pending record exists".into()
 		);
 	}
-	let mut cursor = load_json::<Cursor>(&paths.cursor)?.unwrap_or_default();
 	validate_cursor(&cursor)?;
 	let _lock = exclusive_lock(lock_path)?;
 	let mut file = File::open(outbox)?;
@@ -1053,6 +1113,38 @@ mod tests {
 	}
 
 	#[test]
+	fn invalid_source_bindings_preserve_an_incomplete_tail() {
+		for corruption in 0..3 {
+			let temp = tempfile::tempdir().unwrap();
+			let outbox = temp.path().join("outbox.jsonl");
+			let cursor_path = temp.path().join("cursor.json");
+			let bytes = b"one\npartial";
+			fs::write(&outbox, bytes).unwrap();
+			let source = source_id(&File::open(&outbox).unwrap().metadata().unwrap()).unwrap();
+			let mut cursor = Cursor {
+				version: STATE_VERSION,
+				source: Some(if corruption == 0 {
+					SourceId { device: source.device, inode: source.inode.wrapping_add(1) }
+				} else {
+					source
+				}),
+				offset: if corruption == 2 { bytes.len() as u64 } else { 0 },
+				prefix_len: 4,
+				prefix_hash: if corruption == 1 {
+					blake3::hash(b"xxxx").to_hex().to_string()
+				} else {
+					blake3::hash(b"one\n").to_hex().to_string()
+				},
+			};
+
+			assert!(read_batch(&outbox, &suffixed(&outbox, ".lock"), &cursor_path, &mut cursor,)
+				.is_err());
+			assert_eq!(fs::read(&outbox).unwrap(), bytes);
+			assert!(!cursor_path.exists());
+		}
+	}
+
+	#[test]
 	fn cursor_fails_closed_when_bound_prefix_is_rewritten_in_place() {
 		let temp = tempfile::tempdir().unwrap();
 		let outbox = temp.path().join("outbox.jsonl");
@@ -1202,6 +1294,50 @@ mod tests {
 		}
 	}
 
+	struct FinalizingTransport(std::sync::atomic::AtomicUsize);
+
+	#[async_trait::async_trait]
+	impl ProviderOutboxTransport for FinalizingTransport {
+		async fn submit(
+			&self,
+			_intent: &SubmitAndFinalize<StorageProviderCommand>,
+		) -> Result<NativeLifecycle, String> {
+			self.0.fetch_add(1, std::sync::atomic::Ordering::SeqCst);
+			Ok(NativeLifecycle {
+				version: 1,
+				intent_id: "intent-0000000001".into(),
+				state: oc::product_sdk::NativeLifecycleState::Finalized,
+				block_hash: Some(format!("0x{}", "41".repeat(32))),
+				extrinsic_hash: Some(format!("0x{}", "42".repeat(32))),
+				error: None,
+			})
+		}
+	}
+
+	#[tokio::test]
+	async fn identical_lines_finalize_as_distinct_bindings_and_restart_without_resubmission() {
+		let temp = tempfile::tempdir().unwrap();
+		let outbox = temp.path().join("outbox.jsonl");
+		let receipts = temp.path().join("receipts.json");
+		let line = serde_json::to_string(&manifest_submission()).unwrap() + "\n";
+		fs::write(&outbox, format!("{line}{line}")).unwrap();
+		let transport = FinalizingTransport(std::sync::atomic::AtomicUsize::new(0));
+		let signer = AccountId::new("provider").unwrap();
+
+		consume(&outbox, &receipts, &signer, &transport).await.unwrap();
+		assert_eq!(transport.0.load(std::sync::atomic::Ordering::SeqCst), 2);
+		let ledger = load_json::<ReceiptLedger>(&receipts).unwrap().unwrap();
+		assert_eq!(ledger.entries.len(), 2);
+		assert_eq!(ledger.entries[0].record_hash, ledger.entries[1].record_hash);
+		assert_ne!(ledger.entries[0].start, ledger.entries[1].start);
+		validate_ledger(&ledger).unwrap();
+		let durable_ledger = fs::read(&receipts).unwrap();
+
+		consume(&outbox, &receipts, &signer, &transport).await.unwrap();
+		assert_eq!(transport.0.load(std::sync::atomic::Ordering::SeqCst), 2);
+		assert_eq!(fs::read(&receipts).unwrap(), durable_ledger);
+	}
+
 	#[tokio::test]
 	async fn restart_rejects_cursor_ahead_or_overlap_before_transport_and_receipts() {
 		let line = serde_json::to_string(&manifest_submission()).unwrap() + "\n";
@@ -1294,6 +1430,61 @@ mod tests {
 		}
 	}
 
+	#[tokio::test]
+	async fn invalid_ledger_prevents_valid_compaction_without_mutating_durable_state() {
+		let temp = tempfile::tempdir().unwrap();
+		let outbox = temp.path().join("outbox.jsonl");
+		let receipts = temp.path().join("receipts.json");
+		let paths = StatePaths::new(&receipts);
+		let bytes = b"one\n";
+		fs::write(&outbox, bytes).unwrap();
+		let source = source_id(&File::open(&outbox).unwrap().metadata().unwrap()).unwrap();
+		let prefix_hash = blake3::hash(bytes).to_hex().to_string();
+		let cursor = Cursor {
+			version: STATE_VERSION,
+			source: Some(source),
+			offset: bytes.len() as u64,
+			prefix_len: bytes.len() as u64,
+			prefix_hash: prefix_hash.clone(),
+		};
+		let marker = CompactionMarker {
+			version: STATE_VERSION,
+			old_source: source,
+			consumed_len: bytes.len() as u64,
+			prefix_len: bytes.len() as u64,
+			prefix_hash,
+		};
+		let entries = (0..=MAX_RECEIPTS)
+			.map(|index| FinalizedReceipt {
+				key: format!("key-{index}"),
+				record_hash: blake3::hash(format!("record-{index}").as_bytes())
+					.to_hex()
+					.to_string(),
+				source,
+				start: index as u64,
+				end: index as u64 + 1,
+				prefix_len: bytes.len() as u64,
+				prefix_hash: blake3::hash(bytes).to_hex().to_string(),
+				block_hash: format!("0x{}", "51".repeat(32)),
+				extrinsic_hash: format!("0x{}", "52".repeat(32)),
+			})
+			.collect();
+		atomic_json(&paths.cursor, &cursor).unwrap();
+		atomic_json(&paths.compaction, &marker).unwrap();
+		atomic_json(&paths.receipts, &ReceiptLedger { version: STATE_VERSION, entries }).unwrap();
+		let before_outbox = fs::read(&outbox).unwrap();
+		let before_cursor = fs::read(&paths.cursor).unwrap();
+		let before_marker = fs::read(&paths.compaction).unwrap();
+		let transport = CountingTransport(std::sync::atomic::AtomicUsize::new(0));
+		let signer = AccountId::new("provider").unwrap();
+
+		assert!(consume(&outbox, &receipts, &signer, &transport).await.is_err());
+		assert_eq!(transport.0.load(std::sync::atomic::Ordering::SeqCst), 0);
+		assert_eq!(fs::read(&outbox).unwrap(), before_outbox);
+		assert_eq!(fs::read(&paths.cursor).unwrap(), before_cursor);
+		assert_eq!(fs::read(&paths.compaction).unwrap(), before_marker);
+	}
+
 	#[test]
 	fn receipts_are_bounded_and_exact_replays_are_stable() {
 		let temp = tempfile::tempdir().unwrap();
@@ -1347,7 +1538,15 @@ mod tests {
 		};
 		atomic_json(&paths.compaction, &marker).unwrap();
 		fs::write(&outbox, b"late\n").unwrap();
-		assert!(recover_compaction(&outbox, &suffixed(&outbox, ".lock"), &paths).is_err());
+		assert!(recover_compaction(
+			&outbox,
+			&suffixed(&outbox, ".lock"),
+			&paths,
+			&mut cursor,
+			Some(&marker),
+			false,
+		)
+		.is_err());
 		assert_eq!(fs::read(&outbox).unwrap(), b"late\n");
 		assert!(paths.compaction.exists());
 	}
@@ -1391,7 +1590,16 @@ mod tests {
 				.unwrap();
 			}
 
-			recover_compaction(&outbox, &suffixed(&outbox, ".lock"), &paths).unwrap();
+			let mut recovery_cursor = load_json::<Cursor>(&paths.cursor).unwrap().unwrap();
+			recover_compaction(
+				&outbox,
+				&suffixed(&outbox, ".lock"),
+				&paths,
+				&mut recovery_cursor,
+				Some(&marker),
+				false,
+			)
+			.unwrap();
 			assert!(fs::read(&outbox).unwrap().is_empty());
 			assert!(!paths.compaction.exists());
 			let recovered = load_json::<Cursor>(&paths.cursor).unwrap().unwrap();
