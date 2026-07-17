@@ -20,7 +20,7 @@
     "protocol_id": "orbis",
     "orbis_candidate_genesis_header_hash": "0x2584c9d420dc8160b85deaf958d776886366d5beecc2ee7b1236293d20ac70fc",
     "orbis_candidate_genesis_identity_source": "docs/genesis/orbis-candidate-genesis-identity.json",
-    "orbis_candidate_genesis_identity_sha256": "bfac0f6c85fac491cc9aa6fb0ff03ab1581db78c7901d094c8a9843e898c9e0d"
+    "orbis_candidate_genesis_identity_sha256": "e0cfdc509e90b58c7c36a9cc522eab9013f281c076c100ec3f09fc9e24c074de"
   },
   "ratification": {
     "canonical_envelope": "docs/evidence/verification/p0/ratification-envelope.json",

@@ -573,6 +573,7 @@ function sampleRule(rule: Rule): JsonValue {
         `0x${"11".repeat(32)}`,
         `0x${"11".repeat(64)}`,
         `0x${"11".repeat(65)}`,
+        `0x${"11".repeat(16)}`,
         "1", "AQID", "active", "sample", "a",
       ];
       for (const candidate of candidates) {

@@ -120,6 +120,12 @@ if (vectors.runtime.metadata_hash !== metadataIdentity.runtime_rfc78_hash
   || versionMatrix.networks.orbis.metadata_hash !== metadataIdentity.runtime_rfc78_hash)
   throw new Error("metadata hash drift between native vector, matrix and checked-in PAPI inventory");
 
+const fixtureIdentity = {
+  ...ratification.payload.fixture_identity,
+  candidate_identity_source: versionMatrix.networks.orbis.candidate_genesis_identity_source,
+  candidate_identity_sha256: versionMatrix.networks.orbis.candidate_genesis_identity_sha256,
+};
+
 const descriptor = {
   contractVersion: 1,
   kind: "cord-native-host-contract-manifest",
@@ -141,7 +147,7 @@ const descriptor = {
     metadataHash: currentSourceRuntime.metadata_hash,
     metadataBoundNativeSdk: papiAvailable,
   },
-  fixtureIdentity: ratification.payload.fixture_identity,
+  fixtureIdentity,
   networkActivation: {
     state: activationState,
     productionActivationReady,

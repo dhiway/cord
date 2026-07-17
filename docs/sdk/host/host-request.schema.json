@@ -195,7 +195,7 @@
           "const": "60e38b74de9c0ccdedfe9c1fa2ea4bdb0346739ba2fef5e7a5ad328c0920b451"
         },
         "descriptor_contract_sha256": {
-          "const": "385c7f99b2ed94cc77c1efc82b1158ddf3ccf6ced3435a90e05b963486f59cd6"
+          "const": "4f7db302ab4aa3783ba0dade84c1c5f0d35fbc076472be485d79470a617a24d2"
         },
         "activation_state": {
           "const": "candidate-pending"

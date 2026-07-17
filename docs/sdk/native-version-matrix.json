@@ -49,7 +49,7 @@
       "candidate_genesis_header_hash": "0x2584c9d420dc8160b85deaf958d776886366d5beecc2ee7b1236293d20ac70fc",
       "candidate_genesis_state_root": "0xe778ef91e9e1419f77a17a687245fc903335ecdb8dd3cf450df86637d529a53c",
       "candidate_genesis_identity_source": "docs/genesis/orbis-candidate-genesis-identity.json",
-      "candidate_genesis_identity_sha256": "bfac0f6c85fac491cc9aa6fb0ff03ab1581db78c7901d094c8a9843e898c9e0d",
+      "candidate_genesis_identity_sha256": "e0cfdc509e90b58c7c36a9cc522eab9013f281c076c100ec3f09fc9e24c074de",
       "compact_wasm_sha256": "19662465cef9ea3cde0c7c10865cc9e68cf3afb723e6184de8a0029de82b1f2e",
       "activation_state": "candidate-pending",
       "production_activation_ready": false
@@ -125,7 +125,7 @@
       "source": "docs/sdk/vectors/names-v1.json"
     },
     "storage_provider": {
-      "version": 4,
+      "version": 6,
       "source": "origin/orbis/provider-node/src/lib.rs"
     }
   },

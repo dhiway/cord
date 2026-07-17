@@ -21,7 +21,7 @@
     {
       "domain": "names",
       "path": "docs/sdk/vectors/names-v1.json",
-      "sha256": "1a543ac96e7212854fb6e2105e8b0d1c947a19a65fe3f0d50f91fbe0b77bd700",
+      "sha256": "267ec97ace7eae519729a7efb8083308e3ad660219e393afa5f80db995bd13d1",
       "validated_by": [
         "origin-rs",
         "product-sdk"

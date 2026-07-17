@@ -26,7 +26,7 @@
     "chain_spec_source_sha256": "60e38b74de9c0ccdedfe9c1fa2ea4bdb0346739ba2fef5e7a5ad328c0920b451",
     "genesis_state_root": "0xe778ef91e9e1419f77a17a687245fc903335ecdb8dd3cf450df86637d529a53c",
     "candidate_identity_source": "docs/genesis/orbis-candidate-genesis-identity.json",
-    "candidate_identity_sha256": "bfac0f6c85fac491cc9aa6fb0ff03ab1581db78c7901d094c8a9843e898c9e0d"
+    "candidate_identity_sha256": "e0cfdc509e90b58c7c36a9cc522eab9013f281c076c100ec3f09fc9e24c074de"
   },
   "networkActivation": {
     "state": "candidate-pending",
@@ -37,11 +37,11 @@
   "sources": {
     "compatibility": {
       "path": "docs/sdk/compatibility-manifest.json",
-      "sha256": "62bf7d6bd620c63ee4571f1b4c74de483bde1499e47c2df29ed2d3ea8f34c102"
+      "sha256": "d948838f5b3480296906da333533f909fdb48c469967452da973de74145addcf"
     },
     "versionMatrix": {
       "path": "docs/sdk/native-version-matrix.json",
-      "sha256": "0fe369f1345b7a0625a8c68386245fb04da791bb5558f21176da81045f463a17"
+      "sha256": "ff24c27ec789c8a004cfa52923f07d874de795c0766d9c49726beb6db4dd4150"
     },
     "extensions": {
       "path": "docs/sdk/signed-extension-manifest.json",
@@ -61,7 +61,7 @@
     },
     "vectors": {
       "path": "docs/sdk/vectors/native-sdk-v1.json",
-      "sha256": "5055b9e7e4de99a825b23700b2b9b8a338b9009d12afdc6189b5dc32f146125f"
+      "sha256": "ddb18b86f37eead1955ee04efea494452cd12a3b21e72f9dce18e4209a4c3a64"
     },
     "genesisIdentity": {
       "path": "docs/genesis/orbis-candidate-genesis-identity.json",
