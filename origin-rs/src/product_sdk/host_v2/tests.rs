@@ -16,10 +16,22 @@
 // You should have received a copy of the GNU General Public License
 // along with CORD. If not, see <https://www.gnu.org/licenses/>.
 
+use std::collections::BTreeMap;
+
 use ciborium::value::Value;
+
+use crate::product_sdk::host_outbox::{
+	HostOutboxContextV1, HostOutboxEntryV1, HostOutboxError, HostOutboxFault, HostOutboxKeyRingV1,
+	HostOutboxStoreV1, PrepareHostOutboxV1,
+};
 
 use super::{
 	codec::{CodecError, Dto},
+	desktop::{
+		read_frame, write_frame, DesktopFrameDecoder, DesktopHostV2Transport,
+		DesktopPeerBindingError, DesktopPeerIdentity, DesktopTransportError, DurableDesktopEvent,
+		DurableDesktopHostV2, MAX_DESKTOP_FRAME_BYTES,
+	},
 	generated::{
 		self, AcceptedEventV2, AcceptedState, DriveManifestV1, ErrorCode, EventV2, OperationCode,
 		ProgressEventV2, RequestV2,
@@ -44,6 +56,11 @@ fn operations() -> serde_json::Value {
 fn errors() -> serde_json::Value {
 	serde_json::from_str(include_str!("../../../../docs/specs/origin-host-registry-v2.errors.json"))
 		.expect("frozen errors are JSON")
+}
+
+fn outbox_vectors() -> serde_json::Value {
+	serde_json::from_str(include_str!("../../../../docs/specs/host-outbox-v1.vectors.json"))
+		.expect("frozen outbox vectors are JSON")
 }
 
 fn vector(id: &str) -> Vec<u8> {
@@ -103,6 +120,65 @@ fn progress(request_id: [u8; 16], sequence: u64) -> Vec<u8> {
 	.expect("progress fixture is closed")
 	.canonical()
 	.to_vec()
+}
+
+fn cancelled(request_id: [u8; 16], sequence: u64) -> Vec<u8> {
+	Dto::<generated::CancelledEventV2>::from_value(Value::Map(vec![
+		(Value::Integer(0.into()), Value::Integer(2.into())),
+		(Value::Integer(1.into()), Value::Bytes(request_id.to_vec())),
+		(Value::Integer(2.into()), Value::Integer(sequence.into())),
+		(Value::Integer(3.into()), Value::Integer(4.into())),
+		(
+			Value::Integer(4.into()),
+			Value::Map(vec![(Value::Integer(0.into()), Value::Integer(107.into()))]),
+		),
+	]))
+	.expect("cancelled fixture is closed")
+	.canonical()
+	.to_vec()
+}
+
+fn outbox_context() -> HostOutboxContextV1 {
+	HostOutboxContextV1 {
+		profile_id: [0x11; 32],
+		registry_hash: [0x11; 32],
+		genesis_hash: [0x22; 32],
+	}
+}
+
+fn outbox_keyring() -> HostOutboxKeyRingV1 {
+	HostOutboxKeyRingV1::new(1, BTreeMap::from([(1, [0x8a; 32])]))
+		.expect("test keyring is available")
+}
+
+fn outbox_input() -> PrepareHostOutboxV1 {
+	let root = outbox_vectors();
+	let hex = root["base_vector"]["canonical_cbor_hex"].as_str().expect("outbox vector hex");
+	let entry = HostOutboxEntryV1::decode(&hex::decode(hex).expect("valid outbox vector hex"))
+		.expect("valid frozen outbox entry");
+	PrepareHostOutboxV1 {
+		outbox_id: entry.outbox_id,
+		exact_request_bytes: entry.exact_request_bytes,
+		exact_authority_bytes: entry.exact_authority_bytes,
+		request_id: entry.request_id,
+		operation_id: entry.operation_id,
+		generation: entry.generation,
+		intended_cursor: entry.intended_cursor,
+		negotiated_tuple: entry.negotiated_tuple,
+		provider_id: entry.provider_id,
+		provider_endpoint_hash: entry.provider_endpoint_hash,
+		expected_response_kind: entry.expected_response_kind,
+		created_at: entry.created_at,
+		authority_expires_at: entry.authority_expires_at,
+	}
+}
+
+fn desktop_peer() -> DesktopPeerIdentity {
+	DesktopPeerIdentity {
+		endpoint: "/private/test/cord-origin-host-v2.sock".into(),
+		process_id: Some(std::process::id()),
+		user_id: Some(1_000),
+	}
 }
 
 #[test]
@@ -328,4 +404,294 @@ fn session_enforces_sequence_and_permanently_closes_on_fault_or_terminal() {
 	));
 	assert!(before_accepted.is_closed());
 	assert_eq!(before_accepted.negotiated().minor(), generated::MINOR);
+}
+
+#[test]
+fn desktop_frames_enforce_big_endian_cap_and_split_coalesced_streams() {
+	let first = b"first-frame";
+	let second = b"second-frame";
+	let mut wire = Vec::new();
+	write_frame(&mut wire, first).unwrap();
+	write_frame(&mut wire, second).unwrap();
+	assert_eq!(&wire[..4], &(first.len() as u32).to_be_bytes());
+
+	let mut decoder = DesktopFrameDecoder::new();
+	assert!(decoder.push(&wire[..2]).unwrap().is_empty());
+	assert!(decoder.push(&wire[2..7]).unwrap().is_empty());
+	assert_eq!(decoder.push(&wire[7..wire.len() - 3]).unwrap(), vec![first.to_vec()]);
+	assert_eq!(decoder.push(&wire[wire.len() - 3..]).unwrap(), vec![second.to_vec()]);
+	decoder.finish().unwrap();
+	assert!(matches!(decoder.push(&[]), Err(DesktopTransportError::Closed)));
+
+	let mut truncated = DesktopFrameDecoder::new();
+	assert!(truncated.push(&[0, 0, 0, 2, 0xaa]).unwrap().is_empty());
+	assert!(matches!(truncated.finish(), Err(DesktopTransportError::FrameTruncated)));
+
+	let mut oversized = DesktopFrameDecoder::new();
+	let forbidden = (MAX_DESKTOP_FRAME_BYTES as u32 + 1).to_be_bytes();
+	assert!(matches!(oversized.push(&forbidden), Err(DesktopTransportError::FrameTooLarge)));
+	assert!(matches!(oversized.push(&[]), Err(DesktopTransportError::Closed)));
+
+	let exact = vec![0x5a; MAX_DESKTOP_FRAME_BYTES];
+	let mut exact_wire = Vec::new();
+	write_frame(&mut exact_wire, &exact).unwrap();
+	assert_eq!(exact_wire.len(), MAX_DESKTOP_FRAME_BYTES + 4);
+	assert!(matches!(
+		write_frame(&mut Vec::new(), &[0; MAX_DESKTOP_FRAME_BYTES + 1]),
+		Err(DesktopTransportError::FrameTooLarge)
+	));
+}
+
+#[cfg(unix)]
+#[test]
+fn desktop_peer_binding_and_negotiation_fail_before_any_request_byte() {
+	use std::{io::Read, os::unix::net::UnixStream, time::Duration};
+
+	let (client, mut server) = UnixStream::pair().unwrap();
+	server.set_read_timeout(Some(Duration::from_millis(50))).unwrap();
+	let peer = desktop_peer();
+	let rejected = DesktopHostV2Transport::connect(
+		client,
+		&peer,
+		&|candidate: &DesktopPeerIdentity| {
+			assert_eq!(candidate.endpoint, peer.endpoint);
+			assert_eq!(candidate.process_id, Some(std::process::id()));
+			Err(DesktopPeerBindingError)
+		},
+		&offer(),
+		&offer(),
+	);
+	assert!(matches!(rejected, Err(DesktopTransportError::Peer(_))));
+	let mut byte = [0u8; 1];
+	assert_eq!(server.read(&mut byte).unwrap(), 0, "rejected peer emitted bytes");
+
+	let (client, mut server) = UnixStream::pair().unwrap();
+	server.set_read_timeout(Some(Duration::from_millis(50))).unwrap();
+	let mut incompatible = offer();
+	incompatible.genesis = [0x99; 32];
+	let rejected = DesktopHostV2Transport::connect(
+		client,
+		&peer,
+		&|_: &DesktopPeerIdentity| Ok(()),
+		&offer(),
+		&incompatible,
+	);
+	assert!(matches!(rejected, Err(DesktopTransportError::Negotiation(NegotiationError::Genesis))));
+	assert_eq!(server.read(&mut byte).unwrap(), 0, "failed negotiation emitted bytes");
+}
+
+#[cfg(unix)]
+#[test]
+fn desktop_outbox_commit_restart_resume_cancel_ack_and_gc_are_loss_safe() {
+	use std::{io::Write, os::unix::net::UnixStream, thread};
+
+	let temp = tempfile::tempdir().unwrap();
+	let store = HostOutboxStoreV1::open(temp.path(), outbox_context(), outbox_keyring()).unwrap();
+	let input = outbox_input();
+	let id = input.outbox_id;
+	let request = input.exact_request_bytes.clone();
+	let authority = input.exact_authority_bytes.clone();
+	let accepted = accepted(input.request_id, 0);
+	let cancelled = cancelled(input.request_id, 1);
+
+	let (client, mut server) = UnixStream::pair().unwrap();
+	let accepted_for_server = accepted.clone();
+	let cancelled_for_server = cancelled.clone();
+	let first_server = thread::spawn(move || {
+		assert_eq!(read_frame(&mut server).unwrap(), request);
+		assert_eq!(read_frame(&mut server).unwrap(), authority);
+		let mut coalesced = Vec::new();
+		write_frame(&mut coalesced, &accepted_for_server).unwrap();
+		write_frame(&mut coalesced, &cancelled_for_server).unwrap();
+		server.write_all(&coalesced).unwrap();
+		matches!(read_frame(&mut server), Err(DesktopTransportError::FrameTruncated))
+	});
+	let transport = DesktopHostV2Transport::connect(
+		client,
+		&desktop_peer(),
+		&|peer: &DesktopPeerIdentity| {
+			(peer.user_id == Some(1_000)).then_some(()).ok_or(DesktopPeerBindingError)
+		},
+		&offer(),
+		&offer(),
+	)
+	.unwrap();
+	let mut desktop = DurableDesktopHostV2::new(transport, &store);
+	desktop.prepare_and_send(input, [1; 24], [2; 24]).unwrap();
+	assert_eq!(
+		desktop.receive_event(id, 200, [8; 24], [9; 24]).unwrap(),
+		DurableDesktopEvent::NonTerminal(accepted)
+	);
+	store.inject_fault_once(HostOutboxFault::AfterDirectoryFsync).unwrap();
+	assert!(matches!(
+		desktop.receive_event(id, 200, [3; 24], [4; 24]),
+		Err(DesktopTransportError::Outbox(HostOutboxError::Unavailable))
+	));
+	drop(desktop);
+	drop(store);
+	assert!(first_server.join().unwrap(), "ack escaped before terminal install returned durable");
+
+	let store = HostOutboxStoreV1::open(temp.path(), outbox_context(), outbox_keyring()).unwrap();
+	let installed = store.installed_response(id).unwrap();
+	assert_eq!(installed.response, cancelled);
+	assert!(installed.terminal);
+	let exact_ack = installed.response_ack.clone();
+	let response_hash = installed.response_hash;
+
+	let (client, mut server) = UnixStream::pair().unwrap();
+	let ack_server = thread::spawn(move || read_frame(&mut server).unwrap());
+	let transport = DesktopHostV2Transport::connect(
+		client,
+		&desktop_peer(),
+		&|_: &DesktopPeerIdentity| Ok(()),
+		&offer(),
+		&offer(),
+	)
+	.unwrap();
+	let mut desktop = DurableDesktopHostV2::new(transport, &store);
+	assert_eq!(desktop.resume_ack(id, [5; 24]).unwrap(), response_hash);
+	assert_eq!(ack_server.join().unwrap(), exact_ack);
+	desktop.confirm_terminal(id, response_hash, [6; 24], [7; 24]).unwrap();
+	assert_eq!(store.installed_response(id), Err(HostOutboxError::Expired));
+	assert_eq!(store.gc(455, 1).unwrap(), 0);
+	assert_eq!(store.gc(456, 1).unwrap(), 1);
+}
+
+#[cfg(unix)]
+#[test]
+fn desktop_outbox_capacity_corruption_and_pre_send_crash_never_leak_bytes() {
+	use std::{fs, io::Read, os::unix::net::UnixStream, thread, time::Duration};
+
+	let capacity_root = tempfile::tempdir().unwrap();
+	let capacity_store = HostOutboxStoreV1::open_with_limits(
+		capacity_root.path(),
+		outbox_context(),
+		outbox_keyring(),
+		1,
+		1,
+	)
+	.unwrap();
+	let (client, mut server) = UnixStream::pair().unwrap();
+	server.set_read_timeout(Some(Duration::from_millis(50))).unwrap();
+	let transport = DesktopHostV2Transport::connect(
+		client,
+		&desktop_peer(),
+		&|_: &DesktopPeerIdentity| Ok(()),
+		&offer(),
+		&offer(),
+	)
+	.unwrap();
+	let mut desktop = DurableDesktopHostV2::new(transport, &capacity_store);
+	assert!(matches!(
+		desktop.prepare_and_send(outbox_input(), [1; 24], [2; 24]),
+		Err(DesktopTransportError::Outbox(HostOutboxError::Full))
+	));
+	let mut byte = [0u8; 1];
+	assert!(matches!(
+		server.read(&mut byte).unwrap_err().kind(),
+		std::io::ErrorKind::WouldBlock | std::io::ErrorKind::TimedOut
+	));
+	drop(desktop);
+	drop(capacity_store);
+
+	let crash_root = tempfile::tempdir().unwrap();
+	let store =
+		HostOutboxStoreV1::open(crash_root.path(), outbox_context(), outbox_keyring()).unwrap();
+	store.inject_fault_once(HostOutboxFault::AfterDirectoryFsync).unwrap();
+	let input = outbox_input();
+	let id = input.outbox_id;
+	let expected_request = input.exact_request_bytes.clone();
+	let expected_authority = input.exact_authority_bytes.clone();
+	let (client, mut server) = UnixStream::pair().unwrap();
+	server.set_read_timeout(Some(Duration::from_millis(50))).unwrap();
+	let transport = DesktopHostV2Transport::connect(
+		client,
+		&desktop_peer(),
+		&|_: &DesktopPeerIdentity| Ok(()),
+		&offer(),
+		&offer(),
+	)
+	.unwrap();
+	let mut desktop = DurableDesktopHostV2::new(transport, &store);
+	assert!(matches!(
+		desktop.prepare_and_send(input, [3; 24], [4; 24]),
+		Err(DesktopTransportError::Outbox(HostOutboxError::Unavailable))
+	));
+	assert!(matches!(
+		server.read(&mut byte).unwrap_err().kind(),
+		std::io::ErrorKind::WouldBlock | std::io::ErrorKind::TimedOut
+	));
+	drop(desktop);
+	drop(store);
+
+	let store =
+		HostOutboxStoreV1::open(crash_root.path(), outbox_context(), outbox_keyring()).unwrap();
+	let exact_retry = store.retry_request(id, 200).unwrap();
+	let (client, mut server) = UnixStream::pair().unwrap();
+	let resumed_server =
+		thread::spawn(move || (read_frame(&mut server).unwrap(), read_frame(&mut server).unwrap()));
+	let transport = DesktopHostV2Transport::connect(
+		client,
+		&desktop_peer(),
+		&|_: &DesktopPeerIdentity| Ok(()),
+		&offer(),
+		&offer(),
+	)
+	.unwrap();
+	let mut desktop = DurableDesktopHostV2::new(transport, &store);
+	assert_eq!(desktop.resume_and_send(id, 200).unwrap(), exact_retry);
+	drop(desktop);
+	assert_eq!(resumed_server.join().unwrap(), (expected_request, expected_authority));
+	drop(store);
+
+	let path = crash_root
+		.path()
+		.join("host-outbox-v1")
+		.join(format!("{}.outbox", hex::encode(id)));
+	let mut ciphertext = fs::read(&path).unwrap();
+	*ciphertext.last_mut().unwrap() ^= 1;
+	fs::write(&path, ciphertext).unwrap();
+	assert!(matches!(
+		HostOutboxStoreV1::open(crash_root.path(), outbox_context(), outbox_keyring()),
+		Err(HostOutboxError::Corrupt)
+	));
+}
+
+#[cfg(unix)]
+#[test]
+fn desktop_stream_abort_after_send_preserves_the_exact_durable_retry() {
+	use std::{os::unix::net::UnixStream, thread};
+
+	let root = tempfile::tempdir().unwrap();
+	let store = HostOutboxStoreV1::open(root.path(), outbox_context(), outbox_keyring()).unwrap();
+	let input = outbox_input();
+	let id = input.outbox_id;
+	let request = input.exact_request_bytes.clone();
+	let authority = input.exact_authority_bytes.clone();
+	let (client, mut server) = UnixStream::pair().unwrap();
+	let server = thread::spawn(move || {
+		assert_eq!(read_frame(&mut server).unwrap(), request);
+		assert_eq!(read_frame(&mut server).unwrap(), authority);
+	});
+	let transport = DesktopHostV2Transport::connect(
+		client,
+		&desktop_peer(),
+		&|_: &DesktopPeerIdentity| Ok(()),
+		&offer(),
+		&offer(),
+	)
+	.unwrap();
+	let mut desktop = DurableDesktopHostV2::new(transport, &store);
+	let durable = desktop.prepare_and_send(input, [1; 24], [2; 24]).unwrap();
+	server.join().unwrap();
+	assert!(matches!(
+		desktop.receive_event(id, 200, [3; 24], [4; 24]),
+		Err(DesktopTransportError::FrameTruncated)
+	));
+	drop(desktop);
+	drop(store);
+
+	let reopened =
+		HostOutboxStoreV1::open(root.path(), outbox_context(), outbox_keyring()).unwrap();
+	assert_eq!(reopened.retry_request(id, 200).unwrap(), durable);
 }

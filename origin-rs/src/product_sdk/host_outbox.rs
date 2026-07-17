@@ -437,7 +437,7 @@ impl HostOutboxStoreV1 {
 		Self::open_with_limits(root, context, keys, MAX_RECORDS, MAX_TOTAL_ENCRYPTED_BYTES)
 	}
 
-	fn open_with_limits(
+	pub(crate) fn open_with_limits(
 		root: impl AsRef<Path>,
 		context: HostOutboxContextV1,
 		keys: HostOutboxKeyRingV1,

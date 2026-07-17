@@ -19,6 +19,7 @@
 //! Private, generated `cord.origin.host/2` DTO and session foundation.
 
 mod codec;
+mod desktop;
 #[rustfmt::skip]
 mod generated;
 mod session;
