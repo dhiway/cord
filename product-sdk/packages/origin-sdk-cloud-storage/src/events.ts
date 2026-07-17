@@ -87,16 +87,17 @@ export type StorageNativeEvent =
   | E<"s3_bucket_transferred", { bucket: BucketId; from: AccountId; to: AccountId; version: DecimalU64 }>
   | E<"s3_bucket_archived", { bucket: BucketId; archived: boolean; version: DecimalU64 }>
   | E<"s3_bucket_versioning_changed", { bucket: BucketId; enabled: boolean; version: DecimalU64 }>
-  | E<"s3_object_put", { bucket: BucketId; object: ObjectId; key: string; content_hash: ContentHash; version: DecimalU64 }>
-  | E<"s3_object_deleted", { bucket: BucketId; object: ObjectId; key: string; version: DecimalU64 }>
-  | E<"s3_object_purged", { bucket: BucketId; key: string }>
+  | E<"s3_object_put", { bucket: BucketId; object: ObjectId; key: Uint8Array; content_hash: ContentHash; version: DecimalU64 }>
+  | E<"s3_object_deleted", { bucket: BucketId; object: ObjectId; key: Uint8Array; version: DecimalU64 }>
+  | E<"s3_object_purged", { bucket: BucketId; key: Uint8Array }>
   | E<"s3_bucket_deleted", { bucket: BucketId; name: string; owner: AccountId }>
-  | E<"s3_object_history_pruned", { bucket: BucketId; key: string; through_version: DecimalU64; removed: number }>;
+  | E<"s3_object_history_pruned", { bucket: BucketId; key: Uint8Array; through_version: DecimalU64; removed: number }>;
 
 export type StorageNativeOutcome = {
   readonly outcome: "provider" | "storage_bucket" | "agreement" | "challenge" | "checkpoint" | "manifest" | "drive" | "s3_bucket" | "s3_object";
   readonly data: {
     readonly action: StorageNativeEventKind;
+    /** Native resource ID, or `s3-key:<bucket>:<hex-key>` when an S3 event omits ObjectId. */
     readonly id: string | null;
     readonly version: DecimalU64 | null;
   };
@@ -130,13 +131,16 @@ export function storageNativeEventOutcome(event: StorageNativeEvent): StorageNat
   else if (event.event.startsWith("drive_")) outcome = "drive";
   else if (event.event.startsWith("s3_object_")) outcome = "s3_object";
   else outcome = "s3_bucket";
+  const s3KeyId = outcome === "s3_object" && data.object === undefined && data.bucket !== undefined && data.key instanceof Uint8Array
+    ? `s3-key:${String(data.bucket)}:${Array.from(data.key, (byte) => byte.toString(16).padStart(2, "0")).join("")}`
+    : null;
   const id = outcome === "provider" ? data.provider
     : outcome === "storage_bucket" || outcome === "checkpoint" || outcome === "s3_bucket" ? data.bucket
     : outcome === "agreement" ? data.agreement
     : outcome === "challenge" ? data.challenge
     : outcome === "manifest" ? data.manifest
     : outcome === "drive" ? data.drive
-    : data.object ?? data.bucket ?? null;
-  const version = data.version ?? data.new_version ?? null;
+    : data.object ?? s3KeyId;
+  const version = data.version ?? data.new_version ?? data.through_version ?? null;
   return { outcome, data: { action: event.event, id: id as string | null, version: version as DecimalU64 | null } };
 }

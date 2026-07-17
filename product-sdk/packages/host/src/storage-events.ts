@@ -54,6 +54,7 @@ export interface FinalizedStorageNativeOutcome {
 const HASH = /^0x[0-9a-f]{64}$/i;
 const DECIMAL = /^(0|[1-9][0-9]*)$/;
 const U64_MAX = 18_446_744_073_709_551_615n;
+const BASE58 = "123456789ABCDEFGHJKLMNPQRSTUVWXYZabcdefghijkmnopqrstuvwxyz";
 const UNEXPOSED_STORAGE_PROVIDER_EVENTS = new Set([
   "ServiceKeyRotationScheduled", "ServiceKeyRotated", "ProviderOrganizationRotated",
   "ProviderAuthorityRefreshed", "BucketAuthorityRefreshed", "BucketReconciliationDeferred",
@@ -67,8 +68,27 @@ function hash(value: unknown, field: string): string {
   if (typeof value !== "string" || !HASH.test(value)) rejected(`Storage.${field} is not a 32-byte hash`);
   return value.toLowerCase();
 }
+function accountBytes(value: unknown, field: string): Uint8Array {
+  if (typeof value !== "string") rejected(`Storage.${field} is not an account`);
+  if (HASH.test(value)) return Uint8Array.from(value.slice(2).match(/../g)!.map((pair) => Number.parseInt(pair, 16)));
+  let integer = 0n;
+  for (const character of value) {
+    const digit = BASE58.indexOf(character);
+    if (digit < 0) rejected(`Storage.${field} is not an SS58 account`);
+    integer = integer * 58n + BigInt(digit);
+  }
+  const decoded: number[] = [];
+  while (integer > 0n) { decoded.push(Number(integer & 0xffn)); integer >>= 8n; }
+  decoded.reverse();
+  for (const character of value) { if (character !== "1") break; decoded.unshift(0); }
+  const bytes = Uint8Array.from(decoded);
+  if (bytes.length < 35 || bytes[0]! >= 128) rejected(`Storage.${field} does not encode AccountId32`);
+  const prefixLength = (bytes[0]! & 0x40) === 0 ? 1 : 2;
+  if (bytes.length !== prefixLength + 34) rejected(`Storage.${field} does not encode AccountId32`);
+  return bytes.slice(prefixLength, prefixLength + 32);
+}
 function account(value: unknown, field: string): AccountId {
-  if (typeof value !== "string" || value.length < 1 || value.length > 128) rejected(`Storage.${field} is not an account`);
+  accountBytes(value, field);
   return value as AccountId;
 }
 function decimal(value: unknown, field: string): DecimalU64 {
@@ -112,6 +132,39 @@ function utf8(value: unknown, field: string): string {
   try { return new TextDecoder("utf-8", { fatal: true }).decode(encoded); }
   catch { rejected(`Storage.${field} is not UTF-8`); }
 }
+function drivePath(value: unknown, field: string): string {
+  const path = utf8(value, field);
+  const encoded = new TextEncoder().encode(path);
+  if (new TextDecoder("utf-8", { fatal: true }).decode(encoded) !== path)
+    rejected(`Storage.${field} is not canonical UTF-8`);
+  if (encoded.length < 1 || encoded.length > 4_096 || path[0] !== "/")
+    rejected(`Storage.${field} violates the native Drive path bounds`);
+  if (path === "/") return path;
+  if (path.endsWith("/")) rejected(`Storage.${field} violates the native Drive path bounds`);
+  const components = path.slice(1).split("/");
+  if (components.length > 64) rejected(`Storage.${field} exceeds the native Drive depth`);
+  for (const component of components) {
+    const bytes = new TextEncoder().encode(component);
+    if (bytes.length < 1 || bytes.length > 256 || component.includes("\0") || component === "." || component === ".." || component.normalize("NFC") !== component)
+      rejected(`Storage.${field} contains an invalid native Drive component`);
+  }
+  return path;
+}
+function s3BucketName(value: unknown, field: string): string {
+  const name = utf8(value, field);
+  if (!/^[a-z0-9][a-z0-9-]{1,61}[a-z0-9]$/.test(name))
+    rejected(`Storage.${field} violates the native S3 bucket-name bounds`);
+  return name;
+}
+function nativeObjectKey(value: unknown, field: string): Uint8Array {
+  let decoded: Uint8Array;
+  if (value instanceof Uint8Array) decoded = value.slice();
+  else if (Array.isArray(value) && value.every((item) => Number.isInteger(item) && item >= 0 && item <= 255)) decoded = Uint8Array.from(value);
+  else if (typeof value === "string" && /^0x(?:[0-9a-f]{2})*$/i.test(value)) decoded = Uint8Array.from(value.slice(2).match(/../g)?.map((pair) => Number.parseInt(pair, 16)) ?? []);
+  else rejected(`Storage.${field} is not descriptor-shaped bytes`);
+  if (decoded.length < 1 || decoded.length > 1_024 || decoded.includes(0)) rejected(`Storage.${field} violates the native object-key bounds`);
+  return decoded;
+}
 function variant<T extends string>(value: unknown, field: string, allowed: readonly T[]): T {
   const raw = typeof value === "string" ? value : value && typeof value === "object" && "type" in value ? String((value as { type: unknown }).type) : "";
   const normalized = raw.replace(/([a-z0-9])([A-Z])/g, "$1_$2").toLowerCase();
@@ -128,20 +181,49 @@ function data(native: TypedFinalizedEvent): Readonly<Record<string, unknown>> {
   if (!native.data || typeof native.data !== "object" || Array.isArray(native.data)) rejected(`Storage.${native.event} data is not an object`);
   return native.data;
 }
-function accounts(value: unknown, field: string): readonly ProviderId[] {
+function compareBytes(left: Uint8Array, right: Uint8Array): number {
+  for (let index = 0; index < left.length; index += 1) {
+    const difference = left[index]! - right[index]!;
+    if (difference !== 0) return difference;
+  }
+  return 0;
+}
+function byteKey(value: Uint8Array): string {
+  return Array.from(value, (byte) => byte.toString(16).padStart(2, "0")).join("");
+}
+function accounts(value: unknown, field: string, minimum: number, maximum: number, sorted: boolean): readonly ProviderId[] {
   if (!Array.isArray(value)) rejected(`Storage.${field} is not an account list`);
   const decoded = value.map((item, index) => account(item, `${field}[${index}]`) as ProviderId);
-  if (new Set(decoded).size !== decoded.length) rejected(`Storage.${field} contains duplicate accounts`);
+  if (decoded.length < minimum || decoded.length > maximum) rejected(`Storage.${field} must contain ${minimum}-${maximum} accounts`);
+  const raw = value.map((item, index) => accountBytes(item, `${field}[${index}]`));
+  const keys = raw.map(byteKey);
+  if (new Set(keys).size !== keys.length) rejected(`Storage.${field} contains duplicate accounts`);
+  if (sorted && raw.some((item, index) => index > 0 && compareBytes(raw[index - 1]!, item) >= 0)) rejected(`Storage.${field} is not in canonical account order`);
   return decoded;
 }
 function commitment(value: unknown): CheckpointCommitment {
   if (!value || typeof value !== "object" || Array.isArray(value)) rejected("Storage.commitment is not an object");
   const entry = value as Readonly<Record<string, unknown>>;
-  return {
+  const result = {
     mmr_root: hash(entry.mmr_root, "commitment.mmr_root") as ContentCommitment,
     start_seq: decimal(entry.start_seq, "commitment.start_seq"),
     leaf_count: decimal(entry.leaf_count, "commitment.leaf_count"),
   };
+  if (BigInt(result.leaf_count) === 0n || BigInt(result.start_seq) + BigInt(result.leaf_count) > U64_MAX)
+    rejected("Storage.commitment sequence range is invalid");
+  return result;
+}
+
+function storageBucketCreated(d: Readonly<Record<string, unknown>>): StorageNativeEvent {
+  const primary = provider(d.primary, "primary");
+  const replicas = accounts(d.replicas, "replicas", 2, 4, false);
+  const primaryKey = byteKey(accountBytes(primary, "primary"));
+  if (replicas.some((replica) => byteKey(accountBytes(replica, "replica")) === primaryKey))
+    rejected("Storage.replicas contains the primary provider");
+  return { event: "storage_bucket_created", data: { bucket: bucket(d.bucket_id, "bucket_id"), owner: account(d.owner, "owner"), primary, replicas, version: decimal(d.version, "version") } };
+}
+function checkpointAccepted(d: Readonly<Record<string, unknown>>): StorageNativeEvent {
+  return { event: "checkpoint_accepted", data: { bucket: bucket(d.bucket_id, "bucket_id"), commitment: commitment(d.commitment), checkpoint: block(d.checkpoint, "checkpoint"), replica_confirmations: accounts(d.replica_confirmations, "replica_confirmations", 2, 2, true) } };
 }
 
 const provider = (value: unknown, field = "provider") => account(value, field) as ProviderId;
@@ -162,7 +244,7 @@ export function decodeStorageNativeEvent(native: TypedFinalizedEvent): StorageNa
     case "StorageProvider.ProviderStatusChanged": return { event: "provider_status_changed", data: { provider: provider(d.provider), status: variant<ProviderStatus>(d.status, "status", ["active", "suspended"]) } };
     case "StorageProvider.ProviderRemoved": return { event: "provider_removed", data: { provider: provider(d.provider) } };
     case "StorageProvider.Heartbeat": return { event: "heartbeat", data: { provider: provider(d.provider), at: block(d.at, "at") } };
-    case "StorageProvider.BucketCreated": return { event: "storage_bucket_created", data: { bucket: bucket(d.bucket_id, "bucket_id"), owner: account(d.owner, "owner"), primary: provider(d.primary, "primary"), replicas: accounts(d.replicas, "replicas"), version: decimal(d.version, "version") } };
+    case "StorageProvider.BucketCreated": return storageBucketCreated(d);
     case "StorageProvider.BucketGrantChanged": return { event: "storage_bucket_grant_changed", data: { bucket: bucket(d.bucket_id, "bucket_id"), account: account(d.account, "account"), role: nullableVariant<BucketRole>(d.role, "role", ["reader", "writer", "admin"]), previous_version: decimal(d.previous_version, "previous_version"), new_version: decimal(d.new_version, "new_version") } };
     case "StorageProvider.AgreementTransitioned": return { event: "agreement_transitioned", data: { agreement: agreement(d.agreement_id), previous: nullableVariant<AgreementStatus>(d.previous, "previous", ["proposed", "active", "suspended", "cancelled", "expired"]), current: variant<AgreementStatus>(d.current, "current", ["proposed", "active", "suspended", "cancelled", "expired"]), previous_version: decimal(d.previous_version, "previous_version"), new_version: decimal(d.new_version, "new_version") } };
     case "StorageProvider.AgreementCapacityReleased": return { event: "agreement_capacity_released", data: { agreement: agreement(d.agreement_id) } };
@@ -170,7 +252,7 @@ export function decodeStorageNativeEvent(native: TypedFinalizedEvent): StorageNa
     case "StorageProvider.ChallengeIssued": return { event: "challenge_issued", data: { challenge: challenge(d.challenge_id), bucket: bucket(d.bucket_id, "bucket_id"), provider: provider(d.provider), due_at: block(d.due_at, "due_at") } };
     case "StorageProvider.ChallengeProved": return { event: "challenge_proved", data: { challenge: challenge(d.challenge_id), provider: provider(d.provider) } };
     case "StorageProvider.ChallengeTimedOut": return { event: "challenge_timed_out", data: { challenge: challenge(d.challenge_id), provider: provider(d.provider), checkpoint: block(d.checkpoint, "checkpoint") } };
-    case "StorageProvider.CheckpointAccepted": return { event: "checkpoint_accepted", data: { bucket: bucket(d.bucket_id, "bucket_id"), commitment: commitment(d.commitment), checkpoint: block(d.checkpoint, "checkpoint"), replica_confirmations: accounts(d.replica_confirmations, "replica_confirmations") } };
+    case "StorageProvider.CheckpointAccepted": return checkpointAccepted(d);
     case "StorageProvider.CheckpointEquivocation": return { event: "checkpoint_equivocation", data: { code: u16(d.code, "code"), bucket: bucket(d.bucket_id, "bucket_id"), provider: provider(d.provider), accepted_root: hash(d.accepted_root, "accepted_root") as ContentCommitment, conflicting_root: hash(d.conflicting_root, "conflicting_root") as ContentCommitment, nonce: block(d.nonce, "nonce") } };
     case "StorageProvider.ReplicaSelected": return { event: "replica_selected", data: { bucket: bucket(d.bucket_id, "bucket_id"), provider: provider(d.provider), checkpoint: block(d.checkpoint, "checkpoint") } };
     case "StorageProvider.PrimaryPromoted": return { event: "primary_promoted", data: { bucket: bucket(d.bucket_id, "bucket_id"), old_provider: provider(d.old_provider, "old_provider"), new_provider: provider(d.new_provider, "new_provider"), checkpoint: block(d.checkpoint, "checkpoint") } };
@@ -182,18 +264,18 @@ export function decodeStorageNativeEvent(native: TypedFinalizedEvent): StorageNa
     case "Drive.GrantChanged": return { event: "drive_grant_changed", data: { drive: drive(d.drive_id), subject: account(d.subject, "subject"), role: nullableVariant<DriveRole>(d.role, "role", ["reader", "writer", "admin"]), previous_version: decimal(d.previous_version, "previous_version"), version: decimal(d.version, "version") } };
     case "Drive.DriveTransferred": return { event: "drive_transferred", data: { drive: drive(d.drive_id), old_owner: account(d.old_owner, "old_owner"), new_owner: account(d.new_owner, "new_owner"), previous_version: decimal(d.previous_version, "previous_version"), version: decimal(d.version, "version") } };
     case "Drive.DriveArchived": return { event: "drive_archived", data: { drive: drive(d.drive_id), previous_version: decimal(d.previous_version, "previous_version"), version: decimal(d.version, "version") } };
-    case "Drive.NodeWritten": return { event: "drive_node_written", data: { drive: drive(d.drive_id), path: utf8(d.path, "path"), kind: variant<DriveNodeKind>(d.kind, "kind", ["directory", "file"]), previous_version: decimal(d.previous_version, "previous_version"), version: decimal(d.version, "version") } };
-    case "Drive.NodeRemoved": return { event: "drive_node_removed", data: { drive: drive(d.drive_id), path: utf8(d.path, "path"), previous_version: decimal(d.previous_version, "previous_version"), version: decimal(d.version, "version") } };
-    case "S3.BucketCreated": return { event: "s3_bucket_created", data: { bucket: bucket(d.bucket), name: utf8(d.name, "name"), owner: account(d.owner, "owner") } };
+    case "Drive.NodeWritten": return { event: "drive_node_written", data: { drive: drive(d.drive_id), path: drivePath(d.path, "path"), kind: variant<DriveNodeKind>(d.kind, "kind", ["directory", "file"]), previous_version: decimal(d.previous_version, "previous_version"), version: decimal(d.version, "version") } };
+    case "Drive.NodeRemoved": return { event: "drive_node_removed", data: { drive: drive(d.drive_id), path: drivePath(d.path, "path"), previous_version: decimal(d.previous_version, "previous_version"), version: decimal(d.version, "version") } };
+    case "S3.BucketCreated": return { event: "s3_bucket_created", data: { bucket: bucket(d.bucket), name: s3BucketName(d.name, "name"), owner: account(d.owner, "owner") } };
     case "S3.ControllerChanged": return { event: "s3_controller_changed", data: { bucket: bucket(d.bucket), controller: account(d.controller, "controller"), enabled: bool(d.enabled, "enabled"), version: decimal(d.version, "version") } };
     case "S3.BucketTransferred": return { event: "s3_bucket_transferred", data: { bucket: bucket(d.bucket), from: account(d.from, "from"), to: account(d.to, "to"), version: decimal(d.version, "version") } };
     case "S3.BucketArchived": return { event: "s3_bucket_archived", data: { bucket: bucket(d.bucket), archived: bool(d.archived, "archived"), version: decimal(d.version, "version") } };
     case "S3.BucketVersioningChanged": return { event: "s3_bucket_versioning_changed", data: { bucket: bucket(d.bucket), enabled: bool(d.enabled, "enabled"), version: decimal(d.version, "version") } };
-    case "S3.ObjectPut": return { event: "s3_object_put", data: { bucket: bucket(d.bucket), object: object(d.object), key: utf8(d.key, "key"), content_hash: hash(d.content_hash, "content_hash") as ContentHash, version: decimal(d.version, "version") } };
-    case "S3.ObjectDeleted": return { event: "s3_object_deleted", data: { bucket: bucket(d.bucket), object: object(d.object), key: utf8(d.key, "key"), version: decimal(d.version, "version") } };
-    case "S3.ObjectPurged": return { event: "s3_object_purged", data: { bucket: bucket(d.bucket), key: utf8(d.key, "key") } };
-    case "S3.BucketDeleted": return { event: "s3_bucket_deleted", data: { bucket: bucket(d.bucket), name: utf8(d.name, "name"), owner: account(d.owner, "owner") } };
-    case "S3.ObjectHistoryPruned": return { event: "s3_object_history_pruned", data: { bucket: bucket(d.bucket), key: utf8(d.key, "key"), through_version: decimal(d.through_version, "through_version"), removed: u32(d.removed, "removed") } };
+    case "S3.ObjectPut": return { event: "s3_object_put", data: { bucket: bucket(d.bucket), object: object(d.object), key: nativeObjectKey(d.key, "key"), content_hash: hash(d.content_hash, "content_hash") as ContentHash, version: decimal(d.version, "version") } };
+    case "S3.ObjectDeleted": return { event: "s3_object_deleted", data: { bucket: bucket(d.bucket), object: object(d.object), key: nativeObjectKey(d.key, "key"), version: decimal(d.version, "version") } };
+    case "S3.ObjectPurged": return { event: "s3_object_purged", data: { bucket: bucket(d.bucket), key: nativeObjectKey(d.key, "key") } };
+    case "S3.BucketDeleted": return { event: "s3_bucket_deleted", data: { bucket: bucket(d.bucket), name: s3BucketName(d.name, "name"), owner: account(d.owner, "owner") } };
+    case "S3.ObjectHistoryPruned": return { event: "s3_object_history_pruned", data: { bucket: bucket(d.bucket), key: nativeObjectKey(d.key, "key"), through_version: decimal(d.through_version, "through_version"), removed: u32(d.removed, "removed") } };
     default: throw new ProductSdkError("unsupported_runtime", `unknown native storage event ${native.pallet}.${native.event}`);
   }
 }

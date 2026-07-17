@@ -24,7 +24,7 @@ import type { TypedFinalizedEventSource } from "../../packages/host/src/attestat
 import type { BlockHash } from "@cord-network/origin-sdk-cloud-storage";
 
 const h = (n: number) => `0x${n.toString(16).padStart(2, "0").repeat(32)}`;
-const a = (n: number) => `account-${n}`;
+const a = (n: number) => h(0x20 + n);
 type Case = readonly [string, string, Readonly<Record<string, unknown>>, StorageNativeEventKind];
 const cases: readonly Case[] = [
   ["StorageProvider", "ProviderRegistered", { provider: a(1), capacity_bytes: 2 }, "provider_registered"],
@@ -52,18 +52,18 @@ const cases: readonly Case[] = [
   ["Drive", "GrantChanged", { drive_id: h(8), subject: a(3), role: "Reader", previous_version: 2, version: 3 }, "drive_grant_changed"],
   ["Drive", "DriveTransferred", { drive_id: h(8), old_owner: a(2), new_owner: a(3), previous_version: 3, version: 4 }, "drive_transferred"],
   ["Drive", "DriveArchived", { drive_id: h(8), previous_version: 4, version: 5 }, "drive_archived"],
-  ["Drive", "NodeWritten", { drive_id: h(8), path: [100, 105, 114, 47, 102], kind: "File", previous_version: 5, version: 6 }, "drive_node_written"],
-  ["Drive", "NodeRemoved", { drive_id: h(8), path: "dir/f", previous_version: 6, version: 7 }, "drive_node_removed"],
-  ["S3", "BucketCreated", { bucket: h(9), name: [98], owner: a(2) }, "s3_bucket_created"],
+  ["Drive", "NodeWritten", { drive_id: h(8), path: [47, 100, 105, 114, 47, 102], kind: "File", previous_version: 5, version: 6 }, "drive_node_written"],
+  ["Drive", "NodeRemoved", { drive_id: h(8), path: "/dir/f", previous_version: 6, version: 7 }, "drive_node_removed"],
+  ["S3", "BucketCreated", { bucket: h(9), name: [97, 112, 112], owner: a(2) }, "s3_bucket_created"],
   ["S3", "ControllerChanged", { bucket: h(9), controller: a(3), enabled: true, version: 2 }, "s3_controller_changed"],
   ["S3", "BucketTransferred", { bucket: h(9), from: a(2), to: a(3), version: 3 }, "s3_bucket_transferred"],
   ["S3", "BucketArchived", { bucket: h(9), archived: true, version: 4 }, "s3_bucket_archived"],
   ["S3", "BucketVersioningChanged", { bucket: h(9), enabled: true, version: 5 }, "s3_bucket_versioning_changed"],
-  ["S3", "ObjectPut", { bucket: h(9), object: h(10), key: [107], content_hash: h(11), version: 1 }, "s3_object_put"],
-  ["S3", "ObjectDeleted", { bucket: h(9), object: h(10), key: [107], version: 2 }, "s3_object_deleted"],
-  ["S3", "ObjectPurged", { bucket: h(9), key: [107] }, "s3_object_purged"],
-  ["S3", "BucketDeleted", { bucket: h(9), name: [98], owner: a(3) }, "s3_bucket_deleted"],
-  ["S3", "ObjectHistoryPruned", { bucket: h(9), key: [107], through_version: 2, removed: 1 }, "s3_object_history_pruned"],
+  ["S3", "ObjectPut", { bucket: h(9), object: h(10), key: [0xff], content_hash: h(11), version: 1 }, "s3_object_put"],
+  ["S3", "ObjectDeleted", { bucket: h(9), object: h(10), key: [0xff], version: 2 }, "s3_object_deleted"],
+  ["S3", "ObjectPurged", { bucket: h(9), key: [0xff] }, "s3_object_purged"],
+  ["S3", "BucketDeleted", { bucket: h(9), name: [97, 112, 112], owner: a(3) }, "s3_bucket_deleted"],
+  ["S3", "ObjectHistoryPruned", { bucket: h(9), key: [0xff], through_version: 2, removed: 1 }, "s3_object_history_pruned"],
 ];
 
 test("every exposed Commons storage event decodes to one exact distinct kind", () => {
@@ -78,6 +78,17 @@ test("every exposed Commons storage event decodes to one exact distinct kind", (
   assert.equal(decodeStorageNativeEvent({ pallet: "StorageProvider", event: "ServiceKeyRotated", data: {}, index: 39 }), null);
   assert.throws(() => decodeStorageNativeEvent({ pallet: "S3", event: "FutureEvent", data: {}, index: 0 }), /unknown native storage event/);
   assert.throws(() => decodeStorageNativeEvent({ pallet: "StorageProvider", event: "CheckpointAccepted", data: { ...cases[13]![2], replica_confirmations: [a(3), a(3)] }, index: 0 }), /duplicate accounts/);
+  assert.throws(() => decodeStorageNativeEvent({ pallet: "StorageProvider", event: "CheckpointAccepted", data: { ...cases[13]![2], replica_confirmations: [a(4), a(3)] }, index: 0 }), /canonical account order/);
+  assert.throws(() => decodeStorageNativeEvent({ pallet: "StorageProvider", event: "CheckpointAccepted", data: { ...cases[13]![2], replica_confirmations: [a(3)] }, index: 0 }), /2-2 accounts/);
+  assert.throws(() => decodeStorageNativeEvent({ pallet: "StorageProvider", event: "CheckpointAccepted", data: { ...cases[13]![2], commitment: { mmr_root: h(4), start_seq: 2, leaf_count: 0 } }, index: 0 }), /sequence range/);
+  assert.throws(() => decodeStorageNativeEvent({ pallet: "StorageProvider", event: "CheckpointAccepted", data: { ...cases[13]![2], commitment: { mmr_root: h(4), start_seq: "18446744073709551615", leaf_count: 1 } }, index: 0 }), /sequence range/);
+  assert.throws(() => decodeStorageNativeEvent({ pallet: "StorageProvider", event: "BucketCreated", data: { ...cases[5]![2], replicas: [a(3)] }, index: 0 }), /2-4 accounts/);
+  assert.throws(() => decodeStorageNativeEvent({ pallet: "StorageProvider", event: "BucketCreated", data: { ...cases[5]![2], replicas: [a(1), a(3)] }, index: 0 }), /primary provider/);
+  assert.throws(() => decodeStorageNativeEvent({ pallet: "Drive", event: "NodeWritten", data: { ...cases[25]![2], path: "dir/f" }, index: 0 }), /Drive path bounds/);
+  assert.throws(() => decodeStorageNativeEvent({ pallet: "Drive", event: "NodeWritten", data: { ...cases[25]![2], path: "/dir/.." }, index: 0 }), /Drive component/);
+  assert.throws(() => decodeStorageNativeEvent({ pallet: "Drive", event: "NodeWritten", data: { ...cases[25]![2], path: "/e\u0301" }, index: 0 }), /Drive component/);
+  assert.throws(() => decodeStorageNativeEvent({ pallet: "S3", event: "BucketCreated", data: { ...cases[27]![2], name: "Abc" }, index: 0 }), /bucket-name bounds/);
+  assert.throws(() => decodeStorageNativeEvent({ pallet: "S3", event: "ObjectPut", data: { ...cases[32]![2], key: [0] }, index: 0 }), /object-key bounds/);
 });
 
 test("finalized source filters exact kinds and emits deterministic domain outcomes", async () => {
@@ -93,4 +104,22 @@ test("finalized source filters exact kinds and emits deterministic domain outcom
   assert.deepEqual(received.map((item) => item.event.event.event), wanted);
   assert.deepEqual(received.map((item) => item.event.event_index), [13, 19, 32]);
   assert.deepEqual(received.map((item) => item.outcome.outcome), ["checkpoint", "manifest", "s3_object"]);
+});
+
+test("S3 object outcomes remain distinct when native purge events omit object hashes", async () => {
+  const first = decodeStorageNativeEvent({ pallet: "S3", event: "ObjectPurged", data: { bucket: h(9), key: [0xff] }, index: 0 })!;
+  const second = decodeStorageNativeEvent({ pallet: "S3", event: "ObjectPurged", data: { bucket: h(9), key: [0xfe] }, index: 1 })!;
+  const source: TypedFinalizedEventSource = {
+    async *subscribeFinalizedEvents() {
+      yield { hash: h(12), events: [
+        { pallet: "S3", event: "ObjectPurged", data: first.data, index: 0 },
+        { pallet: "S3", event: "ObjectPurged", data: second.data, index: 1 },
+      ] };
+    },
+  };
+  assert.notDeepEqual(first.data.key, second.data.key);
+  const ids: Array<string | null> = [];
+  for await (const item of subscribeStorageNativeEvents(source, storageNativeEventSubscription(h(1) as BlockHash, ["s3_object_purged"])))
+    ids.push(item.outcome.data.id);
+  assert.deepEqual(ids, [`s3-key:${h(9)}:ff`, `s3-key:${h(9)}:fe`]);
 });
