@@ -305,6 +305,14 @@ test("negotiated authority is opaque, immutable, and rejects brand or prototype 
     (error) => error instanceof HostV2NegotiationError && error.code === "WIRE_DESCRIPTOR_MISMATCH",
   );
 
+  const constructorObject = authority.constructor as Function & { snapshot?: () => HostV2Negotiated };
+  const prototype = Object.getPrototypeOf(authority) as object;
+  assert.ok(Object.isFrozen(constructorObject));
+  assert.ok(Object.isFrozen(prototype));
+  assert.throws(() => Object.assign(constructorObject, { snapshot: () => plainObject }));
+  assert.throws(() => Object.defineProperty(prototype, "minor", { get: () => 65_535 }));
+  assert.throws(() => Object.setPrototypeOf(authority, { minor: 65_535 }));
+
   const session = new HostV2Session(authority, requestId);
   const sessionGenesis = session.negotiation.genesis;
   sessionGenesis.fill(0xaa);

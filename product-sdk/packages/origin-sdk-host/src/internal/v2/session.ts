@@ -41,13 +41,29 @@ export interface HostV2NegotiationOffer {
 
 const negotiatedAuthority = Symbol("cord.origin.host/2 negotiated authority");
 
+interface NegotiatedHostV2Data {
+  readonly minor: number;
+  readonly genesis: Uint8Array;
+  readonly finalizedSpecVersion: number;
+  readonly finalizedTransactionVersion: number;
+  readonly features: readonly HostV2FeatureId[];
+}
+
+const negotiatedStates = new WeakMap<object, NegotiatedHostV2Data>();
+
+function negotiatedState(value: object): NegotiatedHostV2Data {
+  const state = negotiatedStates.get(value);
+  if (!state) {
+    throw new HostV2NegotiationError(
+      "WIRE_DESCRIPTOR_MISMATCH",
+      "session requires an opaque validated host-v2 negotiation",
+    );
+  }
+  return state;
+}
+
 class NegotiatedHostV2State {
-  readonly #authority = "cord.origin.host/2:negotiated";
-  readonly #minor: number;
-  readonly #genesis: Uint8Array;
-  readonly #finalizedSpecVersion: number;
-  readonly #finalizedTransactionVersion: number;
-  readonly #features: readonly HostV2FeatureId[];
+  readonly #nominal = true;
 
   constructor(
     authority: symbol,
@@ -63,30 +79,14 @@ class NegotiatedHostV2State {
         "host-v2 negotiation authority is private",
       );
     }
-    this.#minor = minor;
-    this.#genesis = genesis.slice();
-    this.#finalizedSpecVersion = finalizedSpecVersion;
-    this.#finalizedTransactionVersion = finalizedTransactionVersion;
-    this.#features = Object.freeze([...features]);
+    negotiatedStates.set(this, Object.freeze({
+      minor,
+      genesis: genesis.slice(),
+      finalizedSpecVersion,
+      finalizedTransactionVersion,
+      features: Object.freeze([...features]),
+    }));
     Object.freeze(this);
-  }
-
-  static snapshot(value: HostV2Negotiated): NegotiatedHostV2State {
-    try {
-      if (value.#authority !== "cord.origin.host/2:negotiated") throw new Error("invalid authority");
-      return createNegotiatedHostV2State(
-        value.#minor,
-        value.#genesis,
-        value.#finalizedSpecVersion,
-        value.#finalizedTransactionVersion,
-        value.#features,
-      );
-    } catch {
-      throw new HostV2NegotiationError(
-        "WIRE_DESCRIPTOR_MISMATCH",
-        "session requires an opaque validated host-v2 negotiation",
-      );
-    }
   }
 
   get protocol(): typeof HOST_V2_PROTOCOL {
@@ -98,19 +98,19 @@ class NegotiatedHostV2State {
   }
 
   get minor(): number {
-    return this.#minor;
+    return negotiatedState(this).minor;
   }
 
   get genesis(): Uint8Array {
-    return this.#genesis.slice();
+    return negotiatedState(this).genesis.slice();
   }
 
   get finalizedSpecVersion(): number {
-    return this.#finalizedSpecVersion;
+    return negotiatedState(this).finalizedSpecVersion;
   }
 
   get finalizedTransactionVersion(): number {
-    return this.#finalizedTransactionVersion;
+    return negotiatedState(this).finalizedTransactionVersion;
   }
 
   get registrySha256(): typeof HOST_V2_REGISTRY_SHA256 {
@@ -118,9 +118,12 @@ class NegotiatedHostV2State {
   }
 
   get features(): readonly HostV2FeatureId[] {
-    return Object.freeze([...this.#features]);
+    return Object.freeze([...negotiatedState(this).features]);
   }
 }
+
+Object.freeze(NegotiatedHostV2State.prototype);
+Object.freeze(NegotiatedHostV2State);
 
 export type HostV2Negotiated = NegotiatedHostV2State;
 
@@ -138,6 +141,17 @@ function createNegotiatedHostV2State(
     finalizedSpecVersion,
     finalizedTransactionVersion,
     features,
+  );
+}
+
+function snapshotNegotiatedHostV2State(value: HostV2Negotiated): NegotiatedHostV2State {
+  const state = negotiatedState(value);
+  return createNegotiatedHostV2State(
+    state.minor,
+    state.genesis,
+    state.finalizedSpecVersion,
+    state.finalizedTransactionVersion,
+    state.features,
   );
 }
 
@@ -243,7 +257,7 @@ export class HostV2Session {
     if (!(requestId instanceof Uint8Array) || requestId.length !== 16) {
       throw new HostV2CodecError("WIRE_SCHEMA_INVALID", "host-v2 request ID must be exactly 16 bytes");
     }
-    this.negotiated = NegotiatedHostV2State.snapshot(negotiated);
+    this.negotiated = snapshotNegotiatedHostV2State(negotiated);
     this.requestId = requestId.slice() as RequestId;
   }
 
@@ -256,7 +270,7 @@ export class HostV2Session {
   }
 
   get negotiation(): HostV2Negotiated {
-    return NegotiatedHostV2State.snapshot(this.negotiated);
+    return snapshotNegotiatedHostV2State(this.negotiated);
   }
 
   private sequenceFault(message: string): never {
