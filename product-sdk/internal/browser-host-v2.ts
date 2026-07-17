@@ -34,7 +34,7 @@ import {
 import { BrowserHostOutboxV1 } from "../packages/origin-sdk-host/src/internal/v2/browser-outbox.ts";
 import { DurableBrowserHostV2 } from "../packages/origin-sdk-host/src/internal/v2/browser-durable.ts";
 import { BrowserHostV2Transport, type BrowserHostV2IoOptions } from "../packages/origin-sdk-host/src/internal/v2/browser.ts";
-import { decodeHostV2, encodeHostV2, type HostV2Map } from "../packages/origin-sdk-host/src/internal/v2/codec.ts";
+import { decodeHostV2, encodeHostV2, encodeHostV2Value, type HostV2Map } from "../packages/origin-sdk-host/src/internal/v2/codec.ts";
 import {
   HOST_V2_ERROR_BINDINGS, HOST_V2_OPERATION_BINDINGS,
   type HostOutboxEntryV1, type HostV2TypeName,
@@ -71,6 +71,14 @@ export interface PrivateBrowserOutboxIdResolverV2 { next(): Uint8Array }
 export interface PrivateBrowserAckConfirmationResolverV2 {
   confirm(input: { readonly outboxId: Uint8Array; readonly responseHash: Uint8Array }, signal?: AbortSignal): Promise<Uint8Array>;
 }
+export interface PrivateFinalizedProviderServiceKeyV2 {
+  readonly providerId: Uint8Array; readonly keyId: Uint8Array; readonly publicKey: Uint8Array;
+  readonly validFrom: bigint; readonly validUntil: bigint; readonly rotation: "current" | "retiring";
+  readonly revoked: boolean; readonly finalized: { readonly number: bigint; readonly hash: Uint8Array; readonly proof: Uint8Array };
+}
+export interface PrivateProviderResumeTokenVerifierV2 {
+  resolve(input: { readonly providerId: Uint8Array; readonly hostKeyId: Uint8Array; readonly finalized: bigint }, signal?: AbortSignal): Promise<PrivateFinalizedProviderServiceKeyV2>;
+}
 
 interface PrivateBrowserInvocationControlV2 {
   bind(cancel: () => Promise<void>): Promise<void>;
@@ -84,8 +92,8 @@ export interface PrivateBrowserRustProviderBridgeV2 {
     readonly upload?: AsyncIterable<Uint8Array>;
     readonly cancellations: AsyncIterable<{ readonly event: Uint8Array; readonly authority: Uint8Array }>;
     readonly signal?: AbortSignal;
-  }): AsyncIterable<{ readonly event: Uint8Array; readonly terminalBlock: bigint }>;
-  acknowledge(exactAck: Uint8Array, signal?: AbortSignal): Promise<void>;
+  }): AsyncIterable<{ readonly event: Uint8Array; readonly terminalBlock: bigint; readonly successor?: { readonly exactResumeToken: Uint8Array; readonly intendedCursor: number } }>;
+  acknowledge(exactAck: Uint8Array, signal?: AbortSignal): Promise<void | { readonly durable: true }>;
 }
 
 interface PrivateExactHostExecutionV2 { readonly event: Uint8Array; readonly terminalBlock: bigint }
@@ -109,11 +117,17 @@ export interface PrivateProviderByteBridgeV2 {
     operation: PrivateProviderByteOperationV2, exactRequest: Uint8Array, upload?: PrivateStorageUploadV2,
     signal?: AbortSignal, onEvent?: (event: Uint8Array) => void, control?: PrivateBrowserInvocationControlV2,
   ): Promise<PrivateInvocationResultV2>;
+  resume?(continuation: PrivateBrowserProviderContinuationV2, signal?: AbortSignal, onEvent?: (event: Uint8Array) => void): Promise<PrivateInvocationResultV2>;
 }
 
 export interface PrivateInvocationResultV2 {
   readonly value?: unknown;
   readonly error?: PrivateBrowserErrorV2;
+  readonly continuation?: PrivateBrowserProviderContinuationV2;
+}
+export interface PrivateBrowserProviderContinuationV2 {
+  readonly operation: PrivateProviderByteOperationV2; readonly request: Uint8Array; readonly token: Uint8Array;
+  readonly predecessorOutboxId: Uint8Array; readonly cursor: number; readonly hostKeyId: Uint8Array;
 }
 interface PrivateBrowserErrorV2 {
   readonly code: number; readonly name: string; readonly retryable: boolean;
@@ -127,14 +141,16 @@ export class PrivateDurableBrowserHostV2 implements PrivateProviderByteBridgeV2 
   readonly #authority: PrivateBrowserAuthorityResolverV2;
   readonly #ids: PrivateBrowserOutboxIdResolverV2;
   readonly #acknowledgements?: PrivateBrowserAckConfirmationResolverV2;
+  readonly #resumeTokens?: PrivateProviderResumeTokenVerifierV2;
 
   constructor(input: {
     readonly durable: DurableBrowserHostV2; readonly outbox: BrowserHostOutboxV1;
     readonly finality: PrivateBrowserFinalityResolverV2; readonly authority: PrivateBrowserAuthorityResolverV2;
     readonly outboxIds: PrivateBrowserOutboxIdResolverV2; readonly acknowledgements?: PrivateBrowserAckConfirmationResolverV2;
+    readonly resumeTokens?: PrivateProviderResumeTokenVerifierV2;
   }) {
     this.#durable = input.durable; this.#outbox = input.outbox; this.#finality = input.finality;
-    this.#authority = input.authority; this.#ids = input.outboxIds; this.#acknowledgements = input.acknowledgements;
+    this.#authority = input.authority; this.#ids = input.outboxIds; this.#acknowledgements = input.acknowledgements; this.#resumeTokens = input.resumeTokens;
   }
 
   async invoke(
@@ -178,8 +194,10 @@ export class PrivateDurableBrowserHostV2 implements PrivateProviderByteBridgeV2 
       cancelSent = this.#durable.prepareCancelAndSend(exact, io(signal)).then(() => undefined); return cancelSent;
     };
     let nextSequence = 0;
-    while (true) {
-      const received = await this.#durable.receiveEvent(finalized.number, io(signal));
+    try { while (true) {
+      const received = this.#resumeTokens
+        ? await this.#durable.receiveProviderEvent(finalized.number, io(signal))
+        : await this.#durable.receiveEvent(finalized.number, io(signal));
       const event = decodeHostV2("EventV2", received.event).value as WireMap;
       nextSequence = Number(event[2]) + 1;
       if (Number(event[3]) === 0 && control) await control.bind(requestCancel);
@@ -188,6 +206,16 @@ export class PrivateDurableBrowserHostV2 implements PrivateProviderByteBridgeV2 
       if (Number(event[3]) === 1 && uploadWindow) {
         const chunksAcked = (event[4] as WireMap)[2];
         if (chunksAcked !== undefined) uploadWindow.advance(Number(chunksAcked));
+      }
+      if (received.successorToken) {
+        uploadWindow?.seal();
+        const hostKeyId = bytes(capability[4], 32, "host key audience");
+        const intendedCursor = await this.#verifyResumeToken(operation, exactRequest, hostKeyId, received.successorToken, finalized.number, finalized.hash, signal);
+        const installed = await this.#durable.installSuccessor(received.successorToken, intendedCursor, io(signal));
+        if (!this.#acknowledgements) throw new TypeError("durable provider successor requires authenticated acknowledgement confirmation");
+        const signature = await this.#acknowledgements.confirm({ outboxId: installed.outboxId, responseHash: installed.responseHash }, signal);
+        await this.#durable.confirmAndGc({ outboxId: installed.outboxId, responseHash: installed.responseHash, signature }, finalized.number);
+        return { continuation: { operation, request: exactRequest.slice(), token: received.successorToken.slice(), predecessorOutboxId: installed.outboxId, cursor: intendedCursor, hostKeyId } };
       }
       if (!received.terminal) continue;
       uploadWindow?.seal();
@@ -204,7 +232,75 @@ export class PrivateDurableBrowserHostV2 implements PrivateProviderByteBridgeV2 
       }
       uploadWindow?.complete(); if (uploadSending) await uploadSending;
       return { value: decodeResult(operation, event[4] as WireMap) };
+    } } finally { uploadWindow?.seal(); }
+  }
+
+  async resume(continuation: PrivateBrowserProviderContinuationV2, signal?: AbortSignal, onEvent?: (event: Uint8Array) => void): Promise<PrivateInvocationResultV2> {
+    const finalized = await this.#finality.finalized(signal); const token = decodeHostV2("ResumeTokenV1", continuation.token).value as WireMap;
+    const intendedCursor = await this.#verifyResumeToken(continuation.operation, continuation.request, continuation.hostKeyId, continuation.token, finalized.number, finalized.hash, signal);
+    if (intendedCursor !== continuation.cursor) throw new TypeError("provider continuation cursor changed");
+    const request = decodeHostV2("RequestV2", continuation.request).value as WireMap; const context = this.#outbox.contextBinding;
+    const entry: HostOutboxEntryV1 = {
+      0: 1, 1: bytes(this.#ids.next(), 16, "outbox ID"), 2: 0, 3: continuation.request.slice(), 4: continuation.token.slice(),
+      5: await this.#outbox.digest(concat(continuation.request, continuation.token)), 6: bytes(request[1], 16, "request ID"),
+      7: bytes(request[5], 16, "operation ID"), 8: BigInt(token[10] as number | bigint), 9: intendedCursor,
+      10: context.registryHash, 11: context.genesisHash, 12: context.negotiatedTuple, 13: context.providerId, 14: context.providerEndpointHash,
+      15: 2, 17: BigInt(token[11] as number | bigint), 18: BigInt(token[12] as number | bigint), 19: BigInt(token[12] as number | bigint) + 256n,
+      20: this.#outbox.activeKeyVersion,
+    };
+    await this.#durable.prepareSuccessorAndSend(continuation.predecessorOutboxId, { entry }, io(signal));
+    return this.#continueInvocation(continuation.operation, continuation.request, continuation.hostKeyId, finalized.number, finalized.hash, signal, onEvent);
+  }
+
+  async #continueInvocation(
+    operation: PrivateProviderByteOperationV2, exactRequest: Uint8Array, hostKeyId: Uint8Array, finalized: bigint, finalizedHash: Uint8Array,
+    signal?: AbortSignal, onEvent?: (event: Uint8Array) => void,
+  ): Promise<PrivateInvocationResultV2> {
+    while (true) {
+      const received = await this.#durable.receiveProviderEvent(finalized, io(signal)); const event = decodeHostV2("EventV2", received.event).value as WireMap;
+      onEvent?.(received.event.slice());
+      if (received.successorToken) {
+        const intendedCursor = await this.#verifyResumeToken(operation, exactRequest, hostKeyId, received.successorToken, finalized, finalizedHash, signal);
+        const installed = await this.#durable.installSuccessor(received.successorToken, intendedCursor, io(signal));
+        if (!this.#acknowledgements) throw new TypeError("durable provider successor requires authenticated acknowledgement confirmation");
+        const signature = await this.#acknowledgements.confirm({ outboxId: installed.outboxId, responseHash: installed.responseHash }, signal);
+        await this.#durable.confirmAndGc({ outboxId: installed.outboxId, responseHash: installed.responseHash, signature }, finalized);
+        return { continuation: { operation, request: exactRequest.slice(), token: received.successorToken.slice(), predecessorOutboxId: installed.outboxId, cursor: intendedCursor, hostKeyId: hostKeyId.slice() } };
+      }
+      if (!received.terminal) continue;
+      if (this.#acknowledgements) {
+        const signature = await this.#acknowledgements.confirm({ outboxId: received.outboxId, responseHash: received.responseHash }, signal);
+        await this.#durable.confirmAndGc({ outboxId: received.outboxId, responseHash: received.responseHash, signature }, finalized);
+      }
+      if (Number(event[3]) === 3) return { error: decodeError(event[4] as WireMap) };
+      return { value: decodeResult(operation, event[4] as WireMap) };
     }
+  }
+
+  async #verifyResumeToken(
+    operation: PrivateProviderByteOperationV2, exactRequest: Uint8Array, expectedHostKey: Uint8Array,
+    exactToken: Uint8Array, finalized: bigint, finalizedHash: Uint8Array, signal?: AbortSignal,
+  ): Promise<number> {
+    if (!this.#resumeTokens) throw new TypeError("finalized provider resume-token verifier is unavailable");
+    if (operation !== "storage.object.put") throw new TypeError("provider resume tokens are only valid for storage.object.put");
+    const token = decodeHostV2("ResumeTokenV1", exactToken).value as WireMap; const request = decodeHostV2("RequestV2", exactRequest).value as WireMap;
+    const context = this.#outbox.contextBinding; const payload = request[8] as WireMap;
+    if (!equal(bytes(token[1], 32, "resume registry"), context.registryHash) || !equal(bytes(token[2], 32, "resume genesis"), context.genesisHash)
+      || !equal(bytes(token[3], 32, "resume provider"), context.providerId) || !equal(bytes(token[4], 32, "resume host key"), bytes(expectedHostKey, 32, "host key audience"))
+      || !equal(bytes(token[5], 16, "resume operation ID"), bytes(request[5], 16, "request operation ID"))
+      || !equal(bytes(token[6], 32, "resume bucket"), bytes(payload[0], 32, "request bucket")) || token[7] !== payload[1]
+      || BigInt(token[8] as number | bigint) !== BigInt(payload[2] as number | bigint) || token[14] !== false) throw new TypeError("provider resume token binding is invalid");
+    const issued = BigInt(token[11] as number | bigint); const expires = BigInt(token[12] as number | bigint);
+    if (issued > finalized || finalized > expires) throw new TypeError("provider resume token is not live at finalized state");
+    const key = await this.#resumeTokens.resolve({ providerId: bytes(token[3], 32, "resume provider"), hostKeyId: bytes(token[4], 32, "resume host key"), finalized }, signal);
+    if (!equal(bytes(key.providerId, 32, "service-key provider"), context.providerId) || bytes(key.keyId, 32, "service-key ID").length !== 32
+      || key.rotation !== "current" || key.revoked || finalized < key.validFrom || finalized > key.validUntil
+      || key.finalized.number !== finalized || !equal(bytes(key.finalized.hash, 32, "service-key finalized hash"), bytes(finalizedHash, 32, "host finalized hash"))
+      || !(key.finalized.proof instanceof Uint8Array) || key.finalized.proof.length === 0) throw new TypeError("finalized provider service key is revoked, rotated, or misbound");
+    const signed = encodeHostV2Value(Object.fromEntries(Array.from({ length: 15 }, (_, index) => [index, token[index]])) as HostV2Map);
+    if (!await this.#outbox.verifyProviderAck(bytes(key.publicKey, 32, "service-key public key"), concat(new TextEncoder().encode("cord.provider.resume.v1"), signed), bytes(token[15], 64, "resume signature"))) throw new TypeError("provider resume token signature is invalid");
+    const cursor = Number(token[9]); if (!Number.isSafeInteger(cursor) || cursor >= 0xffff_ffff) throw new TypeError("provider resume cursor is exhausted");
+    return cursor + 1;
   }
 
   async #streamUpload(operationId: Uint8Array, upload: PrivateStorageUploadV2, window: ProviderUploadAckWindowV2, signal?: AbortSignal): Promise<void> {
@@ -284,6 +380,10 @@ export class PrivateOriginBrowserRouterV2 {
     }
     const exhaustive: never = operation; throw new TypeError(`unreachable Host-v2 operation ${exhaustive}`);
   }
+  async resumeProvider(continuation: PrivateBrowserProviderContinuationV2, signal?: AbortSignal, onEvent?: (event: Uint8Array) => void): Promise<PrivateInvocationResultV2> {
+    if (!this.#provider.resume) throw new TypeError("provider bridge does not support exact durable continuation");
+    return this.#provider.resume(continuation, signal, onEvent);
+  }
 }
 
 export class PrivateDurableBrowserStorageV2 implements StorageV2Transport, PrivateStorageExecutorV2 {
@@ -293,7 +393,7 @@ export class PrivateDurableBrowserStorageV2 implements StorageV2Transport, Priva
   start<Op extends StorageV2Operation>(intent: StorageV2Intent<Op>): StorageV2Execution<Op> {
     const control = new StorageInvocationControlV2();
     const events = this.#events(intent, undefined, control);
-    return { events, cancel: () => control.cancel(), resume: (resume: StorageV2Resume) => failClosedResumeV2(resume) };
+    return { events, cancel: () => control.cancel(), resume: (resume: StorageV2Resume) => this.#resumeEvents(intent, resume, control) };
   }
 
   async execute<Op extends StorageOperationV2>(
@@ -312,16 +412,24 @@ export class PrivateDurableBrowserStorageV2 implements StorageV2Transport, Priva
       result = await this.#host.invoke(intent.operation, encodeStorageV2Intent(intent), upload, undefined, (exact) => {
         buffered.push(decodeStorageEvent(intent.operation, exact) as StorageV2Event<Op>);
       }, control);
+      control.installContinuation(result.continuation);
       control.finish();
     } catch (error) { control.finish(error); throw error; }
     for (const event of buffered) yield event;
     if (result.error) return;
+  }
+  async *#resumeEvents<Op extends StorageV2Operation>(intent: StorageV2Intent<Op>, resume: StorageV2Resume, control: StorageInvocationControlV2): AsyncIterable<StorageV2Event<Op>> {
+    if (resume.kind !== "provider-token") return yield* failClosedResumeV2(resume);
+    const continuation = control.consumeContinuation(resume.token); const buffered: StorageV2Event<Op>[] = [];
+    const result = await this.#host.resumeProvider(continuation, undefined, (exact) => buffered.push(decodeStorageEvent(intent.operation, exact) as StorageV2Event<Op>));
+    control.installContinuation(result.continuation); for (const event of buffered) yield event;
   }
 }
 
 class StorageInvocationControlV2 implements PrivateBrowserInvocationControlV2 {
   #cancel?: () => Promise<void>; #requested = false; #finished = false; #error: unknown;
   #cancelSent?: Promise<void>; readonly #completion: Promise<void>; #resolve!: () => void; #reject!: (error: unknown) => void;
+  #continuation?: PrivateBrowserProviderContinuationV2;
   constructor() { this.#completion = new Promise<void>((resolve, reject) => { this.#resolve = resolve; this.#reject = reject; }); }
   async bind(cancel: () => Promise<void>): Promise<void> {
     if (this.#cancel || this.#finished) throw new TypeError("durable provider cancellation binding is not live");
@@ -336,6 +444,12 @@ class StorageInvocationControlV2 implements PrivateBrowserInvocationControlV2 {
     if (this.#requested && !this.#cancel && error === undefined) error = new TypeError("storage operation has no durable provider cancellation path");
     this.#error = error;
     if (error === undefined) this.#resolve(); else this.#reject(error);
+  }
+  installContinuation(continuation?: PrivateBrowserProviderContinuationV2): void { this.#continuation = continuation; }
+  consumeContinuation(exactToken: Uint8Array): PrivateBrowserProviderContinuationV2 {
+    const continuation = this.#continuation;
+    if (!continuation || !equal(continuation.token, exactToken)) throw new TypeError("provider resume token is not the exact live successor");
+    this.#continuation = undefined; return continuation;
   }
   #send(): Promise<void> { this.#cancelSent ??= this.#cancel!(); return this.#cancelSent; }
 }
@@ -362,9 +476,10 @@ export async function runPrivateBrowserRustProviderV2(
   options: BrowserHostV2IoOptions = {},
 ): Promise<void> {
   while (true) {
-    const [request, authority] = await Promise.all([
-      transport.receive("RequestV2", options), transport.receive("ProviderCapabilityV1", options),
+    const [request, authorityMessage] = await Promise.all([
+      transport.receive("RequestV2", options), transport.receiveOneOf(["ProviderCapabilityV1", "ResumeTokenV1"], options),
     ]);
+    const authority = authorityMessage.bytes;
     const frame = decodeHostV2("RequestV2", request).value as WireMap;
     const operation = operationForCode(Number(frame[3]));
     if (!PROVIDER_BYTE_OPERATIONS.has(operation)) throw new TypeError("non-provider Host-v2 request reached the provider MessagePort");
@@ -372,6 +487,15 @@ export async function runPrivateBrowserRustProviderV2(
     const upload = length === undefined ? undefined : receiveUpload(transport, bytes(frame[5], 16, "operation ID"), length, options);
     const cancellations = receiveProviderCancellations(transport, bytes(frame[1], 16, "request ID"), options);
     for await (const response of bridge.dispatch({ request, authority, ...(upload ? { upload } : {}), cancellations, ...(options.signal ? { signal: options.signal } : {}) })) {
+      if (response.successor) {
+        const event = decodeHostV2("EventV2", response.event).value as WireMap; const token = decodeHostV2("ResumeTokenV1", response.successor.exactResumeToken).value as WireMap;
+        if (![0, 1].includes(Number(event[3])) || Number(token[9]) + 1 !== response.successor.intendedCursor) throw new TypeError("provider successor is not bound to a nonterminal cursor");
+        await transport.send("EventV2", response.event, options);
+        await transport.send("ResumeTokenV1", response.successor.exactResumeToken, options);
+        const ack = await transport.receive("ResponseAckV1", options); const confirmation = await bridge.acknowledge(ack, options.signal);
+        if (confirmation?.durable !== true) throw new TypeError("provider successor acknowledgement was not durably confirmed");
+        break;
+      }
       await transport.send("EventV2", response.event, options);
       const event = decodeHostV2("EventV2", response.event).value as WireMap;
       if ([2, 3, 4].includes(Number(event[3]))) {

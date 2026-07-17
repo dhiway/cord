@@ -28,8 +28,8 @@ import { HostV2Session } from "./session.ts";
 import { HOST_V2_OPERATION_BINDINGS, type HostV2TypeName } from "./generated.ts";
 
 export type DurableBrowserEvent =
-  | { readonly terminal: false; readonly event: Uint8Array }
-  | { readonly terminal: true; readonly event: Uint8Array; readonly responseHash: Uint8Array };
+  | { readonly terminal: false; readonly event: Uint8Array; readonly successorToken?: Uint8Array }
+  | { readonly terminal: true; readonly event: Uint8Array; readonly responseHash: Uint8Array; readonly outboxId: Uint8Array };
 export interface BrowserProviderAckConfirmationV1 {
   readonly outboxId: Uint8Array; readonly responseHash: Uint8Array; readonly signature: Uint8Array;
 }
@@ -42,6 +42,7 @@ interface ActiveBrowserRequest {
 export class DurableBrowserHostV2 {
   readonly #transport: BrowserHostV2Transport; readonly #outbox: BrowserHostOutboxV1;
   #active: ActiveBrowserRequest | undefined;
+  #pendingSuccessorEvent: Uint8Array | undefined;
   constructor(transport: BrowserHostV2Transport, outbox: BrowserHostOutboxV1) {
     const transportBinding = transport.binding; const outboxBinding = outbox.contextBinding;
     if (!equal(transportBinding.registryHash, outboxBinding.registryHash) || !equal(transportBinding.genesisHash, outboxBinding.genesisHash)
@@ -51,6 +52,11 @@ export class DurableBrowserHostV2 {
   }
   async prepareAndSend(input: BrowserPrepareOutboxV1, options: BrowserHostV2IoOptions = {}): Promise<BrowserOutboxRetryV1> {
     const retry = await this.#outbox.prepare(input); this.#begin(retry);
+    try { await this.#sendRetry(retry, options); await this.#outbox.markSent(retry.outboxId); } catch (error) { this.#transport.close(); throw error; }
+    return retry;
+  }
+  async prepareSuccessorAndSend(predecessorOutboxId: Uint8Array, input: BrowserPrepareOutboxV1, options: BrowserHostV2IoOptions = {}): Promise<BrowserOutboxRetryV1> {
+    const retry = await this.#outbox.prepareSuccessor(predecessorOutboxId, input); this.#begin(retry);
     try { await this.#sendRetry(retry, options); await this.#outbox.markSent(retry.outboxId); } catch (error) { this.#transport.close(); throw error; }
     return retry;
   }
@@ -65,7 +71,30 @@ export class DurableBrowserHostV2 {
     this.#active = { ...active, expectedResponseKind: 4 }; return retry;
   }
   async receiveEvent(terminalBlock: bigint, options: BrowserHostV2IoOptions = {}): Promise<DurableBrowserEvent> {
-    const bytes = await this.#transport.receive("EventV2", options); const active = this.#active;
+    if (this.#pendingSuccessorEvent) throw new Error("browser successor authority is not durably installed");
+    return this.#acceptEvent(await this.#transport.receive("EventV2", options), terminalBlock, options);
+  }
+  async receiveProviderEvent(terminalBlock: bigint, options: BrowserHostV2IoOptions = {}): Promise<DurableBrowserEvent> {
+    if (this.#pendingSuccessorEvent) throw new Error("browser successor authority is not durably installed");
+    const first = await this.#transport.receiveOneOf(["EventV2", "ResumeTokenV1"], options);
+    if (first.production !== "EventV2") { this.#transport.close(); throw new Error("browser provider sent ResumeTokenV1 before its EventV2"); }
+    const event = await this.#acceptEvent(first.bytes, terminalBlock, options); if (event.terminal) return event;
+    const second = await this.#transport.receiveOneOf(["EventV2", "ResumeTokenV1"], options);
+    if (second.production !== "ResumeTokenV1") { this.#transport.close(); throw new Error("browser provider omitted the exact successor after nonterminal EventV2"); }
+    this.#pendingSuccessorEvent = event.event.slice(); return { ...event, successorToken: second.bytes.slice() };
+  }
+  async installSuccessor(exactResumeToken: Uint8Array, cursor: number, options: BrowserHostV2IoOptions = {}): Promise<{ readonly outboxId: Uint8Array; readonly responseHash: Uint8Array }> {
+    const active = this.#active; const event = this.#pendingSuccessorEvent;
+    if (!active || !event) throw new Error("browser successor response is not pending durable installation");
+    try {
+      const installed = await this.#outbox.installSuccessor(active.outboxId, event, exactResumeToken, cursor);
+      await this.#transport.send("ResponseAckV1", installed.ack, options);
+      const outboxId = active.outboxId.slice(); this.#active = undefined; this.#pendingSuccessorEvent = undefined;
+      return { outboxId, responseHash: installed.responseHash };
+    } catch (error) { this.#transport.close(); throw error; }
+  }
+  async #acceptEvent(bytes: Uint8Array, terminalBlock: bigint, options: BrowserHostV2IoOptions): Promise<DurableBrowserEvent> {
+    const active = this.#active;
     if (!active) throw new Error("browser host-v2 session has not sent a durable request");
     const event = active.session.accept(bytes);
     if (!active.session.isTerminal) return { terminal: false, event: bytes.slice() };
@@ -83,8 +112,9 @@ export class DurableBrowserHostV2 {
     try {
       const installed = await this.#outbox.installTerminal(active.outboxId, bytes, terminalBlock);
       await this.#transport.send("ResponseAckV1", installed.ack, options);
+      const outboxId = active.outboxId.slice();
       this.#active = undefined;
-      return { terminal: true, event: bytes.slice(), responseHash: installed.responseHash };
+      return { terminal: true, event: bytes.slice(), responseHash: installed.responseHash, outboxId };
     } catch (error) { this.#transport.close(); throw error; }
   }
   async sendProviderTransferChunk(exactChunk: Uint8Array, options: BrowserHostV2IoOptions = {}): Promise<void> {
@@ -109,7 +139,9 @@ export class DurableBrowserHostV2 {
   #begin(retry: BrowserOutboxRetryV1): void {
     if (this.#active) throw new Error("browser host-v2 transport already has a session");
     this.#active = {
-      session: retry.cancel ? HostV2Session.resume(this.#transport.negotiation, retry.requestId, retry.intendedCursor) : new HostV2Session(this.#transport.negotiation, retry.requestId),
+      session: retry.cancel || authorityProduction(retry.authority) === "ResumeTokenV1"
+        ? HostV2Session.resume(this.#transport.negotiation, retry.requestId, retry.intendedCursor)
+        : new HostV2Session(this.#transport.negotiation, retry.requestId),
       outboxId: retry.outboxId.slice(), operationId: retry.operationId.slice(), expectedResponseKind: retry.expectedResponseKind, operationCode: retry.operationCode,
     };
   }

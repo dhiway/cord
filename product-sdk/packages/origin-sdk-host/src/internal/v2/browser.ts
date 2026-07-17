@@ -49,6 +49,7 @@ export interface BrowserHostV2Binding {
   readonly providerEndpointHash: Uint8Array;
   readonly acknowledgementPublicKey: Uint8Array;
 }
+export interface BrowserHostV2Received { readonly production: HostV2TypeName; readonly bytes: Uint8Array }
 
 export type BrowserHostV2PeerBinding = (peer: BrowserHostV2Peer, port: MessagePort) => void | Promise<void>;
 export type BrowserHostV2NegotiationSigner = (message: Uint8Array) => Uint8Array | Promise<Uint8Array>;
@@ -94,9 +95,9 @@ interface WireOffer {
   readonly finalizedTransactionVersion: number; readonly registrySha256: string;
   readonly features: readonly string[];
 }
-interface QueuedMessage { readonly production: HostV2TypeName; readonly bytes: Uint8Array }
+interface QueuedMessage extends BrowserHostV2Received {}
 interface PendingCredit { readonly resolve: () => void; readonly reject: (error: Error) => void; readonly cleanup: () => void }
-interface PendingReceive { readonly production: HostV2TypeName; readonly resolve: (bytes: Uint8Array) => void; readonly reject: (error: Error) => void; readonly cleanup: () => void }
+interface PendingReceive { readonly productions: readonly HostV2TypeName[]; readonly resolve: (message: BrowserHostV2Received) => void; readonly reject: (error: Error) => void; readonly cleanup: () => void }
 
 function fail(code: BrowserHostV2TransportError["code"], message: string): never {
   throw new BrowserHostV2TransportError(code, message);
@@ -320,17 +321,25 @@ export class BrowserHostV2Transport {
   }
 
   receive(production: HostV2TypeName, options: BrowserHostV2IoOptions = {}): Promise<Uint8Array> {
+    return this.receiveOneOf([production], options).then(({ bytes }) => bytes);
+  }
+
+  receiveOneOf(productions: readonly HostV2TypeName[], options: BrowserHostV2IoOptions = {}): Promise<BrowserHostV2Received> {
     if (this.#closed) return Promise.reject(this.#closedError());
     if (options.signal?.aborted) return Promise.reject(ioFailure(options.signal, false));
-    const index = this.#queue.findIndex((message) => message.production === production);
-    if (index >= 0) return Promise.resolve(this.#queue.splice(index, 1)[0]!.bytes.slice());
-    return new Promise<Uint8Array>((resolve, reject) => {
+    if (productions.length === 0 || new Set(productions).size !== productions.length
+      || productions.some((production) => !Object.prototype.hasOwnProperty.call(HOST_V2_SCHEMAS, production))) {
+      return Promise.reject(new BrowserHostV2TransportError("BROWSER_MESSAGE_INVALID", "browser receive production set is invalid"));
+    }
+    const index = this.#queue.findIndex((message) => productions.includes(message.production));
+    if (index >= 0) { const message = this.#queue.splice(index, 1)[0]!; return Promise.resolve({ production: message.production, bytes: message.bytes.slice() }); }
+    return new Promise<BrowserHostV2Received>((resolve, reject) => {
       let receiver!: PendingReceive;
       const failReceive = (error: Error): void => { const index = this.#receivers.indexOf(receiver); if (index >= 0) this.#receivers.splice(index, 1); receiver.cleanup(); reject(error); };
       const timeout = setTimeout(() => failReceive(ioFailure(undefined, true)), timeoutValue(options.timeoutMs));
       const abort = (): void => failReceive(ioFailure(options.signal, false));
       const cleanup = (): void => { clearTimeout(timeout); options.signal?.removeEventListener("abort", abort); };
-      receiver = { production, resolve, reject, cleanup }; this.#receivers.push(receiver); options.signal?.addEventListener("abort", abort, { once: true });
+      receiver = { productions: [...productions], resolve, reject, cleanup }; this.#receivers.push(receiver); options.signal?.addEventListener("abort", abort, { once: true });
     });
   }
 
@@ -347,11 +356,11 @@ export class BrowserHostV2Transport {
       const bytes = copyCanonical(envelope.production, envelope.bytes);
       if (envelope.messageId !== this.#nextInboundMessageId) return fail("BROWSER_MESSAGE_INVALID", "browser message sequence is duplicated or skipped");
       this.#nextInboundMessageId = (this.#nextInboundMessageId + 1) >>> 0;
-      if (this.#queue.length >= BROWSER_HOST_V2_WINDOW && !this.#receivers.some((receiver) => receiver.production === envelope.production)) return fail("BROWSER_BACKPRESSURE", "browser inbound four-message window is full");
+      if (this.#queue.length >= BROWSER_HOST_V2_WINDOW && !this.#receivers.some((receiver) => receiver.productions.includes(envelope.production))) return fail("BROWSER_BACKPRESSURE", "browser inbound four-message window is full");
       const credit: CreditEnvelope = { version: 2, channel: this.#local.channel, source: this.#local.source, target: this.#remote.source, messageId: envelope.messageId, kind: "credit" };
       this.#port.postMessage(credit);
-      const receiverIndex = this.#receivers.findIndex((receiver) => receiver.production === envelope.production);
-      if (receiverIndex >= 0) { const receiver = this.#receivers.splice(receiverIndex, 1)[0]!; receiver.cleanup(); receiver.resolve(bytes.slice()); }
+      const receiverIndex = this.#receivers.findIndex((receiver) => receiver.productions.includes(envelope.production));
+      if (receiverIndex >= 0) { const receiver = this.#receivers.splice(receiverIndex, 1)[0]!; receiver.cleanup(); receiver.resolve({ production: envelope.production, bytes: bytes.slice() }); }
       else this.#queue.push({ production: envelope.production, bytes: bytes.slice() });
     } catch (error) { this.#failClosed(error instanceof Error ? error : this.#closedError()); }
   };
