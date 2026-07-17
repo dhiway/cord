@@ -78,7 +78,78 @@ impl IdentityV2Operation {
 			Self::IdentityProfileDisclose | Self::IdentityHumanityProve | Self::TransactionSign
 		)
 	}
+
+	pub(crate) const fn cddl(self) -> (&'static str, &'static str, &'static str) {
+		match self {
+			Self::IdentityAccount =>
+				("IdentityAccountRequest", "IdentityAccountResult", "IdentityAccountError"),
+			Self::IdentityProfileRead => (
+				"IdentityProfileReadRequest",
+				"IdentityProfileReadResult",
+				"IdentityProfileReadError",
+			),
+			Self::IdentityProfileDisclose => (
+				"IdentityProfileDiscloseRequest",
+				"IdentityProfileDiscloseResult",
+				"IdentityProfileDiscloseError",
+			),
+			Self::IdentityHumanityStatus => (
+				"IdentityHumanityStatusRequest",
+				"IdentityHumanityStatusResult",
+				"IdentityHumanityStatusError",
+			),
+			Self::IdentityHumanityProve => (
+				"IdentityHumanityProveRequest",
+				"IdentityHumanityProveResult",
+				"IdentityHumanityProveError",
+			),
+			Self::IdentitySubjectDerive => (
+				"IdentitySubjectDeriveRequest",
+				"IdentitySubjectDeriveResult",
+				"IdentitySubjectDeriveError",
+			),
+			Self::IdentityEntitlementsRead => (
+				"IdentityEntitlementsReadRequest",
+				"IdentityEntitlementsReadResult",
+				"IdentityEntitlementsReadError",
+			),
+			Self::TransactionSign =>
+				("TransactionSignRequest", "TransactionSignResult", "TransactionSignError"),
+		}
+	}
 }
+
+pub(crate) const IDENTITY_V2_ALLOWED_ERRORS: &[&str] = &[
+	"WIRE_SCHEMA_INVALID",
+	"WIRE_NON_CANONICAL",
+	"WIRE_VERSION_MISMATCH",
+	"WIRE_GENESIS_MISMATCH",
+	"WIRE_DESCRIPTOR_MISMATCH",
+	"WIRE_SEQUENCE_INVALID",
+	"REQUEST_DEADLINE_EXPIRED",
+	"REQUEST_CANCELLED",
+	"REQUEST_NOT_FOUND",
+	"GRANT_REQUIRED",
+	"GRANT_SCOPE_DENIED",
+	"GRANT_EXPIRED",
+	"GRANT_REVOKED",
+	"HOST_OUTBOX_UNAVAILABLE",
+	"HOST_OUTBOX_FULL",
+	"HOST_OUTBOX_CORRUPT",
+	"HOST_OUTBOX_EXPIRED",
+	"IDENTITY_AUDIENCE_INVALID",
+	"IDENTITY_CHALLENGE_REPLAY",
+	"IDENTITY_PROOF_EXPIRED",
+	"IDENTITY_EPOCH_INVALID",
+	"IDENTITY_DISCLOSURE_DENIED",
+	"IDENTITY_HUMANITY_UNAVAILABLE",
+	"IDENTITY_ENTITLEMENT_UNAVAILABLE",
+	"SIGNING_CONSENT_REQUIRED",
+	"IDENTITY_RECOVERY_ENTROPY_FAILED",
+	"IDENTITY_RECOVERY_INSTALL_FAILED",
+	"IDENTITY_OLD_INCARNATION",
+	"IDENTITY_RETIRED_SET_FULL",
+];
 
 #[derive(Clone, Copy, Debug, Eq, PartialEq, thiserror::Error)]
 pub(crate) enum IdentityV2Error {
@@ -94,6 +165,8 @@ pub(crate) enum IdentityV2Error {
 	AudienceInvalid,
 	#[error("IDENTITY_CHALLENGE_REPLAY")]
 	ChallengeReplay,
+	#[error("IDENTITY_PROOF_EXPIRED")]
+	ProofExpired,
 	#[error("IDENTITY_OLD_INCARNATION")]
 	OldIncarnation,
 	#[error("SIGNING_CONSENT_REQUIRED")]
@@ -101,28 +174,29 @@ pub(crate) enum IdentityV2Error {
 }
 
 #[derive(Clone, Debug, Deserialize, Eq, PartialEq, Serialize)]
-#[serde(deny_unknown_fields)]
+#[serde(rename_all = "camelCase", deny_unknown_fields)]
 pub(crate) struct FinalizedIdentityV2 {
 	pub(crate) block_number: u64,
 	pub(crate) block_hash: [u8; 32],
 }
 
 #[derive(Clone, Debug, Deserialize, Eq, PartialEq, Serialize)]
-#[serde(deny_unknown_fields)]
+#[serde(rename_all = "camelCase", deny_unknown_fields)]
 pub(crate) struct IdentityReceiptV2 {
 	pub(crate) commitment: [u8; 32],
 	pub(crate) valid_until: u64,
+	#[serde(skip_serializing_if = "Option::is_none")]
 	pub(crate) finalized: Option<FinalizedIdentityV2>,
 }
 
 #[derive(Clone, Debug, Deserialize, Eq, PartialEq, Serialize)]
-#[serde(deny_unknown_fields)]
+#[serde(rename_all = "camelCase", deny_unknown_fields)]
 pub(crate) struct IdentityAccountRequestV2 {
 	pub(crate) session: String,
 }
 
 #[derive(Clone, Debug, Deserialize, Eq, PartialEq, Serialize)]
-#[serde(deny_unknown_fields)]
+#[serde(rename_all = "camelCase", deny_unknown_fields)]
 pub(crate) struct IdentityAccountResultV2 {
 	pub(crate) account: [u8; 32],
 	pub(crate) session_expires_at: u64,
@@ -130,21 +204,22 @@ pub(crate) struct IdentityAccountResultV2 {
 }
 
 #[derive(Clone, Debug, Deserialize, Eq, PartialEq, Serialize)]
-#[serde(deny_unknown_fields)]
+#[serde(rename_all = "camelCase", deny_unknown_fields)]
 pub(crate) struct IdentityProfileReadRequestV2 {
 	pub(crate) subject: [u8; 32],
 	pub(crate) fields: Vec<String>,
+	#[serde(skip_serializing_if = "Option::is_none")]
 	pub(crate) at: Option<[u8; 32]>,
 }
 
 #[derive(Clone, Debug, Deserialize, Eq, PartialEq, Serialize)]
-#[serde(deny_unknown_fields)]
+#[serde(rename_all = "camelCase", deny_unknown_fields)]
 pub(crate) struct IdentityProfileReadResultV2 {
 	pub(crate) receipt: IdentityReceiptV2,
 }
 
 #[derive(Clone, Debug, Deserialize, Eq, PartialEq, Serialize)]
-#[serde(deny_unknown_fields)]
+#[serde(rename_all = "camelCase", deny_unknown_fields)]
 pub(crate) struct IdentityProfileDiscloseRequestV2 {
 	pub(crate) audience: String,
 	pub(crate) fields: Vec<String>,
@@ -153,20 +228,21 @@ pub(crate) struct IdentityProfileDiscloseRequestV2 {
 }
 
 #[derive(Clone, Debug, Deserialize, Eq, PartialEq, Serialize)]
-#[serde(deny_unknown_fields)]
+#[serde(rename_all = "camelCase", deny_unknown_fields)]
 pub(crate) struct IdentityProfileDiscloseResultV2 {
 	pub(crate) receipt: IdentityReceiptV2,
 }
 
 #[derive(Clone, Debug, Deserialize, Eq, PartialEq, Serialize)]
-#[serde(deny_unknown_fields)]
+#[serde(rename_all = "camelCase", deny_unknown_fields)]
 pub(crate) struct IdentityHumanityStatusRequestV2 {
 	pub(crate) subject: [u8; 32],
+	#[serde(skip_serializing_if = "Option::is_none")]
 	pub(crate) at: Option<[u8; 32]>,
 }
 
 #[derive(Clone, Debug, Deserialize, Eq, PartialEq, Serialize)]
-#[serde(deny_unknown_fields)]
+#[serde(rename_all = "camelCase", deny_unknown_fields)]
 pub(crate) struct IdentityHumanityStatusResultV2 {
 	pub(crate) status: u16,
 	pub(crate) fresh_until: u64,
@@ -174,7 +250,7 @@ pub(crate) struct IdentityHumanityStatusResultV2 {
 }
 
 #[derive(Clone, Debug, Deserialize, Eq, PartialEq, Serialize)]
-#[serde(deny_unknown_fields)]
+#[serde(rename_all = "camelCase", deny_unknown_fields)]
 pub(crate) struct IdentityHumanityProveRequestV2 {
 	pub(crate) audience: String,
 	pub(crate) challenge: Vec<u8>,
@@ -183,7 +259,7 @@ pub(crate) struct IdentityHumanityProveRequestV2 {
 }
 
 #[derive(Clone, Debug, Deserialize, Eq, PartialEq, Serialize)]
-#[serde(deny_unknown_fields)]
+#[serde(rename_all = "camelCase", deny_unknown_fields)]
 pub(crate) struct IdentityHumanityProveResultV2 {
 	pub(crate) proof: Vec<u8>,
 	pub(crate) derived_public_key: [u8; 32],
@@ -193,16 +269,17 @@ pub(crate) struct IdentityHumanityProveResultV2 {
 }
 
 #[derive(Clone, Debug, Deserialize, Eq, PartialEq, Serialize)]
-#[serde(deny_unknown_fields)]
+#[serde(rename_all = "camelCase", deny_unknown_fields)]
 pub(crate) struct IdentitySubjectDeriveRequestV2 {
 	pub(crate) product_id: String,
 	pub(crate) context: String,
 	pub(crate) verifier_audience: String,
+	#[serde(skip_serializing_if = "Option::is_none")]
 	pub(crate) epoch: Option<u32>,
 }
 
 #[derive(Clone, Debug, Deserialize, Eq, PartialEq, Serialize)]
-#[serde(deny_unknown_fields)]
+#[serde(rename_all = "camelCase", deny_unknown_fields)]
 pub(crate) struct IdentitySubjectDeriveResultV2 {
 	pub(crate) subject: [u8; 32],
 	pub(crate) derived_public_key: [u8; 32],
@@ -212,15 +289,16 @@ pub(crate) struct IdentitySubjectDeriveResultV2 {
 }
 
 #[derive(Clone, Debug, Deserialize, Eq, PartialEq, Serialize)]
-#[serde(deny_unknown_fields)]
+#[serde(rename_all = "camelCase", deny_unknown_fields)]
 pub(crate) struct IdentityEntitlementsReadRequestV2 {
 	pub(crate) subject: [u8; 32],
 	pub(crate) scope: String,
+	#[serde(skip_serializing_if = "Option::is_none")]
 	pub(crate) at: Option<[u8; 32]>,
 }
 
 #[derive(Clone, Debug, Deserialize, Eq, PartialEq, Serialize)]
-#[serde(deny_unknown_fields)]
+#[serde(rename_all = "camelCase", deny_unknown_fields)]
 pub(crate) struct IdentityEntitlementsReadResultV2 {
 	pub(crate) allowed: bool,
 	pub(crate) scope: String,
@@ -231,7 +309,7 @@ pub(crate) struct IdentityEntitlementsReadResultV2 {
 }
 
 #[derive(Clone, Debug, Deserialize, Eq, PartialEq, Serialize)]
-#[serde(deny_unknown_fields)]
+#[serde(rename_all = "camelCase", deny_unknown_fields)]
 pub(crate) struct TransactionSignRequestV2 {
 	pub(crate) payload_hash: [u8; 32],
 	pub(crate) policy_hash: [u8; 32],
@@ -239,14 +317,14 @@ pub(crate) struct TransactionSignRequestV2 {
 }
 
 #[derive(Clone, Debug, Deserialize, Eq, PartialEq, Serialize)]
-#[serde(deny_unknown_fields)]
+#[serde(rename_all = "camelCase", deny_unknown_fields)]
 pub(crate) struct TransactionSignResultV2 {
 	pub(crate) transaction_hash: [u8; 32],
 	pub(crate) finalized: FinalizedIdentityV2,
 }
 
 #[derive(Clone, Debug, Deserialize, Eq, PartialEq, Serialize)]
-#[serde(tag = "operation", content = "input")]
+#[serde(untagged)]
 pub(crate) enum IdentityRequestV2 {
 	#[serde(rename = "identity.account")]
 	Account(IdentityAccountRequestV2),
@@ -341,56 +419,136 @@ pub(crate) enum IdentityResultV2 {
 	TransactionSign(TransactionSignResultV2),
 }
 
+impl IdentityResultV2 {
+	pub(crate) const fn operation(&self) -> IdentityV2Operation {
+		match self {
+			Self::Account(_) => IdentityV2Operation::IdentityAccount,
+			Self::ProfileRead(_) => IdentityV2Operation::IdentityProfileRead,
+			Self::ProfileDisclose(_) => IdentityV2Operation::IdentityProfileDisclose,
+			Self::HumanityStatus(_) => IdentityV2Operation::IdentityHumanityStatus,
+			Self::HumanityProve(_) => IdentityV2Operation::IdentityHumanityProve,
+			Self::SubjectDerive(_) => IdentityV2Operation::IdentitySubjectDerive,
+			Self::EntitlementsRead(_) => IdentityV2Operation::IdentityEntitlementsRead,
+			Self::TransactionSign(_) => IdentityV2Operation::TransactionSign,
+		}
+	}
+
+	pub(crate) fn validate_for(
+		&self,
+		expected: IdentityV2Operation,
+	) -> Result<(), IdentityV2Error> {
+		if self.operation() != expected {
+			return Err(IdentityV2Error::WireSchemaInvalid);
+		}
+		match self {
+			Self::HumanityProve(result) if !(64..=4096).contains(&result.proof.len()) =>
+				Err(IdentityV2Error::WireSchemaInvalid),
+			Self::EntitlementsRead(result) => text(&result.scope, 256),
+			_ => Ok(()),
+		}
+	}
+}
+
 #[derive(Clone, Debug, Deserialize, Eq, PartialEq, Serialize)]
-#[serde(deny_unknown_fields)]
-pub(crate) struct IdentityGrantV2 {
+#[serde(rename_all = "camelCase", deny_unknown_fields)]
+pub(crate) struct IdentityGrantCoreV2 {
 	pub(crate) version: u8,
 	pub(crate) id: [u8; 32],
 	pub(crate) product_id: String,
 	pub(crate) scope: IdentityV2Operation,
 	pub(crate) recovery_incarnation: [u8; 32],
 	pub(crate) expires_at: u64,
+	#[serde(skip_serializing_if = "Option::is_none")]
 	pub(crate) audience: Option<String>,
-	pub(crate) revoked: bool,
+	#[serde(skip_serializing_if = "Option::is_none")]
+	pub(crate) revoked: Option<bool>,
 }
 
+pub(crate) trait IdentityGrantV2 {
+	fn operation(&self) -> IdentityV2Operation;
+	fn core(&self) -> &IdentityGrantCoreV2;
+}
+
+impl<T: IdentityGrantV2 + ?Sized> IdentityGrantV2 for Box<T> {
+	fn operation(&self) -> IdentityV2Operation {
+		(**self).operation()
+	}
+	fn core(&self) -> &IdentityGrantCoreV2 {
+		(**self).core()
+	}
+}
+
+macro_rules! identity_grant {
+	($name:ident, $operation:expr) => {
+		#[derive(Clone, Debug, Deserialize, Eq, PartialEq, Serialize)]
+		#[serde(transparent)]
+		pub(crate) struct $name(pub(crate) IdentityGrantCoreV2);
+
+		impl IdentityGrantV2 for $name {
+			fn operation(&self) -> IdentityV2Operation {
+				$operation
+			}
+			fn core(&self) -> &IdentityGrantCoreV2 {
+				&self.0
+			}
+		}
+	};
+}
+
+identity_grant!(IdentityAccountGrantV2, IdentityV2Operation::IdentityAccount);
+identity_grant!(IdentityProfileReadGrantV2, IdentityV2Operation::IdentityProfileRead);
+identity_grant!(IdentityProfileDiscloseGrantV2, IdentityV2Operation::IdentityProfileDisclose);
+identity_grant!(IdentityHumanityStatusGrantV2, IdentityV2Operation::IdentityHumanityStatus);
+identity_grant!(IdentityHumanityProveGrantV2, IdentityV2Operation::IdentityHumanityProve);
+identity_grant!(IdentitySubjectDeriveGrantV2, IdentityV2Operation::IdentitySubjectDerive);
+identity_grant!(IdentityEntitlementsReadGrantV2, IdentityV2Operation::IdentityEntitlementsRead);
+identity_grant!(TransactionSignGrantV2, IdentityV2Operation::TransactionSign);
+
 #[derive(Clone, Debug, Deserialize, Eq, PartialEq, Serialize)]
-#[serde(deny_unknown_fields)]
+#[serde(rename_all = "camelCase", deny_unknown_fields)]
 pub(crate) struct IdentityInvocationV2 {
 	pub(crate) protocol: String,
 	pub(crate) code: u16,
 	pub(crate) product_id: String,
 	pub(crate) grant_id: [u8; 32],
 	pub(crate) recovery_incarnation: [u8; 32],
-	pub(crate) request: IdentityRequestV2,
+	pub(crate) operation: IdentityV2Operation,
+	pub(crate) input: IdentityRequestV2,
+	#[serde(skip_serializing_if = "Option::is_none")]
 	pub(crate) operation_id: Option<[u8; 16]>,
 }
 
 pub(crate) fn prepare_identity_v2_invocation(
 	product_id: &str,
-	grant: &IdentityGrantV2,
+	grant: &dyn IdentityGrantV2,
 	request: IdentityRequestV2,
 	finalized_block: u64,
 	current_recovery_incarnation: [u8; 32],
 	operation_id: Option<[u8; 16]>,
+	replay_journal: &mut FreshConsentJournalV2,
 ) -> Result<IdentityInvocationV2, IdentityV2Error> {
 	text(product_id, 128)?;
 	request.validate()?;
 	let operation = request.operation();
-	if grant.version != 2 || grant.product_id != product_id || grant.scope != operation {
+	let grant_core = grant.core();
+	if grant.operation() != operation ||
+		grant_core.version != 2 ||
+		grant_core.product_id != product_id ||
+		grant_core.scope != operation
+	{
 		return Err(IdentityV2Error::GrantScopeDenied);
 	}
-	if grant.revoked {
+	if grant_core.revoked == Some(true) {
 		return Err(IdentityV2Error::GrantRevoked);
 	}
-	if grant.expires_at <= finalized_block {
+	if grant_core.expires_at <= finalized_block {
 		return Err(IdentityV2Error::GrantExpired);
 	}
-	if grant.recovery_incarnation != current_recovery_incarnation {
+	if grant_core.recovery_incarnation != current_recovery_incarnation {
 		return Err(IdentityV2Error::OldIncarnation);
 	}
 	if let Some(audience) = request.audience() {
-		if grant.audience.as_deref() != Some(audience) {
+		if grant_core.audience.as_deref() != Some(audience) {
 			return Err(IdentityV2Error::AudienceInvalid);
 		}
 	}
@@ -401,13 +559,20 @@ pub(crate) fn prepare_identity_v2_invocation(
 			IdentityV2Error::WireSchemaInvalid
 		});
 	}
+	if let IdentityRequestV2::HumanityProve(proof) = &request {
+		if proof.expires_at <= finalized_block {
+			return Err(IdentityV2Error::ProofExpired);
+		}
+	}
+	replay_journal.consume(&request, operation_id)?;
 	Ok(IdentityInvocationV2 {
 		protocol: "cord.origin.host/2".into(),
 		code: operation as u16,
 		product_id: product_id.into(),
-		grant_id: grant.id,
-		recovery_incarnation: grant.recovery_incarnation,
-		request,
+		grant_id: grant_core.id,
+		recovery_incarnation: grant_core.recovery_incarnation,
+		operation,
+		input: request,
 		operation_id,
 	})
 }
@@ -442,13 +607,25 @@ pub(crate) const fn identity_recovery_disposition_v2(
 
 #[derive(Default)]
 pub(crate) struct FreshConsentJournalV2 {
-	consumed: BTreeSet<[u8; 16]>,
+	operation_ids: BTreeSet<[u8; 16]>,
+	proof_challenges: BTreeSet<Vec<u8>>,
 }
 
 impl FreshConsentJournalV2 {
-	pub(crate) fn consume(&mut self, operation_id: [u8; 16]) -> Result<(), IdentityV2Error> {
-		if !self.consumed.insert(operation_id) {
-			return Err(IdentityV2Error::ChallengeReplay);
+	pub(crate) fn consume(
+		&mut self,
+		request: &IdentityRequestV2,
+		operation_id: Option<[u8; 16]>,
+	) -> Result<(), IdentityV2Error> {
+		if let Some(operation_id) = operation_id {
+			if !self.operation_ids.insert(operation_id) {
+				return Err(IdentityV2Error::ChallengeReplay);
+			}
+		}
+		if let IdentityRequestV2::HumanityProve(proof) = request {
+			if !self.proof_challenges.insert(proof.challenge.clone()) {
+				return Err(IdentityV2Error::ChallengeReplay);
+			}
 		}
 		Ok(())
 	}
@@ -474,12 +651,15 @@ fn text(value: &str, maximum: usize) -> Result<(), IdentityV2Error> {
 #[cfg(test)]
 mod tests {
 	use serde_json::Value;
+	use sha2::{Digest, Sha256};
 
 	use super::*;
 
 	const OPERATIONS: &str =
 		include_str!("../../../../docs/specs/origin-host-registry-v2.operations.json");
 	const VECTORS: &str = include_str!("../../../../docs/specs/identity-v2.vectors.json");
+	const HOST_VECTORS: &str =
+		include_str!("../../../../docs/specs/origin-host-registry-v2.vectors.json");
 
 	fn request(operation: IdentityV2Operation) -> IdentityRequestV2 {
 		match operation {
@@ -532,8 +712,8 @@ mod tests {
 		}
 	}
 
-	fn grant(operation: IdentityV2Operation) -> IdentityGrantV2 {
-		IdentityGrantV2 {
+	fn grant_core(operation: IdentityV2Operation) -> IdentityGrantCoreV2 {
+		IdentityGrantCoreV2 {
 			version: 2,
 			id: [operation as u8; 32],
 			product_id: "festival".into(),
@@ -547,7 +727,26 @@ mod tests {
 					IdentityV2Operation::IdentitySubjectDerive
 			)
 			.then(|| "festival.example".into()),
-			revoked: false,
+			revoked: Some(false),
+		}
+	}
+
+	fn grant(operation: IdentityV2Operation) -> Box<dyn IdentityGrantV2> {
+		let core = grant_core(operation);
+		match operation {
+			IdentityV2Operation::IdentityAccount => Box::new(IdentityAccountGrantV2(core)),
+			IdentityV2Operation::IdentityProfileRead => Box::new(IdentityProfileReadGrantV2(core)),
+			IdentityV2Operation::IdentityProfileDisclose =>
+				Box::new(IdentityProfileDiscloseGrantV2(core)),
+			IdentityV2Operation::IdentityHumanityStatus =>
+				Box::new(IdentityHumanityStatusGrantV2(core)),
+			IdentityV2Operation::IdentityHumanityProve =>
+				Box::new(IdentityHumanityProveGrantV2(core)),
+			IdentityV2Operation::IdentitySubjectDerive =>
+				Box::new(IdentitySubjectDeriveGrantV2(core)),
+			IdentityV2Operation::IdentityEntitlementsRead =>
+				Box::new(IdentityEntitlementsReadGrantV2(core)),
+			IdentityV2Operation::TransactionSign => Box::new(TransactionSignGrantV2(core)),
 		}
 	}
 
@@ -559,12 +758,55 @@ mod tests {
 			let row = rows.iter().find(|row| row["name"] == operation.name()).unwrap();
 			assert_eq!(row["code"].as_u64(), Some(operation as u64));
 			assert_eq!(row["grant_scope"], operation.name());
+			assert_eq!(row["operation_id_required"], operation.requires_fresh_consent());
+			assert_eq!(
+				row["consent_mode"],
+				if operation.requires_fresh_consent() { "fresh-user-consent" } else { "grant" },
+			);
+			let (request, result, error) = operation.cddl();
+			assert_eq!(row["cddl"]["Request"], request);
+			assert_eq!(row["cddl"]["Result"], result);
+			assert_eq!(row["cddl"]["Error"], error);
+			let allowed = row["allowed_errors"]
+				.as_array()
+				.unwrap()
+				.iter()
+				.map(|error| error["name"].as_str().unwrap())
+				.collect::<Vec<_>>();
+			assert_eq!(allowed, IDENTITY_V2_ALLOWED_ERRORS);
+		}
+	}
+
+	#[test]
+	fn concrete_host_vectors_cover_each_identity_request() {
+		let fixture: Value = serde_json::from_str(HOST_VECTORS).unwrap();
+		let vectors = fixture["vectors"].as_array().unwrap();
+		for operation in IdentityV2Operation::ALL {
+			let id = format!("{}-positive", operation as u16);
+			let vector = vectors.iter().find(|vector| vector["id"] == id).unwrap();
+			assert_eq!(vector["operation"], operation.name());
+			assert_eq!(vector["cddl"]["Request"], operation.cddl().0);
+			let wire = hex::decode(vector["wire_hex"].as_str().unwrap()).unwrap();
+			assert_eq!(hex::encode(Sha256::digest(&wire)), vector["wire_sha256"]);
+			let value: ciborium::value::Value = ciborium::from_reader(wire.as_slice()).unwrap();
+			let ciborium::value::Value::Map(fields) = value else { panic!("frame is a map") };
+			let code = fields
+				.iter()
+				.find_map(|(key, value)| {
+					(matches!(key, ciborium::value::Value::Integer(key) if u64::try_from(*key).ok() == Some(3)))
+					.then_some(value)
+				})
+				.unwrap();
+			assert!(
+				matches!(code, ciborium::value::Value::Integer(code) if u64::try_from(*code).ok() == Some(operation as u64))
+			);
 		}
 	}
 
 	#[test]
 	fn grants_are_isolated_and_transaction_signing_is_separate() {
 		for (index, operation) in IdentityV2Operation::ALL.iter().copied().enumerate() {
+			let mut journal = FreshConsentJournalV2::default();
 			let wrong = IdentityV2Operation::ALL[(index + 1) % IdentityV2Operation::ALL.len()];
 			let operation_id = operation.requires_fresh_consent().then_some([7; 16]);
 			assert_eq!(
@@ -575,6 +817,7 @@ mod tests {
 					100,
 					[9; 32],
 					operation_id,
+					&mut journal,
 				),
 				Err(IdentityV2Error::GrantScopeDenied),
 			);
@@ -585,16 +828,80 @@ mod tests {
 				100,
 				[9; 32],
 				operation_id,
+				&mut journal,
 			)
 			.is_ok());
 		}
 	}
 
 	#[test]
+	fn invocation_json_matches_the_typescript_camel_case_envelope() {
+		let mut journal = FreshConsentJournalV2::default();
+		let invocation = prepare_identity_v2_invocation(
+			"festival",
+			&grant(IdentityV2Operation::IdentityAccount),
+			request(IdentityV2Operation::IdentityAccount),
+			100,
+			[9; 32],
+			None,
+			&mut journal,
+		)
+		.unwrap();
+		let value = serde_json::to_value(&invocation).unwrap();
+		let keys = value.as_object().unwrap().keys().cloned().collect::<BTreeSet<_>>();
+		assert_eq!(
+			keys,
+			[
+				"protocol",
+				"code",
+				"productId",
+				"grantId",
+				"recoveryIncarnation",
+				"operation",
+				"input"
+			]
+			.into_iter()
+			.map(str::to_string)
+			.collect(),
+		);
+		assert_eq!(value["operation"], "identity.account");
+		assert_eq!(value["input"]["session"], "selected");
+		let mut joined = value;
+		joined.as_object_mut().unwrap().insert("personhood".into(), Value::Bool(true));
+		assert!(serde_json::from_value::<IdentityInvocationV2>(joined).is_err());
+	}
+
+	#[test]
+	fn results_are_operation_exact_and_bounded() {
+		let oversized = IdentityResultV2::HumanityProve(IdentityHumanityProveResultV2 {
+			proof: vec![0; 4097],
+			derived_public_key: [1; 32],
+			proof_hash: [2; 32],
+			continuity: true,
+			expires_at: 200,
+		});
+		assert_eq!(
+			oversized.validate_for(IdentityV2Operation::IdentityHumanityProve),
+			Err(IdentityV2Error::WireSchemaInvalid),
+		);
+		let exact = IdentityResultV2::Account(IdentityAccountResultV2 {
+			account: [1; 32],
+			session_expires_at: 200,
+			finalized: FinalizedIdentityV2 { block_number: 100, block_hash: [2; 32] },
+		});
+		assert_eq!(
+			exact.validate_for(IdentityV2Operation::IdentityProfileRead),
+			Err(IdentityV2Error::WireSchemaInvalid),
+		);
+	}
+
+	#[test]
 	fn audience_and_recovery_incarnation_fail_closed() {
 		let operation = IdentityV2Operation::IdentityHumanityProve;
-		let mut wrong_audience = grant(operation);
+		let mut journal = FreshConsentJournalV2::default();
+		let mut wrong_audience = grant_core(operation);
 		wrong_audience.audience = Some("other.example".into());
+		let wrong_audience = IdentityHumanityProveGrantV2(wrong_audience);
 		assert_eq!(
 			prepare_identity_v2_invocation(
 				"festival",
@@ -603,6 +910,7 @@ mod tests {
 				100,
 				[9; 32],
 				Some([7; 16]),
+				&mut journal,
 			),
 			Err(IdentityV2Error::AudienceInvalid),
 		);
@@ -614,6 +922,7 @@ mod tests {
 				100,
 				[8; 32],
 				None,
+				&mut journal,
 			),
 			Err(IdentityV2Error::OldIncarnation),
 		);
@@ -636,8 +945,35 @@ mod tests {
 			.unwrap();
 		assert_eq!(replay["expected_error"], IdentityV2Error::ChallengeReplay.to_string());
 		let mut journal = FreshConsentJournalV2::default();
-		assert_eq!(journal.consume([7; 16]), Ok(()));
-		assert_eq!(journal.consume([7; 16]), Err(IdentityV2Error::ChallengeReplay));
+		let proof_request = request(IdentityV2Operation::IdentityHumanityProve);
+		assert_eq!(journal.consume(&proof_request, Some([7; 16])), Ok(()));
+		assert_eq!(
+			journal.consume(&proof_request, Some([8; 16])),
+			Err(IdentityV2Error::ChallengeReplay),
+		);
+		let mut integrated = FreshConsentJournalV2::default();
+		assert!(prepare_identity_v2_invocation(
+			"festival",
+			&grant(IdentityV2Operation::IdentityHumanityProve),
+			request(IdentityV2Operation::IdentityHumanityProve),
+			100,
+			[9; 32],
+			Some([7; 16]),
+			&mut integrated,
+		)
+		.is_ok());
+		assert_eq!(
+			prepare_identity_v2_invocation(
+				"festival",
+				&grant(IdentityV2Operation::IdentityHumanityProve),
+				request(IdentityV2Operation::IdentityHumanityProve),
+				100,
+				[9; 32],
+				Some([8; 16]),
+				&mut integrated,
+			),
+			Err(IdentityV2Error::ChallengeReplay),
+		);
 
 		let recovery = vectors["recovery_vectors"].as_array().unwrap();
 		let expected = |id: &str| {

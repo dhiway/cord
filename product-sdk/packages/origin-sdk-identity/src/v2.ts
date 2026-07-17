@@ -37,8 +37,34 @@ export const IDENTITY_V2_OPERATION_CODES = {
 	"transaction.sign": 1200,
 } as const;
 
+export const IDENTITY_V2_CONTRACTS = {
+	"identity.account": { code: 1100, grantScope: "identity.account", consentMode: "grant", operationIdRequired: false, request: "IdentityAccountRequest", result: "IdentityAccountResult", error: "IdentityAccountError" },
+	"identity.profile.read": { code: 1101, grantScope: "identity.profile.read", consentMode: "grant", operationIdRequired: false, request: "IdentityProfileReadRequest", result: "IdentityProfileReadResult", error: "IdentityProfileReadError" },
+	"identity.profile.disclose": { code: 1102, grantScope: "identity.profile.disclose", consentMode: "fresh-user-consent", operationIdRequired: true, request: "IdentityProfileDiscloseRequest", result: "IdentityProfileDiscloseResult", error: "IdentityProfileDiscloseError" },
+	"identity.humanity.status": { code: 1103, grantScope: "identity.humanity.status", consentMode: "grant", operationIdRequired: false, request: "IdentityHumanityStatusRequest", result: "IdentityHumanityStatusResult", error: "IdentityHumanityStatusError" },
+	"identity.humanity.prove": { code: 1104, grantScope: "identity.humanity.prove", consentMode: "fresh-user-consent", operationIdRequired: true, request: "IdentityHumanityProveRequest", result: "IdentityHumanityProveResult", error: "IdentityHumanityProveError" },
+	"identity.subject.derive": { code: 1105, grantScope: "identity.subject.derive", consentMode: "grant", operationIdRequired: false, request: "IdentitySubjectDeriveRequest", result: "IdentitySubjectDeriveResult", error: "IdentitySubjectDeriveError" },
+	"identity.entitlements.read": { code: 1106, grantScope: "identity.entitlements.read", consentMode: "grant", operationIdRequired: false, request: "IdentityEntitlementsReadRequest", result: "IdentityEntitlementsReadResult", error: "IdentityEntitlementsReadError" },
+	"transaction.sign": { code: 1200, grantScope: "transaction.sign", consentMode: "fresh-user-consent", operationIdRequired: true, request: "TransactionSignRequest", result: "TransactionSignResult", error: "TransactionSignError" },
+} as const;
+
 export type IdentityV2Operation = Exclude<keyof typeof IDENTITY_V2_OPERATION_CODES, "transaction.sign">;
 export type IdentityV2Call = keyof typeof IDENTITY_V2_OPERATION_CODES;
+
+export const IDENTITY_V2_ALLOWED_ERRORS = [
+	"WIRE_SCHEMA_INVALID", "WIRE_NON_CANONICAL", "WIRE_VERSION_MISMATCH",
+	"WIRE_GENESIS_MISMATCH", "WIRE_DESCRIPTOR_MISMATCH", "WIRE_SEQUENCE_INVALID",
+	"REQUEST_DEADLINE_EXPIRED", "REQUEST_CANCELLED", "REQUEST_NOT_FOUND", "GRANT_REQUIRED",
+	"GRANT_SCOPE_DENIED", "GRANT_EXPIRED", "GRANT_REVOKED", "HOST_OUTBOX_UNAVAILABLE",
+	"HOST_OUTBOX_FULL", "HOST_OUTBOX_CORRUPT", "HOST_OUTBOX_EXPIRED",
+	"IDENTITY_AUDIENCE_INVALID", "IDENTITY_CHALLENGE_REPLAY", "IDENTITY_PROOF_EXPIRED",
+	"IDENTITY_EPOCH_INVALID", "IDENTITY_DISCLOSURE_DENIED", "IDENTITY_HUMANITY_UNAVAILABLE",
+	"IDENTITY_ENTITLEMENT_UNAVAILABLE", "SIGNING_CONSENT_REQUIRED",
+	"IDENTITY_RECOVERY_ENTROPY_FAILED", "IDENTITY_RECOVERY_INSTALL_FAILED",
+	"IDENTITY_OLD_INCARNATION", "IDENTITY_RETIRED_SET_FULL",
+] as const;
+
+export type IdentityV2AllowedError = (typeof IDENTITY_V2_ALLOWED_ERRORS)[number];
 
 type Bytes32 = Uint8Array;
 type Bytes16 = Uint8Array;
@@ -198,6 +224,15 @@ export interface IdentityGrantV2<Operation extends IdentityV2Call> {
 	readonly revoked?: boolean;
 }
 
+export type IdentityAccountGrantV2 = IdentityGrantV2<"identity.account">;
+export type IdentityProfileReadGrantV2 = IdentityGrantV2<"identity.profile.read">;
+export type IdentityProfileDiscloseGrantV2 = IdentityGrantV2<"identity.profile.disclose">;
+export type IdentityHumanityStatusGrantV2 = IdentityGrantV2<"identity.humanity.status">;
+export type IdentityHumanityProveGrantV2 = IdentityGrantV2<"identity.humanity.prove">;
+export type IdentitySubjectDeriveGrantV2 = IdentityGrantV2<"identity.subject.derive">;
+export type IdentityEntitlementsReadGrantV2 = IdentityGrantV2<"identity.entitlements.read">;
+export type TransactionSignGrantV2 = IdentityGrantV2<"transaction.sign">;
+
 export interface IdentityInvocationV2<Operation extends IdentityV2Call> {
 	readonly protocol: "cord.origin.host/2";
 	readonly code: (typeof IDENTITY_V2_OPERATION_CODES)[Operation];
@@ -208,6 +243,13 @@ export interface IdentityInvocationV2<Operation extends IdentityV2Call> {
 	readonly input: IdentityV2MethodMap[Operation]["input"];
 	readonly operationId?: Bytes16;
 }
+
+export type IdentityResultEnvelopeV2 = {
+	readonly [Operation in IdentityV2Call]: {
+		readonly operation: Operation;
+		readonly result: IdentityV2MethodMap[Operation]["output"];
+	};
+}[IdentityV2Call];
 
 export interface IdentityV2Bridge {
 	request<Operation extends IdentityV2Call>(
@@ -241,6 +283,29 @@ export function identityRecoveryDispositionV2(
 		return { continuity: true, action: "restore-complete-store" };
 	}
 	return { continuity: false, action: "install-fresh-root", epoch: 0 };
+}
+
+/** Private replay state. A fresh-consent operation ID and a proof challenge are single-use. */
+export class IdentityReplayJournalV2 {
+	private readonly operationIds = new Set<string>();
+	private readonly proofChallenges = new Set<string>();
+
+	consume(
+		operation: IdentityV2Call,
+		operationId: Uint8Array | undefined,
+		input: IdentityV2MethodMap[IdentityV2Call]["input"],
+	): void {
+		if (operationId !== undefined) {
+			const key = hex(operationId);
+			if (this.operationIds.has(key)) throw new Error("fresh-consent operation ID was already consumed");
+			this.operationIds.add(key);
+		}
+		if (operation === "identity.humanity.prove") {
+			const key = hex((input as IdentityHumanityProveRequestV2).challenge);
+			if (this.proofChallenges.has(key)) throw new Error("humanity proof challenge was already consumed");
+			this.proofChallenges.add(key);
+		}
+	}
 }
 
 export interface IdentityV2Client {
@@ -348,6 +413,10 @@ function stringList(value: unknown, minimum: number, maximum: number, label: str
 	return value.map((item, index) => text(item, 128, `${label}[${index}]`));
 }
 
+function hex(value: Uint8Array): string {
+	return Array.from(value, (byte) => byte.toString(16).padStart(2, "0")).join("");
+}
+
 function record(value: unknown, keys: readonly string[], label: string): Record<string, unknown> {
 	if (typeof value !== "object" || value === null || Array.isArray(value)) {
 		throw new TypeError(`${label} must be a record`);
@@ -358,6 +427,24 @@ function record(value: unknown, keys: readonly string[], label: string): Record<
 		throw new TypeError(`${label} contains joined or unknown fields`);
 	}
 	return value as Record<string, unknown>;
+}
+
+function closedRecord(
+	value: unknown,
+	required: readonly string[],
+	optional: readonly string[],
+	label: string,
+): Record<string, unknown> {
+	if (typeof value !== "object" || value === null || Array.isArray(value)) {
+		throw new TypeError(`${label} must be a record`);
+	}
+	const item = value as Record<string, unknown>;
+	const actual = Object.keys(item);
+	if (required.some((key) => !Object.prototype.hasOwnProperty.call(item, key))
+		|| actual.some((key) => !required.includes(key) && !optional.includes(key))) {
+		throw new TypeError(`${label} contains joined, missing, or unknown fields`);
+	}
+	return item;
 }
 
 function finalized(value: unknown): FinalizedIdentityV2 {
@@ -387,65 +474,84 @@ function receipt(value: unknown): IdentityReceiptV2 {
 function validateInput<Operation extends IdentityV2Call>(
 	operation: Operation,
 	input: IdentityV2MethodMap[Operation]["input"],
-): void {
+): IdentityV2MethodMap[Operation]["input"] {
+	let output: unknown;
 	switch (operation) {
-		case "identity.account":
-			text((input as IdentityAccountRequestV2).session, 128, "session");
+		case "identity.account": {
+			const value = record(input, ["session"], "identity.account input");
+			output = { session: text(value.session, 128, "session") };
 			break;
+		}
 		case "identity.profile.read": {
-			const value = input as IdentityProfileReadRequestV2;
-			bytes(value.subject, 32, "subject");
-			stringList(value.fields, 1, 64, "profile fields");
-			if (value.at !== undefined) bytes(value.at, 32, "profile finalized hash");
+			const value = closedRecord(input, ["subject", "fields"], ["at"], "identity.profile.read input");
+			output = {
+				subject: bytes(value.subject, 32, "subject"),
+				fields: stringList(value.fields, 1, 64, "profile fields"),
+				...(value.at === undefined ? {} : { at: bytes(value.at, 32, "profile finalized hash") }),
+			};
 			break;
 		}
 		case "identity.profile.disclose": {
-			const value = input as IdentityProfileDiscloseRequestV2;
-			text(value.audience, 256, "disclosure audience");
-			stringList(value.fields, 1, 64, "disclosure fields");
-			text(value.purpose, 256, "disclosure purpose");
-			uint(value.expiresAt, 0xffff_ffff_ffff_ffffn, "disclosure expiry");
+			const value = record(input, ["audience", "fields", "purpose", "expiresAt"], "identity.profile.disclose input");
+			output = {
+				audience: text(value.audience, 256, "disclosure audience"),
+				fields: stringList(value.fields, 1, 64, "disclosure fields"),
+				purpose: text(value.purpose, 256, "disclosure purpose"),
+				expiresAt: uint(value.expiresAt, 0xffff_ffff_ffff_ffffn, "disclosure expiry"),
+			};
 			break;
 		}
 		case "identity.humanity.status": {
-			const value = input as IdentityHumanityStatusRequestV2;
-			bytes(value.subject, 32, "humanity subject");
-			if (value.at !== undefined) bytes(value.at, 32, "humanity finalized hash");
+			const value = closedRecord(input, ["subject"], ["at"], "identity.humanity.status input");
+			output = {
+				subject: bytes(value.subject, 32, "humanity subject"),
+				...(value.at === undefined ? {} : { at: bytes(value.at, 32, "humanity finalized hash") }),
+			};
 			break;
 		}
 		case "identity.humanity.prove": {
-			const value = input as IdentityHumanityProveRequestV2;
-			text(value.audience, 256, "proof audience");
+			const value = record(input, ["audience", "challenge", "expiresAt", "claims"], "identity.humanity.prove input");
 			if (!(value.challenge instanceof Uint8Array) || value.challenge.length < 16 || value.challenge.length > 64) {
 				throw new TypeError("proof challenge must contain 16-64 bytes");
 			}
-			uint(value.expiresAt, 0xffff_ffff_ffff_ffffn, "proof expiry");
-			stringList(value.claims, 0, 64, "proof claims");
+			output = {
+				audience: text(value.audience, 256, "proof audience"),
+				challenge: value.challenge.slice(),
+				expiresAt: uint(value.expiresAt, 0xffff_ffff_ffff_ffffn, "proof expiry"),
+				claims: stringList(value.claims, 0, 64, "proof claims"),
+			};
 			break;
 		}
 		case "identity.subject.derive": {
-			const value = input as IdentitySubjectDeriveRequestV2;
-			text(value.productId, 128, "subject product");
-			text(value.context, 256, "subject context");
-			text(value.verifierAudience, 256, "subject verifier audience");
-			if (value.epoch !== undefined) u32(value.epoch, "subject epoch");
+			const value = closedRecord(input, ["productId", "context", "verifierAudience"], ["epoch"], "identity.subject.derive input");
+			output = {
+				productId: text(value.productId, 128, "subject product"),
+				context: text(value.context, 256, "subject context"),
+				verifierAudience: text(value.verifierAudience, 256, "subject verifier audience"),
+				...(value.epoch === undefined ? {} : { epoch: u32(value.epoch, "subject epoch") }),
+			};
 			break;
 		}
 		case "identity.entitlements.read": {
-			const value = input as IdentityEntitlementsReadRequestV2;
-			bytes(value.subject, 32, "entitlement subject");
-			text(value.scope, 256, "entitlement scope");
-			if (value.at !== undefined) bytes(value.at, 32, "entitlement finalized hash");
+			const value = closedRecord(input, ["subject", "scope"], ["at"], "identity.entitlements.read input");
+			output = {
+				subject: bytes(value.subject, 32, "entitlement subject"),
+				scope: text(value.scope, 256, "entitlement scope"),
+				...(value.at === undefined ? {} : { at: bytes(value.at, 32, "entitlement finalized hash") }),
+			};
 			break;
 		}
 		case "transaction.sign": {
-			const value = input as TransactionSignRequestV2;
-			bytes(value.payloadHash, 32, "transaction payload hash");
-			bytes(value.policyHash, 32, "transaction policy hash");
-			uint(value.expiresAt, 0xffff_ffff_ffff_ffffn, "transaction expiry");
+			const value = record(input, ["payloadHash", "policyHash", "expiresAt"], "transaction.sign input");
+			output = {
+				payloadHash: bytes(value.payloadHash, 32, "transaction payload hash"),
+				policyHash: bytes(value.policyHash, 32, "transaction policy hash"),
+				expiresAt: uint(value.expiresAt, 0xffff_ffff_ffff_ffffn, "transaction expiry"),
+			};
 			break;
 		}
 	}
+	return output as IdentityV2MethodMap[Operation]["input"];
 }
 
 function audienceOf(operation: IdentityV2Call, input: IdentityV2MethodMap[IdentityV2Call]["input"]): string | undefined {
@@ -557,7 +663,11 @@ function equalBytes(left: Uint8Array, right: Uint8Array): boolean {
 	return left.length === right.length && left.every((value, index) => value === right[index]);
 }
 
-export function createIdentityV2Client(productId: string, bridge: IdentityV2Bridge): IdentityV2Client {
+export function createIdentityV2Client(
+	productId: string,
+	bridge: IdentityV2Bridge,
+	replayJournal: IdentityReplayJournalV2 = new IdentityReplayJournalV2(),
+): IdentityV2Client {
 	text(productId, 128, "product id");
 
 	async function invoke<Operation extends IdentityV2Call>(
@@ -568,11 +678,30 @@ export function createIdentityV2Client(productId: string, bridge: IdentityV2Brid
 		signal?: AbortSignal,
 	): Promise<SdkResult<IdentityV2MethodMap[Operation]["output"]>> {
 		if (signal?.aborted) return identityError("REQUEST_CANCELLED", "Identity request was cancelled");
+		let normalizedInput: IdentityV2MethodMap[Operation]["input"];
 		try {
-			validateInput(operation, input);
+			normalizedInput = validateInput(operation, input);
+			closedRecord(
+				grant,
+				["version", "id", "productId", "scope", "recoveryIncarnation", "expiresAt"],
+				["audience", "revoked"],
+				"identity grant",
+			);
+			closedRecord(
+				options,
+				["finalizedBlock", "currentRecoveryIncarnation"],
+				["operationId"],
+				"identity invocation options",
+			);
 			bytes(grant.id, 32, "grant id");
 			bytes(grant.recoveryIncarnation, 32, "grant recovery incarnation");
 			bytes(options.currentRecoveryIncarnation, 32, "current recovery incarnation");
+			uint(grant.expiresAt, 0xffff_ffff_ffff_ffffn, "grant expiry");
+			uint(options.finalizedBlock, 0xffff_ffff_ffff_ffffn, "finalized block");
+			if (grant.audience !== undefined) text(grant.audience, 256, "grant audience");
+			if (grant.revoked !== undefined && typeof grant.revoked !== "boolean") {
+				throw new TypeError("grant revoked flag must be boolean");
+			}
 		} catch (error) {
 			return identityError("WIRE_SCHEMA_INVALID", error instanceof Error ? error.message : "Invalid identity request");
 		}
@@ -584,7 +713,7 @@ export function createIdentityV2Client(productId: string, bridge: IdentityV2Brid
 		if (!equalBytes(grant.recoveryIncarnation, options.currentRecoveryIncarnation)) {
 			return identityError("IDENTITY_OLD_INCARNATION", "Identity grant belongs to an old recovery incarnation");
 		}
-		const audience = audienceOf(operation, input as IdentityV2MethodMap[IdentityV2Call]["input"]);
+		const audience = audienceOf(operation, normalizedInput as IdentityV2MethodMap[IdentityV2Call]["input"]);
 		if (audience !== undefined && grant.audience !== audience) {
 			return identityError("IDENTITY_AUDIENCE_INVALID", "Identity grant audience does not match the request");
 		}
@@ -596,6 +725,19 @@ export function createIdentityV2Client(productId: string, bridge: IdentityV2Brid
 		} else if (options.operationId !== undefined) {
 			return identityError("WIRE_SCHEMA_INVALID", "Read-only Identity operation cannot carry an operation id");
 		}
+		if (operation === "identity.humanity.prove"
+			&& (normalizedInput as IdentityHumanityProveRequestV2).expiresAt <= options.finalizedBlock) {
+			return identityError("IDENTITY_PROOF_EXPIRED", "Humanity proof request already expired");
+		}
+		try {
+			replayJournal.consume(
+				operation,
+				options.operationId,
+				normalizedInput as IdentityV2MethodMap[IdentityV2Call]["input"],
+			);
+		} catch (error) {
+			return identityError("IDENTITY_CHALLENGE_REPLAY", error instanceof Error ? error.message : "Replay rejected");
+		}
 
 		const response = await bridge.request({
 			protocol: "cord.origin.host/2",
@@ -604,10 +746,15 @@ export function createIdentityV2Client(productId: string, bridge: IdentityV2Brid
 			productId,
 			grantId: grant.id.slice(),
 			recoveryIncarnation: grant.recoveryIncarnation.slice(),
-			input,
+			input: normalizedInput,
 			...(options.operationId === undefined ? {} : { operationId: options.operationId.slice() }),
 		}, signal);
-		if (!response.success) return response;
+		if (!response.success) {
+			if (!(IDENTITY_V2_ALLOWED_ERRORS as readonly string[]).includes(response.error.code)) {
+				return identityError("WIRE_SCHEMA_INVALID", "Bridge returned an error outside the frozen registry");
+			}
+			return response;
+		}
 		try {
 			return { success: true, value: validateResult(operation, response.value) };
 		} catch (error) {

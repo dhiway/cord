@@ -23,6 +23,8 @@ import test from "node:test";
 import { OriginSdkError, type SdkResult } from "@cord-network/origin-sdk-errors";
 import {
 	IDENTITY_V2_OPERATION_CODES,
+	IDENTITY_V2_CONTRACTS,
+	IDENTITY_V2_ALLOWED_ERRORS,
 	createIdentityV2Client,
 	identityRecoveryDispositionV2,
 	type IdentityGrantV2,
@@ -149,7 +151,7 @@ const freshConsent = new Set<IdentityV2Call>([
 ]);
 const operationOptions = (operation: IdentityV2Call): IdentityV2InvocationOptions => ({
 	...options,
-	...(freshConsent.has(operation) ? { operationId: bytes(16, 12) } : {}),
+	...(freshConsent.has(operation) ? { operationId: bytes(16, IDENTITY_V2_OPERATION_CODES[operation] % 251) } : {}),
 });
 
 test("private Identity-v2 operation codes remain equal to the frozen host registry", () => {
@@ -161,6 +163,18 @@ test("private Identity-v2 operation codes remain equal to the frozen host regist
 		.filter(({ name }: { name: string }) => name.startsWith("identity.") || name === "transaction.sign")
 		.map(({ name, code }: { name: string; code: number }) => [name, code]));
 	assert.deepEqual(IDENTITY_V2_OPERATION_CODES, frozen);
+	for (const [name, contract] of Object.entries(IDENTITY_V2_CONTRACTS)) {
+		const row = registry.operations.find((candidate: { name: string }) => candidate.name === name);
+		assert.ok(row, name);
+		assert.equal(contract.code, row.code, name);
+		assert.equal(contract.grantScope, row.grant_scope, name);
+		assert.equal(contract.consentMode, row.consent_mode, name);
+		assert.equal(contract.operationIdRequired, row.operation_id_required, name);
+		assert.equal(contract.request, row.cddl.Request, name);
+		assert.equal(contract.result, row.cddl.Result, name);
+		assert.equal(contract.error, row.cddl.Error, name);
+		assert.deepEqual(row.allowed_errors.map(({ name: error }: { name: string }) => error), IDENTITY_V2_ALLOWED_ERRORS);
+	}
 	assert.deepEqual(Object.keys(IDENTITY_V2_OPERATION_CODES), [
 		"identity.account",
 		"identity.profile.read",
@@ -173,6 +187,25 @@ test("private Identity-v2 operation codes remain equal to the frozen host regist
 	]);
 	const manifest = JSON.parse(readFileSync(new URL("../package.json", import.meta.url), "utf8"));
 	assert.deepEqual(Object.keys(manifest.exports), ["."]);
+});
+
+test("frozen concrete host vectors cover every private Identity-v2 request contract", () => {
+	const vectors = JSON.parse(readFileSync(
+		new URL("../../../../docs/specs/origin-host-registry-v2.vectors.json", import.meta.url),
+		"utf8",
+	));
+	for (const [operation, contract] of Object.entries(IDENTITY_V2_CONTRACTS)) {
+		const positive = vectors.vectors.find(({ id }: { id: string }) => id === `${contract.code}-positive`);
+		const schemaNegative = vectors.vectors.find(({ id }: { id: string }) => id === `${contract.code}-schema-negative`);
+		const grantNegative = vectors.vectors.find(({ id }: { id: string }) => id === `${contract.code}-grant-negative`);
+		assert.equal(positive.operation, operation);
+		assert.equal(positive.cddl.Request, contract.request);
+		assert.equal(positive.expected, "accept");
+		assert.equal(createHash("sha256").update(Buffer.from(positive.wire_hex, "hex")).digest("hex"), positive.wire_sha256);
+		assert.equal(Buffer.from(positive.wire_hex, "hex").includes(Buffer.from([3, 0x19, contract.code >> 8, contract.code & 0xff])), true);
+		assert.equal(schemaNegative.expected_error, "WIRE_SCHEMA_INVALID");
+		assert.equal(grantNegative.expected_error, "GRANT_SCOPE_DENIED");
+	}
 });
 
 test("every Identity operation accepts only its exact grant and transaction signing stays separate", async () => {
@@ -224,6 +257,36 @@ test("audience binding and closed result schemas prevent joined authority leakag
 	assert.equal(!entitlements.success && entitlements.error.code, "WIRE_SCHEMA_INVALID");
 });
 
+test("hostile inputs, grants, results, and bridge errors cannot escape the closed facade", async () => {
+	const calls: IdentityV2Call[] = [];
+	const client = createIdentityV2Client("festival", successBridge(calls));
+	const joinedInput = { ...inputByOperation["identity.account"], profile: { email: "hidden@example" } };
+	const inputRejected = await client.account(grant("identity.account"), joinedInput as never, options);
+	assert.equal(!inputRejected.success && inputRejected.error.code, "WIRE_SCHEMA_INVALID");
+	const joinedGrant = { ...grant("identity.account"), personhood: true };
+	const grantRejected = await client.account(joinedGrant as never, inputByOperation["identity.account"], options);
+	assert.equal(!grantRejected.success && grantRejected.error.code, "WIRE_SCHEMA_INVALID");
+	assert.equal(calls.length, 0);
+
+	const unbounded: IdentityV2Bridge = { async request() {
+		return { success: true, value: { ...outputByOperation["identity.humanity.prove"], proof: bytes(4_097, 1) } };
+	} };
+	const resultRejected = await createIdentityV2Client("festival", unbounded).humanityProve(
+		grant("identity.humanity.prove"),
+		inputByOperation["identity.humanity.prove"],
+		operationOptions("identity.humanity.prove"),
+	);
+	assert.equal(!resultRejected.success && resultRejected.error.code, "WIRE_SCHEMA_INVALID");
+
+	const unknownError: IdentityV2Bridge = { async request() {
+		return { success: false, error: new OriginSdkError({ source: "test", domain: "test", code: "legacy_people_error", message: "legacy" }) };
+	} };
+	const errorRejected = await createIdentityV2Client("festival", unknownError).account(
+		grant("identity.account"), inputByOperation["identity.account"], options,
+	);
+	assert.equal(!errorRejected.success && errorRejected.error.code, "WIRE_SCHEMA_INVALID");
+});
+
 test("fresh-consent replay and recovery-incarnation failures match frozen Identity vectors", async () => {
 	const vectors = JSON.parse(readFileSync(
 		new URL("../../../../docs/specs/identity-v2.vectors.json", import.meta.url),
@@ -267,6 +330,27 @@ test("fresh-consent replay and recovery-incarnation failures match frozen Identi
 	const oldGrant = grant("identity.subject.derive", { recoveryIncarnation: bytes(32, 7) });
 	const rejected = await call(client, "identity.subject.derive", oldGrant, options);
 	assert.equal(!rejected.success && rejected.error.code, old.expected_error);
+});
+
+test("all executable Identity vectors retain canonical, response, state, and effect commitments", () => {
+	const vectors = JSON.parse(readFileSync(
+		new URL("../../../../docs/specs/identity-v2.vectors.json", import.meta.url),
+		"utf8",
+	));
+	for (const vector of vectors.executable_vectors) {
+		const digest = (hex: string) => createHash("sha256").update(Buffer.from(hex, "hex")).digest("hex");
+		assert.equal(digest(vector.canonical_cbor_hex), vector.canonical_sha256, vector.id);
+		assert.equal(digest(vector.exact_response_cbor_hex), vector.exact_response_sha256, vector.id);
+		assert.equal(digest(vector.pre_state_cbor_hex), vector.pre_state_sha256, vector.id);
+		assert.equal(digest(vector.post_state_cbor_hex), vector.post_state_sha256, vector.id);
+		assert.equal(vector.effect_count, 1, vector.id);
+		assert.equal(vector.event_count, 1, vector.id);
+		assert.equal(vector.noncanonical_expected_error, "WIRE_NON_CANONICAL", vector.id);
+		assert.notEqual(vector.noncanonical_cbor_hex, vector.canonical_cbor_hex, vector.id);
+		for (const negative of vector.negative_vectors) {
+			assert.equal(negative.effect_count === 0 || negative.expected === "byte-identical-receipt", true, negative.id);
+		}
+	}
 });
 
 test("only the complete authenticated monotonic same-store recovery preserves continuity", () => {
