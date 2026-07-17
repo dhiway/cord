@@ -1091,6 +1091,76 @@ pub(super) fn validate_recovery_state(state: &super::JournalState) -> Result<(),
 }
 
 impl StreamingStore {
+	/// Resolve the immutable generation-zero PUT request and capability selected by one exact
+	/// successor token. The returned bytes are cloned while the durable journal is locked so an
+	/// external finalized-authority lookup never holds the storage guard.
+	pub(crate) fn object_put_root(
+		&self,
+		token_bytes: &[u8],
+	) -> Result<Option<(Vec<u8>, Vec<u8>)>, RecoveryError> {
+		let token = ResumeTokenV1::decode(token_bytes)?;
+		let descriptor = StreamingDescriptor {
+			operation_id: OperationId::from_bytes(token.operation_id),
+			bucket_id: BucketId::from_bytes(token.bucket_id),
+			expected_cid: token.cid.as_str().into(),
+			object_len: token.object_len,
+		};
+		let (request, authority) = {
+			let state = self.read_state()?;
+			let host_key_id = hex::encode(token.host_key_id);
+			let mut roots = state.recovery.values().filter(|record| {
+				record.effect == RecoveryEffect::Accepted
+					&& record.descriptor == descriptor
+					&& record.host_key_id == host_key_id
+			});
+			let Some(root) = roots.next() else { return Ok(None) };
+			if roots.next().is_some() {
+				return Err(ContentError::IntegrityFailed.into());
+			}
+			(
+				hex::decode(&root.request).map_err(|_| ContentError::IntegrityFailed)?,
+				hex::decode(&root.authority).map_err(|_| ContentError::IntegrityFailed)?,
+			)
+		};
+		let request_dto = ObjectPutRequestV2::decode(&request)?;
+		let capability = ProviderCapabilityV1::decode(&authority)?;
+		if request_dto.operation_id != token.operation_id
+			|| request_dto.bucket_id != token.bucket_id
+			|| request_dto.cid != token.cid
+			|| request_dto.object_len != token.object_len
+			|| capability.issuer_key_id != token.host_key_id
+		{
+			return Err(ContentError::IntegrityFailed.into());
+		}
+		Ok(Some((request, authority)))
+	}
+
+	/// Derive the only canonical cancellation frame which may consume this exact successor. This
+	/// is deliberately read-only so the private host can reject a substituted request id or event
+	/// sequence before the durable cancellation transition is applied.
+	pub(crate) fn object_put_cancel_request(
+		&self,
+		request_bytes: &[u8],
+		token_bytes: &[u8],
+	) -> Result<Vec<u8>, RecoveryError> {
+		let request = ObjectPutRequestV2::decode(request_bytes)?;
+		let token = ResumeTokenV1::decode(token_bytes)?;
+		if token.operation_id != request.operation_id
+			|| token.bucket_id != request.bucket_id
+			|| token.cid != request.cid
+			|| token.object_len != request.object_len
+		{
+			return Err(RecoveryError::ResumeAudienceInvalid);
+		}
+		let state = self.read_state()?;
+		let prior = predecessor(&state, token_bytes)?;
+		let sequence = prior
+			.response_sequence
+			.checked_add(1)
+			.ok_or(ContentError::IntegrityFailed)?;
+		Ok(cancelled_response(request.request_id, sequence))
+	}
+
 	pub(crate) fn accept_object_put(
 		&self,
 		request_bytes: &[u8],
@@ -1916,6 +1986,27 @@ impl StreamingStore {
 		Ok(())
 	}
 
+	/// Resolve the unique host journal owning this exact PUT response acknowledgement.
+	pub(crate) fn object_put_ack_host(
+		&self,
+		ack_bytes: &[u8],
+	) -> Result<Option<[u8; 32]>, RecoveryError> {
+		let ack = ResponseAckV1::decode(ack_bytes)?;
+		let state = self.read_state()?;
+		let mut matches = state.recovery.values().filter(|record| {
+			record.request_id == hex::encode(ack.request_id)
+				&& record.operation_id == hex::encode(ack.operation_id)
+				&& record.generation == ack.generation
+				&& record.response_hash == hex::encode(ack.response_hash)
+		});
+		let Some(record) = matches.next() else { return Ok(None) };
+		let host = decode_hex(&record.host_key_id)?;
+		if matches.next().is_some() {
+			return Err(ContentError::IntegrityFailed.into());
+		}
+		Ok(Some(host))
+	}
+
 	/// Durably acknowledge one exact PUT response for the host authenticated by the caller.
 	pub(crate) fn acknowledge_response(
 		&self,
@@ -2687,6 +2778,10 @@ mod tests {
 		)
 		.unwrap();
 		let accepted_token = accepted.successor_token.clone().unwrap();
+		assert_eq!(
+			store.object_put_root(&accepted_token).unwrap(),
+			Some((request_bytes.clone(), capability.canonical_bytes()))
+		);
 		let progress = session.push_chunk(&transfer(request.operation_id, 0, b"first"), [11; 16]).unwrap();
 		let progress_token = progress.successor_token.clone().unwrap();
 		drop(session);

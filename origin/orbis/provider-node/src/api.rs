@@ -233,6 +233,10 @@ impl<A: ChainAuthority> ProviderService<A> {
 		&self.checkpoint_stack
 	}
 
+	pub(crate) fn private_host_service_key(&self) -> ed25519::Pair {
+		self.service_key.clone()
+	}
+
 	/// Access the startup-validated quorum scheduler for worker orchestration.
 	pub(crate) fn checkpoint_quorum_scheduler(&self) -> &Arc<CheckpointQuorumScheduler> {
 		&self.checkpoint_quorum_scheduler

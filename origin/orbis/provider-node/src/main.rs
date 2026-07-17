@@ -18,13 +18,19 @@
 
 //! Origin Orbis native content-provider companion process.
 
-use std::{net::SocketAddr, path::PathBuf, sync::Arc, time::Duration};
+use std::{
+	net::SocketAddr,
+	os::unix::fs::{FileTypeExt, MetadataExt, PermissionsExt},
+	path::{Path, PathBuf},
+	sync::Arc,
+	time::Duration,
+};
 
 use clap::Parser;
 use origin_orbis_provider::{
 	run_checkpoint_live_worker, run_checkpoint_quorum_worker, run_replication_worker, run_workers,
-	serve_provider_ingress, ApiConfig, FinalizedRuntimeAuthority, NodeProfile, ProviderService,
-	WorkerConfig,
+	serve_private_host_ipc, serve_provider_ingress, ApiConfig, FinalizedRuntimeAuthority,
+	NodeProfile, ProviderService, WorkerConfig,
 };
 use sp_core::{crypto::AccountId32, ed25519, Pair as _};
 
@@ -55,6 +61,13 @@ struct Cli {
 	/// Dedicated service-key-authenticated provider replication listener.
 	#[arg(long, default_value = "127.0.0.1:8081")]
 	peer_listen: SocketAddr,
+	/// Private host-v2 Unix socket. Defaults beneath the provider data root.
+	#[arg(long)]
+	private_host_socket: Option<PathBuf>,
+	/// Kernel UID permitted to connect to the private host-v2 socket. Defaults to the provider
+	/// UID.
+	#[arg(long)]
+	private_host_uid: Option<u32>,
 	/// Optional provider region label.
 	#[arg(long)]
 	region: Option<String>,
@@ -121,6 +134,13 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
 		authority,
 		service_key,
 	)?);
+	let private_host_socket = cli
+		.private_host_socket
+		.unwrap_or_else(|| cli.data_path.join("origin-host-v2.sock"));
+	let (private_host_listener, private_host_socket_guard) =
+		bind_private_host_socket(&private_host_socket)?;
+	let private_host_uid = cli.private_host_uid.unwrap_or(private_host_socket_guard.owner);
+	let _private_host_socket_guard = private_host_socket_guard;
 	let api = ApiConfig {
 		listen: cli.listen,
 		bearer_token_hash: *blake3::hash(bearer.as_bytes()).as_bytes(),
@@ -132,8 +152,14 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
 	let peer_listener = tokio::net::TcpListener::bind(cli.peer_listen).await?;
 	println!("origin-orbis-provider listening on {}", api.listen);
 	println!("origin-orbis-provider peer ingress listening on {}", cli.peer_listen);
+	println!(
+		"origin-orbis-provider private host listening on {} for uid {}",
+		private_host_socket.display(),
+		private_host_uid
+	);
 	tokio::select! {
 		result = serve_provider_ingress(api, peer_listener, service.clone(), local_provider) => result?,
+		result = serve_private_host_ipc(private_host_listener, private_host_uid, service.clone()) => result?,
 		_ = run_workers(service.clone(), workers) => {},
 		_ = run_replication_worker(service.clone(), local_provider, Duration::from_secs(cli.replication_seconds.max(1))) => {},
 		result = run_checkpoint_quorum_worker(service.clone(), local_provider, Duration::from_secs(cli.checkpoint_quorum_seconds.max(1))) => result?,
@@ -143,8 +169,102 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
 	Ok(())
 }
 
+#[derive(Debug)]
+struct PrivateHostSocketGuard {
+	path: PathBuf,
+	device: u64,
+	inode: u64,
+	owner: u32,
+}
+
+impl Drop for PrivateHostSocketGuard {
+	fn drop(&mut self) {
+		let Ok(metadata) = std::fs::symlink_metadata(&self.path) else { return };
+		if metadata.file_type().is_socket() &&
+			metadata.dev() == self.device &&
+			metadata.ino() == self.inode &&
+			metadata.uid() == self.owner
+		{
+			let _ = std::fs::remove_file(&self.path);
+		}
+	}
+}
+
+fn bind_private_host_socket(
+	path: &Path,
+) -> std::io::Result<(tokio::net::UnixListener, PrivateHostSocketGuard)> {
+	match std::fs::symlink_metadata(path) {
+		Err(error) if error.kind() == std::io::ErrorKind::NotFound => {},
+		Err(error) => return Err(error),
+		Ok(_) => {
+			return Err(std::io::Error::new(
+				std::io::ErrorKind::AlreadyExists,
+				"private host socket path already exists",
+			));
+		},
+	}
+	let listener = tokio::net::UnixListener::bind(path)?;
+	let metadata = std::fs::symlink_metadata(path)?;
+	if !metadata.file_type().is_socket() {
+		return Err(std::io::Error::new(
+			std::io::ErrorKind::InvalidData,
+			"private host bind did not create a Unix socket",
+		));
+	}
+	let guard = PrivateHostSocketGuard {
+		path: path.to_path_buf(),
+		device: metadata.dev(),
+		inode: metadata.ino(),
+		owner: metadata.uid(),
+	};
+	std::fs::set_permissions(path, std::fs::Permissions::from_mode(0o600))?;
+	let secured = std::fs::symlink_metadata(path)?;
+	if !secured.file_type().is_socket() ||
+		secured.dev() != guard.device ||
+		secured.ino() != guard.inode ||
+		secured.uid() != guard.owner ||
+		secured.permissions().mode() & 0o777 != 0o600
+	{
+		return Err(std::io::Error::new(
+			std::io::ErrorKind::PermissionDenied,
+			"private host socket identity changed while securing it",
+		));
+	}
+	Ok((listener, guard))
+}
+
 fn decode_account(value: &str) -> Result<AccountId32, Box<dyn std::error::Error>> {
 	let bytes = hex::decode(value.strip_prefix("0x").unwrap_or(value))?;
 	let bytes: [u8; 32] = bytes.try_into().map_err(|_| "provider must be exactly 32 bytes")?;
 	Ok(AccountId32::new(bytes))
+}
+
+#[cfg(test)]
+mod tests {
+	use super::*;
+
+	#[test]
+	fn private_host_bind_refuses_preexisting_paths_without_unlinking_them() {
+		let root = tempfile::tempdir().unwrap();
+		let path = root.path().join("origin-host-v2.sock");
+		std::fs::write(&path, b"owned by another process").unwrap();
+		assert_eq!(
+			bind_private_host_socket(&path).unwrap_err().kind(),
+			std::io::ErrorKind::AlreadyExists
+		);
+		assert_eq!(std::fs::read(path).unwrap(), b"owned by another process");
+	}
+
+	#[tokio::test]
+	async fn private_host_cleanup_preserves_a_replacement_path() {
+		let root = tempfile::tempdir().unwrap();
+		let path = root.path().join("origin-host-v2.sock");
+		let (listener, guard) = bind_private_host_socket(&path).unwrap();
+		assert_eq!(std::fs::symlink_metadata(&path).unwrap().permissions().mode() & 0o777, 0o600);
+		std::fs::remove_file(&path).unwrap();
+		std::fs::write(&path, b"replacement").unwrap();
+		drop(listener);
+		drop(guard);
+		assert_eq!(std::fs::read(path).unwrap(), b"replacement");
+	}
 }

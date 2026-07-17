@@ -54,6 +54,8 @@ mod peer_reply;
 mod peer_responder;
 // Private outbound transport pinned to one exact finalized replication session.
 mod peer_transport;
+// Private local IPC; it is deliberately absent from the crate's public provider surface.
+mod private_host_ipc;
 mod replication;
 // Private bounded target reconciler driven by the dedicated replication worker.
 mod replication_reconciler;
@@ -83,6 +85,8 @@ pub use content::{
 	INGRESS_WINDOW_BYTES, INGRESS_WINDOW_CHUNKS, MAX_CHUNKS, MAX_RANGE_BYTES, MAX_STORED_BYTES,
 	MAX_STREAMING_OPERATIONS, RAW_CODEC,
 };
+#[doc(hidden)]
+pub use private_host_ipc::serve_private_host_ipc;
 pub use storage::{
 	BeginStreaming, CheckpointDutyWatermark, ChunkProof, ContentRecord, DiskStore, IngressPermit,
 	IntegritySummary, NodeProfile, ProgressAck, ProviderStats, StoreError, StreamingDescriptor,

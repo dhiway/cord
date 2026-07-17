@@ -295,11 +295,67 @@ impl<S: Read + Write> DesktopHostV2Transport<S> {
 		}
 	}
 
+	fn receive_generation(
+		&mut self,
+	) -> Result<(Vec<Vec<u8>>, Option<Vec<u8>>, bool), DesktopTransportError> {
+		const MAX_GENERATION_EVENTS: usize = 4;
+		let mut events = Vec::new();
+		for _ in 0..=MAX_GENERATION_EVENTS {
+			let exact = self.receive_exact()?;
+			if Dto::<super::generated::EventV2>::decode(&exact).is_ok() {
+				let session = self.session.as_mut().ok_or(DesktopTransportError::Closed)?;
+				if let Err(error) = session.accept(&exact) {
+					self.closed = true;
+					return Err(error.into());
+				}
+				events.push(exact);
+				if session.is_terminal() {
+					return Ok((events, None, true));
+				}
+				if events.len() == MAX_GENERATION_EVENTS {
+					self.closed = true;
+					return Err(DesktopTransportError::RequestBinding);
+				}
+				continue;
+			}
+			if !events.is_empty() && Dto::<ResumeTokenV1>::decode(&exact).is_ok() {
+				return Ok((events, Some(exact), false));
+			}
+			self.closed = true;
+			return Err(DesktopTransportError::RequestBinding);
+		}
+		self.closed = true;
+		Err(DesktopTransportError::RequestBinding)
+	}
+
 	fn send_ack(&mut self, ack: &[u8]) -> Result<(), DesktopTransportError> {
 		Dto::<ResponseAckV1>::decode(ack)?;
 		if let Err(error) = write_frame(&mut self.stream, ack) {
 			self.closed = true;
 			return Err(error);
+		}
+		Ok(())
+	}
+
+	fn receive_ack_confirmation(
+		&mut self,
+		request_id: [u8; 16],
+		operation_id: [u8; 16],
+		generation: u64,
+		response_hash: [u8; 32],
+	) -> Result<(), DesktopTransportError> {
+		if self.closed {
+			return Err(DesktopTransportError::Closed)
+		}
+		let exact = read_frame(&mut self.stream).map_err(|error| {
+			self.closed = true;
+			error
+		})?;
+		if validate_ack_confirmation(&exact, request_id, operation_id, generation, response_hash)
+			.is_err()
+		{
+			self.closed = true;
+			return Err(DesktopTransportError::RequestBinding)
 		}
 		Ok(())
 	}
@@ -355,8 +411,16 @@ struct ActiveDesktopRequest {
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub(crate) enum DurableDesktopEvent {
 	NonTerminal(Vec<u8>),
-	Terminal { event: Vec<u8>, response_hash: [u8; 32] },
-	Continuation { event: Vec<u8>, resume_token: Vec<u8>, cursor: u32, response_hash: [u8; 32] },
+	Terminal {
+		events: Vec<Vec<u8>>,
+		response_hash: [u8; 32],
+	},
+	Continuation {
+		events: Vec<Vec<u8>>,
+		resume_token: Vec<u8>,
+		cursor: u32,
+		response_hash: [u8; 32],
+	},
 }
 
 pub(crate) trait ResumeTokenVerifierV2 {
@@ -375,6 +439,35 @@ where
 impl<'a, S: Read + Write> DurableDesktopHostV2<'a, S> {
 	pub(crate) fn new(transport: DesktopHostV2Transport<S>, outbox: &'a HostOutboxStoreV1) -> Self {
 		Self { transport, outbox, active: None }
+	}
+
+	pub(crate) fn stage_upload(
+		&self,
+		exact_request: &[u8],
+		operation_id: [u8; 16],
+		exact_chunks: Vec<Vec<u8>>,
+		created_at: u64,
+		authority_expires_at: u64,
+		nonce: [u8; 24],
+	) -> Result<(), DesktopTransportError> {
+		self.outbox.stage_upload(
+			exact_request,
+			operation_id,
+			exact_chunks,
+			created_at,
+			authority_expires_at,
+			nonce,
+		)?;
+		Ok(())
+	}
+
+	pub(crate) fn staged_upload_payload(
+		&self,
+		exact_request: &[u8],
+		operation_id: [u8; 16],
+		cursor: u32,
+	) -> Result<Option<Vec<u8>>, DesktopTransportError> {
+		Ok(self.outbox.staged_upload_payload(exact_request, operation_id, cursor)?)
 	}
 
 	/// Validate first, fsync Prepared, and only then write the first provider-visible byte.
@@ -411,6 +504,9 @@ impl<'a, S: Read + Write> DurableDesktopHostV2<'a, S> {
 		let retry = self.outbox.prepare(input, prepare_nonce)?;
 		self.transport.begin(material.request_id)?;
 		self.transport.send(&retry.request, &retry.authority)?;
+		if let Some(payload) = retry.payload.as_deref() {
+			self.transport.send_payload(payload)?;
+		}
 		if let Err(error) = self.outbox.mark_sent(outbox_id, mark_sent_nonce) {
 			self.transport.close();
 			return Err(error.into());
@@ -437,11 +533,22 @@ impl<'a, S: Read + Write> DurableDesktopHostV2<'a, S> {
 			return Err(DesktopTransportError::RequestBinding);
 		}
 		if material.cancel {
+			self.outbox.erase_upload(binding.operation_id)?;
 			self.transport.resume_session(binding.request_id, binding.intended_cursor)?;
+		} else if binding.generation > 0 {
+			let next_sequence = resume_event_sequence(
+				material.operation,
+				binding.generation,
+				binding.intended_cursor,
+			)?;
+			self.transport.resume_session(binding.request_id, next_sequence)?;
 		} else {
 			self.transport.begin(binding.request_id)?;
 		}
 		self.transport.send(&retry.request, &retry.authority)?;
+		if let Some(payload) = retry.payload.as_deref() {
+			self.transport.send_payload(payload)?;
+		}
 		self.active = Some(ActiveDesktopRequest {
 			outbox_id,
 			request_id: binding.request_id,
@@ -479,6 +586,7 @@ impl<'a, S: Read + Write> DurableDesktopHostV2<'a, S> {
 			next_sequence,
 			prepare_nonce,
 		)?;
+		self.outbox.erase_upload(active.operation_id)?;
 		self.transport.send(&retry.request, &retry.authority)?;
 		if let Err(error) = self.outbox.mark_sent(active.outbox_id, mark_sent_nonce) {
 			self.transport.close();
@@ -496,6 +604,8 @@ impl<'a, S: Read + Write> DurableDesktopHostV2<'a, S> {
 		terminal_block: u64,
 		install_nonce: [u8; 24],
 		mark_ack_nonce: [u8; 24],
+		confirm_nonce: [u8; 24],
+		compact_nonce: [u8; 24],
 	) -> Result<DurableDesktopEvent, DesktopTransportError> {
 		let active = self.active.clone().ok_or(DesktopTransportError::Closed)?;
 		let binding = self.outbox.binding(active.outbox_id)?;
@@ -550,9 +660,25 @@ impl<'a, S: Read + Write> DurableDesktopHostV2<'a, S> {
 			self.transport.close();
 			return Err(error.into());
 		}
+		self.transport.receive_ack_confirmation(
+			active.request_id,
+			active.operation_id,
+			active.generation,
+			response_hash,
+		)?;
+		if let Err(error) = self.confirm_terminal_response(
+			active.outbox_id,
+			active.operation_id,
+			response_hash,
+			confirm_nonce,
+			compact_nonce,
+		) {
+			self.transport.close();
+			return Err(error)
+		}
 		self.transport.finish_terminal()?;
 		self.active = None;
-		Ok(DurableDesktopEvent::Terminal { event, response_hash })
+		Ok(DurableDesktopEvent::Terminal { events: vec![event], response_hash })
 	}
 
 	/// Receive one Accepted/Progress event and its exact signed successor token. Both are installed
@@ -563,6 +689,8 @@ impl<'a, S: Read + Write> DurableDesktopHostV2<'a, S> {
 		terminal_block: u64,
 		install_nonce: [u8; 24],
 		mark_ack_nonce: [u8; 24],
+		confirm_nonce: [u8; 24],
+		compact_nonce: [u8; 24],
 	) -> Result<DurableDesktopEvent, DesktopTransportError> {
 		let active = self.active.clone().ok_or(DesktopTransportError::Closed)?;
 		let binding = self.outbox.binding(active.outbox_id)?;
@@ -574,7 +702,8 @@ impl<'a, S: Read + Write> DurableDesktopHostV2<'a, S> {
 		{
 			return Err(DesktopTransportError::RequestBinding);
 		}
-		let (event, terminal) = self.transport.receive()?;
+		let (events, exact_token, terminal) = self.transport.receive_generation()?;
+		let event = events.last().cloned().ok_or(DesktopTransportError::RequestBinding)?;
 		if terminal {
 			let event_dto = Dto::<super::generated::EventV2>::decode(&event)?;
 			let (_, _, kind) = event_contract(event_dto.value())?;
@@ -584,9 +713,14 @@ impl<'a, S: Read + Write> DurableDesktopHostV2<'a, S> {
 				kind,
 				event_dto.value(),
 			)?;
+			let installed = if is_private_query(active.operation) {
+				private_query_response_bytes(&events, None, None, active.generation)
+			} else {
+				event.clone()
+			};
 			let response_hash = self.outbox.install_response(
 				active.outbox_id,
-				event.clone(),
+				installed,
 				None,
 				None,
 				Some(terminal_block),
@@ -595,9 +729,25 @@ impl<'a, S: Read + Write> DurableDesktopHostV2<'a, S> {
 			let ack = self.outbox.retry_response_ack(active.outbox_id)?;
 			self.transport.send_ack(&ack.bytes)?;
 			self.outbox.mark_ack_sent(active.outbox_id, mark_ack_nonce)?;
+			self.transport.receive_ack_confirmation(
+				active.request_id,
+				active.operation_id,
+				active.generation,
+				response_hash,
+			)?;
+			if let Err(error) = self.confirm_terminal_response(
+				active.outbox_id,
+				active.operation_id,
+				response_hash,
+				confirm_nonce,
+				compact_nonce,
+			) {
+				self.transport.close();
+				return Err(error)
+			}
 			self.transport.finish_terminal()?;
 			self.active = None;
-			return Ok(DurableDesktopEvent::Terminal { event, response_hash });
+			return Ok(DurableDesktopEvent::Terminal { events, response_hash });
 		}
 		let event_dto = Dto::<super::generated::EventV2>::decode(&event)?;
 		let (_, _, kind) = event_contract(event_dto.value())?;
@@ -605,7 +755,7 @@ impl<'a, S: Read + Write> DurableDesktopHostV2<'a, S> {
 			self.transport.close();
 			return Err(DesktopTransportError::RequestBinding);
 		}
-		let exact_token = self.transport.receive_exact()?;
+		let exact_token = exact_token.ok_or(DesktopTransportError::RequestBinding)?;
 		let token = Dto::<ResumeTokenV1>::decode(&exact_token)?;
 		let cursor: u32 = uint_field(token.value(), 9)
 			.and_then(|value| value.try_into().ok())
@@ -616,7 +766,13 @@ impl<'a, S: Read + Write> DurableDesktopHostV2<'a, S> {
 			uint_field(token.value(), 11).ok_or(DesktopTransportError::RequestBinding)?;
 		let expires_at =
 			uint_field(token.value(), 12).ok_or(DesktopTransportError::RequestBinding)?;
-		let expected_cursor = if kind == 0 {
+		let expected_cursor = if is_private_query(active.operation) {
+			if cursor <= active.intended_cursor {
+				self.transport.close();
+				return Err(DesktopTransportError::RequestBinding);
+			}
+			cursor
+		} else if kind == 0 {
 			active.intended_cursor
 		} else {
 			active
@@ -644,9 +800,19 @@ impl<'a, S: Read + Write> DurableDesktopHostV2<'a, S> {
 			self.transport.close();
 			DesktopTransportError::ResumeTokenUnverified
 		})?;
+		let installed = if is_private_query(active.operation) {
+			private_query_response_bytes(
+				&events,
+				Some(u64::from(cursor)),
+				Some(&exact_token),
+				active.generation,
+			)
+		} else {
+			event.clone()
+		};
 		let response_hash = match self.outbox.install_response(
 			active.outbox_id,
-			event.clone(),
+			installed,
 			Some(exact_token.clone()),
 			Some(cursor),
 			None,
@@ -664,10 +830,21 @@ impl<'a, S: Read + Write> DurableDesktopHostV2<'a, S> {
 			self.transport.close();
 			return Err(error.into());
 		}
+		self.transport.receive_ack_confirmation(
+			active.request_id,
+			active.operation_id,
+			active.generation,
+			response_hash,
+		)?;
+		if let Err(error) = self.outbox.confirm_ack(active.outbox_id, response_hash, confirm_nonce)
+		{
+			self.transport.close();
+			return Err(error.into())
+		}
 		self.transport.finish_generation()?;
 		self.active = None;
 		Ok(DurableDesktopEvent::Continuation {
-			event,
+			events,
 			resume_token: exact_token,
 			cursor,
 			response_hash,
@@ -679,15 +856,47 @@ impl<'a, S: Read + Write> DurableDesktopHostV2<'a, S> {
 		&mut self,
 		outbox_id: [u8; 16],
 		mark_ack_nonce: [u8; 24],
+		confirm_nonce: [u8; 24],
+		compact_nonce: [u8; 24],
 	) -> Result<[u8; 32], DesktopTransportError> {
 		self.validate_context()?;
 		let binding = self.outbox.binding(outbox_id)?;
 		self.validate_outbox_binding(&binding)?;
+		let terminal = self.outbox.installed_response(outbox_id)?.terminal;
 		let ack = self.outbox.retry_response_ack(outbox_id)?;
+		if self.outbox.is_ack_confirmed(outbox_id, ack.response_hash)? {
+			if terminal {
+				self.confirm_terminal_response(
+					outbox_id,
+					binding.operation_id,
+					ack.response_hash,
+					confirm_nonce,
+					compact_nonce,
+				)?;
+			}
+			return Ok(ack.response_hash);
+		}
 		self.transport.send_ack(&ack.bytes)?;
 		if let Err(error) = self.outbox.mark_ack_sent(outbox_id, mark_ack_nonce) {
 			self.transport.close();
 			return Err(error.into());
+		}
+		self.transport.receive_ack_confirmation(
+			binding.request_id,
+			binding.operation_id,
+			binding.generation,
+			ack.response_hash,
+		)?;
+		if terminal {
+			self.confirm_terminal_response(
+				outbox_id,
+				binding.operation_id,
+				ack.response_hash,
+				confirm_nonce,
+				compact_nonce,
+			)?;
+		} else {
+			self.outbox.confirm_ack(outbox_id, ack.response_hash, confirm_nonce)?;
 		}
 		Ok(ack.response_hash)
 	}
@@ -700,7 +909,6 @@ impl<'a, S: Read + Write> DurableDesktopHostV2<'a, S> {
 		prepare_nonce: [u8; 24],
 		mark_sent_nonce: [u8; 24],
 		compact_predecessor_nonce: [u8; 24],
-		exact_payload: Option<&[u8]>,
 	) -> Result<HostOutboxRetryV1, DesktopTransportError> {
 		self.validate_context()?;
 		let material = validate_wire_material(
@@ -725,13 +933,11 @@ impl<'a, S: Read + Write> DurableDesktopHostV2<'a, S> {
 		};
 		let outbox_id = input.outbox_id;
 		let retry = self.outbox.prepare_successor(predecessor_id, input, prepare_nonce)?;
-		let next_sequence = active
-			.intended_cursor
-			.checked_add(1)
-			.ok_or(DesktopTransportError::RequestBinding)?;
+		let next_sequence =
+			resume_event_sequence(active.operation, active.generation, active.intended_cursor)?;
 		self.transport.resume_session(material.request_id, next_sequence)?;
 		self.transport.send(&retry.request, &retry.authority)?;
-		if let Some(payload) = exact_payload {
+		if let Some(payload) = retry.payload.as_deref() {
 			self.transport.send_payload(payload)?;
 		}
 		if let Err(error) = self.outbox.mark_sent(outbox_id, mark_sent_nonce) {
@@ -748,31 +954,16 @@ impl<'a, S: Read + Write> DurableDesktopHostV2<'a, S> {
 		Ok(retry)
 	}
 
-	/// Confirm a nonterminal generation ACK without erasing its successor token. Compaction is
-	/// permitted only after `prepare_successor_and_send` durably prepares generation N+1.
-	pub(crate) fn confirm_continuation(
+	fn confirm_terminal_response(
 		&self,
 		outbox_id: [u8; 16],
-		response_hash: [u8; 32],
-		confirm_nonce: [u8; 24],
-	) -> Result<(), DesktopTransportError> {
-		let binding = self.outbox.binding(outbox_id)?;
-		self.validate_outbox_binding(&binding)?;
-		self.outbox.confirm_ack(outbox_id, response_hash, confirm_nonce)?;
-		Ok(())
-	}
-
-	/// Provider confirmation is durable before terminal ciphertext is compacted or later GC'd.
-	pub(crate) fn confirm_terminal(
-		&self,
-		outbox_id: [u8; 16],
+		operation_id: [u8; 16],
 		response_hash: [u8; 32],
 		confirm_nonce: [u8; 24],
 		compact_nonce: [u8; 24],
 	) -> Result<(), DesktopTransportError> {
-		let binding = self.outbox.binding(outbox_id)?;
-		self.validate_outbox_binding(&binding)?;
 		self.outbox.confirm_ack(outbox_id, response_hash, confirm_nonce)?;
+		self.outbox.erase_upload(operation_id)?;
 		self.outbox.compact_acknowledged(outbox_id, compact_nonce)?;
 		Ok(())
 	}
@@ -1064,6 +1255,108 @@ fn event_contract(value: &Value) -> Result<([u8; 16], u32, u64), DesktopTranspor
 		.ok_or(DesktopTransportError::RequestBinding)?;
 	let kind = uint(3).ok_or(DesktopTransportError::RequestBinding)?;
 	Ok((request_id, sequence, kind))
+}
+
+fn is_private_query(operation: Option<OperationCode>) -> bool {
+	matches!(
+		operation,
+		Some(
+			OperationCode::StorageObjectGet |
+				OperationCode::StorageObjectRange |
+				OperationCode::StorageObjectStatus
+		)
+	)
+}
+
+pub(super) fn resume_event_sequence(
+	operation: Option<OperationCode>,
+	generation: u64,
+	cursor: u32,
+) -> Result<u32, DesktopTransportError> {
+	if generation == 0 {
+		return Ok(0);
+	}
+	match operation {
+		// Generation zero contains Accepted then Progress. Every later nonterminal private-query
+		// generation contains one Progress event, so the persisted generation determines the exact
+		// next EventV2 sequence without conflating it with the verified byte/range cursor.
+		Some(OperationCode::StorageObjectGet | OperationCode::StorageObjectRange) => generation
+			.checked_add(1)
+			.and_then(|sequence| sequence.try_into().ok())
+			.ok_or(DesktopTransportError::RequestBinding),
+		Some(OperationCode::StorageObjectStatus) => Err(DesktopTransportError::RequestBinding),
+		_ => cursor.checked_add(1).ok_or(DesktopTransportError::RequestBinding),
+	}
+}
+
+fn private_query_response_bytes(
+	events: &[Vec<u8>],
+	next_verified_offset: Option<u64>,
+	successor_token: Option<&[u8]>,
+	generation: u64,
+) -> Vec<u8> {
+	let mut fields = vec![
+		(Value::Integer(0.into()), Value::Integer(2.into())),
+		(Value::Integer(1.into()), Value::Integer(generation.into())),
+		(
+			Value::Integer(2.into()),
+			Value::Array(events.iter().cloned().map(Value::Bytes).collect()),
+		),
+	];
+	if let Some(offset) = next_verified_offset {
+		fields.push((Value::Integer(3.into()), Value::Integer(offset.into())));
+	}
+	if let Some(token) = successor_token {
+		fields.push((Value::Integer(4.into()), Value::Bytes(token.to_vec())));
+	}
+	let mut exact = Vec::new();
+	ciborium::ser::into_writer(&Value::Map(fields), &mut exact)
+		.expect("bounded private query response is serializable");
+	exact
+}
+
+/// Exact private IPC confirmation emitted only after the provider kernel durably applies an ACK.
+pub(crate) fn provider_ack_confirmation_bytes(
+	request_id: [u8; 16],
+	operation_id: [u8; 16],
+	generation: u64,
+	response_hash: [u8; 32],
+) -> Vec<u8> {
+	super::codec::encode_value(&Value::Map(vec![
+		(Value::Integer(0.into()), Value::Integer(1.into())),
+		(Value::Integer(1.into()), Value::Bytes(request_id.to_vec())),
+		(Value::Integer(2.into()), Value::Bytes(operation_id.to_vec())),
+		(Value::Integer(3.into()), Value::Integer(generation.into())),
+		(Value::Integer(4.into()), Value::Bytes(response_hash.to_vec())),
+		(Value::Integer(5.into()), Value::Bool(true)),
+	]))
+	.expect("fixed provider ACK confirmation is canonical")
+}
+
+fn validate_ack_confirmation(
+	exact: &[u8],
+	request_id: [u8; 16],
+	operation_id: [u8; 16],
+	generation: u64,
+	response_hash: [u8; 32],
+) -> Result<(), DesktopTransportError> {
+	let value: Value =
+		ciborium::from_reader(exact).map_err(|_| DesktopTransportError::RequestBinding)?;
+	if super::codec::encode_value(&value)? != exact {
+		return Err(DesktopTransportError::RequestBinding)
+	}
+	let Value::Map(fields) = &value else { return Err(DesktopTransportError::RequestBinding) };
+	if fields.len() != 6 ||
+		uint_field(&value, 0) != Some(1) ||
+		fixed_field(&value, 1, 16)?.as_slice() != request_id ||
+		fixed_field(&value, 2, 16)?.as_slice() != operation_id ||
+		uint_field(&value, 3) != Some(generation) ||
+		fixed_field(&value, 4, 32)?.as_slice() != response_hash ||
+		bool_field(&value, 5) != Some(true)
+	{
+		return Err(DesktopTransportError::RequestBinding)
+	}
+	Ok(())
 }
 
 fn fixed_field(value: &Value, key: u64, length: usize) -> Result<Vec<u8>, DesktopTransportError> {

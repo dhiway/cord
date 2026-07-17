@@ -27,6 +27,7 @@ use std::{
 use sp_core::{crypto::AccountId32, ed25519, H256};
 
 use crate::{
+	capability::{CapabilityError, ProviderCapabilityV1},
 	checkpoint::{
 		checkpoint_outbox::{
 			CheckpointOutboxV2, CheckpointSubmissionV2, PreparedCheckpointOutboxV2,
@@ -55,12 +56,19 @@ use crate::{
 	replication_session::ReplicationSessionV1,
 	storage::{
 		bucket_mmr::{BucketMmrStore, PreparedBucketMmrStore},
-		streaming::{ManifestDeletionEvidence, PreparedStreamingStore, ReplicationIngressState},
+		streaming::{
+			local_put_session::{LocalObjectPutSession, LocalPutSessionError},
+			private_query::{PrivateObjectRequestV2, PrivateQueryError},
+			recovery::{ObjectPutRequestV2, RecoveryError, ResponseAckV1, ResumeTokenV1},
+			ManifestDeletionEvidence, PreparedStreamingStore, ReplicationIngressState,
+		},
 		StreamingStore,
 	},
-	BeginStreaming, BucketId, CheckpointDuty, ContentError, DiskStore, IntegritySummary,
-	StreamingDescriptor,
+	BeginStreaming, BucketId, CapabilityAuthoritySnapshot, CheckpointDuty, ContentError, DiskStore,
+	IntegritySummary, StreamingDescriptor, CHUNK_BYTES,
 };
+
+use crate::chain::ReplicationTopologySnapshot;
 
 /// All durable checkpoint kernels opened against one provider root.
 ///
@@ -86,6 +94,49 @@ struct CheckpointStackState {
 /// Cohesive private checkpoint state owned through one synchronization boundary.
 pub(crate) struct CheckpointStack {
 	state: Mutex<CheckpointStackState>,
+}
+
+#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+pub(crate) enum PrivateHostStorageKind {
+	Put,
+	Query,
+}
+
+#[derive(Clone, Debug)]
+pub(crate) struct PrivateHostRootV1 {
+	pub(crate) kind: PrivateHostStorageKind,
+	pub(crate) exact_request: Vec<u8>,
+	pub(crate) grant_id: [u8; 32],
+	pub(crate) agreement_id: Option<[u8; 32]>,
+	pub(crate) bucket_id: [u8; 32],
+	pub(crate) host_key_id: [u8; 32],
+}
+
+#[derive(Clone, Debug, Eq, PartialEq)]
+pub(crate) struct PrivateHostGenerationV1 {
+	pub(crate) frames: Vec<Vec<u8>>,
+	pub(crate) successor_token: Option<Vec<u8>>,
+	pub(crate) expected_ack: ResponseAckV1,
+}
+
+#[derive(Debug, thiserror::Error)]
+pub(crate) enum PrivateHostKernelError {
+	#[error(transparent)]
+	Capability(#[from] CapabilityError),
+	#[error(transparent)]
+	Content(#[from] ContentError),
+	#[error(transparent)]
+	Recovery(#[from] RecoveryError),
+	#[error(transparent)]
+	Put(#[from] LocalPutSessionError),
+	#[error(transparent)]
+	Query(#[from] PrivateQueryError),
+	#[error("PRIVATE_HOST_ROOT_NOT_FOUND")]
+	RootNotFound,
+	#[error("PRIVATE_HOST_PAYLOAD_INVALID")]
+	PayloadInvalid,
+	#[error("PRIVATE_HOST_CANCEL_INVALID")]
+	CancelInvalid,
 }
 
 /// Root-wide validated checkpoint-kernel view with no recovery actions applied.
@@ -169,6 +220,248 @@ impl CheckpointStack {
 	/// Audit the local byte plane and return only redacted readiness counts.
 	pub(crate) fn integrity_summary(&self) -> Result<IntegritySummary, ContentError> {
 		self.lock()?.streaming.integrity_summary()
+	}
+
+	/// Resolve one generation to the immutable generation-zero request/capability pair. Resume and
+	/// cancellation never trust caller-supplied replacement request bytes.
+	pub(crate) fn private_host_root(
+		&self,
+		request_bytes: &[u8],
+		authority_bytes: &[u8],
+	) -> Result<PrivateHostRootV1, PrivateHostKernelError> {
+		if let Ok(capability) = ProviderCapabilityV1::decode(authority_bytes) {
+			let kind = if ObjectPutRequestV2::decode(request_bytes).is_ok() {
+				PrivateHostStorageKind::Put
+			} else if PrivateObjectRequestV2::decode(request_bytes).is_ok() {
+				PrivateHostStorageKind::Query
+			} else {
+				return Err(PrivateHostKernelError::RootNotFound)
+			};
+			return Ok(private_host_root(kind, request_bytes.to_vec(), capability))
+		}
+		ResumeTokenV1::decode(authority_bytes)?;
+		let state = self.lock()?;
+		if let Some((request, capability)) = state.streaming.object_put_root(authority_bytes)? {
+			let capability_dto = ProviderCapabilityV1::decode(&capability)?;
+			return Ok(private_host_root(PrivateHostStorageKind::Put, request, capability_dto))
+		}
+		if let Some((request, capability)) = state.streaming.private_query_root(authority_bytes)? {
+			let capability_dto = ProviderCapabilityV1::decode(&capability)?;
+			return Ok(private_host_root(PrivateHostStorageKind::Query, request, capability_dto))
+		}
+		Err(PrivateHostKernelError::RootNotFound)
+	}
+
+	#[allow(clippy::too_many_arguments)]
+	pub(crate) fn execute_private_put_generation(
+		&self,
+		root: &PrivateHostRootV1,
+		authority_bytes: &[u8],
+		payload: Option<&[u8]>,
+		snapshot: CapabilityAuthoritySnapshot,
+		service_key: [u8; 32],
+		signer: &ed25519::Pair,
+		successor_nonce: [u8; 16],
+	) -> Result<PrivateHostGenerationV1, PrivateHostKernelError> {
+		if root.kind != PrivateHostStorageKind::Put {
+			return Err(PrivateHostKernelError::RootNotFound)
+		}
+		let state = self.lock()?;
+		let response = if ProviderCapabilityV1::decode(authority_bytes).is_ok() {
+			if payload.is_some() {
+				return Err(PrivateHostKernelError::PayloadInvalid)
+			}
+			let (_, response) = LocalObjectPutSession::accept(
+				&state.streaming,
+				&root.exact_request,
+				authority_bytes,
+				snapshot,
+				service_key,
+				signer,
+				successor_nonce,
+			)?;
+			response
+		} else {
+			let token = ResumeTokenV1::decode(authority_bytes)?;
+			let request = ObjectPutRequestV2::decode(&root.exact_request)?;
+			let chunks = request.object_len.div_ceil(CHUNK_BYTES as u64);
+			let mut session = LocalObjectPutSession::resume(
+				&state.streaming,
+				&root.exact_request,
+				authority_bytes,
+				snapshot,
+				service_key,
+				signer,
+			)?;
+			if u64::from(token.cursor) < chunks {
+				let payload = payload.ok_or(PrivateHostKernelError::PayloadInvalid)?;
+				session.push_chunk(payload, successor_nonce)?
+			} else if u64::from(token.cursor) == chunks && payload.is_none() {
+				session.finalize()?
+			} else {
+				return Err(PrivateHostKernelError::PayloadInvalid)
+			}
+		};
+		let request = ObjectPutRequestV2::decode(&root.exact_request)?;
+		let generation = ResumeTokenV1::decode(authority_bytes).map_or(0, |token| token.generation);
+		Ok(PrivateHostGenerationV1 {
+			frames: vec![response.response],
+			successor_token: response.successor_token,
+			expected_ack: ResponseAckV1 {
+				request_id: request.request_id,
+				operation_id: request.operation_id,
+				generation,
+				response_hash: response.response_hash,
+			},
+		})
+	}
+
+	#[allow(clippy::too_many_arguments)]
+	pub(crate) fn execute_private_query_generation(
+		&self,
+		root: &PrivateHostRootV1,
+		authority_bytes: &[u8],
+		snapshot: &CapabilityAuthoritySnapshot,
+		topology: &ReplicationTopologySnapshot,
+		signer: &ed25519::Pair,
+		successor_nonce: [u8; 16],
+	) -> Result<PrivateHostGenerationV1, PrivateHostKernelError> {
+		if root.kind != PrivateHostStorageKind::Query {
+			return Err(PrivateHostKernelError::RootNotFound)
+		}
+		let state = self.lock()?;
+		let response = if ProviderCapabilityV1::decode(authority_bytes).is_ok() {
+			state.streaming.private_object_query(
+				&root.exact_request,
+				authority_bytes,
+				snapshot,
+				topology,
+				&state.bucket_mmr,
+				signer,
+				successor_nonce,
+			)?
+		} else {
+			state.streaming.resume_private_object_query(
+				&root.exact_request,
+				authority_bytes,
+				snapshot,
+				topology,
+				&state.bucket_mmr,
+				signer,
+				successor_nonce,
+			)?
+		};
+		Ok(PrivateHostGenerationV1 {
+			frames: response.frames,
+			successor_token: response.successor_token,
+			expected_ack: ResponseAckV1 {
+				request_id: PrivateObjectRequestV2::decode(&root.exact_request)?.request_id,
+				operation_id: response.operation_id,
+				generation: response.generation,
+				response_hash: response.response_hash,
+			},
+		})
+	}
+
+	pub(crate) fn cancel_private_host_generation(
+		&self,
+		root: &PrivateHostRootV1,
+		exact_cancel: &[u8],
+		token_bytes: &[u8],
+		snapshot: &CapabilityAuthoritySnapshot,
+		service_key: [u8; 32],
+		signer: &ed25519::Pair,
+	) -> Result<PrivateHostGenerationV1, PrivateHostKernelError> {
+		let state = self.lock()?;
+		match root.kind {
+			PrivateHostStorageKind::Put => {
+				let token = ResumeTokenV1::decode(token_bytes)?;
+				if state.streaming.object_put_cancel_request(&root.exact_request, token_bytes)? !=
+					exact_cancel
+				{
+					return Err(PrivateHostKernelError::CancelInvalid)
+				}
+				let response = state.streaming.cancel_object_put(
+					&root.exact_request,
+					token_bytes,
+					snapshot,
+					service_key,
+					signer,
+				)?;
+				Ok(PrivateHostGenerationV1 {
+					frames: vec![response.response],
+					successor_token: None,
+					expected_ack: ResponseAckV1 {
+						request_id: ObjectPutRequestV2::decode(&root.exact_request)?.request_id,
+						operation_id: token.operation_id,
+						generation: token.generation,
+						response_hash: response.response_hash,
+					},
+				})
+			},
+			PrivateHostStorageKind::Query => {
+				if state.streaming.private_query_cancel_request(&root.exact_request, token_bytes)? !=
+					exact_cancel
+				{
+					return Err(PrivateHostKernelError::CancelInvalid)
+				}
+				let response = state.streaming.cancel_private_object_query(
+					&root.exact_request,
+					token_bytes,
+					snapshot,
+					signer,
+				)?;
+				Ok(PrivateHostGenerationV1 {
+					frames: response.frames,
+					successor_token: None,
+					expected_ack: ResponseAckV1 {
+						request_id: PrivateObjectRequestV2::decode(&root.exact_request)?.request_id,
+						operation_id: response.operation_id,
+						generation: response.generation,
+						response_hash: response.response_hash,
+					},
+				})
+			},
+		}
+	}
+
+	pub(crate) fn acknowledge_private_host_generation(
+		&self,
+		kind: PrivateHostStorageKind,
+		host_key_id: [u8; 32],
+		ack: &[u8],
+	) -> Result<(), PrivateHostKernelError> {
+		let state = self.lock()?;
+		match kind {
+			PrivateHostStorageKind::Put => {
+				state.streaming.acknowledge_response(host_key_id, ack)?;
+			},
+			PrivateHostStorageKind::Query => {
+				state.streaming.acknowledge_private_query_response(host_key_id, ack)?;
+			},
+		}
+		Ok(())
+	}
+
+	pub(crate) fn acknowledge_private_host_recovery(
+		&self,
+		exact_ack: &[u8],
+	) -> Result<ResponseAckV1, PrivateHostKernelError> {
+		let ack = ResponseAckV1::decode(exact_ack)?;
+		let state = self.lock()?;
+		let put = state.streaming.object_put_ack_host(exact_ack)?;
+		let query = state.streaming.private_query_ack_host(exact_ack)?;
+		match (put, query) {
+			(Some(host_key_id), None) => {
+				state.streaming.acknowledge_response(host_key_id, exact_ack)?;
+			},
+			(None, Some(host_key_id)) => {
+				state.streaming.acknowledge_private_query_response(host_key_id, exact_ack)?;
+			},
+			(None, None) => return Err(PrivateHostKernelError::RootNotFound),
+			(Some(_), Some(_)) => return Err(ContentError::IntegrityFailed.into()),
+		}
+		Ok(ack)
 	}
 
 	/// Durably tombstone canonical manifest bytes while retaining bucket-MMR installation history.
@@ -829,6 +1122,21 @@ fn decode_canonical_hash(value: &str) -> Result<[u8; 32], ContentError> {
 		.map_err(|_| ContentError::IntegrityFailed)?
 		.try_into()
 		.map_err(|_| ContentError::IntegrityFailed)
+}
+
+fn private_host_root(
+	kind: PrivateHostStorageKind,
+	exact_request: Vec<u8>,
+	capability: ProviderCapabilityV1,
+) -> PrivateHostRootV1 {
+	PrivateHostRootV1 {
+		kind,
+		exact_request,
+		grant_id: capability.grant_id,
+		agreement_id: capability.agreement_id,
+		bucket_id: capability.bucket_id,
+		host_key_id: capability.issuer_key_id,
+	}
 }
 
 fn checkpoint_publication_intents(

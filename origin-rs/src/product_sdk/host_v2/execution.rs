@@ -21,6 +21,7 @@
 use std::io::{Read, Write};
 
 use ciborium::value::Value;
+use sha2::{Digest, Sha256};
 
 use crate::product_sdk::host_outbox::PrepareHostOutboxV1;
 
@@ -96,8 +97,6 @@ pub(crate) enum HostExecutionErrorV2 {
 	Registry,
 	#[error("HOST_BACKEND_REJECTED: {0}")]
 	Backend(&'static str),
-	#[error("HOST_PROVIDER_ACK_UNCONFIRMED")]
-	AckUnconfirmed,
 	#[error("HOST_EVENT_LIMIT_EXCEEDED")]
 	EventLimit,
 	#[error("HOST_APP_BINDING_INVALID")]
@@ -378,22 +377,18 @@ where
 	}
 }
 
-/// Confirmation arrives from the bound local provider peer after it processes `ResponseAckV1`.
-pub(crate) trait ProviderAckConfirmationV2 {
-	fn confirmed(
-		&mut self,
-		outbox_id: [u8; 16],
-		response_hash: [u8; 32],
-	) -> Result<bool, HostExecutionErrorV2>;
-}
-
 pub(crate) struct ProviderSuccessorV2 {
 	pub(crate) exact_request: Vec<u8>,
-	pub(crate) exact_payload: Option<Vec<u8>>,
 	pub(crate) outbox: ProviderOutboxContextV2,
 }
 
 pub(crate) trait ProviderContinuationSourceV2 {
+	fn upload_chunks(
+		&mut self,
+		operation: OperationCode,
+		exact_request: &[u8],
+	) -> Result<Option<Vec<Vec<u8>>>, HostExecutionErrorV2>;
+
 	fn next_generation(
 		&mut self,
 		operation: OperationCode,
@@ -405,26 +400,23 @@ pub(crate) trait ProviderContinuationSourceV2 {
 }
 
 /// Concrete provider byte/recovery adapter over the existing durable local IPC kernel.
-pub(crate) struct DurableCordProviderV2<'a, S, A, V, C> {
+pub(crate) struct DurableCordProviderV2<'a, S, V, C> {
 	host: DurableDesktopHostV2<'a, S>,
-	acknowledgements: A,
 	resume_verifier: V,
 	continuations: C,
 }
 
-impl<'a, S: Read + Write, A, V, C> DurableCordProviderV2<'a, S, A, V, C>
+impl<'a, S: Read + Write, V, C> DurableCordProviderV2<'a, S, V, C>
 where
-	A: ProviderAckConfirmationV2,
 	V: ResumeTokenVerifierV2,
 	C: ProviderContinuationSourceV2,
 {
 	pub(crate) fn new(
 		host: DurableDesktopHostV2<'a, S>,
-		acknowledgements: A,
 		resume_verifier: V,
 		continuations: C,
 	) -> Self {
-		Self { host, acknowledgements, resume_verifier, continuations }
+		Self { host, resume_verifier, continuations }
 	}
 
 	fn execute<P: Production>(
@@ -438,13 +430,29 @@ where
 		)
 		.ok_or(HostExecutionErrorV2::Registry)?;
 		let request_id = call.meta.request_id;
-		let operation_id = call.meta.operation_id.unwrap_or([0; 16]);
+		let operation_id = operation_id_for(operation, request_id, call.meta.operation_id)?;
 		let mut current = call.outbox.clone();
+		let exact_request = call.frame.canonical().to_vec();
+		if operation == OperationCode::StorageObjectPut {
+			let chunks = self
+				.continuations
+				.upload_chunks(operation, &exact_request)?
+				.ok_or(HostExecutionErrorV2::Backend("HOST_UPLOAD_SOURCE_UNAVAILABLE"))?;
+			self.host.stage_upload(
+				&exact_request,
+				operation_id,
+				chunks,
+				current.created_at,
+				current.authority_expires_at,
+				current.prepare_nonce,
+			)?;
+		}
 		self.host.prepare_and_send(
 			PrepareHostOutboxV1 {
 				outbox_id: current.outbox_id,
-				exact_request_bytes: call.frame.canonical().to_vec(),
+				exact_request_bytes: exact_request,
 				exact_authority_bytes: call.authority.to_vec(),
+				exact_payload_bytes: None,
 				request_id,
 				operation_id,
 				generation: current.generation,
@@ -466,70 +474,65 @@ where
 				current.terminal_block,
 				current.install_nonce,
 				current.mark_ack_nonce,
+				current.confirm_nonce,
+				current.compact_nonce,
 			)? {
 				DurableDesktopEvent::Continuation {
-					event,
+					events: generation_events,
 					resume_token,
 					cursor,
 					response_hash,
 				} => {
-					events.push(event);
-					if !self.acknowledgements.confirmed(current.outbox_id, response_hash)? {
-						return Err(HostExecutionErrorV2::AckUnconfirmed);
-					}
-					self.host.confirm_continuation(
-						current.outbox_id,
-						response_hash,
-						current.confirm_nonce,
-					)?;
+					events.extend(generation_events);
 					let next = self
 						.continuations
 						.next_generation(operation, &current, &resume_token, cursor, response_hash)?
 						.ok_or(HostExecutionErrorV2::Backend(
 							"HOST_CONTINUATION_SOURCE_EXHAUSTED",
 						))?;
-					let (next_request, meta) = ClosedHostRequestV2::decode(&next.exact_request)?;
+					let ProviderSuccessorV2 { exact_request, outbox: next_outbox } = next;
+					let (next_request, meta) = ClosedHostRequestV2::decode(&exact_request)?;
 					if meta.request_id != request_id ||
-						meta.operation_id.unwrap_or([0; 16]) != operation_id ||
-						next_request.operation() != operation
+						operation_id_for(operation, request_id, meta.operation_id)? !=
+							operation_id || next_request.operation() != operation
 					{
 						return Err(HostExecutionErrorV2::Registry);
 					}
+					let exact_payload = if operation == OperationCode::StorageObjectPut {
+						self.host.staged_upload_payload(
+							&exact_request,
+							operation_id,
+							next_outbox.intended_cursor,
+						)?
+					} else {
+						None
+					};
 					self.host.prepare_successor_and_send(
 						current.outbox_id,
 						PrepareHostOutboxV1 {
-							outbox_id: next.outbox.outbox_id,
-							exact_request_bytes: next.exact_request,
+							outbox_id: next_outbox.outbox_id,
+							exact_request_bytes: exact_request,
 							exact_authority_bytes: resume_token,
+							exact_payload_bytes: exact_payload,
 							request_id,
 							operation_id,
-							generation: next.outbox.generation,
-							intended_cursor: next.outbox.intended_cursor,
-							negotiated_tuple: next.outbox.negotiated_tuple,
-							provider_id: next.outbox.provider_id,
-							provider_endpoint_hash: next.outbox.provider_endpoint_hash,
+							generation: next_outbox.generation,
+							intended_cursor: next_outbox.intended_cursor,
+							negotiated_tuple: next_outbox.negotiated_tuple,
+							provider_id: next_outbox.provider_id,
+							provider_endpoint_hash: next_outbox.provider_endpoint_hash,
 							expected_response_kind: 2,
-							created_at: next.outbox.created_at,
-							authority_expires_at: next.outbox.authority_expires_at,
+							created_at: next_outbox.created_at,
+							authority_expires_at: next_outbox.authority_expires_at,
 						},
-						next.outbox.prepare_nonce,
-						next.outbox.mark_sent_nonce,
+						next_outbox.prepare_nonce,
+						next_outbox.mark_sent_nonce,
 						current.compact_nonce,
-						next.exact_payload.as_deref(),
 					)?;
-					current = next.outbox;
+					current = next_outbox;
 				},
-				DurableDesktopEvent::Terminal { event, response_hash } => {
-					events.push(event);
-					if !self.acknowledgements.confirmed(current.outbox_id, response_hash)? {
-						return Err(HostExecutionErrorV2::AckUnconfirmed);
-					}
-					self.host.confirm_terminal(
-						current.outbox_id,
-						response_hash,
-						current.confirm_nonce,
-						current.compact_nonce,
-					)?;
+				DurableDesktopEvent::Terminal { events: generation_events, response_hash } => {
+					events.extend(generation_events);
 					return Ok(HostExecutionV2 {
 						events,
 						terminal_response_hash: Some(response_hash),
@@ -543,14 +546,38 @@ where
 	}
 }
 
+fn operation_id_for(
+	operation: OperationCode,
+	request_id: [u8; 16],
+	explicit: Option<[u8; 16]>,
+) -> Result<[u8; 16], HostExecutionErrorV2> {
+	if let Some(explicit) = explicit {
+		return Ok(explicit);
+	}
+	if !matches!(
+		operation,
+		OperationCode::StorageObjectGet |
+			OperationCode::StorageObjectRange |
+			OperationCode::StorageObjectStatus
+	) {
+		return Ok([0; 16]);
+	}
+	let mut hash = Sha256::new();
+	hash.update(b"cord/provider/private-object-query/v1");
+	hash.update((operation as u16).to_be_bytes());
+	hash.update(request_id);
+	let digest = hash.finalize();
+	digest[..16].try_into().map_err(|_| HostExecutionErrorV2::Registry)
+}
+
 /// Provider bytes and host encryption are composed without transferring either authority.
-pub(crate) struct CordProviderByteBackendV2<'a, S, A, V, C, E> {
-	provider: DurableCordProviderV2<'a, S, A, V, C>,
+pub(crate) struct CordProviderByteBackendV2<'a, S, V, C, E> {
+	provider: DurableCordProviderV2<'a, S, V, C>,
 	encryption: E,
 }
 
-impl<'a, S, A, V, C, E> CordProviderByteBackendV2<'a, S, A, V, C, E> {
-	pub(crate) fn new(provider: DurableCordProviderV2<'a, S, A, V, C>, encryption: E) -> Self {
+impl<'a, S, V, C, E> CordProviderByteBackendV2<'a, S, V, C, E> {
+	pub(crate) fn new(provider: DurableCordProviderV2<'a, S, V, C>, encryption: E) -> Self {
 		Self { provider, encryption }
 	}
 }
@@ -569,10 +596,9 @@ macro_rules! provider_byte_method {
 	};
 }
 
-impl<'a, S, A, V, C, E> ProviderByteStorageV2 for CordProviderByteBackendV2<'a, S, A, V, C, E>
+impl<'a, S, V, C, E> ProviderByteStorageV2 for CordProviderByteBackendV2<'a, S, V, C, E>
 where
 	S: Read + Write,
-	A: ProviderAckConfirmationV2,
 	V: ResumeTokenVerifierV2,
 	C: ProviderContinuationSourceV2,
 	E: HostStorageEncryptionV2,

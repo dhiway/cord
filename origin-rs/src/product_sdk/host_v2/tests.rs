@@ -28,15 +28,14 @@ use crate::product_sdk::host_outbox::{
 use super::{
 	codec::{CodecError, Dto},
 	desktop::{
-		read_frame, write_frame, DesktopFrameDecoder, DesktopHostV2Transport,
-		DesktopPeerBindingError, DesktopPeerIdentity, DesktopTransportError, DurableDesktopEvent,
-		DurableDesktopHostV2, MAX_DESKTOP_FRAME_BYTES,
+		provider_ack_confirmation_bytes, read_frame, resume_event_sequence, write_frame,
+		DesktopFrameDecoder, DesktopHostV2Transport, DesktopPeerBindingError, DesktopPeerIdentity,
+		DesktopTransportError, DurableDesktopEvent, DurableDesktopHostV2, MAX_DESKTOP_FRAME_BYTES,
 	},
 	execution::{
 		CordProviderByteBackendV2, DurableCordProviderV2, HostCallV2, HostExecutionErrorV2,
-		HostExecutionV2, HostRequestMetaV2, HostStorageEncryptionV2, ProviderAckConfirmationV2,
-		ProviderByteStorageV2, ProviderContinuationSourceV2, ProviderOutboxContextV2,
-		ProviderSuccessorV2,
+		HostExecutionV2, HostRequestMetaV2, HostStorageEncryptionV2, ProviderByteStorageV2,
+		ProviderContinuationSourceV2, ProviderOutboxContextV2, ProviderSuccessorV2,
 	},
 	generated::{
 		self, AcceptedEventV2, AcceptedState, DriveManifestV1, ErrorCode, EventV2, OperationCode,
@@ -44,6 +43,20 @@ use super::{
 	},
 	session::{negotiate, Negotiated, NegotiationError, NegotiationOffer, Session, SessionError},
 };
+
+#[test]
+fn private_query_event_sequence_is_independent_from_short_batches_and_range_offsets() {
+	assert_eq!(resume_event_sequence(Some(OperationCode::StorageObjectGet), 1, 17).unwrap(), 2);
+	assert_eq!(resume_event_sequence(Some(OperationCode::StorageObjectGet), 2, 31).unwrap(), 3);
+	assert_eq!(
+		resume_event_sequence(Some(OperationCode::StorageObjectRange), 1, 8_388_731).unwrap(),
+		2
+	);
+	assert_eq!(
+		resume_event_sequence(Some(OperationCode::StorageObjectRange), 2, 8_388_748).unwrap(),
+		3
+	);
+}
 
 fn fixture() -> serde_json::Value {
 	serde_json::from_str(include_str!(
@@ -76,15 +89,51 @@ fn mobile_vectors() -> serde_json::Value {
 	.expect("Festival mobile projection vectors are JSON")
 }
 
-fn provider_transfer_chunk() -> Vec<u8> {
+fn provider_transfer_chunk(operation_id: [u8; 16], index: u32) -> Vec<u8> {
 	let fixture: serde_json::Value = serde_json::from_str(include_str!(
 		"../../../../docs/specs/provider-transfer-chunk-v1.vectors.json"
 	))
 	.expect("provider transfer chunk vectors are JSON");
-	let exact = fixture["vectors"][0]["canonical_cbor_hex"]
-		.as_str()
-		.expect("provider transfer chunk vector has canonical CBOR");
-	hex::decode(exact).expect("provider transfer chunk vector is hexadecimal")
+	let bytes = hex::decode(
+		fixture["vectors"][0]["bytes_hex"]
+			.as_str()
+			.expect("provider transfer chunk vector has bytes"),
+	)
+	.expect("provider transfer chunk bytes are hexadecimal");
+	Dto::<generated::ProviderTransferChunkV1>::from_value(Value::Map(vec![
+		(Value::Integer(0.into()), Value::Integer(1.into())),
+		(Value::Integer(1.into()), Value::Bytes(operation_id.to_vec())),
+		(Value::Integer(2.into()), Value::Integer(u64::from(index).into())),
+		(Value::Integer(3.into()), Value::Bytes(bytes.clone())),
+		(Value::Integer(4.into()), Value::Bytes(sp_crypto_hashing::blake2_256(&bytes).to_vec())),
+	]))
+	.expect("provider transfer chunk remains canonical")
+	.canonical()
+	.to_vec()
+}
+
+fn put_request_with_length(exact: &[u8], object_len: u64) -> Vec<u8> {
+	let mut value = Dto::<generated::StorageObjectPutFrame>::decode(exact)
+		.expect("PUT request is canonical")
+		.value()
+		.clone();
+	let Value::Map(fields) = &mut value else { unreachable!() };
+	let Value::Map(body) = &mut fields
+		.iter_mut()
+		.find(|(key, _)| *key == Value::Integer(8.into()))
+		.expect("PUT request has a body")
+		.1
+	else {
+		unreachable!()
+	};
+	body.iter_mut()
+		.find(|(key, _)| *key == Value::Integer(2.into()))
+		.expect("PUT request has an object length")
+		.1 = Value::Integer(object_len.into());
+	Dto::<generated::StorageObjectPutFrame>::from_value(value)
+		.expect("updated PUT request remains canonical")
+		.canonical()
+		.to_vec()
 }
 
 fn mobile_tagged_value(tagged: &serde_json::Value) -> Value {
@@ -290,6 +339,25 @@ fn progress(request_id: [u8; 16], sequence: u64) -> Vec<u8> {
 	.to_vec()
 }
 
+fn object_get_progress(request_id: [u8; 16], sequence: u64, offset: u64) -> Vec<u8> {
+	Dto::<ProgressEventV2>::from_value(Value::Map(vec![
+		(Value::Integer(0.into()), Value::Integer(2.into())),
+		(Value::Integer(1.into()), Value::Bytes(request_id.to_vec())),
+		(Value::Integer(2.into()), Value::Integer(sequence.into())),
+		(Value::Integer(3.into()), Value::Integer(1.into())),
+		(
+			Value::Integer(4.into()),
+			Value::Map(vec![
+				(Value::Integer(0.into()), Value::Integer(offset.into())),
+				(Value::Integer(1.into()), Value::Bytes(b"verified".to_vec())),
+			]),
+		),
+	]))
+	.expect("GET progress fixture is closed")
+	.canonical()
+	.to_vec()
+}
+
 fn cancelled(request_id: [u8; 16], sequence: u64) -> Vec<u8> {
 	Dto::<generated::CancelledEventV2>::from_value(Value::Map(vec![
 		(Value::Integer(0.into()), Value::Integer(2.into())),
@@ -455,6 +523,7 @@ fn outbox_input() -> PrepareHostOutboxV1 {
 		outbox_id: entry.outbox_id,
 		exact_request_bytes: entry.exact_request_bytes,
 		exact_authority_bytes: authority,
+		exact_payload_bytes: None,
 		request_id: entry.request_id,
 		operation_id: entry.operation_id,
 		generation: entry.generation,
@@ -478,23 +547,78 @@ fn desktop_peer() -> DesktopPeerIdentity {
 	}
 }
 
-#[derive(Clone)]
-struct ConfirmedAcks(std::sync::Arc<std::sync::atomic::AtomicUsize>);
-
-impl ProviderAckConfirmationV2 for ConfirmedAcks {
-	fn confirmed(
-		&mut self,
-		_outbox_id: [u8; 16],
-		_response_hash: [u8; 32],
-	) -> Result<bool, HostExecutionErrorV2> {
-		self.0.fetch_add(1, std::sync::atomic::Ordering::SeqCst);
-		Ok(true)
-	}
+#[cfg(unix)]
+fn confirm_provider_ack(stream: &mut std::os::unix::net::UnixStream) -> Vec<u8> {
+	let exact = read_frame(stream).expect("host sends a framed ACK");
+	let ack = Dto::<generated::ResponseAckV1>::decode(&exact).expect("host ACK is canonical");
+	let Value::Map(fields) = ack.value() else { unreachable!() };
+	let bytes = |key: u64, length: usize| -> Vec<u8> {
+		let value = fields
+			.iter()
+			.find_map(|(candidate, value)| {
+				matches!(candidate, Value::Integer(candidate) if u64::try_from(*candidate).ok() == Some(key))
+					.then_some(value)
+			})
+			.expect("ACK field exists");
+		let Value::Bytes(bytes) = value else { panic!("ACK field is not bytes") };
+		assert_eq!(bytes.len(), length);
+		bytes.clone()
+	};
+	let generation = fields
+		.iter()
+		.find_map(|(candidate, value)| match (candidate, value) {
+			(Value::Integer(candidate), Value::Integer(value))
+				if u64::try_from(*candidate).ok() == Some(2) =>
+				u64::try_from(*value).ok(),
+			_ => None,
+		})
+		.expect("ACK generation exists");
+	let confirmation = provider_ack_confirmation_bytes(
+		bytes(0, 16).try_into().unwrap(),
+		bytes(1, 16).try_into().unwrap(),
+		generation,
+		bytes(3, 32).try_into().unwrap(),
+	);
+	write_frame(stream, &confirmation).expect("provider confirmation is framed");
+	exact
 }
 
-struct QueuedContinuations(std::collections::VecDeque<ProviderSuccessorV2>);
+#[cfg(unix)]
+fn confirm_next_provider_ack(
+	stream: &std::os::unix::net::UnixStream,
+) -> std::thread::JoinHandle<Vec<u8>> {
+	let mut stream = stream.try_clone().expect("test stream clones");
+	std::thread::spawn(move || confirm_provider_ack(&mut stream))
+}
+
+#[cfg(unix)]
+fn bounded_unix_pair() -> (std::os::unix::net::UnixStream, std::os::unix::net::UnixStream) {
+	let (client, server) = std::os::unix::net::UnixStream::pair().expect("test socket pair");
+	let timeout = Some(std::time::Duration::from_secs(5));
+	client.set_read_timeout(timeout).expect("client read timeout");
+	client.set_write_timeout(timeout).expect("client write timeout");
+	server.set_read_timeout(timeout).expect("server read timeout");
+	server.set_write_timeout(timeout).expect("server write timeout");
+	(client, server)
+}
+
+struct QueuedContinuations {
+	upload_chunks: Option<Vec<Vec<u8>>>,
+	successors: std::collections::VecDeque<ProviderSuccessorV2>,
+}
 
 impl ProviderContinuationSourceV2 for QueuedContinuations {
+	fn upload_chunks(
+		&mut self,
+		operation: OperationCode,
+		_exact_request: &[u8],
+	) -> Result<Option<Vec<Vec<u8>>>, HostExecutionErrorV2> {
+		if operation != OperationCode::StorageObjectPut {
+			return Err(HostExecutionErrorV2::AppBinding);
+		}
+		Ok(self.upload_chunks.take())
+	}
+
 	fn next_generation(
 		&mut self,
 		operation: OperationCode,
@@ -503,7 +627,7 @@ impl ProviderContinuationSourceV2 for QueuedContinuations {
 		cursor: u32,
 		_response_hash: [u8; 32],
 	) -> Result<Option<ProviderSuccessorV2>, HostExecutionErrorV2> {
-		let successor = self.0.pop_front();
+		let successor = self.successors.pop_front();
 		if operation != OperationCode::StorageObjectPut ||
 			successor.as_ref().is_some_and(|successor| {
 				successor.outbox.generation != predecessor.generation + 1 ||
@@ -948,9 +1072,9 @@ fn desktop_frames_enforce_big_endian_cap_and_split_coalesced_streams() {
 #[cfg(unix)]
 #[test]
 fn desktop_peer_binding_and_negotiation_fail_before_any_request_byte() {
-	use std::{io::Read, os::unix::net::UnixStream, time::Duration};
+	use std::{io::Read, time::Duration};
 
-	let (client, mut server) = UnixStream::pair().unwrap();
+	let (client, mut server) = bounded_unix_pair();
 	server.set_read_timeout(Some(Duration::from_millis(50))).unwrap();
 	let peer = desktop_peer();
 	let rejected = DesktopHostV2Transport::connect(
@@ -968,7 +1092,7 @@ fn desktop_peer_binding_and_negotiation_fail_before_any_request_byte() {
 	let mut byte = [0u8; 1];
 	assert_eq!(server.read(&mut byte).unwrap(), 0, "rejected peer emitted bytes");
 
-	let (client, mut server) = UnixStream::pair().unwrap();
+	let (client, mut server) = bounded_unix_pair();
 	server.set_read_timeout(Some(Duration::from_millis(50))).unwrap();
 	let mut incompatible = offer();
 	incompatible.genesis = [0x99; 32];
@@ -986,7 +1110,7 @@ fn desktop_peer_binding_and_negotiation_fail_before_any_request_byte() {
 #[cfg(unix)]
 #[test]
 fn desktop_outbox_commit_restart_resume_cancel_ack_and_gc_are_loss_safe() {
-	use std::{io::Write, os::unix::net::UnixStream, thread};
+	use std::{io::Write, thread};
 
 	let temp = tempfile::tempdir().unwrap();
 	let store = HostOutboxStoreV1::open(temp.path(), outbox_context(), outbox_keyring()).unwrap();
@@ -997,7 +1121,7 @@ fn desktop_outbox_commit_restart_resume_cancel_ack_and_gc_are_loss_safe() {
 	let accepted = accepted(input.request_id, 0);
 	let terminal = error_event(input.request_id, 1, 204, "STORAGE_CID_MISMATCH");
 
-	let (client, mut server) = UnixStream::pair().unwrap();
+	let (client, mut server) = bounded_unix_pair();
 	let accepted_for_server = accepted.clone();
 	let terminal_for_server = terminal.clone();
 	let first_server = thread::spawn(move || {
@@ -1022,12 +1146,12 @@ fn desktop_outbox_commit_restart_resume_cancel_ack_and_gc_are_loss_safe() {
 	let mut desktop = DurableDesktopHostV2::new(transport, &store);
 	desktop.prepare_and_send(input, [1; 24], [2; 24]).unwrap();
 	assert_eq!(
-		desktop.receive_event(200, [8; 24], [9; 24]).unwrap(),
+		desktop.receive_event(200, [8; 24], [9; 24], [200; 24], [201; 24]).unwrap(),
 		DurableDesktopEvent::NonTerminal(accepted)
 	);
 	store.inject_fault_once(HostOutboxFault::AfterDirectoryFsync).unwrap();
 	assert!(matches!(
-		desktop.receive_event(200, [3; 24], [4; 24]),
+		desktop.receive_event(200, [3; 24], [4; 24], [200; 24], [201; 24]),
 		Err(DesktopTransportError::Outbox(HostOutboxError::Unavailable))
 	));
 	drop(desktop);
@@ -1041,8 +1165,8 @@ fn desktop_outbox_commit_restart_resume_cancel_ack_and_gc_are_loss_safe() {
 	let exact_ack = installed.response_ack.clone();
 	let response_hash = installed.response_hash;
 
-	let (client, mut server) = UnixStream::pair().unwrap();
-	let ack_server = thread::spawn(move || read_frame(&mut server).unwrap());
+	let (client, mut server) = bounded_unix_pair();
+	let ack_server = thread::spawn(move || confirm_provider_ack(&mut server));
 	let transport = DesktopHostV2Transport::connect(
 		client,
 		&desktop_peer(),
@@ -1052,9 +1176,8 @@ fn desktop_outbox_commit_restart_resume_cancel_ack_and_gc_are_loss_safe() {
 	)
 	.unwrap();
 	let mut desktop = DurableDesktopHostV2::new(transport, &store);
-	assert_eq!(desktop.resume_ack(id, [5; 24]).unwrap(), response_hash);
+	assert_eq!(desktop.resume_ack(id, [5; 24], [202; 24], [203; 24]).unwrap(), response_hash);
 	assert_eq!(ack_server.join().unwrap(), exact_ack);
-	desktop.confirm_terminal(id, response_hash, [6; 24], [7; 24]).unwrap();
 	assert_eq!(store.installed_response(id), Err(HostOutboxError::Expired));
 	assert_eq!(store.gc(455, 1).unwrap(), 0);
 	assert_eq!(store.gc(456, 1).unwrap(), 1);
@@ -1062,8 +1185,132 @@ fn desktop_outbox_commit_restart_resume_cancel_ack_and_gc_are_loss_safe() {
 
 #[cfg(unix)]
 #[test]
+fn desktop_rejects_misbound_provider_ack_confirmation_and_replays_after_restart() {
+	use std::thread;
+
+	let root = tempfile::tempdir().unwrap();
+	let store = HostOutboxStoreV1::open(root.path(), outbox_context(), outbox_keyring()).unwrap();
+	let input = outbox_input();
+	let outbox_id = input.outbox_id;
+	let request_id = input.request_id;
+	let operation_id = input.operation_id;
+	let terminal = error_event(request_id, 1, 204, "STORAGE_CID_MISMATCH");
+	let (client, mut server) = bounded_unix_pair();
+	let first_server = thread::spawn(move || {
+		read_frame(&mut server).unwrap();
+		read_frame(&mut server).unwrap();
+		write_frame(&mut server, &accepted(request_id, 0)).unwrap();
+		write_frame(&mut server, &terminal).unwrap();
+		let ack = read_frame(&mut server).unwrap();
+		Dto::<generated::ResponseAckV1>::decode(&ack).unwrap();
+		write_frame(
+			&mut server,
+			&provider_ack_confirmation_bytes(request_id, operation_id, 0, [0xff; 32]),
+		)
+		.unwrap();
+		ack
+	});
+	let transport = DesktopHostV2Transport::connect(
+		client,
+		&desktop_peer(),
+		&|_: &DesktopPeerIdentity| Ok(()),
+		&offer(),
+		&offer(),
+	)
+	.unwrap();
+	let mut desktop = DurableDesktopHostV2::new(transport, &store);
+	desktop.prepare_and_send(input, [1; 24], [2; 24]).unwrap();
+	assert!(matches!(
+		desktop.receive_event(200, [10; 24], [11; 24], [12; 24], [13; 24]),
+		Ok(DurableDesktopEvent::NonTerminal(_))
+	));
+	assert!(matches!(
+		desktop.receive_event(200, [3; 24], [4; 24], [5; 24], [6; 24]),
+		Err(DesktopTransportError::RequestBinding)
+	));
+	let exact_ack = first_server.join().unwrap();
+	let installed = store.installed_response(outbox_id).unwrap();
+	assert!(installed.terminal);
+	assert_eq!(installed.response_ack, exact_ack);
+	let response_hash = installed.response_hash;
+	drop(desktop);
+	drop(store);
+
+	let store = HostOutboxStoreV1::open(root.path(), outbox_context(), outbox_keyring()).unwrap();
+	let (client, mut server) = bounded_unix_pair();
+	let replay_server = thread::spawn(move || confirm_provider_ack(&mut server));
+	let transport = DesktopHostV2Transport::connect(
+		client,
+		&desktop_peer(),
+		&|_: &DesktopPeerIdentity| Ok(()),
+		&offer(),
+		&offer(),
+	)
+	.unwrap();
+	let mut desktop = DurableDesktopHostV2::new(transport, &store);
+	assert_eq!(desktop.resume_ack(outbox_id, [7; 24], [8; 24], [9; 24]).unwrap(), response_hash);
+	assert_eq!(replay_server.join().unwrap(), exact_ack);
+	assert_eq!(store.installed_response(outbox_id), Err(HostOutboxError::Expired));
+}
+
+#[cfg(unix)]
+#[test]
+fn ack_confirmed_restart_finishes_erase_and_compaction_without_replaying_ack() {
+	use std::{io::Read, time::Duration};
+
+	for fail_erase in [true, false] {
+		let root = tempfile::tempdir().unwrap();
+		let input = outbox_input();
+		let id = input.outbox_id;
+		let operation_id = input.operation_id;
+		let response = cancelled(input.request_id, 0);
+		let store =
+			HostOutboxStoreV1::open(root.path(), outbox_context(), outbox_keyring()).unwrap();
+		store.prepare(input, [1; 24]).unwrap();
+		let response_hash =
+			store.install_response(id, response, None, None, Some(200), [2; 24]).unwrap();
+		store.mark_ack_sent(id, [3; 24]).unwrap();
+		store.confirm_ack(id, response_hash, [4; 24]).unwrap();
+		assert!(store.is_ack_confirmed(id, response_hash).unwrap());
+		if fail_erase {
+			store.inject_fault_once(HostOutboxFault::BeforeUploadErase).unwrap();
+			assert_eq!(store.erase_upload(operation_id), Err(HostOutboxError::Unavailable));
+		} else {
+			store.erase_upload(operation_id).unwrap();
+			store.inject_fault_once(HostOutboxFault::BeforeTempFsync).unwrap();
+			assert_eq!(store.compact_acknowledged(id, [5; 24]), Err(HostOutboxError::Unavailable));
+		}
+		drop(store);
+
+		let store =
+			HostOutboxStoreV1::open(root.path(), outbox_context(), outbox_keyring()).unwrap();
+		assert!(store.is_ack_confirmed(id, response_hash).unwrap());
+		let (client, mut server) = bounded_unix_pair();
+		server.set_read_timeout(Some(Duration::from_millis(50))).unwrap();
+		let transport = DesktopHostV2Transport::connect(
+			client,
+			&desktop_peer(),
+			&|_: &DesktopPeerIdentity| Ok(()),
+			&offer(),
+			&offer(),
+		)
+		.unwrap();
+		let mut desktop = DurableDesktopHostV2::new(transport, &store);
+		assert_eq!(desktop.resume_ack(id, [6; 24], [7; 24], [8; 24]).unwrap(), response_hash);
+		let mut escaped = [0; 1];
+		assert!(matches!(
+			server.read(&mut escaped).unwrap_err().kind(),
+			std::io::ErrorKind::WouldBlock | std::io::ErrorKind::TimedOut
+		));
+		drop(desktop);
+		assert_eq!(store.installed_response(id), Err(HostOutboxError::Expired));
+	}
+}
+
+#[cfg(unix)]
+#[test]
 fn desktop_outbox_capacity_corruption_and_pre_send_crash_never_leak_bytes() {
-	use std::{fs, io::Read, os::unix::net::UnixStream, thread, time::Duration};
+	use std::{fs, io::Read, thread, time::Duration};
 
 	let capacity_root = tempfile::tempdir().unwrap();
 	let capacity_store = HostOutboxStoreV1::open_with_limits(
@@ -1074,7 +1321,7 @@ fn desktop_outbox_capacity_corruption_and_pre_send_crash_never_leak_bytes() {
 		1,
 	)
 	.unwrap();
-	let (client, mut server) = UnixStream::pair().unwrap();
+	let (client, mut server) = bounded_unix_pair();
 	server.set_read_timeout(Some(Duration::from_millis(50))).unwrap();
 	let transport = DesktopHostV2Transport::connect(
 		client,
@@ -1105,7 +1352,7 @@ fn desktop_outbox_capacity_corruption_and_pre_send_crash_never_leak_bytes() {
 	let id = input.outbox_id;
 	let expected_request = input.exact_request_bytes.clone();
 	let expected_authority = input.exact_authority_bytes.clone();
-	let (client, mut server) = UnixStream::pair().unwrap();
+	let (client, mut server) = bounded_unix_pair();
 	server.set_read_timeout(Some(Duration::from_millis(50))).unwrap();
 	let transport = DesktopHostV2Transport::connect(
 		client,
@@ -1130,7 +1377,7 @@ fn desktop_outbox_capacity_corruption_and_pre_send_crash_never_leak_bytes() {
 	let store =
 		HostOutboxStoreV1::open(crash_root.path(), outbox_context(), outbox_keyring()).unwrap();
 	let exact_retry = store.retry_request(id, 200).unwrap();
-	let (client, mut server) = UnixStream::pair().unwrap();
+	let (client, mut server) = bounded_unix_pair();
 	let resumed_server =
 		thread::spawn(move || (read_frame(&mut server).unwrap(), read_frame(&mut server).unwrap()));
 	let transport = DesktopHostV2Transport::connect(
@@ -1163,7 +1410,7 @@ fn desktop_outbox_capacity_corruption_and_pre_send_crash_never_leak_bytes() {
 #[cfg(unix)]
 #[test]
 fn desktop_stream_abort_after_send_preserves_the_exact_durable_retry() {
-	use std::{os::unix::net::UnixStream, thread};
+	use std::thread;
 
 	let root = tempfile::tempdir().unwrap();
 	let store = HostOutboxStoreV1::open(root.path(), outbox_context(), outbox_keyring()).unwrap();
@@ -1171,7 +1418,7 @@ fn desktop_stream_abort_after_send_preserves_the_exact_durable_retry() {
 	let id = input.outbox_id;
 	let request = input.exact_request_bytes.clone();
 	let authority = input.exact_authority_bytes.clone();
-	let (client, mut server) = UnixStream::pair().unwrap();
+	let (client, mut server) = bounded_unix_pair();
 	let server = thread::spawn(move || {
 		assert_eq!(read_frame(&mut server).unwrap(), request);
 		assert_eq!(read_frame(&mut server).unwrap(), authority);
@@ -1188,7 +1435,7 @@ fn desktop_stream_abort_after_send_preserves_the_exact_durable_retry() {
 	let durable = desktop.prepare_and_send(input, [1; 24], [2; 24]).unwrap();
 	server.join().unwrap();
 	assert!(matches!(
-		desktop.receive_event(200, [3; 24], [4; 24]),
+		desktop.receive_event(200, [3; 24], [4; 24], [200; 24], [201; 24]),
 		Err(DesktopTransportError::FrameTruncated)
 	));
 	drop(desktop);
@@ -1201,19 +1448,147 @@ fn desktop_stream_abort_after_send_preserves_the_exact_durable_retry() {
 
 #[cfg(unix)]
 #[test]
-fn durable_provider_runs_each_put_generation_from_verified_continuations() {
-	use std::{
-		os::unix::net::UnixStream,
-		sync::{
-			atomic::{AtomicUsize, Ordering},
-			Arc,
-		},
-		thread,
-	};
+fn desktop_successor_payload_is_durable_before_send_and_replayed_after_crash() {
+	use std::{fs, io::Read, thread, time::Duration};
 
 	let root = tempfile::tempdir().unwrap();
 	let store = HostOutboxStoreV1::open(root.path(), outbox_context(), outbox_keyring()).unwrap();
-	let input = outbox_input();
+	let mut input = outbox_input();
+	input.outbox_id = [0x79; 16];
+	input.exact_request_bytes = put_request_with_length(&input.exact_request_bytes, 15);
+	let token = resume_token_for(&input, 0, 1);
+	store.prepare(input.clone(), [1; 24]).unwrap();
+	let hash = store
+		.install_response(
+			input.outbox_id,
+			accepted(input.request_id, 0),
+			Some(token.clone()),
+			Some(0),
+			None,
+			[2; 24],
+		)
+		.unwrap();
+	store.confirm_ack(input.outbox_id, hash, [3; 24]).unwrap();
+	let mut successor = input.clone();
+	successor.outbox_id = [0x7a; 16];
+	successor.exact_authority_bytes = token.clone();
+	successor.exact_payload_bytes = Some(provider_transfer_chunk(input.operation_id, 0));
+	successor.generation = 1;
+	successor.intended_cursor = 0;
+
+	let (client, mut server) = bounded_unix_pair();
+	server.set_read_timeout(Some(Duration::from_millis(50))).unwrap();
+	let transport = DesktopHostV2Transport::connect(
+		client,
+		&desktop_peer(),
+		&|_: &DesktopPeerIdentity| Ok(()),
+		&offer(),
+		&offer(),
+	)
+	.unwrap();
+	let mut desktop = DurableDesktopHostV2::new(transport, &store);
+	store.inject_fault_once(HostOutboxFault::AfterDirectoryFsync).unwrap();
+	assert!(matches!(
+		desktop.prepare_successor_and_send(
+			input.outbox_id,
+			successor.clone(),
+			[4; 24],
+			[5; 24],
+			[6; 24],
+		),
+		Err(DesktopTransportError::Outbox(HostOutboxError::Unavailable))
+	));
+	let mut byte = [0; 1];
+	assert!(matches!(
+		server.read(&mut byte).unwrap_err().kind(),
+		std::io::ErrorKind::WouldBlock | std::io::ErrorKind::TimedOut
+	));
+	drop(desktop);
+	drop(store);
+
+	let store = HostOutboxStoreV1::open(root.path(), outbox_context(), outbox_keyring()).unwrap();
+	let request = successor.exact_request_bytes.clone();
+	let payload = successor.exact_payload_bytes.clone().unwrap();
+	let durable = store.retry_request(successor.outbox_id, 200).unwrap();
+	assert_eq!(durable.request, request);
+	assert_eq!(durable.authority, token);
+	assert_eq!(durable.payload.as_deref(), Some(payload.as_slice()));
+	let (client, mut server) = bounded_unix_pair();
+	let sent_request = request.clone();
+	let sent_token = token.clone();
+	let sent_payload = payload.clone();
+	let sent = thread::spawn(move || {
+		assert_eq!(read_frame(&mut server).unwrap(), sent_request);
+		assert_eq!(read_frame(&mut server).unwrap(), sent_token);
+		assert_eq!(read_frame(&mut server).unwrap(), sent_payload);
+	});
+	let transport = DesktopHostV2Transport::connect(
+		client,
+		&desktop_peer(),
+		&|_: &DesktopPeerIdentity| Ok(()),
+		&offer(),
+		&offer(),
+	)
+	.unwrap();
+	let mut desktop = DurableDesktopHostV2::new(transport, &store);
+	assert_eq!(desktop.resume_and_send(successor.outbox_id, 200).unwrap(), durable);
+	sent.join().unwrap();
+	drop(desktop);
+	drop(store);
+
+	let ciphertext = fs::read(
+		root.path()
+			.join("host-outbox-v1")
+			.join(format!("{}.outbox", hex::encode(successor.outbox_id))),
+	)
+	.unwrap();
+	assert!(!ciphertext.windows(payload.len()).any(|window| window == payload));
+	let store = HostOutboxStoreV1::open(root.path(), outbox_context(), outbox_keyring()).unwrap();
+	assert_eq!(store.retry_request(successor.outbox_id, 200).unwrap(), durable);
+
+	let next_token = resume_token_for(&successor, 1, 2);
+	let (client, mut server) = bounded_unix_pair();
+	let replay_request = request.clone();
+	let replay_token = token.clone();
+	let replay_payload = payload.clone();
+	let server = thread::spawn(move || {
+		assert_eq!(read_frame(&mut server).unwrap(), replay_request);
+		assert_eq!(read_frame(&mut server).unwrap(), replay_token);
+		assert_eq!(read_frame(&mut server).unwrap(), replay_payload);
+		write_frame(&mut server, &progress(input.request_id, 1)).unwrap();
+		write_frame(&mut server, &next_token).unwrap();
+		confirm_provider_ack(&mut server);
+	});
+	let transport = DesktopHostV2Transport::connect(
+		client,
+		&desktop_peer(),
+		&|_: &DesktopPeerIdentity| Ok(()),
+		&offer(),
+		&offer(),
+	)
+	.unwrap();
+	let mut desktop = DurableDesktopHostV2::new(transport, &store);
+	assert_eq!(desktop.resume_and_send(successor.outbox_id, 200).unwrap(), durable);
+	assert!(matches!(
+		desktop
+			.receive_continuation(&mut |_: &[u8]| Ok(()), 200, [7; 24], [8; 24], [9; 24], [10; 24],)
+			.unwrap(),
+		DurableDesktopEvent::Continuation { cursor: 1, .. }
+	));
+	server.join().unwrap();
+}
+
+#[cfg(unix)]
+#[test]
+fn durable_provider_runs_each_put_generation_from_verified_continuations() {
+	use std::thread;
+
+	let root = tempfile::tempdir().unwrap();
+	let store = HostOutboxStoreV1::open(root.path(), outbox_context(), outbox_keyring()).unwrap();
+	let mut input = outbox_input();
+	input.exact_request_bytes = put_request_with_length(&input.exact_request_bytes, 15);
+	let exact_upload_request = input.exact_request_bytes.clone();
+	let upload_operation_id = input.operation_id;
 	let frame = Dto::<generated::StorageObjectPutFrame>::decode(&input.exact_request_bytes)
 		.expect("frozen put frame is canonical");
 	let request_id = input.request_id;
@@ -1221,30 +1596,33 @@ fn durable_provider_runs_each_put_generation_from_verified_continuations() {
 	let authority = input.exact_authority_bytes.clone();
 	let first_token = resume_token_for(&input, 0, 1);
 	let second_token = resume_token_for(&input, 1, 2);
-	let exact_chunk = provider_transfer_chunk();
+	let exact_chunk = provider_transfer_chunk(input.operation_id, 0);
 	let server_first_token = first_token.clone();
 	let server_second_token = second_token.clone();
 	let server_chunk = exact_chunk.clone();
-	let (client, mut server) = UnixStream::pair().unwrap();
+	let (client, mut server) = bounded_unix_pair();
 	let server_thread = thread::spawn(move || {
 		let mut acks = Vec::new();
 		assert_eq!(read_frame(&mut server).unwrap(), request);
 		assert_eq!(read_frame(&mut server).unwrap(), authority);
-		write_frame(&mut server, &accepted(request_id, 0)).unwrap();
+		let first_event = accepted(request_id, 0);
+		write_frame(&mut server, &first_event).unwrap();
 		write_frame(&mut server, &server_first_token).unwrap();
-		acks.push(read_frame(&mut server).unwrap());
+		acks.push(confirm_provider_ack(&mut server));
 
 		assert_eq!(read_frame(&mut server).unwrap(), request);
 		assert_eq!(read_frame(&mut server).unwrap(), server_first_token);
 		assert_eq!(read_frame(&mut server).unwrap(), server_chunk);
-		write_frame(&mut server, &progress(request_id, 1)).unwrap();
+		let second_event = progress(request_id, 1);
+		write_frame(&mut server, &second_event).unwrap();
 		write_frame(&mut server, &server_second_token).unwrap();
-		acks.push(read_frame(&mut server).unwrap());
+		acks.push(confirm_provider_ack(&mut server));
 
 		assert_eq!(read_frame(&mut server).unwrap(), request);
 		assert_eq!(read_frame(&mut server).unwrap(), server_second_token);
-		write_frame(&mut server, &object_put_result(request_id, 2)).unwrap();
-		acks.push(read_frame(&mut server).unwrap());
+		let terminal_event = object_put_result(request_id, 2);
+		write_frame(&mut server, &terminal_event).unwrap();
+		acks.push(confirm_provider_ack(&mut server));
 		for ack in &acks {
 			Dto::<generated::ResponseAckV1>::decode(ack).expect("host emits canonical ACK");
 		}
@@ -1258,7 +1636,6 @@ fn durable_provider_runs_each_put_generation_from_verified_continuations() {
 		&offer(),
 	)
 	.unwrap();
-	let confirmations = Arc::new(AtomicUsize::new(0));
 	let mut first_successor = provider_outbox_context(&input, [0x72; 16], 40);
 	first_successor.generation = 1;
 	first_successor.intended_cursor = 0;
@@ -1269,7 +1646,6 @@ fn durable_provider_runs_each_put_generation_from_verified_continuations() {
 	let verifier_second_token = second_token.clone();
 	let provider = DurableCordProviderV2::new(
 		DurableDesktopHostV2::new(transport, &store),
-		ConfirmedAcks(confirmations.clone()),
 		move |exact: &[u8]| {
 			if exact == verifier_first_token || exact == verifier_second_token {
 				Dto::<ResumeTokenV1>::decode(exact)?;
@@ -1278,18 +1654,19 @@ fn durable_provider_runs_each_put_generation_from_verified_continuations() {
 				Err(DesktopTransportError::ResumeTokenUnverified)
 			}
 		},
-		QueuedContinuations(std::collections::VecDeque::from([
-			ProviderSuccessorV2 {
-				exact_request: input.exact_request_bytes.clone(),
-				exact_payload: Some(exact_chunk),
-				outbox: first_successor,
-			},
-			ProviderSuccessorV2 {
-				exact_request: input.exact_request_bytes.clone(),
-				exact_payload: None,
-				outbox: second_successor,
-			},
-		])),
+		QueuedContinuations {
+			upload_chunks: Some(vec![exact_chunk.clone()]),
+			successors: std::collections::VecDeque::from([
+				ProviderSuccessorV2 {
+					exact_request: input.exact_request_bytes.clone(),
+					outbox: first_successor,
+				},
+				ProviderSuccessorV2 {
+					exact_request: input.exact_request_bytes.clone(),
+					outbox: second_successor,
+				},
+			]),
+		},
 	);
 	let mut backend = CordProviderByteBackendV2::new(provider, NoStorageEncryption);
 	let outbox = provider_outbox_context(&input, [0x71; 16], 20);
@@ -1309,21 +1686,26 @@ fn durable_provider_runs_each_put_generation_from_verified_continuations() {
 	assert!(execution.terminal_response_hash.is_some());
 	let acks = server_thread.join().unwrap();
 	assert_eq!(acks.len(), 3);
-	assert_eq!(confirmations.load(Ordering::SeqCst), 3);
+	drop(backend);
+	drop(store);
+	let reopened =
+		HostOutboxStoreV1::open(root.path(), outbox_context(), outbox_keyring()).unwrap();
+	assert_eq!(
+		reopened.staged_upload_payload(&exact_upload_request, upload_operation_id, 0),
+		Err(HostOutboxError::StateInvalid)
+	);
 }
 
 #[cfg(unix)]
 #[test]
 fn desktop_continuation_installs_event_and_verified_token_before_ack_and_successor_send() {
-	use std::os::unix::net::UnixStream;
-
 	let root = tempfile::tempdir().unwrap();
 	let store = HostOutboxStoreV1::open(root.path(), outbox_context(), outbox_keyring()).unwrap();
 	let mut input = outbox_input();
 	input.outbox_id = [0x73; 16];
 	let predecessor_id = input.outbox_id;
 	let token = resume_token_for(&input, 0, 1);
-	let (client, mut server) = UnixStream::pair().unwrap();
+	let (client, mut server) = bounded_unix_pair();
 	let transport = DesktopHostV2Transport::connect(
 		client,
 		&desktop_peer(),
@@ -1339,6 +1721,7 @@ fn desktop_continuation_installs_event_and_verified_token_before_ack_and_success
 	let accepted = accepted(input.request_id, 0);
 	write_frame(&mut server, &accepted).unwrap();
 	write_frame(&mut server, &token).unwrap();
+	let first_ack = confirm_next_provider_ack(&server);
 	let mut verified = false;
 	let continuation = desktop
 		.receive_continuation(
@@ -1349,20 +1732,20 @@ fn desktop_continuation_installs_event_and_verified_token_before_ack_and_success
 			200,
 			[43; 24],
 			[44; 24],
+			[45; 24],
+			[0; 24],
 		)
 		.unwrap();
-	let response_hash = match continuation {
-		DurableDesktopEvent::Continuation { event, resume_token, cursor, response_hash } => {
-			assert_eq!(event, accepted);
+	match continuation {
+		DurableDesktopEvent::Continuation { events, resume_token, cursor, .. } => {
+			assert_eq!(events, vec![accepted]);
 			assert_eq!(resume_token, token);
 			assert_eq!(cursor, 0);
-			response_hash
 		},
 		_ => panic!("accepted generation was not installed as a continuation"),
-	};
+	}
 	assert!(verified);
-	Dto::<generated::ResponseAckV1>::decode(&read_frame(&mut server).unwrap()).unwrap();
-	desktop.confirm_continuation(predecessor_id, response_hash, [45; 24]).unwrap();
+	Dto::<generated::ResponseAckV1>::decode(&first_ack.join().unwrap()).unwrap();
 
 	let mut successor = input;
 	successor.outbox_id = [0x74; 16];
@@ -1370,14 +1753,7 @@ fn desktop_continuation_installs_event_and_verified_token_before_ack_and_success
 	successor.generation = 1;
 	successor.intended_cursor = 0;
 	desktop
-		.prepare_successor_and_send(
-			predecessor_id,
-			successor.clone(),
-			[46; 24],
-			[47; 24],
-			[48; 24],
-			None,
-		)
+		.prepare_successor_and_send(predecessor_id, successor.clone(), [46; 24], [47; 24], [48; 24])
 		.unwrap();
 	assert_eq!(read_frame(&mut server).unwrap(), successor.exact_request_bytes);
 	assert_eq!(read_frame(&mut server).unwrap(), token);
@@ -1385,6 +1761,7 @@ fn desktop_continuation_installs_event_and_verified_token_before_ack_and_success
 	let next_token = resume_token_for(&successor, 1, 2);
 	write_frame(&mut server, &progress).unwrap();
 	write_frame(&mut server, &next_token).unwrap();
+	let second_ack = confirm_next_provider_ack(&server);
 	let continued = desktop
 		.receive_continuation(
 			&mut |exact: &[u8]| {
@@ -1395,16 +1772,146 @@ fn desktop_continuation_installs_event_and_verified_token_before_ack_and_success
 			200,
 			[49; 24],
 			[50; 24],
+			[51; 24],
+			[52; 24],
 		)
 		.unwrap();
 	assert!(matches!(continued, DurableDesktopEvent::Continuation { cursor: 1, .. }));
-	Dto::<generated::ResponseAckV1>::decode(&read_frame(&mut server).unwrap()).unwrap();
+	Dto::<generated::ResponseAckV1>::decode(&second_ack.join().unwrap()).unwrap();
+}
+
+#[cfg(unix)]
+#[test]
+fn desktop_continuation_reads_the_complete_bounded_event_batch_before_the_token() {
+	let root = tempfile::tempdir().unwrap();
+	let store = HostOutboxStoreV1::open(root.path(), outbox_context(), outbox_keyring()).unwrap();
+	let mut input = outbox_input();
+	input.outbox_id = [0x7b; 16];
+	let token = resume_token_for(&input, 1, 1);
+	let accepted = accepted(input.request_id, 0);
+	let progress = progress(input.request_id, 1);
+	let (client, mut server) = bounded_unix_pair();
+	let transport = DesktopHostV2Transport::connect(
+		client,
+		&desktop_peer(),
+		&|_: &DesktopPeerIdentity| Ok(()),
+		&offer(),
+		&offer(),
+	)
+	.unwrap();
+	let mut desktop = DurableDesktopHostV2::new(transport, &store);
+	desktop.prepare_and_send(input.clone(), [81; 24], [82; 24]).unwrap();
+	read_frame(&mut server).unwrap();
+	read_frame(&mut server).unwrap();
+	write_frame(&mut server, &accepted).unwrap();
+	write_frame(&mut server, &progress).unwrap();
+	write_frame(&mut server, &token).unwrap();
+	let ack = confirm_next_provider_ack(&server);
+	let continued = desktop
+		.receive_continuation(&mut |_: &[u8]| Ok(()), 200, [83; 24], [84; 24], [85; 24], [86; 24])
+		.unwrap();
+	let DurableDesktopEvent::Continuation { events, cursor, .. } = continued else {
+		panic!("event batch did not produce a continuation")
+	};
+	assert_eq!(events, vec![accepted, progress]);
+	assert_eq!(cursor, 1);
+	Dto::<generated::ResponseAckV1>::decode(&ack.join().unwrap()).unwrap();
+}
+
+#[cfg(unix)]
+#[test]
+fn desktop_get_resume_uses_persisted_generation_not_a_short_verified_byte_cursor() {
+	const SHORT_BATCH_BYTES: u32 = 17;
+	let root = tempfile::tempdir().unwrap();
+	let store = HostOutboxStoreV1::open(root.path(), outbox_context(), outbox_keyring()).unwrap();
+	let mut input = outbox_input();
+	input.outbox_id = [0x7c; 16];
+	input.exact_request_bytes = vector("1011-positive");
+	let request = Dto::<RequestV2>::decode(&input.exact_request_bytes).unwrap();
+	let Value::Map(fields) = request.value() else { unreachable!() };
+	let Value::Bytes(request_id) =
+		&fields.iter().find(|(key, _)| *key == Value::Integer(1.into())).unwrap().1
+	else {
+		unreachable!()
+	};
+	input.request_id = request_id.clone().try_into().unwrap();
+	let mut operation_material = b"cord/provider/private-object-query/v1".to_vec();
+	operation_material.extend_from_slice(&(OperationCode::StorageObjectGet as u16).to_be_bytes());
+	operation_material.extend_from_slice(&input.request_id);
+	input.operation_id = sp_crypto_hashing::sha2_256(&operation_material)[..16].try_into().unwrap();
+	let first_token = resume_token_for(&input, u64::from(SHORT_BATCH_BYTES), 1);
+	let (client, mut server) = bounded_unix_pair();
+	let transport = DesktopHostV2Transport::connect(
+		client,
+		&desktop_peer(),
+		&|_: &DesktopPeerIdentity| Ok(()),
+		&offer(),
+		&offer(),
+	)
+	.unwrap();
+	let mut desktop = DurableDesktopHostV2::new(transport, &store);
+	desktop.prepare_and_send(input.clone(), [91; 24], [92; 24]).unwrap();
+	read_frame(&mut server).unwrap();
+	read_frame(&mut server).unwrap();
+	write_frame(&mut server, &accepted(input.request_id, 0)).unwrap();
+	write_frame(&mut server, &object_get_progress(input.request_id, 1, 0)).unwrap();
+	write_frame(&mut server, &first_token).unwrap();
+	let first_ack = confirm_next_provider_ack(&server);
+	let first = desktop
+		.receive_continuation(&mut |_: &[u8]| Ok(()), 200, [93; 24], [94; 24], [95; 24], [0; 24])
+		.unwrap();
+	let DurableDesktopEvent::Continuation { cursor, .. } = first else {
+		panic!("first GET generation did not continue")
+	};
+	assert_eq!(cursor, SHORT_BATCH_BYTES);
+	Dto::<generated::ResponseAckV1>::decode(&first_ack.join().unwrap()).unwrap();
+
+	let mut successor = input.clone();
+	successor.outbox_id = [0x7d; 16];
+	successor.exact_authority_bytes = first_token;
+	successor.generation = 1;
+	successor.intended_cursor = SHORT_BATCH_BYTES;
+	desktop
+		.prepare_successor_and_send(
+			input.outbox_id,
+			successor.clone(),
+			[96; 24],
+			[97; 24],
+			[98; 24],
+		)
+		.unwrap();
+	read_frame(&mut server).unwrap();
+	read_frame(&mut server).unwrap();
+	write_frame(&mut server, &object_get_progress(input.request_id, 2, u64::from(SHORT_BATCH_BYTES)))
+		.unwrap();
+	write_frame(&mut server, &object_get_result(input.request_id, 3)).unwrap();
+	let terminal_ack = confirm_next_provider_ack(&server);
+	let terminal = desktop
+		.receive_continuation(
+			&mut |_: &[u8]| Ok(()),
+			200,
+			[99; 24],
+			[100; 24],
+			[101; 24],
+			[102; 24],
+		)
+		.unwrap();
+	let DurableDesktopEvent::Terminal { events, .. } = terminal else {
+		panic!("second GET generation was not terminal")
+	};
+	assert_eq!(events.len(), 2);
+	Dto::<generated::ResponseAckV1>::decode(&terminal_ack.join().unwrap()).unwrap();
+	drop(desktop);
+	drop(store);
+	let reopened =
+		HostOutboxStoreV1::open(root.path(), outbox_context(), outbox_keyring()).unwrap();
+	assert_eq!(reopened.binding(successor.outbox_id), Err(HostOutboxError::Expired));
 }
 
 #[cfg(unix)]
 #[test]
 fn desktop_binding_operation_and_response_contract_mismatches_emit_no_ack_or_request() {
-	use std::{io::Read, os::unix::net::UnixStream, thread, time::Duration};
+	use std::{io::Read, thread, time::Duration};
 
 	let root = tempfile::tempdir().unwrap();
 	let store = HostOutboxStoreV1::open(root.path(), outbox_context(), outbox_keyring()).unwrap();
@@ -1414,7 +1921,7 @@ fn desktop_binding_operation_and_response_contract_mismatches_emit_no_ack_or_req
 
 	let mut wrong_peer = desktop_peer();
 	wrong_peer.provider_endpoint_hash = [0x99; 32];
-	let (client, mut server) = UnixStream::pair().unwrap();
+	let (client, mut server) = bounded_unix_pair();
 	server.set_read_timeout(Some(Duration::from_millis(50))).unwrap();
 	let transport = DesktopHostV2Transport::connect(
 		client,
@@ -1435,7 +1942,7 @@ fn desktop_binding_operation_and_response_contract_mismatches_emit_no_ack_or_req
 
 	let response = cancelled(input.request_id, 0);
 	store.install_response(id, response, None, None, Some(200), [2; 24]).unwrap();
-	let (client, mut server) = UnixStream::pair().unwrap();
+	let (client, mut server) = bounded_unix_pair();
 	server.set_read_timeout(Some(Duration::from_millis(50))).unwrap();
 	let transport = DesktopHostV2Transport::connect(
 		client,
@@ -1446,7 +1953,10 @@ fn desktop_binding_operation_and_response_contract_mismatches_emit_no_ack_or_req
 	)
 	.unwrap();
 	let mut desktop = DurableDesktopHostV2::new(transport, &store);
-	assert!(matches!(desktop.resume_ack(id, [3; 24]), Err(DesktopTransportError::RequestBinding)));
+	assert!(matches!(
+		desktop.resume_ack(id, [3; 24], [202; 24], [203; 24]),
+		Err(DesktopTransportError::RequestBinding)
+	));
 	assert!(matches!(
 		server.read(&mut byte).unwrap_err().kind(),
 		std::io::ErrorKind::WouldBlock | std::io::ErrorKind::TimedOut
@@ -1458,7 +1968,7 @@ fn desktop_binding_operation_and_response_contract_mismatches_emit_no_ack_or_req
 	let store = HostOutboxStoreV1::open(root.path(), outbox_context(), outbox_keyring()).unwrap();
 	let mut mismatched = outbox_input();
 	mismatched.operation_id = [0xee; 16];
-	let (client, mut server) = UnixStream::pair().unwrap();
+	let (client, mut server) = bounded_unix_pair();
 	server.set_read_timeout(Some(Duration::from_millis(50))).unwrap();
 	let transport = DesktopHostV2Transport::connect(
 		client,
@@ -1483,7 +1993,7 @@ fn desktop_binding_operation_and_response_contract_mismatches_emit_no_ack_or_req
 	input.outbox_id = [0x77; 16];
 	input.expected_response_kind = 2;
 	let request_id = input.request_id;
-	let (client, mut server) = UnixStream::pair().unwrap();
+	let (client, mut server) = bounded_unix_pair();
 	let accepted_event = accepted(request_id, 0);
 	let cancel = cancelled(request_id, 1);
 	let server_thread = thread::spawn(move || {
@@ -1504,11 +2014,11 @@ fn desktop_binding_operation_and_response_contract_mismatches_emit_no_ack_or_req
 	let mut desktop = DurableDesktopHostV2::new(transport, &store);
 	desktop.prepare_and_send(input, [6; 24], [7; 24]).unwrap();
 	assert!(matches!(
-		desktop.receive_event(200, [10; 24], [11; 24]).unwrap(),
+		desktop.receive_event(200, [10; 24], [11; 24], [200; 24], [201; 24]).unwrap(),
 		DurableDesktopEvent::NonTerminal(_)
 	));
 	assert!(matches!(
-		desktop.receive_event(200, [8; 24], [9; 24]),
+		desktop.receive_event(200, [8; 24], [9; 24], [200; 24], [201; 24]),
 		Err(DesktopTransportError::RequestBinding)
 	));
 	drop(desktop);
@@ -1519,7 +2029,7 @@ fn desktop_binding_operation_and_response_contract_mismatches_emit_no_ack_or_req
 	let mut input = outbox_input();
 	input.outbox_id = [0x78; 16];
 	let request_id = input.request_id;
-	let (client, mut server) = UnixStream::pair().unwrap();
+	let (client, mut server) = bounded_unix_pair();
 	let server_thread = thread::spawn(move || {
 		read_frame(&mut server).unwrap();
 		read_frame(&mut server).unwrap();
@@ -1538,11 +2048,11 @@ fn desktop_binding_operation_and_response_contract_mismatches_emit_no_ack_or_req
 	let mut desktop = DurableDesktopHostV2::new(transport, &store);
 	desktop.prepare_and_send(input, [12; 24], [13; 24]).unwrap();
 	assert!(matches!(
-		desktop.receive_event(200, [14; 24], [15; 24]).unwrap(),
+		desktop.receive_event(200, [14; 24], [15; 24], [200; 24], [201; 24]).unwrap(),
 		DurableDesktopEvent::NonTerminal(_)
 	));
 	assert!(matches!(
-		desktop.receive_event(200, [16; 24], [17; 24]),
+		desktop.receive_event(200, [16; 24], [17; 24], [200; 24], [201; 24]),
 		Err(DesktopTransportError::RequestBinding)
 	));
 	drop(desktop);
@@ -1552,7 +2062,7 @@ fn desktop_binding_operation_and_response_contract_mismatches_emit_no_ack_or_req
 #[cfg(unix)]
 #[test]
 fn desktop_cancel_is_durable_before_send_and_resumes_after_each_loss_boundary() {
-	use std::{io::Read, os::unix::net::UnixStream, thread, time::Duration};
+	use std::{io::Read, thread, time::Duration};
 
 	let root = tempfile::tempdir().unwrap();
 	let store = HostOutboxStoreV1::open(root.path(), outbox_context(), outbox_keyring()).unwrap();
@@ -1560,7 +2070,7 @@ fn desktop_cancel_is_durable_before_send_and_resumes_after_each_loss_boundary() 
 	let id = input.outbox_id;
 	let accepted = accepted(input.request_id, 0);
 	let cancel = cancelled(input.request_id, 1);
-	let (client, mut server) = UnixStream::pair().unwrap();
+	let (client, mut server) = bounded_unix_pair();
 	server.set_read_timeout(Some(Duration::from_millis(50))).unwrap();
 	let transport = DesktopHostV2Transport::connect(
 		client,
@@ -1576,7 +2086,7 @@ fn desktop_cancel_is_durable_before_send_and_resumes_after_each_loss_boundary() 
 	assert_eq!(read_frame(&mut server).unwrap().len() > 0, true);
 	write_frame(&mut server, &accepted).unwrap();
 	assert!(matches!(
-		desktop.receive_event(200, [3; 24], [4; 24]).unwrap(),
+		desktop.receive_event(200, [3; 24], [4; 24], [200; 24], [201; 24]).unwrap(),
 		DurableDesktopEvent::NonTerminal(_)
 	));
 
@@ -1595,7 +2105,7 @@ fn desktop_cancel_is_durable_before_send_and_resumes_after_each_loss_boundary() 
 	drop(server);
 
 	let store = HostOutboxStoreV1::open(root.path(), outbox_context(), outbox_keyring()).unwrap();
-	let (client, mut server) = UnixStream::pair().unwrap();
+	let (client, mut server) = bounded_unix_pair();
 	server.set_read_timeout(Some(Duration::from_millis(50))).unwrap();
 	let transport = DesktopHostV2Transport::connect(
 		client,
@@ -1611,7 +2121,7 @@ fn desktop_cancel_is_durable_before_send_and_resumes_after_each_loss_boundary() 
 	read_frame(&mut server).unwrap();
 	write_frame(&mut server, &accepted).unwrap();
 	assert!(matches!(
-		desktop.receive_event(200, [13; 24], [14; 24]).unwrap(),
+		desktop.receive_event(200, [13; 24], [14; 24], [200; 24], [201; 24]).unwrap(),
 		DurableDesktopEvent::NonTerminal(_)
 	));
 	store.inject_fault_once(HostOutboxFault::AfterDirectoryFsync).unwrap();
@@ -1630,13 +2140,13 @@ fn desktop_cancel_is_durable_before_send_and_resumes_after_each_loss_boundary() 
 	let store = HostOutboxStoreV1::open(root.path(), outbox_context(), outbox_keyring()).unwrap();
 	let durable_cancel = store.retry_request(id, 200).unwrap();
 	assert_eq!(durable_cancel.request, cancel);
-	let (client, mut server) = UnixStream::pair().unwrap();
+	let (client, mut server) = bounded_unix_pair();
 	let cancelled_response = cancel.clone();
 	let server_thread = thread::spawn(move || {
 		let sent_cancel = read_frame(&mut server).unwrap();
 		read_frame(&mut server).unwrap();
 		write_frame(&mut server, &cancelled_response).unwrap();
-		let ack = read_frame(&mut server).unwrap();
+		let ack = confirm_provider_ack(&mut server);
 		(sent_cancel, ack)
 	});
 	let transport = DesktopHostV2Transport::connect(
@@ -1649,26 +2159,27 @@ fn desktop_cancel_is_durable_before_send_and_resumes_after_each_loss_boundary() 
 	.unwrap();
 	let mut desktop = DurableDesktopHostV2::new(transport, &store);
 	assert_eq!(desktop.resume_and_send(id, 200).unwrap(), durable_cancel);
-	let terminal = desktop.receive_event(200, [9; 24], [10; 24]).unwrap();
-	let DurableDesktopEvent::Terminal { response_hash, .. } = terminal else { panic!() };
+	let terminal = desktop.receive_event(200, [9; 24], [10; 24], [200; 24], [201; 24]).unwrap();
+	let DurableDesktopEvent::Terminal { .. } = terminal else { panic!() };
 	let (sent_cancel, ack) = server_thread.join().unwrap();
 	assert_eq!(sent_cancel, cancel);
-	assert_eq!(ack, store.retry_response_ack(id).unwrap().bytes);
-	desktop.confirm_terminal(id, response_hash, [11; 24], [12; 24]).unwrap();
+	Dto::<generated::ResponseAckV1>::decode(&ack).expect("cancel ACK is canonical");
+	assert_eq!(store.retry_response_ack(id), Err(HostOutboxError::Expired));
 }
 
 #[cfg(unix)]
 #[test]
 fn desktop_live_cancel_accepts_only_cancel_terminal_and_emits_exact_ack() {
-	use std::os::unix::net::UnixStream;
-
 	let root = tempfile::tempdir().unwrap();
 	let store = HostOutboxStoreV1::open(root.path(), outbox_context(), outbox_keyring()).unwrap();
-	let input = outbox_input();
-	let outbox_id = input.outbox_id;
+	let mut input = outbox_input();
+	input.exact_request_bytes = put_request_with_length(&input.exact_request_bytes, 15);
 	let request_id = input.request_id;
+	let operation_id = input.operation_id;
+	let exact_request = input.exact_request_bytes.clone();
+	let payload = provider_transfer_chunk(operation_id, 0);
 	let cancel = cancelled(request_id, 1);
-	let (client, mut server) = UnixStream::pair().unwrap();
+	let (client, mut server) = bounded_unix_pair();
 	let transport = DesktopHostV2Transport::connect(
 		client,
 		&desktop_peer(),
@@ -1678,25 +2189,47 @@ fn desktop_live_cancel_accepts_only_cancel_terminal_and_emits_exact_ack() {
 	)
 	.unwrap();
 	let mut desktop = DurableDesktopHostV2::new(transport, &store);
+	desktop
+		.stage_upload(
+			&exact_request,
+			operation_id,
+			vec![payload],
+			input.created_at,
+			input.authority_expires_at,
+			[30; 24],
+		)
+		.unwrap();
 	desktop.prepare_and_send(input, [31; 24], [32; 24]).unwrap();
 	read_frame(&mut server).unwrap();
 	read_frame(&mut server).unwrap();
 	write_frame(&mut server, &accepted(request_id, 0)).unwrap();
 	assert!(matches!(
-		desktop.receive_event(200, [33; 24], [34; 24]).unwrap(),
+		desktop.receive_event(200, [33; 24], [34; 24], [200; 24], [201; 24]).unwrap(),
 		DurableDesktopEvent::NonTerminal(_)
 	));
 	desktop.prepare_cancel_and_send(cancel.clone(), [35; 24], [36; 24]).unwrap();
+	assert_eq!(
+		store.staged_upload_payload(&exact_request, operation_id, 0),
+		Err(HostOutboxError::StateInvalid)
+	);
 	assert_eq!(read_frame(&mut server).unwrap(), cancel);
 	read_frame(&mut server).unwrap();
 	write_frame(&mut server, &cancel).unwrap();
-	let (event, response_hash) = match desktop.receive_event(200, [37; 24], [38; 24]).unwrap() {
-		DurableDesktopEvent::Terminal { event, response_hash } => (event, response_hash),
+	let ack = confirm_next_provider_ack(&server);
+	let events = match desktop.receive_event(200, [37; 24], [38; 24], [200; 24], [201; 24]).unwrap()
+	{
+		DurableDesktopEvent::Terminal { events, .. } => events,
 		DurableDesktopEvent::NonTerminal(_) => panic!("cancel was not terminal"),
 		DurableDesktopEvent::Continuation { .. } => panic!("cancel produced a continuation"),
 	};
-	assert_eq!(event, cancel);
-	Dto::<generated::ResponseAckV1>::decode(&read_frame(&mut server).unwrap())
-		.expect("cancel ACK is canonical");
-	desktop.confirm_terminal(outbox_id, response_hash, [39; 24], [40; 24]).unwrap();
+	assert_eq!(events, vec![cancel]);
+	Dto::<generated::ResponseAckV1>::decode(&ack.join().unwrap()).expect("cancel ACK is canonical");
+	drop(desktop);
+	drop(store);
+	let reopened =
+		HostOutboxStoreV1::open(root.path(), outbox_context(), outbox_keyring()).unwrap();
+	assert_eq!(
+		reopened.staged_upload_payload(&exact_request, operation_id, 0),
+		Err(HostOutboxError::StateInvalid)
+	);
 }
