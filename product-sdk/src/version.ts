@@ -52,7 +52,6 @@ export const NATIVE_SDK_VERSION = {
     storageProvider: 5,
     drive: 1,
     s3: 1,
-    transactionStorage: 8,
     resources: 1,
   },
   serviceProtocols: {

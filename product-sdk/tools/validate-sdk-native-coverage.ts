@@ -245,7 +245,6 @@ const schemaBindings = {
   storage_provider: ["storageProvider", "STORAGE_PROVIDER_STORAGE_SCHEMA_VERSION"],
   drive: ["drive", "DRIVE_STORAGE_SCHEMA_VERSION"],
   s3: ["s3", "S3_STORAGE_SCHEMA_VERSION"],
-  transaction_storage: ["transactionStorage", "TRANSACTION_STORAGE_SCHEMA_VERSION"],
   resources: ["resources", "RESOURCES_STORAGE_SCHEMA_VERSION"],
 } as const;
 for (const [name, contract] of Object.entries(matrix.native_storage_schemas) as [keyof typeof schemaBindings, any][]) {
