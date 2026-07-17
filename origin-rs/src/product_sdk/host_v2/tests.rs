@@ -34,7 +34,7 @@ use super::{
 	},
 	generated::{
 		self, AcceptedEventV2, AcceptedState, DriveManifestV1, ErrorCode, EventV2, OperationCode,
-		ProgressEventV2, RequestV2,
+		ProgressEventV2, ProviderCapabilityV1, RequestV2, ResumeTokenV1,
 	},
 	session::{negotiate, Negotiated, NegotiationError, NegotiationOffer, Session, SessionError},
 };
@@ -61,6 +61,93 @@ fn errors() -> serde_json::Value {
 fn outbox_vectors() -> serde_json::Value {
 	serde_json::from_str(include_str!("../../../../docs/specs/host-outbox-v1.vectors.json"))
 		.expect("frozen outbox vectors are JSON")
+}
+
+fn mobile_vectors() -> serde_json::Value {
+	serde_json::from_str(include_str!(
+		"../../../../product-sdk/examples/festival/host-v2-mobile-conformance-vectors.json"
+	))
+	.expect("Festival mobile projection vectors are JSON")
+}
+
+fn mobile_tagged_value(tagged: &serde_json::Value) -> Value {
+	let tagged = tagged.as_object().expect("tagged projection is an object");
+	if let Some(value) = tagged.get("uint") {
+		return Value::Integer(
+			value
+				.as_str()
+				.expect("uint is decimal")
+				.parse::<u64>()
+				.expect("uint fits u64")
+				.into(),
+		)
+	}
+	if let Some(value) = tagged.get("bytes") {
+		return Value::Bytes(
+			hex::decode(value.as_str().expect("bytes are hexadecimal")).expect("valid hex"),
+		)
+	}
+	if let Some(value) = tagged.get("text") {
+		return Value::Text(value.as_str().expect("text is a string").into())
+	}
+	if let Some(value) = tagged.get("bool") {
+		return Value::Bool(value.as_bool().expect("bool is a boolean"))
+	}
+	if let Some(value) = tagged.get("array") {
+		return Value::Array(
+			value
+				.as_array()
+				.expect("array is an array")
+				.iter()
+				.map(mobile_tagged_value)
+				.collect(),
+		)
+	}
+	Value::Map(
+		tagged["map"]
+			.as_array()
+			.expect("map is an array")
+			.iter()
+			.map(|entry| {
+				let entry = entry.as_array().expect("map entry is a pair");
+				(
+					Value::Integer(
+						entry[0]
+							.as_str()
+							.expect("map key is decimal")
+							.parse::<u64>()
+							.expect("map key fits u64")
+							.into(),
+					),
+					mobile_tagged_value(&entry[1]),
+				)
+			})
+			.collect(),
+	)
+}
+
+fn assert_mobile_vector<P: generated::Production>(vector: &serde_json::Value) {
+	use sha2::{Digest, Sha256};
+
+	let id = vector["id"].as_str().expect("vector ID");
+	let bytes = hex::decode(vector["canonical_cbor_hex"].as_str().expect("canonical CBOR hex"))
+		.expect("canonical CBOR is hexadecimal");
+	let projected = mobile_tagged_value(&vector["projection"]);
+	let decoded = Dto::<P>::decode(&bytes).unwrap_or_else(|error| panic!("{id}: {error}"));
+	assert_eq!(decoded.canonical(), bytes, "{id}: Rust canonical bytes");
+	assert_eq!(decoded.value(), &projected, "{id}: lossless Rust projection");
+	assert_eq!(
+		Dto::<P>::from_value(projected)
+			.expect("projected value satisfies production")
+			.canonical(),
+		bytes,
+		"{id}: projected Rust bytes"
+	);
+	assert_eq!(
+		hex::encode(Sha256::digest(&bytes)),
+		vector["canonical_sha256"].as_str().expect("canonical SHA-256"),
+		"{id}: Rust canonical SHA-256"
+	);
 }
 
 fn vector(id: &str) -> Vec<u8> {
@@ -252,6 +339,26 @@ fn generated_runtime_bindings_exactly_project_all_frozen_authorities() {
 	}
 	assert!(ErrorCode::from_u16(u16::MAX).is_none());
 	assert!(OperationCode::from_u16(u16::MAX).is_none());
+}
+
+#[test]
+fn festival_mobile_projection_matches_rust_host_v2_bytes_hashes_and_values() {
+	let fixture = mobile_vectors();
+	let vectors = fixture["vectors"].as_array().expect("mobile vectors are an array");
+	assert_eq!(vectors.len(), 39);
+	for vector in vectors {
+		match vector["production"].as_str().expect("production name") {
+			"RequestV2" => assert_mobile_vector::<RequestV2>(vector),
+			"ProviderCapabilityV1" => assert_mobile_vector::<ProviderCapabilityV1>(vector),
+			"ResumeTokenV1" => assert_mobile_vector::<ResumeTokenV1>(vector),
+			"EventV2" => assert_mobile_vector::<EventV2>(vector),
+			production => panic!("unsupported mobile projection production {production}"),
+		}
+	}
+	assert_eq!(
+		fixture["excluded_legacy_surfaces"],
+		serde_json::json!(["personhood", "PeopleLite", "preimage", "TransactionStorage"]),
+	);
 }
 
 #[test]

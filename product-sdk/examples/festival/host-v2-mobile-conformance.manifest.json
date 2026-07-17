@@ -1,0 +1,33 @@
+{
+  "schema": "cord.festival.host-v2-mobile-conformance-manifest-v1",
+  "visibility": "private-test-only",
+  "off_chain_projection_only": true,
+  "production_mobile_rewrite": false,
+  "swift_sources_modified": false,
+  "kotlin_sources_modified": false,
+  "counts": {
+    "vectors": 39,
+    "storage_requests": 26,
+    "identity_requests": 7,
+    "signing_requests": 1,
+    "grant_contracts": 34,
+    "resume_tokens": 1,
+    "lifecycle_events": 3
+  },
+  "unsupported_device_capabilities": [
+    "exportable-storage-key",
+    "background-file-access",
+    "device-transaction-signer"
+  ],
+  "excluded_legacy_surfaces": [
+    "personhood",
+    "PeopleLite",
+    "preimage",
+    "TransactionStorage"
+  ],
+  "vector_sha256": "3a7764beb5a583dbeee3f82d6dfd6200c742ccb1ea39d151415e6afabe4dfc5e",
+  "source_sha256": {
+    "origin-host-registry-v2.operations.json": "a50a80ec2f4ab36785fcfbbc38b6512ca4e355e5a48a4cbe9b5083968db15aca",
+    "origin-host-registry-v2.vectors.json": "6a2be09c04d1cf006c72eeaddfe66915381bfc849216c9d91746151687afc03b"
+  }
+}
