@@ -16,17 +16,13 @@
 // You should have received a copy of the GNU General Public License
 // along with CORD. If not, see <https://www.gnu.org/licenses/>.
 
-//! Executable finalized native storage-provider, Drive and S3 event subscription.
-
+//! Executable finalized native Commons storage event subscription.
 use super::{
 	domains::{
-		storage_events::{
-			FinalizedStorageNativeEvent, FinalizedStorageNativeOutcome, StorageNativeEvent,
-			StorageNativeEventKind, StorageNativeEventSubscription,
-		},
-		storage_provider::ProviderStatus,
-		AccountId, AgreementId, BucketId, ChallengeId, ContentCommitment, DomainResult, DriveId,
-		Hash32, ObjectId, ProofCommitment,
+		storage_events::*,
+		storage_provider::{AgreementStatus, ProviderStatus},
+		AccountId, AgreementId, BucketId, ChallengeId, ContentCommitment, ContentHash,
+		DomainResult, DriveId, Hash32, ObjectId,
 	},
 	NativeError, NativeErrorCode,
 };
@@ -38,86 +34,180 @@ use futures::{Stream, StreamExt};
 use scale_decode::DecodeAsType;
 use std::{collections::VecDeque, pin::Pin};
 use subxt::{blocks::Block, events::StaticEvent, OnlineClient};
-
 type A = subxt::utils::AccountId32;
 type H = subxt::utils::H256;
 type RuntimeBlock = Block<OrbisConfig, OnlineClient<OrbisConfig>>;
 type FinalizedBlockStream =
 	Pin<Box<dyn Stream<Item = Result<RuntimeBlock, subxt::Error>> + Send + 'static>>;
-
 #[derive(DecodeAsType)]
 enum ProviderStatusWire {
 	Active,
 	Suspended,
 }
-macro_rules! wire {($name:ident,$pallet:literal,$event:literal,{$($field:ident:$ty:ty),*$(,)?})=>{
-	#[derive(DecodeAsType)] struct $name{$($field:$ty,)*}
-	impl StaticEvent for $name{const PALLET:&'static str=$pallet;const EVENT:&'static str=$event;}
-}}
+#[derive(DecodeAsType)]
+enum AgreementStatusWire {
+	Proposed,
+	Active,
+	Suspended,
+	Cancelled,
+	Expired,
+}
+#[derive(DecodeAsType)]
+enum BucketRoleWire {
+	Reader,
+	Writer,
+	Admin,
+}
+#[derive(DecodeAsType)]
+enum DriveRoleWire {
+	Reader,
+	Writer,
+	Admin,
+}
+#[derive(DecodeAsType)]
+enum CommitmentStateWire {
+	Publishable,
+	Pending,
+	Tombstoned,
+	Missing,
+}
+#[derive(DecodeAsType)]
+enum DriveNodeKindWire {
+	Directory,
+	File,
+}
+#[derive(DecodeAsType)]
+struct CommitmentWire {
+	mmr_root: H,
+	start_seq: u64,
+	leaf_count: u64,
+}
+macro_rules! wire{($name:ident,$pallet:literal,$event:literal,{$($field:ident:$ty:ty),*$(,)?})=>{#[derive(DecodeAsType)]struct $name{$($field:$ty,)*}impl StaticEvent for $name{const PALLET:&'static str=$pallet;const EVENT:&'static str=$event;}}}
 wire!(ProviderRegisteredWire,"StorageProvider","ProviderRegistered",{provider:A,capacity_bytes:u64});
 wire!(ProviderUpdatedWire,"StorageProvider","ProviderUpdated",{provider:A,capacity_bytes:u64});
 wire!(ProviderStatusChangedWire,"StorageProvider","ProviderStatusChanged",{provider:A,status:ProviderStatusWire});
 wire!(ProviderRemovedWire,"StorageProvider","ProviderRemoved",{provider:A});
 wire!(HeartbeatWire,"StorageProvider","Heartbeat",{provider:A,at:u32});
-wire!(AgreementProposedWire,"StorageProvider","AgreementProposed",{agreement_id:H,owner:A,provider:A});
-wire!(AgreementAcceptedWire,"StorageProvider","AgreementAccepted",{agreement_id:H});
-wire!(AgreementCancelledWire,"StorageProvider","AgreementCancelled",{agreement_id:H});
-wire!(AgreementRenewalRequestedWire,"StorageProvider","AgreementRenewalRequested",{agreement_id:H,expires_at:u32});
-wire!(AgreementRenewedWire,"StorageProvider","AgreementRenewed",{agreement_id:H,expires_at:u32});
-wire!(AgreementExpiredWire,"StorageProvider","AgreementExpired",{agreement_id:H});
-wire!(AgreementPrunedWire,"StorageProvider","AgreementPruned",{agreement_id:H});
-wire!(ChallengeIssuedWire,"StorageProvider","ChallengeIssued",{challenge_id:H,provider:A,due_at:u32});
-wire!(CheckpointSubmittedWire,"StorageProvider","CheckpointSubmitted",{challenge_id:H,proof_commitment:H});
-wire!(ChallengeTimedOutWire,"StorageProvider","ChallengeTimedOut",{challenge_id:H,provider:A});
-wire!(ProviderRootCommittedWire,"StorageProvider","ProviderRootCommitted",{provider:A,sequence:u64,root:H,leaf_count:u64});
-wire!(DeletionAcknowledgedWire,"StorageProvider","DeletionAcknowledged",{agreement_id:H,provider:A,content_commitment:H,tombstone_root:H,root_sequence:u64,leaf_index:u64,leaf_count:u64,proof_commitment:H});
-wire!(DriveCreatedWire,"Drive","DriveCreated",{drive_id:H,owner:A});
-wire!(DriveRootUpdatedWire,"Drive","DriveRootUpdated",{drive_id:H,version:u64});
-wire!(DriveControllerChangedWire,"Drive","ControllerChanged",{drive_id:H,controller:A,enabled:bool});
-wire!(DriveTransferredWire,"Drive","DriveTransferred",{drive_id:H,old_owner:A,new_owner:A});
-wire!(DriveArchivedWire,"Drive","DriveArchived",{drive_id:H});
-wire!(BucketCreatedWire,"S3","BucketCreated",{bucket:H,name:Vec<u8>,owner:A});
-wire!(BucketControllerChangedWire,"S3","ControllerChanged",{bucket:H,controller:A,enabled:bool,version:u64});
-wire!(BucketTransferredWire,"S3","BucketTransferred",{bucket:H,from:A,to:A,version:u64});
-wire!(BucketArchivedWire,"S3","BucketArchived",{bucket:H,archived:bool,version:u64});
-wire!(BucketVersioningChangedWire,"S3","BucketVersioningChanged",{bucket:H,enabled:bool,version:u64});
-wire!(ObjectPutWire,"S3","ObjectPut",{bucket:H,object:H,key:Vec<u8>,content_hash:[u8;32],version:u64});
-wire!(ObjectDeletedWire,"S3","ObjectDeleted",{bucket:H,object:H,key:Vec<u8>,version:u64});
-wire!(BucketDeletedWire,"S3","BucketDeleted",{bucket:H,name:Vec<u8>,owner:A});
-
-enum Wire {
-	ProviderRegistered(ProviderRegisteredWire),
-	ProviderUpdated(ProviderUpdatedWire),
-	ProviderStatusChanged(ProviderStatusChangedWire),
-	ProviderRemoved(ProviderRemovedWire),
-	Heartbeat(HeartbeatWire),
-	AgreementProposed(AgreementProposedWire),
-	AgreementAccepted(AgreementAcceptedWire),
-	AgreementCancelled(AgreementCancelledWire),
-	AgreementRenewalRequested(AgreementRenewalRequestedWire),
-	AgreementRenewed(AgreementRenewedWire),
-	AgreementExpired(AgreementExpiredWire),
-	AgreementPruned(AgreementPrunedWire),
-	ChallengeIssued(ChallengeIssuedWire),
-	CheckpointSubmitted(CheckpointSubmittedWire),
-	ChallengeTimedOut(ChallengeTimedOutWire),
-	ProviderRootCommitted(ProviderRootCommittedWire),
-	DeletionAcknowledged(DeletionAcknowledgedWire),
-	DriveCreated(DriveCreatedWire),
-	DriveRootUpdated(DriveRootUpdatedWire),
-	DriveControllerChanged(DriveControllerChangedWire),
-	DriveTransferred(DriveTransferredWire),
-	DriveArchived(DriveArchivedWire),
-	BucketCreated(BucketCreatedWire),
-	BucketControllerChanged(BucketControllerChangedWire),
-	BucketTransferred(BucketTransferredWire),
-	BucketArchived(BucketArchivedWire),
-	BucketVersioningChanged(BucketVersioningChangedWire),
-	ObjectPut(ObjectPutWire),
-	ObjectDeleted(ObjectDeletedWire),
-	BucketDeleted(BucketDeletedWire),
-}
-
+wire!(StorageBucketCreatedWire,"StorageProvider","BucketCreated",{bucket_id:H,owner:A,primary:A,replicas:Vec<A>,version:u64});
+wire!(StorageBucketGrantChangedWire,"StorageProvider","BucketGrantChanged",{bucket_id:H,account:A,role:Option<BucketRoleWire>,previous_version:u64,new_version:u64});
+wire!(AgreementTransitionedWire,"StorageProvider","AgreementTransitioned",{agreement_id:H,previous:Option<AgreementStatusWire>,current:AgreementStatusWire,previous_version:u64,new_version:u64});
+wire!(AgreementCapacityReleasedWire,"StorageProvider","AgreementCapacityReleased",{agreement_id:H});
+wire!(AgreementProviderReboundWire,"StorageProvider","AgreementProviderRebound",{agreement_id:H,old_provider:A,new_provider:A,status:AgreementStatusWire,bytes:u64});
+wire!(ChallengeIssuedWire,"StorageProvider","ChallengeIssued",{challenge_id:H,bucket_id:H,provider:A,due_at:u32});
+wire!(ChallengeProvedWire,"StorageProvider","ChallengeProved",{challenge_id:H,provider:A});
+wire!(ChallengeTimedOutWire,"StorageProvider","ChallengeTimedOut",{challenge_id:H,provider:A,checkpoint:u32});
+wire!(CheckpointAcceptedWire,"StorageProvider","CheckpointAccepted",{bucket_id:H,commitment:CommitmentWire,checkpoint:u32,replica_confirmations:Vec<A>});
+wire!(CheckpointEquivocationWire,"StorageProvider","CheckpointEquivocation",{code:u16,bucket_id:H,provider:A,accepted_root:H,conflicting_root:H,nonce:u32});
+wire!(ReplicaSelectedWire,"StorageProvider","ReplicaSelected",{bucket_id:H,provider:A,checkpoint:u32});
+wire!(PrimaryPromotedWire,"StorageProvider","PrimaryPromoted",{bucket_id:H,old_provider:A,new_provider:A,checkpoint:u32});
+wire!(BucketReplicaReplacedWire,"StorageProvider","BucketReplicaReplaced",{bucket_id:H,old_provider:A,new_provider:A,previous_version:u64,new_version:u64});
+wire!(ManifestCommitmentChangedWire,"StorageProvider","ManifestCommitmentChanged",{manifest:[u8;32],bucket_id:H,state:CommitmentStateWire,checkpoint:Option<u32>});
+wire!(ManifestDeletionAcknowledgedWire,"StorageProvider","ManifestDeletionAcknowledged",{manifest:[u8;32],bucket_id:H,provider:A,evidence_hash:H,acknowledged_at:u32});
+wire!(DriveCreatedWire,"Drive","DriveCreated",{drive_id:H,owner:A,version:u64});
+wire!(DriveRootUpdatedWire,"Drive","DriveRootUpdated",{drive_id:H,previous_root:Option<[u8;32]>,new_root:[u8;32],previous_version:u64,version:u64});
+wire!(DriveGrantChangedWire,"Drive","GrantChanged",{drive_id:H,subject:A,role:Option<DriveRoleWire>,previous_version:u64,version:u64});
+wire!(DriveTransferredWire,"Drive","DriveTransferred",{drive_id:H,old_owner:A,new_owner:A,previous_version:u64,version:u64});
+wire!(DriveArchivedWire,"Drive","DriveArchived",{drive_id:H,previous_version:u64,version:u64});
+wire!(DriveNodeWrittenWire,"Drive","NodeWritten",{drive_id:H,path:Vec<u8>,kind:DriveNodeKindWire,previous_version:u64,version:u64});
+wire!(DriveNodeRemovedWire,"Drive","NodeRemoved",{drive_id:H,path:Vec<u8>,previous_version:u64,version:u64});
+wire!(S3BucketCreatedWire,"S3","BucketCreated",{bucket:H,name:Vec<u8>,owner:A});
+wire!(S3ControllerChangedWire,"S3","ControllerChanged",{bucket:H,controller:A,enabled:bool,version:u64});
+wire!(S3BucketTransferredWire,"S3","BucketTransferred",{bucket:H,from:A,to:A,version:u64});
+wire!(S3BucketArchivedWire,"S3","BucketArchived",{bucket:H,archived:bool,version:u64});
+wire!(S3BucketVersioningChangedWire,"S3","BucketVersioningChanged",{bucket:H,enabled:bool,version:u64});
+wire!(S3ObjectPutWire,"S3","ObjectPut",{bucket:H,object:H,key:Vec<u8>,content_hash:[u8;32],version:u64});
+wire!(S3ObjectDeletedWire,"S3","ObjectDeleted",{bucket:H,object:H,key:Vec<u8>,version:u64});
+wire!(S3ObjectPurgedWire,"S3","ObjectPurged",{bucket:H,key:Vec<u8>});
+wire!(S3BucketDeletedWire,"S3","BucketDeleted",{bucket:H,name:Vec<u8>,owner:A});
+wire!(S3ObjectHistoryPrunedWire,"S3","ObjectHistoryPruned",{bucket:H,key:Vec<u8>,through_version:u64,removed:u32});
+#[cfg(test)]
+const CURATED_EVENT_VARIANTS: [(&str, &str); 37] = [
+	(
+		<ProviderRegisteredWire as StaticEvent>::PALLET,
+		<ProviderRegisteredWire as StaticEvent>::EVENT,
+	),
+	(<ProviderUpdatedWire as StaticEvent>::PALLET, <ProviderUpdatedWire as StaticEvent>::EVENT),
+	(
+		<ProviderStatusChangedWire as StaticEvent>::PALLET,
+		<ProviderStatusChangedWire as StaticEvent>::EVENT,
+	),
+	(<ProviderRemovedWire as StaticEvent>::PALLET, <ProviderRemovedWire as StaticEvent>::EVENT),
+	(<HeartbeatWire as StaticEvent>::PALLET, <HeartbeatWire as StaticEvent>::EVENT),
+	(
+		<StorageBucketCreatedWire as StaticEvent>::PALLET,
+		<StorageBucketCreatedWire as StaticEvent>::EVENT,
+	),
+	(
+		<StorageBucketGrantChangedWire as StaticEvent>::PALLET,
+		<StorageBucketGrantChangedWire as StaticEvent>::EVENT,
+	),
+	(
+		<AgreementTransitionedWire as StaticEvent>::PALLET,
+		<AgreementTransitionedWire as StaticEvent>::EVENT,
+	),
+	(
+		<AgreementCapacityReleasedWire as StaticEvent>::PALLET,
+		<AgreementCapacityReleasedWire as StaticEvent>::EVENT,
+	),
+	(
+		<AgreementProviderReboundWire as StaticEvent>::PALLET,
+		<AgreementProviderReboundWire as StaticEvent>::EVENT,
+	),
+	(<ChallengeIssuedWire as StaticEvent>::PALLET, <ChallengeIssuedWire as StaticEvent>::EVENT),
+	(<ChallengeProvedWire as StaticEvent>::PALLET, <ChallengeProvedWire as StaticEvent>::EVENT),
+	(<ChallengeTimedOutWire as StaticEvent>::PALLET, <ChallengeTimedOutWire as StaticEvent>::EVENT),
+	(
+		<CheckpointAcceptedWire as StaticEvent>::PALLET,
+		<CheckpointAcceptedWire as StaticEvent>::EVENT,
+	),
+	(
+		<CheckpointEquivocationWire as StaticEvent>::PALLET,
+		<CheckpointEquivocationWire as StaticEvent>::EVENT,
+	),
+	(<ReplicaSelectedWire as StaticEvent>::PALLET, <ReplicaSelectedWire as StaticEvent>::EVENT),
+	(<PrimaryPromotedWire as StaticEvent>::PALLET, <PrimaryPromotedWire as StaticEvent>::EVENT),
+	(
+		<BucketReplicaReplacedWire as StaticEvent>::PALLET,
+		<BucketReplicaReplacedWire as StaticEvent>::EVENT,
+	),
+	(
+		<ManifestCommitmentChangedWire as StaticEvent>::PALLET,
+		<ManifestCommitmentChangedWire as StaticEvent>::EVENT,
+	),
+	(
+		<ManifestDeletionAcknowledgedWire as StaticEvent>::PALLET,
+		<ManifestDeletionAcknowledgedWire as StaticEvent>::EVENT,
+	),
+	(<DriveCreatedWire as StaticEvent>::PALLET, <DriveCreatedWire as StaticEvent>::EVENT),
+	(<DriveRootUpdatedWire as StaticEvent>::PALLET, <DriveRootUpdatedWire as StaticEvent>::EVENT),
+	(<DriveGrantChangedWire as StaticEvent>::PALLET, <DriveGrantChangedWire as StaticEvent>::EVENT),
+	(<DriveTransferredWire as StaticEvent>::PALLET, <DriveTransferredWire as StaticEvent>::EVENT),
+	(<DriveArchivedWire as StaticEvent>::PALLET, <DriveArchivedWire as StaticEvent>::EVENT),
+	(<DriveNodeWrittenWire as StaticEvent>::PALLET, <DriveNodeWrittenWire as StaticEvent>::EVENT),
+	(<DriveNodeRemovedWire as StaticEvent>::PALLET, <DriveNodeRemovedWire as StaticEvent>::EVENT),
+	(<S3BucketCreatedWire as StaticEvent>::PALLET, <S3BucketCreatedWire as StaticEvent>::EVENT),
+	(
+		<S3ControllerChangedWire as StaticEvent>::PALLET,
+		<S3ControllerChangedWire as StaticEvent>::EVENT,
+	),
+	(
+		<S3BucketTransferredWire as StaticEvent>::PALLET,
+		<S3BucketTransferredWire as StaticEvent>::EVENT,
+	),
+	(<S3BucketArchivedWire as StaticEvent>::PALLET, <S3BucketArchivedWire as StaticEvent>::EVENT),
+	(
+		<S3BucketVersioningChangedWire as StaticEvent>::PALLET,
+		<S3BucketVersioningChangedWire as StaticEvent>::EVENT,
+	),
+	(<S3ObjectPutWire as StaticEvent>::PALLET, <S3ObjectPutWire as StaticEvent>::EVENT),
+	(<S3ObjectDeletedWire as StaticEvent>::PALLET, <S3ObjectDeletedWire as StaticEvent>::EVENT),
+	(<S3ObjectPurgedWire as StaticEvent>::PALLET, <S3ObjectPurgedWire as StaticEvent>::EVENT),
+	(<S3BucketDeletedWire as StaticEvent>::PALLET, <S3BucketDeletedWire as StaticEvent>::EVENT),
+	(
+		<S3ObjectHistoryPrunedWire as StaticEvent>::PALLET,
+		<S3ObjectHistoryPrunedWire as StaticEvent>::EVENT,
+	),
+];
 pub struct OrbisStorageEventSubscription {
 	blocks: FinalizedBlockStream,
 	kinds: Vec<StorageNativeEventKind>,
@@ -153,6 +243,9 @@ impl OrbisStorageEventSubscription {
 				if !matches!(details.pallet_name(), "StorageProvider" | "Drive" | "S3") {
 					continue;
 				}
+				if is_known_unexposed(details.pallet_name(), details.variant_name()) {
+					continue;
+				}
 				let event = decode_event(&details)?;
 				if self.kinds.contains(&event.kind()) {
 					let outcome = event.outcome();
@@ -163,13 +256,32 @@ impl OrbisStorageEventSubscription {
 							event,
 						},
 						outcome,
-					});
+					})
 				}
 			}
 		}
 	}
 }
-
+fn is_known_unexposed(p: &str, e: &str) -> bool {
+	p == "StorageProvider"
+		&& matches!(
+			e,
+			"ServiceKeyRotationScheduled"
+				| "ServiceKeyRotated"
+				| "ProviderOrganizationRotated"
+				| "ProviderAuthorityRefreshed"
+				| "BucketAuthorityRefreshed"
+				| "BucketReconciliationDeferred"
+				| "FinalizedCheckpointAdvanced"
+				| "HostDelegationCreated"
+				| "HostDelegationKeyRotated"
+				| "HostDelegationRevoked"
+				| "ChallengeEvidenceOverflowed"
+				| "EvidenceRecorded"
+				| "ProviderIneligible"
+				| "CheckpointFallbackPromotionPendingQuorum"
+		)
+}
 fn decode_event(d: &subxt::events::EventDetails<OrbisConfig>) -> DomainResult<StorageNativeEvent> {
 	macro_rules! dec {
 		($t:ty) => {
@@ -181,220 +293,384 @@ fn decode_event(d: &subxt::events::EventDetails<OrbisConfig>) -> DomainResult<St
 			})?
 		};
 	}
-	let w = match (d.pallet_name(), d.variant_name()) {
+	Ok(match (d.pallet_name(), d.variant_name()) {
 		("StorageProvider", "ProviderRegistered") => {
-			Wire::ProviderRegistered(dec!(ProviderRegisteredWire))
+			let x = dec!(ProviderRegisteredWire);
+			StorageNativeEvent::ProviderRegistered {
+				provider: account(&x.provider)?,
+				capacity_bytes: x.capacity_bytes,
+			}
 		},
-		("StorageProvider", "ProviderUpdated") => Wire::ProviderUpdated(dec!(ProviderUpdatedWire)),
+		("StorageProvider", "ProviderUpdated") => {
+			let x = dec!(ProviderUpdatedWire);
+			StorageNativeEvent::ProviderUpdated {
+				provider: account(&x.provider)?,
+				capacity_bytes: x.capacity_bytes,
+			}
+		},
 		("StorageProvider", "ProviderStatusChanged") => {
-			Wire::ProviderStatusChanged(dec!(ProviderStatusChangedWire))
+			let x = dec!(ProviderStatusChangedWire);
+			StorageNativeEvent::ProviderStatusChanged {
+				provider: account(&x.provider)?,
+				status: provider_status(x.status),
+			}
 		},
-		("StorageProvider", "ProviderRemoved") => Wire::ProviderRemoved(dec!(ProviderRemovedWire)),
-		("StorageProvider", "Heartbeat") => Wire::Heartbeat(dec!(HeartbeatWire)),
-		("StorageProvider", "AgreementProposed") => {
-			Wire::AgreementProposed(dec!(AgreementProposedWire))
+		("StorageProvider", "ProviderRemoved") => {
+			let x = dec!(ProviderRemovedWire);
+			StorageNativeEvent::ProviderRemoved { provider: account(&x.provider)? }
 		},
-		("StorageProvider", "AgreementAccepted") => {
-			Wire::AgreementAccepted(dec!(AgreementAcceptedWire))
+		("StorageProvider", "Heartbeat") => {
+			let x = dec!(HeartbeatWire);
+			StorageNativeEvent::Heartbeat { provider: account(&x.provider)?, at: x.at }
 		},
-		("StorageProvider", "AgreementCancelled") => {
-			Wire::AgreementCancelled(dec!(AgreementCancelledWire))
+		("StorageProvider", "BucketCreated") => {
+			let x = dec!(StorageBucketCreatedWire);
+			StorageNativeEvent::StorageBucketCreated {
+				bucket: BucketId(hash(x.bucket_id)),
+				owner: account(&x.owner)?,
+				primary: account(&x.primary)?,
+				replicas: accounts(x.replicas)?,
+				version: x.version,
+			}
 		},
-		("StorageProvider", "AgreementRenewalRequested") => {
-			Wire::AgreementRenewalRequested(dec!(AgreementRenewalRequestedWire))
+		("StorageProvider", "BucketGrantChanged") => {
+			let x = dec!(StorageBucketGrantChangedWire);
+			StorageNativeEvent::StorageBucketGrantChanged {
+				bucket: BucketId(hash(x.bucket_id)),
+				account: account(&x.account)?,
+				role: x.role.map(bucket_role),
+				previous_version: x.previous_version,
+				new_version: x.new_version,
+			}
 		},
-		("StorageProvider", "AgreementRenewed") => {
-			Wire::AgreementRenewed(dec!(AgreementRenewedWire))
+		("StorageProvider", "AgreementTransitioned") => {
+			let x = dec!(AgreementTransitionedWire);
+			StorageNativeEvent::AgreementTransitioned {
+				agreement: AgreementId(hash(x.agreement_id)),
+				previous: x.previous.map(agreement_status),
+				current: agreement_status(x.current),
+				previous_version: x.previous_version,
+				new_version: x.new_version,
+			}
 		},
-		("StorageProvider", "AgreementExpired") => {
-			Wire::AgreementExpired(dec!(AgreementExpiredWire))
+		("StorageProvider", "AgreementCapacityReleased") => {
+			let x = dec!(AgreementCapacityReleasedWire);
+			StorageNativeEvent::AgreementCapacityReleased {
+				agreement: AgreementId(hash(x.agreement_id)),
+			}
 		},
-		("StorageProvider", "AgreementPruned") => Wire::AgreementPruned(dec!(AgreementPrunedWire)),
-		("StorageProvider", "ChallengeIssued") => Wire::ChallengeIssued(dec!(ChallengeIssuedWire)),
-		("StorageProvider", "CheckpointSubmitted") => {
-			Wire::CheckpointSubmitted(dec!(CheckpointSubmittedWire))
+		("StorageProvider", "AgreementProviderRebound") => {
+			let x = dec!(AgreementProviderReboundWire);
+			StorageNativeEvent::AgreementProviderRebound {
+				agreement: AgreementId(hash(x.agreement_id)),
+				old_provider: account(&x.old_provider)?,
+				new_provider: account(&x.new_provider)?,
+				status: agreement_status(x.status),
+				bytes: x.bytes,
+			}
+		},
+		("StorageProvider", "ChallengeIssued") => {
+			let x = dec!(ChallengeIssuedWire);
+			StorageNativeEvent::ChallengeIssued {
+				challenge: ChallengeId(hash(x.challenge_id)),
+				bucket: BucketId(hash(x.bucket_id)),
+				provider: account(&x.provider)?,
+				due_at: x.due_at,
+			}
+		},
+		("StorageProvider", "ChallengeProved") => {
+			let x = dec!(ChallengeProvedWire);
+			StorageNativeEvent::ChallengeProved {
+				challenge: ChallengeId(hash(x.challenge_id)),
+				provider: account(&x.provider)?,
+			}
 		},
 		("StorageProvider", "ChallengeTimedOut") => {
-			Wire::ChallengeTimedOut(dec!(ChallengeTimedOutWire))
+			let x = dec!(ChallengeTimedOutWire);
+			StorageNativeEvent::ChallengeTimedOut {
+				challenge: ChallengeId(hash(x.challenge_id)),
+				provider: account(&x.provider)?,
+				checkpoint: x.checkpoint,
+			}
 		},
-		("StorageProvider", "ProviderRootCommitted") => {
-			Wire::ProviderRootCommitted(dec!(ProviderRootCommittedWire))
+		("StorageProvider", "CheckpointAccepted") => {
+			let x = dec!(CheckpointAcceptedWire);
+			StorageNativeEvent::CheckpointAccepted {
+				bucket: BucketId(hash(x.bucket_id)),
+				commitment: CheckpointCommitment {
+					mmr_root: ContentCommitment(hash(x.commitment.mmr_root)),
+					start_seq: x.commitment.start_seq,
+					leaf_count: x.commitment.leaf_count,
+				},
+				checkpoint: x.checkpoint,
+				replica_confirmations: accounts(x.replica_confirmations)?,
+			}
 		},
-		("StorageProvider", "DeletionAcknowledged") => {
-			Wire::DeletionAcknowledged(dec!(DeletionAcknowledgedWire))
+		("StorageProvider", "CheckpointEquivocation") => {
+			let x = dec!(CheckpointEquivocationWire);
+			StorageNativeEvent::CheckpointEquivocation {
+				code: x.code,
+				bucket: BucketId(hash(x.bucket_id)),
+				provider: account(&x.provider)?,
+				accepted_root: ContentCommitment(hash(x.accepted_root)),
+				conflicting_root: ContentCommitment(hash(x.conflicting_root)),
+				nonce: x.nonce,
+			}
 		},
-		("Drive", "DriveCreated") => Wire::DriveCreated(dec!(DriveCreatedWire)),
-		("Drive", "DriveRootUpdated") => Wire::DriveRootUpdated(dec!(DriveRootUpdatedWire)),
-		("Drive", "ControllerChanged") => {
-			Wire::DriveControllerChanged(dec!(DriveControllerChangedWire))
+		("StorageProvider", "ReplicaSelected") => {
+			let x = dec!(ReplicaSelectedWire);
+			StorageNativeEvent::ReplicaSelected {
+				bucket: BucketId(hash(x.bucket_id)),
+				provider: account(&x.provider)?,
+				checkpoint: x.checkpoint,
+			}
 		},
-		("Drive", "DriveTransferred") => Wire::DriveTransferred(dec!(DriveTransferredWire)),
-		("Drive", "DriveArchived") => Wire::DriveArchived(dec!(DriveArchivedWire)),
-		("S3", "BucketCreated") => Wire::BucketCreated(dec!(BucketCreatedWire)),
+		("StorageProvider", "PrimaryPromoted") => {
+			let x = dec!(PrimaryPromotedWire);
+			StorageNativeEvent::PrimaryPromoted {
+				bucket: BucketId(hash(x.bucket_id)),
+				old_provider: account(&x.old_provider)?,
+				new_provider: account(&x.new_provider)?,
+				checkpoint: x.checkpoint,
+			}
+		},
+		("StorageProvider", "BucketReplicaReplaced") => {
+			let x = dec!(BucketReplicaReplacedWire);
+			StorageNativeEvent::BucketReplicaReplaced {
+				bucket: BucketId(hash(x.bucket_id)),
+				old_provider: account(&x.old_provider)?,
+				new_provider: account(&x.new_provider)?,
+				previous_version: x.previous_version,
+				new_version: x.new_version,
+			}
+		},
+		("StorageProvider", "ManifestCommitmentChanged") => {
+			let x = dec!(ManifestCommitmentChangedWire);
+			StorageNativeEvent::ManifestCommitmentChanged {
+				manifest: ContentCommitment(Hash32::from_bytes(x.manifest)),
+				bucket: BucketId(hash(x.bucket_id)),
+				state: commitment_state(x.state),
+				checkpoint: x.checkpoint,
+			}
+		},
+		("StorageProvider", "ManifestDeletionAcknowledged") => {
+			let x = dec!(ManifestDeletionAcknowledgedWire);
+			StorageNativeEvent::ManifestDeletionAcknowledged {
+				manifest: ContentCommitment(Hash32::from_bytes(x.manifest)),
+				bucket: BucketId(hash(x.bucket_id)),
+				provider: account(&x.provider)?,
+				evidence_hash: ContentCommitment(hash(x.evidence_hash)),
+				acknowledged_at: x.acknowledged_at,
+			}
+		},
+		("Drive", "DriveCreated") => {
+			let x = dec!(DriveCreatedWire);
+			StorageNativeEvent::DriveCreated {
+				drive: DriveId(hash(x.drive_id)),
+				owner: account(&x.owner)?,
+				version: x.version,
+			}
+		},
+		("Drive", "DriveRootUpdated") => {
+			let x = dec!(DriveRootUpdatedWire);
+			StorageNativeEvent::DriveRootUpdated {
+				drive: DriveId(hash(x.drive_id)),
+				previous_root: x.previous_root.map(|v| ContentCommitment(Hash32::from_bytes(v))),
+				new_root: ContentCommitment(Hash32::from_bytes(x.new_root)),
+				previous_version: x.previous_version,
+				version: x.version,
+			}
+		},
+		("Drive", "GrantChanged") => {
+			let x = dec!(DriveGrantChangedWire);
+			StorageNativeEvent::DriveGrantChanged {
+				drive: DriveId(hash(x.drive_id)),
+				subject: account(&x.subject)?,
+				role: x.role.map(drive_role),
+				previous_version: x.previous_version,
+				version: x.version,
+			}
+		},
+		("Drive", "DriveTransferred") => {
+			let x = dec!(DriveTransferredWire);
+			StorageNativeEvent::DriveTransferred {
+				drive: DriveId(hash(x.drive_id)),
+				old_owner: account(&x.old_owner)?,
+				new_owner: account(&x.new_owner)?,
+				previous_version: x.previous_version,
+				version: x.version,
+			}
+		},
+		("Drive", "DriveArchived") => {
+			let x = dec!(DriveArchivedWire);
+			StorageNativeEvent::DriveArchived {
+				drive: DriveId(hash(x.drive_id)),
+				previous_version: x.previous_version,
+				version: x.version,
+			}
+		},
+		("Drive", "NodeWritten") => {
+			let x = dec!(DriveNodeWrittenWire);
+			StorageNativeEvent::DriveNodeWritten {
+				drive: DriveId(hash(x.drive_id)),
+				path: x.path,
+				kind: drive_node_kind(x.kind),
+				previous_version: x.previous_version,
+				version: x.version,
+			}
+		},
+		("Drive", "NodeRemoved") => {
+			let x = dec!(DriveNodeRemovedWire);
+			StorageNativeEvent::DriveNodeRemoved {
+				drive: DriveId(hash(x.drive_id)),
+				path: x.path,
+				previous_version: x.previous_version,
+				version: x.version,
+			}
+		},
+		("S3", "BucketCreated") => {
+			let x = dec!(S3BucketCreatedWire);
+			StorageNativeEvent::S3BucketCreated {
+				bucket: BucketId(hash(x.bucket)),
+				name: x.name,
+				owner: account(&x.owner)?,
+			}
+		},
 		("S3", "ControllerChanged") => {
-			Wire::BucketControllerChanged(dec!(BucketControllerChangedWire))
+			let x = dec!(S3ControllerChangedWire);
+			StorageNativeEvent::S3ControllerChanged {
+				bucket: BucketId(hash(x.bucket)),
+				controller: account(&x.controller)?,
+				enabled: x.enabled,
+				version: x.version,
+			}
 		},
-		("S3", "BucketTransferred") => Wire::BucketTransferred(dec!(BucketTransferredWire)),
-		("S3", "BucketArchived") => Wire::BucketArchived(dec!(BucketArchivedWire)),
+		("S3", "BucketTransferred") => {
+			let x = dec!(S3BucketTransferredWire);
+			StorageNativeEvent::S3BucketTransferred {
+				bucket: BucketId(hash(x.bucket)),
+				from: account(&x.from)?,
+				to: account(&x.to)?,
+				version: x.version,
+			}
+		},
+		("S3", "BucketArchived") => {
+			let x = dec!(S3BucketArchivedWire);
+			StorageNativeEvent::S3BucketArchived {
+				bucket: BucketId(hash(x.bucket)),
+				archived: x.archived,
+				version: x.version,
+			}
+		},
 		("S3", "BucketVersioningChanged") => {
-			Wire::BucketVersioningChanged(dec!(BucketVersioningChangedWire))
+			let x = dec!(S3BucketVersioningChangedWire);
+			StorageNativeEvent::S3BucketVersioningChanged {
+				bucket: BucketId(hash(x.bucket)),
+				enabled: x.enabled,
+				version: x.version,
+			}
 		},
-		("S3", "ObjectPut") => Wire::ObjectPut(dec!(ObjectPutWire)),
-		("S3", "ObjectDeleted") => Wire::ObjectDeleted(dec!(ObjectDeletedWire)),
-		("S3", "BucketDeleted") => Wire::BucketDeleted(dec!(BucketDeletedWire)),
+		("S3", "ObjectPut") => {
+			let x = dec!(S3ObjectPutWire);
+			StorageNativeEvent::S3ObjectPut {
+				bucket: BucketId(hash(x.bucket)),
+				object: ObjectId(hash(x.object)),
+				key: x.key,
+				content_hash: ContentHash(Hash32::from_bytes(x.content_hash)),
+				version: x.version,
+			}
+		},
+		("S3", "ObjectDeleted") => {
+			let x = dec!(S3ObjectDeletedWire);
+			StorageNativeEvent::S3ObjectDeleted {
+				bucket: BucketId(hash(x.bucket)),
+				object: ObjectId(hash(x.object)),
+				key: x.key,
+				version: x.version,
+			}
+		},
+		("S3", "ObjectPurged") => {
+			let x = dec!(S3ObjectPurgedWire);
+			StorageNativeEvent::S3ObjectPurged { bucket: BucketId(hash(x.bucket)), key: x.key }
+		},
+		("S3", "BucketDeleted") => {
+			let x = dec!(S3BucketDeletedWire);
+			StorageNativeEvent::S3BucketDeleted {
+				bucket: BucketId(hash(x.bucket)),
+				name: x.name,
+				owner: account(&x.owner)?,
+			}
+		},
+		("S3", "ObjectHistoryPruned") => {
+			let x = dec!(S3ObjectHistoryPrunedWire);
+			StorageNativeEvent::S3ObjectHistoryPruned {
+				bucket: BucketId(hash(x.bucket)),
+				key: x.key,
+				through_version: x.through_version,
+				removed: x.removed,
+			}
+		},
 		_ => {
 			return Err(NativeError::new(
 				NativeErrorCode::UnsupportedRuntime,
 				"unknown native storage/provider event",
 			))
 		},
-	};
-	decode_wire(w)
-}
-fn decode_wire(w: Wire) -> DomainResult<StorageNativeEvent> {
-	Ok(match w {
-		Wire::ProviderRegistered(x) => StorageNativeEvent::ProviderRegistered {
-			provider: account(&x.provider)?,
-			capacity_bytes: x.capacity_bytes,
-		},
-		Wire::ProviderUpdated(x) => StorageNativeEvent::ProviderUpdated {
-			provider: account(&x.provider)?,
-			capacity_bytes: x.capacity_bytes,
-		},
-		Wire::ProviderStatusChanged(x) => StorageNativeEvent::ProviderStatusChanged {
-			provider: account(&x.provider)?,
-			status: match x.status {
-				ProviderStatusWire::Active => ProviderStatus::Active,
-				ProviderStatusWire::Suspended => ProviderStatus::Suspended,
-			},
-		},
-		Wire::ProviderRemoved(x) => {
-			StorageNativeEvent::ProviderRemoved { provider: account(&x.provider)? }
-		},
-		Wire::Heartbeat(x) => {
-			StorageNativeEvent::Heartbeat { provider: account(&x.provider)?, at: x.at }
-		},
-		Wire::AgreementProposed(x) => StorageNativeEvent::AgreementProposed {
-			agreement: AgreementId(hash(x.agreement_id)),
-			owner: account(&x.owner)?,
-			provider: account(&x.provider)?,
-		},
-		Wire::AgreementAccepted(x) => {
-			StorageNativeEvent::AgreementAccepted { agreement: AgreementId(hash(x.agreement_id)) }
-		},
-		Wire::AgreementCancelled(x) => {
-			StorageNativeEvent::AgreementCancelled { agreement: AgreementId(hash(x.agreement_id)) }
-		},
-		Wire::AgreementRenewalRequested(x) => StorageNativeEvent::AgreementRenewalRequested {
-			agreement: AgreementId(hash(x.agreement_id)),
-			expires_at: x.expires_at,
-		},
-		Wire::AgreementRenewed(x) => StorageNativeEvent::AgreementRenewed {
-			agreement: AgreementId(hash(x.agreement_id)),
-			expires_at: x.expires_at,
-		},
-		Wire::AgreementExpired(x) => {
-			StorageNativeEvent::AgreementExpired { agreement: AgreementId(hash(x.agreement_id)) }
-		},
-		Wire::AgreementPruned(x) => {
-			StorageNativeEvent::AgreementPruned { agreement: AgreementId(hash(x.agreement_id)) }
-		},
-		Wire::ChallengeIssued(x) => StorageNativeEvent::ChallengeIssued {
-			challenge: ChallengeId(hash(x.challenge_id)),
-			provider: account(&x.provider)?,
-			due_at: x.due_at,
-		},
-		Wire::CheckpointSubmitted(x) => StorageNativeEvent::CheckpointSubmitted {
-			challenge: ChallengeId(hash(x.challenge_id)),
-			proof_commitment: ProofCommitment(hash(x.proof_commitment)),
-		},
-		Wire::ChallengeTimedOut(x) => StorageNativeEvent::ChallengeTimedOut {
-			challenge: ChallengeId(hash(x.challenge_id)),
-			provider: account(&x.provider)?,
-		},
-		Wire::ProviderRootCommitted(x) => StorageNativeEvent::ProviderRootCommitted {
-			provider: account(&x.provider)?,
-			sequence: x.sequence,
-			root: ProofCommitment(hash(x.root)),
-			leaf_count: x.leaf_count,
-		},
-		Wire::DeletionAcknowledged(x) => StorageNativeEvent::DeletionAcknowledged {
-			agreement: AgreementId(hash(x.agreement_id)),
-			provider: account(&x.provider)?,
-			content_commitment: ContentCommitment(hash(x.content_commitment)),
-			tombstone_root: ProofCommitment(hash(x.tombstone_root)),
-			root_sequence: x.root_sequence,
-			leaf_index: x.leaf_index,
-			leaf_count: x.leaf_count,
-			proof_commitment: ProofCommitment(hash(x.proof_commitment)),
-		},
-		Wire::DriveCreated(x) => StorageNativeEvent::DriveCreated {
-			drive: DriveId(hash(x.drive_id)),
-			owner: account(&x.owner)?,
-		},
-		Wire::DriveRootUpdated(x) => StorageNativeEvent::DriveRootUpdated {
-			drive: DriveId(hash(x.drive_id)),
-			version: x.version,
-		},
-		Wire::DriveControllerChanged(x) => StorageNativeEvent::DriveControllerChanged {
-			drive: DriveId(hash(x.drive_id)),
-			controller: account(&x.controller)?,
-			enabled: x.enabled,
-		},
-		Wire::DriveTransferred(x) => StorageNativeEvent::DriveTransferred {
-			drive: DriveId(hash(x.drive_id)),
-			old_owner: account(&x.old_owner)?,
-			new_owner: account(&x.new_owner)?,
-		},
-		Wire::DriveArchived(x) => {
-			StorageNativeEvent::DriveArchived { drive: DriveId(hash(x.drive_id)) }
-		},
-		Wire::BucketCreated(x) => StorageNativeEvent::BucketCreated {
-			bucket: BucketId(hash(x.bucket)),
-			name: x.name,
-			owner: account(&x.owner)?,
-		},
-		Wire::BucketControllerChanged(x) => StorageNativeEvent::BucketControllerChanged {
-			bucket: BucketId(hash(x.bucket)),
-			controller: account(&x.controller)?,
-			enabled: x.enabled,
-			version: x.version,
-		},
-		Wire::BucketTransferred(x) => StorageNativeEvent::BucketTransferred {
-			bucket: BucketId(hash(x.bucket)),
-			from: account(&x.from)?,
-			to: account(&x.to)?,
-			version: x.version,
-		},
-		Wire::BucketArchived(x) => StorageNativeEvent::BucketArchived {
-			bucket: BucketId(hash(x.bucket)),
-			archived: x.archived,
-			version: x.version,
-		},
-		Wire::BucketVersioningChanged(x) => StorageNativeEvent::BucketVersioningChanged {
-			bucket: BucketId(hash(x.bucket)),
-			enabled: x.enabled,
-			version: x.version,
-		},
-		Wire::ObjectPut(x) => StorageNativeEvent::ObjectPut {
-			bucket: BucketId(hash(x.bucket)),
-			object: ObjectId(hash(x.object)),
-			key: x.key,
-			content_commitment: ContentCommitment(Hash32::from_bytes(x.content_hash)),
-			version: x.version,
-		},
-		Wire::ObjectDeleted(x) => StorageNativeEvent::ObjectDeleted {
-			bucket: BucketId(hash(x.bucket)),
-			object: ObjectId(hash(x.object)),
-			key: x.key,
-			version: x.version,
-		},
-		Wire::BucketDeleted(x) => StorageNativeEvent::BucketDeleted {
-			bucket: BucketId(hash(x.bucket)),
-			name: x.name,
-			owner: account(&x.owner)?,
-		},
 	})
+}
+fn provider_status(v: ProviderStatusWire) -> ProviderStatus {
+	match v {
+		ProviderStatusWire::Active => ProviderStatus::Active,
+		ProviderStatusWire::Suspended => ProviderStatus::Suspended,
+	}
+}
+fn agreement_status(v: AgreementStatusWire) -> AgreementStatus {
+	match v {
+		AgreementStatusWire::Proposed => AgreementStatus::Proposed,
+		AgreementStatusWire::Active => AgreementStatus::Active,
+		AgreementStatusWire::Suspended => AgreementStatus::Suspended,
+		AgreementStatusWire::Cancelled => AgreementStatus::Cancelled,
+		AgreementStatusWire::Expired => AgreementStatus::Expired,
+	}
+}
+fn bucket_role(v: BucketRoleWire) -> BucketRole {
+	match v {
+		BucketRoleWire::Reader => BucketRole::Reader,
+		BucketRoleWire::Writer => BucketRole::Writer,
+		BucketRoleWire::Admin => BucketRole::Admin,
+	}
+}
+fn drive_role(v: DriveRoleWire) -> DriveRole {
+	match v {
+		DriveRoleWire::Reader => DriveRole::Reader,
+		DriveRoleWire::Writer => DriveRole::Writer,
+		DriveRoleWire::Admin => DriveRole::Admin,
+	}
+}
+fn commitment_state(v: CommitmentStateWire) -> CommitmentState {
+	match v {
+		CommitmentStateWire::Publishable => CommitmentState::Publishable,
+		CommitmentStateWire::Pending => CommitmentState::Pending,
+		CommitmentStateWire::Tombstoned => CommitmentState::Tombstoned,
+		CommitmentStateWire::Missing => CommitmentState::Missing,
+	}
+}
+fn drive_node_kind(v: DriveNodeKindWire) -> DriveNodeKind {
+	match v {
+		DriveNodeKindWire::Directory => DriveNodeKind::Directory,
+		DriveNodeKindWire::File => DriveNodeKind::File,
+	}
+}
+fn accounts(v: Vec<A>) -> DomainResult<Vec<AccountId>> {
+	let decoded = v.iter().map(account).collect::<DomainResult<Vec<_>>>()?;
+	let unique = decoded.iter().collect::<std::collections::HashSet<_>>();
+	if unique.len() != decoded.len() {
+		return Err(NativeError::new(
+			NativeErrorCode::InvalidInput,
+			"storage event contains duplicate accounts",
+		));
+	}
+	Ok(decoded)
 }
 fn hash(v: H) -> Hash32 {
 	Hash32::from_bytes(*v.as_fixed_bytes())
@@ -413,184 +689,73 @@ fn runtime_hash(v: &Hash32) -> DomainResult<H> {
 fn subscription_error(e: impl core::fmt::Display) -> NativeError {
 	NativeError::new(NativeErrorCode::ContentUnavailable, e.to_string()).retryable()
 }
-
 #[cfg(test)]
 mod tests {
 	use super::*;
-	fn bytes32(value: &str) -> [u8; 32] {
-		hex::decode(value.strip_prefix("0x").unwrap()).unwrap().try_into().unwrap()
-	}
-	fn h(n: u8) -> H {
-		H::from([n; 32])
-	}
-	fn a(n: u8) -> A {
-		A::from([n; 32])
+	#[test]
+	fn curated_surface_has_37_exact_unique_variants_and_kinds() {
+		assert_eq!(
+			CURATED_EVENT_VARIANTS,
+			[
+				("StorageProvider", "ProviderRegistered"),
+				("StorageProvider", "ProviderUpdated"),
+				("StorageProvider", "ProviderStatusChanged"),
+				("StorageProvider", "ProviderRemoved"),
+				("StorageProvider", "Heartbeat"),
+				("StorageProvider", "BucketCreated"),
+				("StorageProvider", "BucketGrantChanged"),
+				("StorageProvider", "AgreementTransitioned"),
+				("StorageProvider", "AgreementCapacityReleased"),
+				("StorageProvider", "AgreementProviderRebound"),
+				("StorageProvider", "ChallengeIssued"),
+				("StorageProvider", "ChallengeProved"),
+				("StorageProvider", "ChallengeTimedOut"),
+				("StorageProvider", "CheckpointAccepted"),
+				("StorageProvider", "CheckpointEquivocation"),
+				("StorageProvider", "ReplicaSelected"),
+				("StorageProvider", "PrimaryPromoted"),
+				("StorageProvider", "BucketReplicaReplaced"),
+				("StorageProvider", "ManifestCommitmentChanged"),
+				("StorageProvider", "ManifestDeletionAcknowledged"),
+				("Drive", "DriveCreated"),
+				("Drive", "DriveRootUpdated"),
+				("Drive", "GrantChanged"),
+				("Drive", "DriveTransferred"),
+				("Drive", "DriveArchived"),
+				("Drive", "NodeWritten"),
+				("Drive", "NodeRemoved"),
+				("S3", "BucketCreated"),
+				("S3", "ControllerChanged"),
+				("S3", "BucketTransferred"),
+				("S3", "BucketArchived"),
+				("S3", "BucketVersioningChanged"),
+				("S3", "ObjectPut"),
+				("S3", "ObjectDeleted"),
+				("S3", "ObjectPurged"),
+				("S3", "BucketDeleted"),
+				("S3", "ObjectHistoryPruned")
+			]
+		);
+		assert_eq!(
+			CURATED_EVENT_VARIANTS.iter().collect::<std::collections::HashSet<_>>().len(),
+			37
+		);
+		assert_eq!(
+			ALL_STORAGE_NATIVE_EVENT_KINDS
+				.iter()
+				.collect::<std::collections::HashSet<_>>()
+				.len(),
+			37
+		);
 	}
 	#[test]
-	fn every_native_variant_decodes_to_a_distinct_kind_and_outcome() {
-		let wires = vec![
-			Wire::ProviderRegistered(ProviderRegisteredWire { provider: a(1), capacity_bytes: 2 }),
-			Wire::ProviderUpdated(ProviderUpdatedWire { provider: a(1), capacity_bytes: 3 }),
-			Wire::ProviderStatusChanged(ProviderStatusChangedWire {
-				provider: a(1),
-				status: ProviderStatusWire::Active,
-			}),
-			Wire::ProviderRemoved(ProviderRemovedWire { provider: a(1) }),
-			Wire::Heartbeat(HeartbeatWire { provider: a(1), at: 2 }),
-			Wire::AgreementProposed(AgreementProposedWire {
-				agreement_id: h(2),
-				owner: a(2),
-				provider: a(1),
-			}),
-			Wire::AgreementAccepted(AgreementAcceptedWire { agreement_id: h(2) }),
-			Wire::AgreementCancelled(AgreementCancelledWire { agreement_id: h(2) }),
-			Wire::AgreementRenewalRequested(AgreementRenewalRequestedWire {
-				agreement_id: h(2),
-				expires_at: 3,
-			}),
-			Wire::AgreementRenewed(AgreementRenewedWire { agreement_id: h(2), expires_at: 4 }),
-			Wire::AgreementExpired(AgreementExpiredWire { agreement_id: h(2) }),
-			Wire::AgreementPruned(AgreementPrunedWire { agreement_id: h(2) }),
-			Wire::ChallengeIssued(ChallengeIssuedWire {
-				challenge_id: h(3),
-				provider: a(1),
-				due_at: 4,
-			}),
-			Wire::CheckpointSubmitted(CheckpointSubmittedWire {
-				challenge_id: h(3),
-				proof_commitment: h(4),
-			}),
-			Wire::ChallengeTimedOut(ChallengeTimedOutWire { challenge_id: h(3), provider: a(1) }),
-			Wire::ProviderRootCommitted(ProviderRootCommittedWire {
-				provider: a(1),
-				sequence: 2,
-				root: h(4),
-				leaf_count: 2,
-			}),
-			Wire::DeletionAcknowledged(DeletionAcknowledgedWire {
-				agreement_id: h(2),
-				provider: a(1),
-				content_commitment: h(5),
-				tombstone_root: h(6),
-				root_sequence: 2,
-				leaf_index: 1,
-				leaf_count: 2,
-				proof_commitment: h(7),
-			}),
-			Wire::DriveCreated(DriveCreatedWire { drive_id: h(8), owner: a(2) }),
-			Wire::DriveRootUpdated(DriveRootUpdatedWire { drive_id: h(8), version: 2 }),
-			Wire::DriveControllerChanged(DriveControllerChangedWire {
-				drive_id: h(8),
-				controller: a(3),
-				enabled: true,
-			}),
-			Wire::DriveTransferred(DriveTransferredWire {
-				drive_id: h(8),
-				old_owner: a(2),
-				new_owner: a(3),
-			}),
-			Wire::DriveArchived(DriveArchivedWire { drive_id: h(8) }),
-			Wire::BucketCreated(BucketCreatedWire {
-				bucket: h(9),
-				name: b"b".to_vec(),
-				owner: a(2),
-			}),
-			Wire::BucketControllerChanged(BucketControllerChangedWire {
-				bucket: h(9),
-				controller: a(3),
-				enabled: true,
-				version: 2,
-			}),
-			Wire::BucketTransferred(BucketTransferredWire {
-				bucket: h(9),
-				from: a(2),
-				to: a(3),
-				version: 3,
-			}),
-			Wire::BucketArchived(BucketArchivedWire { bucket: h(9), archived: true, version: 4 }),
-			Wire::BucketVersioningChanged(BucketVersioningChangedWire {
-				bucket: h(9),
-				enabled: true,
-				version: 5,
-			}),
-			Wire::ObjectPut(ObjectPutWire {
-				bucket: h(9),
-				object: h(10),
-				key: b"k".to_vec(),
-				content_hash: [11; 32],
-				version: 1,
-			}),
-			Wire::ObjectDeleted(ObjectDeletedWire {
-				bucket: h(9),
-				object: h(10),
-				key: b"k".to_vec(),
-				version: 2,
-			}),
-			Wire::BucketDeleted(BucketDeletedWire {
-				bucket: h(9),
-				name: b"b".to_vec(),
-				owner: a(3),
-			}),
-		];
-		let mut kinds = std::collections::HashSet::new();
-		for w in wires {
-			let event = decode_wire(w).unwrap();
-			assert!(kinds.insert(event.kind()));
-			let _ = event.outcome();
-		}
-		assert_eq!(kinds.len(), 30);
+	fn known_unexposed_are_ignored_but_future_events_are_not() {
+		assert!(is_known_unexposed("StorageProvider", "ServiceKeyRotated"));
+		assert!(!is_known_unexposed("StorageProvider", "FutureEvent"));
+		assert!(!is_known_unexposed("Drive", "ServiceKeyRotated"));
 	}
-
 	#[test]
-	fn shared_storage_provider_vector_matches_rust_native_events() {
-		let vector: serde_json::Value = serde_json::from_str(include_str!(
-			"../../../docs/sdk/vectors/storage-provider-deletion-v1.json"
-		))
-		.unwrap();
-		let input = &vector["input"];
-		let expected = &vector["expected"];
-		let sequence = input["leaf_count"].as_str().unwrap().parse::<u64>().unwrap();
-		let provider = A::from(bytes32(input["provider_account_id32"].as_str().unwrap()));
-		let root = expected["tombstone_root"].as_str().unwrap();
-
-		let committed = decode_wire(Wire::ProviderRootCommitted(ProviderRootCommittedWire {
-			provider: provider.clone(),
-			sequence,
-			root: H::from(bytes32(root)),
-			leaf_count: sequence,
-		}))
-		.unwrap();
-		match committed {
-			StorageNativeEvent::ProviderRootCommitted { root: actual, leaf_count, .. } => {
-				assert_eq!(actual.as_hash().as_str(), root);
-				assert_eq!(leaf_count, sequence);
-			},
-			_ => panic!("unexpected storage provider event"),
-		}
-
-		let acknowledged = decode_wire(Wire::DeletionAcknowledged(DeletionAcknowledgedWire {
-			agreement_id: H::from(bytes32(input["agreement_id"].as_str().unwrap())),
-			provider,
-			content_commitment: H::from(bytes32(input["content_commitment"].as_str().unwrap())),
-			tombstone_root: H::from(bytes32(root)),
-			root_sequence: sequence,
-			leaf_index: input["leaf_index"].as_str().unwrap().parse().unwrap(),
-			leaf_count: sequence,
-			proof_commitment: H::from([13; 32]),
-		}))
-		.unwrap();
-		match acknowledged {
-			StorageNativeEvent::DeletionAcknowledged {
-				tombstone_root,
-				leaf_index,
-				leaf_count,
-				..
-			} => {
-				assert_eq!(tombstone_root.as_hash().as_str(), root);
-				assert_eq!(leaf_index, 1);
-				assert_eq!(leaf_count, sequence);
-			},
-			_ => panic!("unexpected deletion acknowledgement"),
-		}
+	fn duplicate_replica_accounts_fail_closed() {
+		assert!(accounts(vec![A::from([1; 32]), A::from([1; 32])]).is_err());
 	}
 }
