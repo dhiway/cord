@@ -23,7 +23,7 @@ import { spawnSync } from "node:child_process";
 
 const sdkRoot = resolve(import.meta.dirname, "..");
 const consumer = mkdtempSync(resolve(tmpdir(), "cord-origin-sdk-consumer-"));
-const packages = ["result", "errors", "descriptors", "host", "chain-client", "signer", "tx", "identity", "personhood", "resources", "attestation", "crypto", "names", "statement-store", "cloud-storage", "assets", "local-storage", ""];
+const packages = ["result", "errors", "descriptors", "host", "chain-client", "signer", "tx", "identity", "personhood", "resources", "attestation", "crypto", "names", "statement-store", "cloud-storage", "apps", "assets", "local-storage", ""];
 const run = (command: string, args: string[], cwd = consumer): string => {
   const result = spawnSync(command, args, { cwd, encoding: "utf8" });
   if (result.status !== 0) {
@@ -59,13 +59,14 @@ import { accountId, createIdentityClient } from "@cord-network/origin-sdk-identi
 import { blake2b256 } from "@cord-network/origin-sdk-crypto";
 import { normalizedLabel } from "@cord-network/origin-sdk-names";
 import { digestContent, storageRequests } from "@cord-network/origin-sdk-cloud-storage";
+import { ORIGIN_APP_MANIFEST_VERSION } from "@cord-network/origin-sdk-apps";
 import { assetId, assetWrites, balance, commonsAsset, paymentOptions } from "@cord-network/origin-sdk-assets";
 import { createLocalStorage, utf8Codec } from "@cord-network/origin-sdk-local-storage";
 import { ORIGIN_APP_CONTRACT } from "@cord-network/origin-sdk";
 const hash = "0x" + "11".repeat(32), txHash = "0x" + "22".repeat(32);
 const packedAsset = assetWrites.transfer(assetId(7), accountId("5Packed"), balance(9));
 const packedPayment = paymentOptions(commonsAsset(assetId(7)));
-if (ORIGIN_APP_CONTRACT.contractsIncluded !== false || blake2b256(new Uint8Array()).length !== 32 || normalizedLabel("packed-app") !== "packed-app" || digestContent("blake2b-256", new Uint8Array()).length !== 32 || storageRequests.store("YQ==").method !== "store" || packedAsset.target !== "Assets.transfer" || packedPayment.feeAsset?.parents !== 0) throw new Error("packed crypto/names/storage/assets surface failed");
+if (ORIGIN_APP_CONTRACT.contractsIncluded !== false || ORIGIN_APP_MANIFEST_VERSION !== 1 || blake2b256(new Uint8Array()).length !== 32 || normalizedLabel("packed-app") !== "packed-app" || digestContent("blake2b-256", new Uint8Array()).length !== 32 || storageRequests.store("YQ==").method !== "store" || packedAsset.target !== "Assets.transfer" || packedPayment.feeAsset?.parents !== 0) throw new Error("packed apps/crypto/names/storage/assets surface failed");
 const identity = {
   genesis_hash: COMMONS_NETWORK_BINDING.genesis_hash,
   spec_version: COMMONS_NETWORK_BINDING.spec_version,
@@ -95,9 +96,77 @@ const transaction = { async *signSubmitAndWatch(activeSigner) { const signed = a
 const receipt = await submitAndFinalize(transaction, signer);
 if (!receipt.success || receipt.value.transactionHash !== txHash) throw new Error("packed signed transaction failed");
 `);
+  writeFileSync(resolve(consumer, "private-policy.mjs"), `
+const entrypoints = [
+  "@cord-network/origin-sdk-host",
+  "@cord-network/origin-sdk-cloud-storage",
+  "@cord-network/origin-sdk-identity",
+  "@cord-network/origin-sdk-apps",
+  "@cord-network/origin-sdk-descriptors",
+  "@cord-network/origin-sdk",
+];
+const forbidden = [
+  "@cord-network/origin-sdk-host/v2",
+  "@cord-network/origin-sdk-host/internal/v2",
+  "@cord-network/origin-sdk-host/internal/v2/browser",
+  "@cord-network/origin-sdk-cloud-storage/v2",
+  "@cord-network/origin-sdk-cloud-storage/internal/storage-v2-codec",
+  "@cord-network/origin-sdk-cloud-storage/internal/storage-v2-intents",
+  "@cord-network/origin-sdk-identity/v2",
+  "@cord-network/origin-sdk-identity/internal/v2",
+  "@cord-network/origin-sdk-apps/v2",
+  "@cord-network/origin-sdk-apps/internal/v2",
+  "@cord-network/origin-sdk-descriptors/host-v2",
+  "@cord-network/origin-sdk-descriptors/internal/host-v2-descriptor",
+  "@cord-network/origin-sdk/v2",
+  "@cord-network/origin-sdk/internal/v2",
+];
+for (const specifier of forbidden) {
+  try {
+    await import(specifier);
+    throw new Error(\`private subpath became importable: \${specifier}\`);
+  } catch (error) {
+    if (error instanceof Error && error.message.startsWith("private subpath became importable")) throw error;
+    if (error?.code !== "ERR_PACKAGE_PATH_NOT_EXPORTED") {
+      throw new Error(\`private subpath did not fail through the package export boundary: \${specifier}: \${error?.code ?? error}\`);
+    }
+  }
+}
+for (const specifier of entrypoints) {
+  const publicSurface = await import(specifier);
+  const leaked = Object.keys(publicSurface).filter((name) => /v2/i.test(name));
+  if (leaked.length > 0) throw new Error(\`private v2 runtime symbols leaked from \${specifier}: \${leaked.join(", ")}\`);
+}
+`);
   run("npm", ["install", "--ignore-scripts", "--no-audit", "--no-fund"]);
   run("node", ["index.mjs"]);
-  process.stdout.write(`PASS packed consumer: packages=${packages.length}\n`);
+  run("node", ["private-policy.mjs"]);
+
+  const allowedExports: Readonly<Record<string, readonly string[]>> = {
+    "@cord-network/origin-sdk-host": [".", "./testing"],
+    "@cord-network/origin-sdk-cloud-storage": ["."],
+    "@cord-network/origin-sdk-identity": ["."],
+    "@cord-network/origin-sdk-apps": ["."],
+    "@cord-network/origin-sdk-descriptors": [".", "./commons"],
+    "@cord-network/origin-sdk": [".", "./testing"],
+  };
+  for (const [name, expected] of Object.entries(allowedExports)) {
+    const packageRoot = resolve(consumer, "node_modules", ...name.split("/"));
+    const manifest = JSON.parse(readFileSync(resolve(packageRoot, "package.json"), "utf8"));
+    const actual = Object.keys(manifest.exports ?? {}).sort();
+    if (JSON.stringify(actual) !== JSON.stringify([...expected].sort())) {
+      throw new Error(`${name} exports changed: expected ${expected.join(", ")}; got ${actual.join(", ")}`);
+    }
+    const declarations = readFileSync(resolve(packageRoot, "dist/index.d.ts"), "utf8");
+    if (/\b[A-Za-z][A-Za-z0-9_]*V2[A-Za-z0-9_]*\b|\/internal\/|(?:^|["'])\.\/v2(?:["']|$)/m.test(declarations)) {
+      throw new Error(`${name} root declarations leak a private v2 symbol or path`);
+    }
+  }
+  const umbrella = JSON.parse(readFileSync(resolve(consumer, "node_modules/@cord-network/origin-sdk/package.json"), "utf8"));
+  if (umbrella.dependencies?.["@cord-network/origin-sdk-apps"] !== "0.1.0") {
+    throw new Error("packed umbrella does not retain its exact origin-sdk-apps dependency");
+  }
+  process.stdout.write(`PASS packed consumer and private-v2 export policy: packages=${packages.length} forbidden=${14}\n`);
 } finally {
   rmSync(consumer, { recursive: true, force: true });
 }

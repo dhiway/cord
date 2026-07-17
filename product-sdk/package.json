@@ -30,6 +30,7 @@
     "version-packages": "changeset version",
     "check:packages": "node --experimental-strip-types tools/check-package-contract.ts",
     "test:packed": "npm run build && node --experimental-strip-types tools/test-packed-consumer.ts",
+    "test:private-v2": "node --experimental-strip-types tools/test-private-v2-conformance.ts",
     "check:domains": "node --experimental-strip-types --input-type=module -e \"import('./src/index.ts')\"",
     "generate:routes": "node --experimental-strip-types tools/generate-route-contract.ts",
     "check:routes": "node --experimental-strip-types tools/generate-route-contract.ts --check",
