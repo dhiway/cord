@@ -31,11 +31,17 @@ const AUTHORITY_BLOCKS = 128n; const RECOVERY_BLOCKS = 256n; const MAX_RECOVERY_
 const PROVIDER_BYTE_OPERATION_CODES = new Set([1010, 1011, 1012, 1014]);
 
 export interface BrowserOutboxEncryptedRow { readonly id: string; readonly keyVersion: number; readonly ciphertext: Uint8Array }
+export interface StrictBrowserOutboxTransactionV1 {
+  readonly expected: Readonly<Record<string, BrowserOutboxEncryptedRow | null>>;
+  readonly puts: readonly BrowserOutboxEncryptedRow[];
+  readonly deletes: readonly string[];
+}
 export interface StrictBrowserOutboxBackend {
   load(): Promise<readonly BrowserOutboxEncryptedRow[]>;
   putStrict(row: BrowserOutboxEncryptedRow): Promise<void>;
   deleteStrict(id: string): Promise<void>;
   quarantineStrict(row: BrowserOutboxEncryptedRow): Promise<void>;
+  transactStrict(transaction: StrictBrowserOutboxTransactionV1): Promise<void>;
 }
 export class BrowserOutboxError extends Error {
   readonly code: "HOST_OUTBOX_UNAVAILABLE" | "HOST_OUTBOX_FULL" | "HOST_OUTBOX_CORRUPT" | "HOST_OUTBOX_EXPIRED" | "HOST_OUTBOX_STATE_INVALID" | "HOST_OUTBOX_BINDING_INVALID";
@@ -79,10 +85,25 @@ export class StrictIndexedDbOutboxBackend implements StrictBrowserOutboxBackend 
     const transaction = this.#database.transaction([this.#records, this.#quarantine], "readwrite", { durability: "strict" });
     transaction.objectStore(this.#quarantine).put(copyRow(row)); transaction.objectStore(this.#records).delete(row.id); await transactionComplete(transaction);
   }
+  async transactStrict(input: StrictBrowserOutboxTransactionV1): Promise<void> {
+    const transaction = this.#database.transaction(this.#records, "readwrite", { durability: "strict" });
+    const store = transaction.objectStore(this.#records);
+    for (const [id, expected] of Object.entries(input.expected)) {
+      const current = await requestResult<BrowserOutboxEncryptedRow | undefined>(store.get(id));
+      if (!sameOptionalRow(current, expected)) { transaction.abort(); throw new Error("strict IndexedDB compare-and-swap failed"); }
+    }
+    for (const row of input.puts) store.put(copyRow(row));
+    for (const id of input.deletes) store.delete(id);
+    await transactionComplete(transaction);
+  }
 }
 function requestResult<T>(request: IDBRequest<T>): Promise<T> { return new Promise((resolve, reject) => { request.onsuccess = () => resolve(request.result); request.onerror = () => reject(request.error ?? new Error("IndexedDB request failed")); }); }
 function transactionComplete(transaction: IDBTransaction): Promise<void> { return new Promise((resolve, reject) => { transaction.oncomplete = () => resolve(); transaction.onabort = () => reject(transaction.error ?? new Error("strict IndexedDB transaction aborted")); transaction.onerror = () => reject(transaction.error ?? new Error("strict IndexedDB transaction failed")); }); }
 function copyRow(row: BrowserOutboxEncryptedRow): BrowserOutboxEncryptedRow { return { id: row.id, keyVersion: row.keyVersion, ciphertext: row.ciphertext.slice() }; }
+function sameOptionalRow(left: BrowserOutboxEncryptedRow | undefined, right: BrowserOutboxEncryptedRow | null): boolean {
+  if (!left || !right) return left === undefined && right === null;
+  return left.id === right.id && left.keyVersion === right.keyVersion && equal(left.ciphertext, right.ciphertext);
+}
 
 export class BrowserHostOutboxV1 {
   readonly #backend: StrictBrowserOutboxBackend; readonly #crypto: BrowserXChaCha20Poly1305;

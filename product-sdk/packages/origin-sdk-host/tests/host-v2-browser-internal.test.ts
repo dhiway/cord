@@ -24,7 +24,7 @@ import test from "node:test";
 import { DurableBrowserHostV2 } from "../src/internal/v2/browser-durable.ts";
 import {
   BrowserHostOutboxV1, BrowserOutboxError, providerAckConfirmationMessage,
-  type BrowserOutboxEncryptedRow, type StrictBrowserOutboxBackend,
+  type BrowserOutboxEncryptedRow, type StrictBrowserOutboxBackend, type StrictBrowserOutboxTransactionV1,
 } from "../src/internal/v2/browser-outbox.ts";
 import { BrowserHostOutboxKeyRingV1, BrowserXChaCha20Poly1305, type BrowserHostOutboxContextV1 } from "../src/internal/v2/browser-crypto.ts";
 import { BROWSER_HOST_V2_WINDOW, BrowserHostV2Transport, BrowserHostV2TransportError, type BrowserHostV2Peer } from "../src/internal/v2/browser.ts";
@@ -106,6 +106,16 @@ class StrictMemoryBackend implements StrictBrowserOutboxBackend {
   async putStrict(row: BrowserOutboxEncryptedRow) { this.putStarts += 1; if (this.putDelayMs > 0) await new Promise((resolve) => setTimeout(resolve, this.putDelayMs)); if (this.failBeforeCommit) { this.failBeforeCommit = false; throw new Error("abort"); } this.records.set(row.id, copyRow(row)); this.strictCommits += 1; if (this.failAfterCommit) { this.failAfterCommit = false; throw new Error("after commit"); } }
   async deleteStrict(id: string) { this.records.delete(id); this.strictCommits += 1; }
   async quarantineStrict(row: BrowserOutboxEncryptedRow) { this.quarantine.set(row.id, copyRow(row)); this.records.delete(row.id); this.strictCommits += 1; }
+  async transactStrict(input: StrictBrowserOutboxTransactionV1) {
+    for (const [id, expected] of Object.entries(input.expected)) {
+      const current = this.records.get(id);
+      const same = expected === null ? current === undefined : current !== undefined && current.keyVersion === expected.keyVersion && equal(current.ciphertext, expected.ciphertext);
+      if (!same) throw new Error("compare-and-swap failed");
+    }
+    for (const row of input.puts) this.records.set(row.id, copyRow(row));
+    for (const id of input.deletes) this.records.delete(id);
+    this.strictCommits += 1;
+  }
 }
 function copyRow(row: BrowserOutboxEncryptedRow): BrowserOutboxEncryptedRow { return { id: row.id, keyVersion: row.keyVersion, ciphertext: row.ciphertext.slice() }; }
 function nonceSource() { let counter = 0; return (length: number): Uint8Array => { const value = new Uint8Array(length); value.fill(0x80); value[length - 1] = counter++; return value; }; }
@@ -134,6 +144,18 @@ async function signConfirmation(privateKey: CryptoKey, outbox: BrowserHostOutbox
   const message = providerAckConfirmationMessage(outbox.contextBinding, outboxId, responseHash);
   return new Uint8Array(await globalThis.crypto.subtle.sign("Ed25519", privateKey, message));
 }
+
+test("strict browser backend transaction atomically compares, replaces, and creates records", async () => {
+  const backend = new StrictMemoryBackend(); const first = { id: "first", keyVersion: 1, ciphertext: Uint8Array.of(1) };
+  await backend.putStrict(first);
+  await backend.transactStrict({
+    expected: { first, second: null },
+    puts: [{ id: "first", keyVersion: 1, ciphertext: Uint8Array.of(2) }, { id: "second", keyVersion: 1, ciphertext: Uint8Array.of(3) }], deletes: [],
+  });
+  assert.deepEqual(backend.records.get("first")?.ciphertext, Uint8Array.of(2)); assert.ok(backend.records.has("second"));
+  await assert.rejects(backend.transactStrict({ expected: { first }, puts: [], deletes: ["second"] }), /compare-and-swap/);
+  assert.ok(backend.records.has("second"), "failed CAS partially deleted a record");
+});
 
 test("authenticated MessagePort negotiation owns the remote offer and pending operations fail closed", async () => {
   const connected = await transports();
