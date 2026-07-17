@@ -2002,18 +2002,21 @@ fn validate_scheduler(state: &SchedulerStateV1) -> Result<(), ContentError> {
 
 fn install_prepared_scheduler(root: &Path, bytes: &[u8]) -> Result<(), ContentError> {
 	let temp = root.join(format!("{SCHEDULER}.tmp-{}", std::process::id()));
+	let mut owns_temp = false;
 	let result = (|| {
 		let mut file = fs::OpenOptions::new()
 			.create_new(true)
 			.write(true)
 			.open(&temp)
 			.map_err(io_error)?;
+		owns_temp = true;
 		file.write_all(bytes).map_err(io_error)?;
 		file.sync_all().map_err(io_error)?;
 		fs::rename(&temp, root.join(SCHEDULER)).map_err(io_error)?;
+		owns_temp = false;
 		sync_dir(root)
 	})();
-	if result.is_err() {
+	if result.is_err() && owns_temp {
 		let _ = fs::remove_file(&temp);
 		let _ = sync_dir(root);
 	}
@@ -2067,6 +2070,21 @@ mod tests {
 		assert!(reopened.scheduler_install.is_none());
 		assert_eq!(reopened.durable_bytes, durable_bytes);
 		drop(reopened.apply().unwrap());
+	}
+
+	#[test]
+	fn prepared_scheduler_install_preserves_create_new_collision() {
+		let temp = tempfile::tempdir().unwrap();
+		let root = temp.path().join(ROOT);
+		fs::create_dir(&root).unwrap();
+
+		let prepared = ReplicationIntentStore::prepare_open(temp.path()).unwrap();
+		let collision = root.join(format!("{SCHEDULER}.tmp-{}", std::process::id()));
+		fs::write(&collision, b"racing writer").unwrap();
+
+		assert!(matches!(prepared.apply(), Err(ContentError::Io(_))));
+		assert_eq!(fs::read(collision).unwrap(), b"racing writer");
+		assert!(!root.join(SCHEDULER).exists());
 	}
 
 	fn bytes32(value: u16, salt: u8) -> [u8; 32] {
