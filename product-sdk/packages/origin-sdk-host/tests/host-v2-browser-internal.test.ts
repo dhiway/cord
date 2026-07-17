@@ -222,6 +222,7 @@ test("acknowledged resume successor survives crashes and advances generation and
   assert.deepEqual(await outbox.prepareSuccessor(prepared.outboxId, { entry: successor }), resumed, "exact replay was not idempotent");
   outbox = await openOutbox(backend, pair.host, keyring(), random);
   assert.deepEqual(outbox.retry(resumed.outboxId, 200n), resumed); assert.equal(backend.records.size, 2, "acknowledged predecessor was discarded");
+  assert.deepEqual(outbox.linkedSuccessor(prepared.outboxId, 200n), resumed, "post-commit restart lost its exact linked successor handle");
 
   const changed = await successorEntry(entry, token, 2, 0x68);
   await assert.rejects(outbox.prepareSuccessor(prepared.outboxId, { entry: changed }), (error) => error instanceof BrowserOutboxError && error.code === "HOST_OUTBOX_STATE_INVALID");
@@ -700,6 +701,22 @@ test("concrete Commons bridge publishes and resolves through exact native finali
     `read:${finalized99}:StorageProviderApi.canonical_manifest`,
     `read:${finalized99}:StorageProviderApi.checkpoint`,
   ]);
+  const callCount = calls.length;
+  for (const nonCanonicalCid of [
+    `B${cid.slice(1).toUpperCase()}`,
+    (() => {
+      const alphabet = "123456789ABCDEFGHJKLMNPQRSTUVWXYZabcdefghijkmnopqrstuvwxyz";
+      const cidBytes = Uint8Array.from([1, 0x55, 0xa0, 0xe4, 0x02, 32, ...digest]);
+      let value = 0n; for (const byte of cidBytes) value = value * 256n + BigInt(byte);
+      let encoded = ""; while (value > 0n) { encoded = alphabet[Number(value % 58n)] + encoded; value /= 58n; }
+      return `z${encoded}`;
+    })(),
+  ]) {
+    const hostile = decodeHostV2("RequestV2", bytes(publishVector.wire_hex)).value as any;
+    hostile[8][1] = nonCanonicalCid;
+    assert.equal((await router.invoke("storage.publish", encodeHostV2("RequestV2", hostile))).error?.code, 204);
+  }
+  assert.equal(calls.length, callCount, "non-canonical CIDs reached the runtime transport");
 });
 
 test("real provider MessagePorts accept exactly the four provider-byte operations", async () => {
@@ -759,25 +776,55 @@ test("storage resume validates exact ResumeToken and refuses unsafe intent repla
   });
   const storage = new PrivateDurableBrowserStorageV2(router); const execution = storage.start({} as any);
   const token = bytes(protocol.vectors.find((candidate: any) => candidate.id === "provider-resume-v1").canonical_cbor_hex);
-  await assert.rejects(async () => { for await (const _event of execution.resume({ kind: "provider-token", token })) void _event; }, /exact live successor/);
+  await assert.rejects(async () => { for await (const _event of execution.resume({ kind: "provider-token", token })) void _event; }, /cannot recover an exact durable continuation/);
 });
 
-test("StorageV2Execution.resume consumes only its exact live provider continuation", async () => {
+test("StorageV2Execution.resume retains its exact continuation across failure after durable successor send", async () => {
   const frame = decodeHostV2("RequestV2", bytes(frozen.vectors.find((candidate: any) => candidate.id === "1010-positive").wire_hex)).value as any;
   const token = bytes(protocol.vectors.find((candidate: any) => candidate.id === "provider-resume-v1").canonical_cbor_hex);
   const continuation = { operation: "storage.object.put", request: encodeHostV2("RequestV2", frame), token, predecessorOutboxId: new Uint8Array(16).fill(1), cursor: 1, hostKeyId: new Uint8Array(32).fill(2) } as const;
   let resumed = 0; const provider = {
     async invoke(_operation: any, _request: any, _upload: any, _signal: any, onEvent: any) { onEvent?.(accepted(frame[1])); return { continuation }; },
-    async resume(exact: any, _signal: any, onEvent: any) { assert.equal(exact, continuation); resumed += 1; onEvent?.(encodeHostV2Value({ 0: 2, 1: frame[1], 2: 1, 3: 3, 4: { 0: 108, 1: "REQUEST_NOT_FOUND", 2: false, 3: {} } })); return { error: { code: 108, name: "REQUEST_NOT_FOUND", retryable: false } }; },
+    async resume(exact: any, _signal: any, onEvent: any) {
+      assert.equal(exact, continuation); resumed += 1;
+      if (resumed === 1) throw new Error("failure after durable successor send");
+      onEvent?.(encodeHostV2Value({ 0: 2, 1: frame[1], 2: 1, 3: 3, 4: { 0: 108, 1: "REQUEST_NOT_FOUND", 2: false, 3: {} } }));
+      return { error: { code: 108, name: "REQUEST_NOT_FOUND", retryable: false } };
+    },
   };
   const unreachable = { async finalizedAuthority() { throw new Error("unreachable"); }, async *dispatch() { throw new Error("unreachable"); } };
   const storage = new PrivateDurableBrowserStorageV2(new PrivateOriginBrowserRouterV2({ provider, commons: unreachable, keystore: unreachable, identityRuntime: unreachable, identityHost: unreachable, signing: unreachable }));
   const intent = { protocol: "cord.origin.host/2", major: 2, minor: 0, registrySha256: "d17c24596fbae30c300d57ae8e51bc0c7b149ab2e91c2b9c751bedd3fbc1eeba", requestId: frame[1], productId: frame[2], operation: "storage.object.put", code: 1010, grantId: frame[4], operationId: frame[5], deadlineBlock: BigInt(frame[7]), payload: { bucketId: frame[8][0], cid: frame[8][1], length: BigInt(frame[8][2]), encrypted: frame[8][3], transferId: frame[8][4] } } as any;
   const execution = storage.start(intent); const initial: any[] = []; for await (const event of execution.events) initial.push(event); assert.equal(initial[0].kind, "accepted");
   await assert.rejects(async () => { for await (const _event of execution.resume({ kind: "provider-token", token: Uint8Array.of(1) })) void _event; }, /exact live successor/);
+  await assert.rejects(async () => { for await (const _event of execution.resume({ kind: "provider-token", token })) void _event; }, /failure after durable successor send/);
   const resumedEvents: any[] = []; for await (const event of execution.resume({ kind: "provider-token", token })) resumedEvents.push(event);
-  assert.equal(resumed, 1); assert.equal(resumedEvents[0].kind, "error");
-  await assert.rejects(async () => { for await (const _event of execution.resume({ kind: "provider-token", token })) void _event; }, /exact live successor/);
+  assert.equal(resumed, 2); assert.equal(resumedEvents[0].kind, "error");
+  await assert.rejects(async () => { for await (const _event of execution.resume({ kind: "provider-token", token })) void _event; }, /cannot recover an exact durable continuation/);
+});
+
+test("StorageV2Execution.resume recovers an exact continuation after public storage reopen", async () => {
+  const frame = decodeHostV2("RequestV2", bytes(frozen.vectors.find((candidate: any) => candidate.id === "1010-positive").wire_hex)).value as any;
+  const token = bytes(protocol.vectors.find((candidate: any) => candidate.id === "provider-resume-v1").canonical_cbor_hex);
+  const continuation = { operation: "storage.object.put", request: encodeHostV2("RequestV2", frame), token, predecessorOutboxId: new Uint8Array(16).fill(3), cursor: 7, hostKeyId: new Uint8Array(32).fill(4) } as const;
+  let recovered = 0; let resumed = 0;
+  const provider = {
+    async invoke() { throw new Error("newly reopened execution must not replay the intent"); },
+    recoverContinuation(operation: any, request: Uint8Array, exactToken: Uint8Array) {
+      recovered += 1; assert.equal(operation, continuation.operation); assert.deepEqual(request, continuation.request); assert.deepEqual(exactToken, token); return continuation;
+    },
+    async resume(exact: any, _signal: any, onEvent: any) {
+      resumed += 1; assert.equal(exact, continuation);
+      onEvent?.(encodeHostV2Value({ 0: 2, 1: frame[1], 2: 7, 3: 3, 4: { 0: 108, 1: "REQUEST_NOT_FOUND", 2: false, 3: {} } }));
+      return { error: { code: 108, name: "REQUEST_NOT_FOUND", retryable: false } };
+    },
+  };
+  const unreachable = { async finalizedAuthority() { throw new Error("unreachable"); }, async *dispatch() { throw new Error("unreachable"); } };
+  const storage = new PrivateDurableBrowserStorageV2(new PrivateOriginBrowserRouterV2({ provider, commons: unreachable, keystore: unreachable, identityRuntime: unreachable, identityHost: unreachable, signing: unreachable }));
+  const intent = { protocol: "cord.origin.host/2", major: 2, minor: 0, registrySha256: "d17c24596fbae30c300d57ae8e51bc0c7b149ab2e91c2b9c751bedd3fbc1eeba", requestId: frame[1], productId: frame[2], operation: "storage.object.put", code: 1010, grantId: frame[4], operationId: frame[5], deadlineBlock: BigInt(frame[7]), payload: { bucketId: frame[8][0], cid: frame[8][1], length: BigInt(frame[8][2]), encrypted: frame[8][3], transferId: frame[8][4] } } as any;
+  const reopened = storage.start(intent); const events: any[] = [];
+  for await (const event of reopened.resume({ kind: "provider-token", token })) events.push(event);
+  assert.equal(recovered, 1); assert.equal(resumed, 1); assert.equal(events[0].kind, "error");
 });
 
 test("real MessagePort successor verifies finalized service key and restarts exact N+1 continuation after host reopen", async () => {
@@ -815,7 +862,7 @@ test("real MessagePort successor verifies finalized service key and restarts exa
   await assert.rejects(host.resume({ ...first.continuation!, token: forged }), /signature is invalid/);
   const cancelledToken = await signedResumeToken(pair.host, pair.providerPeer.privateKey, frame, authority, 1, 1, true);
   await assert.rejects(host.resume({ ...first.continuation!, token: cancelledToken }), /binding is invalid/);
-  finalizedNumber = 229n; await assert.rejects(host.resume(first.continuation!), /not live at finalized state/); finalizedNumber = 100n; rotation = "retiring";
+  finalizedNumber = 228n; await assert.rejects(host.resume(first.continuation!), /not live at finalized state/); finalizedNumber = 100n; rotation = "retiring";
   await assert.rejects(host.resume(first.continuation!), /revoked, rotated, or misbound/); rotation = "current"; revoked = true;
   await assert.rejects(host.resume(first.continuation!), /revoked, rotated, or misbound/); revoked = false;
   assert.equal((await host.resume(first.continuation!)).error?.code, 108); assert.equal(dispatches, 2); assert.equal(acked, 2);

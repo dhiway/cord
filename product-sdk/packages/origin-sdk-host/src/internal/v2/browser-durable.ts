@@ -64,6 +64,14 @@ export class DurableBrowserHostV2 {
     const retry = this.#outbox.retry(outboxId, finalized); this.#begin(retry);
     try { await this.#sendRetry(retry, options); } catch (error) { this.#transport.close(); throw error; } return retry;
   }
+  async resumeLinkedSuccessorAndSend(predecessorOutboxId: Uint8Array, finalized: bigint, options: BrowserHostV2IoOptions = {}): Promise<BrowserOutboxRetryV1 | undefined> {
+    const retry = this.#outbox.linkedSuccessor(predecessorOutboxId, finalized);
+    if (!retry) return undefined;
+    this.#begin(retry);
+    try { await this.#sendRetry(retry, options); }
+    catch (error) { this.#transport.close(); throw error; }
+    return retry;
+  }
   async prepareCancelAndSend(exactCancel: Uint8Array, options: BrowserHostV2IoOptions = {}): Promise<BrowserOutboxRetryV1> {
     const active = this.#active; if (!active || active.session.isClosed) throw new Error("browser host-v2 session cannot prepare cancel");
     const retry = await this.#outbox.prepareCancel(active.outboxId, exactCancel, active.session.nextExpectedSequence);

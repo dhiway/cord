@@ -118,6 +118,7 @@ export interface PrivateProviderByteBridgeV2 {
     signal?: AbortSignal, onEvent?: (event: Uint8Array) => void, control?: PrivateBrowserInvocationControlV2,
   ): Promise<PrivateInvocationResultV2>;
   resume?(continuation: PrivateBrowserProviderContinuationV2, signal?: AbortSignal, onEvent?: (event: Uint8Array) => void): Promise<PrivateInvocationResultV2>;
+  recoverContinuation?(operation: PrivateProviderByteOperationV2, exactRequest: Uint8Array, exactToken: Uint8Array): PrivateBrowserProviderContinuationV2;
 }
 
 export interface PrivateInvocationResultV2 {
@@ -151,6 +152,17 @@ export class PrivateDurableBrowserHostV2 implements PrivateProviderByteBridgeV2 
   }) {
     this.#durable = input.durable; this.#outbox = input.outbox; this.#finality = input.finality;
     this.#authority = input.authority; this.#ids = input.outboxIds; this.#acknowledgements = input.acknowledgements; this.#resumeTokens = input.resumeTokens;
+  }
+
+  recoverContinuation(
+    operation: PrivateProviderByteOperationV2, exactRequest: Uint8Array, exactToken: Uint8Array,
+  ): PrivateBrowserProviderContinuationV2 {
+    const recovered = this.#outbox.recoverSuccessor(exactRequest, exactToken);
+    return {
+      operation, request: exactRequest.slice(), token: exactToken.slice(),
+      predecessorOutboxId: recovered.predecessorOutboxId, cursor: recovered.cursor,
+      hostKeyId: recovered.hostKeyId,
+    };
   }
 
   async invoke(
@@ -240,6 +252,12 @@ export class PrivateDurableBrowserHostV2 implements PrivateProviderByteBridgeV2 
     const intendedCursor = await this.#verifyResumeToken(continuation.operation, continuation.request, continuation.hostKeyId, continuation.token, finalized.number, finalized.hash, signal);
     if (intendedCursor !== continuation.cursor) throw new TypeError("provider continuation cursor changed");
     const request = decodeHostV2("RequestV2", continuation.request).value as WireMap; const context = this.#outbox.contextBinding;
+    const linked = await this.#durable.resumeLinkedSuccessorAndSend(continuation.predecessorOutboxId, finalized.number, io(signal));
+    if (linked) {
+      if (!equal(linked.request, continuation.request) || !equal(linked.authority, continuation.token)
+        || linked.intendedCursor !== intendedCursor) throw new TypeError("durable linked successor changed after restart");
+      return this.#continueInvocation(continuation.operation, continuation.request, continuation.hostKeyId, finalized.number, finalized.hash, signal, onEvent);
+    }
     const entry: HostOutboxEntryV1 = {
       0: 1, 1: bytes(this.#ids.next(), 16, "outbox ID"), 2: 0, 3: continuation.request.slice(), 4: continuation.token.slice(),
       5: await this.#outbox.digest(concat(continuation.request, continuation.token)), 6: bytes(request[1], 16, "request ID"),
@@ -291,7 +309,7 @@ export class PrivateDurableBrowserHostV2 implements PrivateProviderByteBridgeV2 
       || !equal(bytes(token[6], 32, "resume bucket"), bytes(payload[0], 32, "request bucket")) || token[7] !== payload[1]
       || BigInt(token[8] as number | bigint) !== BigInt(payload[2] as number | bigint) || token[14] !== false) throw new TypeError("provider resume token binding is invalid");
     const issued = BigInt(token[11] as number | bigint); const expires = BigInt(token[12] as number | bigint);
-    if (issued > finalized || finalized > expires) throw new TypeError("provider resume token is not live at finalized state");
+    if (issued > finalized || finalized >= expires) throw new TypeError("provider resume token is not live at finalized state");
     const key = await this.#resumeTokens.resolve({ providerId: bytes(token[3], 32, "resume provider"), hostKeyId: bytes(token[4], 32, "resume host key"), finalized }, signal);
     if (!equal(bytes(key.providerId, 32, "service-key provider"), context.providerId) || bytes(key.keyId, 32, "service-key ID").length !== 32
       || key.rotation !== "current" || key.revoked || finalized < key.validFrom || finalized > key.validUntil
@@ -384,6 +402,12 @@ export class PrivateOriginBrowserRouterV2 {
     if (!this.#provider.resume) throw new TypeError("provider bridge does not support exact durable continuation");
     return this.#provider.resume(continuation, signal, onEvent);
   }
+  recoverProviderContinuation(
+    operation: PrivateProviderByteOperationV2, exactRequest: Uint8Array, exactToken: Uint8Array,
+  ): PrivateBrowserProviderContinuationV2 {
+    if (!this.#provider.recoverContinuation) throw new TypeError("provider bridge cannot recover an exact durable continuation");
+    return this.#provider.recoverContinuation(operation, exactRequest, exactToken);
+  }
 }
 
 export class PrivateDurableBrowserStorageV2 implements StorageV2Transport, PrivateStorageExecutorV2 {
@@ -420,9 +444,15 @@ export class PrivateDurableBrowserStorageV2 implements StorageV2Transport, Priva
   }
   async *#resumeEvents<Op extends StorageV2Operation>(intent: StorageV2Intent<Op>, resume: StorageV2Resume, control: StorageInvocationControlV2): AsyncIterable<StorageV2Event<Op>> {
     if (resume.kind !== "provider-token") return yield* failClosedResumeV2(resume);
-    const continuation = control.consumeContinuation(resume.token); const buffered: StorageV2Event<Op>[] = [];
-    const result = await this.#host.resumeProvider(continuation, undefined, (exact) => buffered.push(decodeStorageEvent(intent.operation, exact) as StorageV2Event<Op>));
-    control.installContinuation(result.continuation); for (const event of buffered) yield event;
+    const exactRequest = encodeStorageV2Intent(intent);
+    const recovered = () => this.#host.recoverProviderContinuation(intent.operation as PrivateProviderByteOperationV2, exactRequest, resume.token);
+    const continuation = control.beginResume(resume.token, recovered); const buffered: StorageV2Event<Op>[] = [];
+    let result: PrivateInvocationResultV2;
+    try {
+      result = await this.#host.resumeProvider(continuation, undefined, (exact) => buffered.push(decodeStorageEvent(intent.operation, exact) as StorageV2Event<Op>));
+      control.completeResume(continuation, result.continuation);
+    } catch (error) { control.abortResume(continuation); throw error; }
+    for (const event of buffered) yield event;
   }
 }
 
@@ -430,6 +460,7 @@ class StorageInvocationControlV2 implements PrivateBrowserInvocationControlV2 {
   #cancel?: () => Promise<void>; #requested = false; #finished = false; #error: unknown;
   #cancelSent?: Promise<void>; readonly #completion: Promise<void>; #resolve!: () => void; #reject!: (error: unknown) => void;
   #continuation?: PrivateBrowserProviderContinuationV2;
+  #resuming?: PrivateBrowserProviderContinuationV2;
   constructor() { this.#completion = new Promise<void>((resolve, reject) => { this.#resolve = resolve; this.#reject = reject; }); }
   async bind(cancel: () => Promise<void>): Promise<void> {
     if (this.#cancel || this.#finished) throw new TypeError("durable provider cancellation binding is not live");
@@ -446,10 +477,19 @@ class StorageInvocationControlV2 implements PrivateBrowserInvocationControlV2 {
     if (error === undefined) this.#resolve(); else this.#reject(error);
   }
   installContinuation(continuation?: PrivateBrowserProviderContinuationV2): void { this.#continuation = continuation; }
-  consumeContinuation(exactToken: Uint8Array): PrivateBrowserProviderContinuationV2 {
-    const continuation = this.#continuation;
-    if (!continuation || !equal(continuation.token, exactToken)) throw new TypeError("provider resume token is not the exact live successor");
-    this.#continuation = undefined; return continuation;
+  beginResume(exactToken: Uint8Array, recover: () => PrivateBrowserProviderContinuationV2): PrivateBrowserProviderContinuationV2 {
+    if (this.#resuming) throw new TypeError("provider continuation resume is already active");
+    const continuation = this.#continuation ?? recover();
+    if (!equal(continuation.token, exactToken)) throw new TypeError("provider resume token is not the exact live successor");
+    this.#continuation = continuation; this.#resuming = continuation; return continuation;
+  }
+  completeResume(active: PrivateBrowserProviderContinuationV2, successor?: PrivateBrowserProviderContinuationV2): void {
+    if (this.#resuming !== active || this.#continuation !== active) throw new TypeError("provider continuation resume ownership changed");
+    this.#resuming = undefined; this.#continuation = successor;
+  }
+  abortResume(active: PrivateBrowserProviderContinuationV2): void {
+    if (this.#resuming !== active || this.#continuation !== active) throw new TypeError("provider continuation resume ownership changed");
+    this.#resuming = undefined;
   }
   #send(): Promise<void> { this.#cancelSent ??= this.#cancel!(); return this.#cancelSent; }
 }

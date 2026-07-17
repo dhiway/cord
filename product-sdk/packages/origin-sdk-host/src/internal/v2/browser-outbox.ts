@@ -54,6 +54,9 @@ export interface BrowserOutboxRetryV1 {
   readonly expectedResponseKind: number; readonly intendedCursor: number; readonly cancel: boolean;
   readonly operationCode: number;
 }
+export interface BrowserRecoveredSuccessorV1 {
+  readonly predecessorOutboxId: Uint8Array; readonly cursor: number; readonly hostKeyId: Uint8Array;
+}
 interface LiveRecord {
   readonly kind: 0; readonly entry: HostOutboxEntryV1; readonly state: 0 | 1 | 2 | 3;
   readonly response?: Uint8Array; readonly responseAck?: Uint8Array; readonly responseHash?: Uint8Array;
@@ -175,6 +178,34 @@ export class BrowserHostOutboxV1 {
   retry(outboxId: Uint8Array, finalized: bigint): BrowserOutboxRetryV1 {
     const record = this.#live(outboxId); if (finalized >= record.recoverUntil) throw new BrowserOutboxError("HOST_OUTBOX_EXPIRED", "browser outbox recovery window closed");
     if (record.state !== 0 && record.state !== 1) throw new BrowserOutboxError("HOST_OUTBOX_STATE_INVALID", "browser outbox request is not retryable"); return retry(record);
+  }
+  linkedSuccessor(predecessorId: Uint8Array, finalized: bigint): BrowserOutboxRetryV1 | undefined {
+    const predecessor = this.#live(predecessorId);
+    if (!predecessor.successorOutboxId) return undefined;
+    const successor = this.#live(predecessor.successorOutboxId);
+    if (!successor.predecessorOutboxId || !equal(successor.predecessorOutboxId, predecessor.entry[1])) {
+      throw new BrowserOutboxError("HOST_OUTBOX_STATE_INVALID", "linked successor lookup is misbound");
+    }
+    if (finalized >= successor.recoverUntil) throw new BrowserOutboxError("HOST_OUTBOX_EXPIRED", "linked successor recovery window closed");
+    if (successor.state !== 0 && successor.state !== 1) throw new BrowserOutboxError("HOST_OUTBOX_STATE_INVALID", "linked successor is not retryable");
+    return retry(successor);
+  }
+  recoverSuccessor(exactRequest: Uint8Array, exactResumeToken: Uint8Array): BrowserRecoveredSuccessorV1 {
+    let recovered: BrowserRecoveredSuccessorV1 | undefined;
+    for (const loaded of this.#records.values()) {
+      const record = loaded.record;
+      if (record.kind !== 0 || record.state !== 3 || record.terminal || !record.successorAuthority
+        || record.successorCursor === undefined || !equal(record.entry[3], exactRequest)
+        || !equal(record.successorAuthority, exactResumeToken)) continue;
+      if (recovered) throw new BrowserOutboxError("HOST_OUTBOX_STATE_INVALID", "provider successor authority is not unique");
+      const token = decodeHostV2("ResumeTokenV1", record.successorAuthority).value;
+      recovered = {
+        predecessorOutboxId: record.entry[1].slice(), cursor: record.successorCursor,
+        hostKeyId: optionalBytes(token[4], 32)!,
+      };
+    }
+    if (!recovered) throw new BrowserOutboxError("HOST_OUTBOX_STATE_INVALID", "exact durable provider successor is absent");
+    return recovered;
   }
   async markSent(outboxId: Uint8Array): Promise<void> {
     const record = this.#live(outboxId); if (record.state !== 0) throw new BrowserOutboxError("HOST_OUTBOX_STATE_INVALID", "request is not Prepared"); await this.#commit({ ...record, state: 1 }, false);
