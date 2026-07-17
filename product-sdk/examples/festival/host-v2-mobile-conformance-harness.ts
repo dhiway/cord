@@ -279,11 +279,11 @@ export function validateFestivalMobileHostV2Conformance(): { readonly vectors: n
   const resume = fixture.vectors.find((vector) => vector.production === "ResumeTokenV1")!;
   const requestBytes = Uint8Array.from(Buffer.from(request.canonical_cbor_hex, "hex"));
   const resumeBytes = Uint8Array.from(Buffer.from(resume.canonical_cbor_hex, "hex"));
-  const resumed = HostV2Session.resume(negotiated, requestBytes, resumeBytes, 4);
+  const resumed = HostV2Session.resume(negotiated, requestBytes, resumeBytes, 100n);
   const resumedCancel = encodeHostV2("EventV2", {
     0: 2,
     1: new Uint8Array(16).fill(0x11),
-    2: 4097,
+    2: 5,
     3: 4,
     4: { 0: 107 },
   } as never);
@@ -337,27 +337,51 @@ export function validateFestivalMobileHostV2HostileRejections(): { readonly reje
   const resume = fixture.vectors.find((vector) => vector.production === "ResumeTokenV1")!;
   const requestBytes = Uint8Array.from(Buffer.from(request.canonical_cbor_hex, "hex"));
   const resumeBytes = Uint8Array.from(Buffer.from(resume.canonical_cbor_hex, "hex"));
-  assert.throws(() => HostV2Session.resume(negotiated, requestBytes, resumeBytes, 5), /generation/);
+  assert.throws(() => HostV2Session.resume(negotiated, requestBytes, resumeBytes, 101n), /generation/);
 
   const resumeValue = decodeHostV2("ResumeTokenV1", resumeBytes).value as unknown as Record<number, HostV2Value>;
   const wrongOperation = { ...resumeValue, 5: new Uint8Array(16).fill(0x99) };
   assert.throws(
-    () => HostV2Session.resume(negotiated, requestBytes, encodeHostV2("ResumeTokenV1", wrongOperation as never), 4),
+    () => HostV2Session.resume(negotiated, requestBytes, encodeHostV2("ResumeTokenV1", wrongOperation as never), 100n),
     /operation ID/,
   );
-  const exhaustedCursor = { ...resumeValue, 8: 0xffff_ffff };
+  const differentObjectLength = { ...resumeValue, 8: 8192 };
+  const objectLengthIndependent = HostV2Session.resume(
+    negotiated,
+    requestBytes,
+    encodeHostV2("ResumeTokenV1", differentObjectLength as never),
+    100n,
+  );
+  objectLengthIndependent.accept(encodeHostV2("EventV2", {
+    0: 2,
+    1: new Uint8Array(16).fill(0x11),
+    2: 5,
+    3: 4,
+    4: { 0: 107 },
+  } as never));
+  const exhaustedCursor = { ...resumeValue, 9: 0xffff_ffff };
   assert.throws(
-    () => HostV2Session.resume(negotiated, requestBytes, encodeHostV2("ResumeTokenV1", exhaustedCursor as never), 4),
+    () => HostV2Session.resume(negotiated, requestBytes, encodeHostV2("ResumeTokenV1", exhaustedCursor as never), 100n),
     /cursor/,
   );
-  const resumed = HostV2Session.resume(negotiated, requestBytes, resumeBytes, 4);
+  const wrongTokenGeneration = { ...resumeValue, 10: 101 };
+  assert.throws(
+    () => HostV2Session.resume(
+      negotiated,
+      requestBytes,
+      encodeHostV2("ResumeTokenV1", wrongTokenGeneration as never),
+      100n,
+    ),
+    /generation/,
+  );
+  const resumed = HostV2Session.resume(negotiated, requestBytes, resumeBytes, 100n);
   const wrongRequestCancel = encodeHostV2("EventV2", {
     0: 2,
     1: new Uint8Array(16).fill(0x12),
-    2: 4097,
+    2: 5,
     3: 4,
     4: { 0: 107 },
   } as never);
   assert.throws(() => resumed.accept(wrongRequestCancel), /request ID/);
-  return { rejected: 8 };
+  return { rejected: 9 };
 }

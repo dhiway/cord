@@ -29,5 +29,5 @@ test("Festival mobile projection has complete private Host-v2 conformance", () =
 });
 
 test("Festival mobile projection rejects coverage substitution and invalid resume bindings", () => {
-  assert.deepEqual(validateFestivalMobileHostV2HostileRejections(), { rejected: 8 });
+  assert.deepEqual(validateFestivalMobileHostV2HostileRejections(), { rejected: 9 });
 });

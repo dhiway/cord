@@ -281,13 +281,13 @@ export class HostV2Session {
     negotiated: HostV2Negotiated,
     exactRequestBytes: Uint8Array,
     resumeTokenBytes: Uint8Array,
-    generation: number,
+    generation: number | bigint,
   ): HostV2Session;
   static resume(
     negotiated: HostV2Negotiated,
     requestOrId: Uint8Array,
     sequenceOrToken: number | Uint8Array,
-    generation?: number,
+    generation?: number | bigint,
   ): HostV2Session {
     if (typeof sequenceOrToken === "number") {
       if (generation !== undefined || !Number.isSafeInteger(sequenceOrToken) || sequenceOrToken < 1) {
@@ -298,8 +298,11 @@ export class HostV2Session {
       session.accepted = true;
       return session;
     }
-    if (generation === undefined || !Number.isSafeInteger(generation) || generation < 0 || generation > 0xffff_ffff) {
-      throw new HostV2SessionError("resume generation is outside the U32 range");
+    const durableGeneration = typeof generation === "bigint"
+      ? generation
+      : generation !== undefined && Number.isSafeInteger(generation) ? BigInt(generation) : -1n;
+    if (durableGeneration < 0n || durableGeneration > 0xffff_ffff_ffff_ffffn) {
+      throw new HostV2SessionError("resume generation is outside the U64 range");
     }
     const request = decodeHostV2("RequestV2", requestOrId).value as RequestV2;
     const token = decodeHostV2("ResumeTokenV1", sequenceOrToken).value as ResumeTokenV1;
@@ -307,10 +310,10 @@ export class HostV2Session {
     if (!(operationId instanceof Uint8Array) || !equalBytes(operationId, token[5])) {
       throw new HostV2SessionError("resume token operation ID does not match exact request");
     }
-    if (Number(token[9]) !== generation) {
+    if (BigInt(request[7]) !== durableGeneration || BigInt(token[10]) !== durableGeneration) {
       throw new HostV2SessionError("resume token generation does not match durable request");
     }
-    const cursor = Number(token[8]);
+    const cursor = Number(token[9]);
     if (!Number.isSafeInteger(cursor) || cursor < 0 || cursor >= 0xffff_ffff) {
       throw new HostV2SessionError("resume token cursor cannot advance within the U32 event sequence");
     }

@@ -437,9 +437,9 @@ fn festival_mobile_projection_matches_rust_host_v2_bytes_hashes_and_values() {
 		&hex::decode(resume_vector["canonical_cbor_hex"].as_str().unwrap()).unwrap(),
 	)
 	.unwrap();
-	let mut resumed = Session::resume_bound(negotiated(), &request, &resume, 4).unwrap();
-	assert_eq!(resumed.next_sequence(), 4_097);
-	resumed.accept(&cancelled([0x11; 16], 4_097)).unwrap();
+	let mut resumed = Session::resume_bound(negotiated(), &request, &resume, 100).unwrap();
+	assert_eq!(resumed.next_sequence(), 5);
+	resumed.accept(&cancelled([0x11; 16], 5)).unwrap();
 	assert!(resumed.is_terminal());
 	assert!(resumed.is_closed());
 }
@@ -472,7 +472,7 @@ fn festival_mobile_projection_rejects_coverage_substitution_and_resume_misbindin
 	.unwrap();
 	let resume_value = mobile_tagged_value(&resume_vector["projection"]);
 	let resume = Dto::<ResumeTokenV1>::from_value(resume_value.clone()).unwrap();
-	assert!(Session::resume_bound(negotiated(), &request, &resume, 5).is_err());
+	assert!(Session::resume_bound(negotiated(), &request, &resume, 101).is_err());
 
 	let mut wrong_operation = resume_value.clone();
 	let Value::Map(fields) = &mut wrong_operation else { unreachable!() };
@@ -484,22 +484,49 @@ fn festival_mobile_projection_rejects_coverage_substitution_and_resume_misbindin
 		})
 		.unwrap() = Value::Bytes([0x99; 16].to_vec());
 	let wrong_operation = Dto::<ResumeTokenV1>::from_value(wrong_operation).unwrap();
-	assert!(Session::resume_bound(negotiated(), &request, &wrong_operation, 4).is_err());
+	assert!(Session::resume_bound(negotiated(), &request, &wrong_operation, 100).is_err());
 
-	let mut exhausted_cursor = resume_value;
-	let Value::Map(fields) = &mut exhausted_cursor else { unreachable!() };
+	let mut different_object_len = resume_value.clone();
+	let Value::Map(fields) = &mut different_object_len else { unreachable!() };
 	*fields
 		.iter_mut()
 		.find_map(|(key, value)| {
 			matches!(key, Value::Integer(key) if u64::try_from(*key).ok() == Some(8))
 				.then_some(value)
 		})
+		.unwrap() = Value::Integer(8_192_u64.into());
+	let different_object_len = Dto::<ResumeTokenV1>::from_value(different_object_len).unwrap();
+	let mut object_len_independent =
+		Session::resume_bound(negotiated(), &request, &different_object_len, 100).unwrap();
+	assert_eq!(object_len_independent.next_sequence(), 5);
+	object_len_independent.accept(&cancelled([0x11; 16], 5)).unwrap();
+
+	let mut exhausted_cursor = resume_value.clone();
+	let Value::Map(fields) = &mut exhausted_cursor else { unreachable!() };
+	*fields
+		.iter_mut()
+		.find_map(|(key, value)| {
+			matches!(key, Value::Integer(key) if u64::try_from(*key).ok() == Some(9))
+				.then_some(value)
+		})
 		.unwrap() = Value::Integer(u64::from(u32::MAX).into());
 	let exhausted_cursor = Dto::<ResumeTokenV1>::from_value(exhausted_cursor).unwrap();
-	assert!(Session::resume_bound(negotiated(), &request, &exhausted_cursor, 4).is_err());
+	assert!(Session::resume_bound(negotiated(), &request, &exhausted_cursor, 100).is_err());
 
-	let mut wrong_lifecycle = Session::resume_bound(negotiated(), &request, &resume, 4).unwrap();
-	assert!(wrong_lifecycle.accept(&cancelled([0x12; 16], 4_097)).is_err());
+	let mut wrong_generation = resume_value;
+	let Value::Map(fields) = &mut wrong_generation else { unreachable!() };
+	*fields
+		.iter_mut()
+		.find_map(|(key, value)| {
+			matches!(key, Value::Integer(key) if u64::try_from(*key).ok() == Some(10))
+				.then_some(value)
+		})
+		.unwrap() = Value::Integer(101_u64.into());
+	let wrong_generation = Dto::<ResumeTokenV1>::from_value(wrong_generation).unwrap();
+	assert!(Session::resume_bound(negotiated(), &request, &wrong_generation, 100).is_err());
+
+	let mut wrong_lifecycle = Session::resume_bound(negotiated(), &request, &resume, 100).unwrap();
+	assert!(wrong_lifecycle.accept(&cancelled([0x12; 16], 5)).is_err());
 	assert!(wrong_lifecycle.is_closed());
 }
 

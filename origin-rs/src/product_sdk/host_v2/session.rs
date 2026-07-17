@@ -214,7 +214,7 @@ impl Session {
 		negotiated: Negotiated,
 		request: &Dto<RequestV2>,
 		token: &Dto<ResumeTokenV1>,
-		generation: u32,
+		generation: u64,
 	) -> Result<Self, SessionError> {
 		let request_id: [u8; 16] = match value_field(request.value(), 1) {
 			Some(Value::Bytes(value)) => value
@@ -234,14 +234,18 @@ impl Session {
 		if request_operation != token_operation {
 			return sequence("resume token operation ID does not match exact request")
 		}
-		let token_generation = match value_field(token.value(), 9) {
+		let request_generation = match value_field(request.value(), 7) {
 			Some(Value::Integer(value)) => u64::try_from(*value).ok(),
 			_ => None,
 		};
-		if token_generation != Some(u64::from(generation)) {
+		let token_generation = match value_field(token.value(), 10) {
+			Some(Value::Integer(value)) => u64::try_from(*value).ok(),
+			_ => None,
+		};
+		if request_generation != Some(generation) || token_generation != Some(generation) {
 			return sequence("resume token generation does not match durable request")
 		}
-		let cursor = match value_field(token.value(), 8) {
+		let cursor = match value_field(token.value(), 9) {
 			Some(Value::Integer(value)) => u64::try_from(*value).ok(),
 			_ => None,
 		}
