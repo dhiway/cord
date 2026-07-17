@@ -106,53 +106,71 @@ pub(crate) struct CheckpointPrimaryQuorumStore {
 	poisoned: RwLock<bool>,
 }
 
+pub(crate) struct PreparedCheckpointPrimaryQuorumStore {
+	root: PathBuf,
+	root_missing: bool,
+	records: HashMap<String, PrimaryQuorumRecordV1>,
+	temp_artifacts: Vec<PathBuf>,
+}
+
+impl PreparedCheckpointPrimaryQuorumStore {
+	pub(crate) fn apply(self) -> Result<CheckpointPrimaryQuorumStore, ContentError> {
+		crate::bounded_io::create_prepared_directory(&self.root, self.root_missing)?;
+		crate::bounded_io::remove_validated_temp_artifacts(&self.root, &self.temp_artifacts)?;
+		Ok(CheckpointPrimaryQuorumStore {
+			root: self.root,
+			records: RwLock::new(self.records),
+			fault: RwLock::new(None),
+			poisoned: RwLock::new(false),
+		})
+	}
+}
+
 impl CheckpointPrimaryQuorumStore {
 	pub(crate) fn open(root: impl AsRef<Path>) -> Result<Self, ContentError> {
+		Self::prepare_open(root)?.apply()
+	}
+
+	pub(crate) fn prepare_open(
+		root: impl AsRef<Path>,
+	) -> Result<PreparedCheckpointPrimaryQuorumStore, ContentError> {
 		let root = root.as_ref().join(ROOT);
-		fs::create_dir_all(&root).map_err(io_error)?;
+		let root_missing = !crate::bounded_io::optional_directory_exists(&root)?;
 		let mut records = HashMap::new();
 		let mut visited = 0usize;
 		let mut temp_artifacts = Vec::new();
-		for item in fs::read_dir(&root).map_err(io_error)? {
+		let items = if root_missing { None } else { Some(fs::read_dir(&root).map_err(io_error)?) };
+		for item in items.into_iter().flatten() {
 			visited = visited.checked_add(1).ok_or(ContentError::IntegrityFailed)?;
 			if visited > MAX_RECORDS + MAX_TEMP_ARTIFACTS {
-				return Err(ContentError::IntegrityFailed)
+				return Err(ContentError::IntegrityFailed);
 			}
 			let item = item.map_err(io_error)?;
 			let name = item.file_name().to_string_lossy().into_owned();
 			if crate::bounded_io::is_json_temp_artifact(&name) {
-				if temp_artifacts.len() >= MAX_TEMP_ARTIFACTS ||
-					!item.file_type().map_err(io_error)?.is_file()
+				if temp_artifacts.len() >= MAX_TEMP_ARTIFACTS
+					|| !item.file_type().map_err(io_error)?.is_file()
 				{
-					return Err(ContentError::IntegrityFailed)
+					return Err(ContentError::IntegrityFailed);
 				}
 				temp_artifacts.push(item.path());
-				continue
+				continue;
 			}
 			if !name.ends_with(".json") || !item.file_type().map_err(io_error)?.is_file() {
-				return Err(ContentError::IntegrityFailed)
+				return Err(ContentError::IntegrityFailed);
 			}
-			let bytes = crate::bounded_io::read_regular_file(
-				item.path(),
-				MAX_RECORD_BYTES as u64,
-			)?;
+			let bytes = crate::bounded_io::read_regular_file(item.path(), MAX_RECORD_BYTES as u64)?;
 			if records.len() >= MAX_RECORDS {
-				return Err(ContentError::IntegrityFailed)
+				return Err(ContentError::IntegrityFailed);
 			}
 			let record: PrimaryQuorumRecordV1 =
 				serde_json::from_slice(&bytes).map_err(|_| ContentError::IntegrityFailed)?;
 			let key = validate_record(&record)?;
 			if name != format!("{key}.json") || records.insert(key, record).is_some() {
-				return Err(ContentError::IntegrityFailed)
+				return Err(ContentError::IntegrityFailed);
 			}
 		}
-		crate::bounded_io::remove_validated_temp_artifacts(&root, &temp_artifacts)?;
-		Ok(Self {
-			root,
-			records: RwLock::new(records),
-			fault: RwLock::new(None),
-			poisoned: RwLock::new(false),
-		})
+		Ok(PreparedCheckpointPrimaryQuorumStore { root, root_missing, records, temp_artifacts })
 	}
 
 	pub(crate) fn inject_fault_once(&self, fault: PrimaryQuorumFault) -> Result<(), ContentError> {
@@ -196,18 +214,18 @@ impl CheckpointPrimaryQuorumStore {
 		{
 			let records = self.records.read().map_err(|_| lock_error())?;
 			if *self.poisoned.read().map_err(|_| lock_error())? {
-				return Err(ContentError::IntegrityFailed)
+				return Err(ContentError::IntegrityFailed);
 			}
 			if let Some(record) = records.get(&key) {
 				return if record.proposal == *proposal {
 					snapshot(record)
 				} else {
 					Err(ContentError::IdempotencyConflict)
-				}
+				};
 			}
 		}
 		if signer.public_key() != decode_32(&proposal.service_key)? {
-			return Err(ContentError::IntegrityFailed)
+			return Err(ContentError::IntegrityFailed);
 		}
 		let duty = decode_duty(proposal)?;
 		let targets = selected_targets(&duty)?;
@@ -259,21 +277,21 @@ impl CheckpointPrimaryQuorumStore {
 		record.record_hash = record_hash(&record)?;
 		let mut records = self.records.write().map_err(|_| lock_error())?;
 		if *self.poisoned.read().map_err(|_| lock_error())? {
-			return Err(ContentError::IntegrityFailed)
+			return Err(ContentError::IntegrityFailed);
 		}
 		if let Some(existing) = records.get(&key) {
 			return if existing.proposal == *proposal {
 				snapshot(existing)
 			} else {
 				Err(ContentError::IdempotencyConflict)
-			}
+			};
 		}
 		if records.len() >= MAX_RECORDS {
-			return Err(ContentError::ProviderRecoveryTableFull)
+			return Err(ContentError::ProviderRecoveryTableFull);
 		}
 		if let Err(error) = self.persist(&key, &record) {
 			*self.poisoned.write().map_err(|_| lock_error())? = true;
-			return Err(error)
+			return Err(error);
 		}
 		records.insert(key, record.clone());
 		snapshot(&record)
@@ -289,11 +307,11 @@ impl CheckpointPrimaryQuorumStore {
 		let response = ReplicaConfirmationResponseV1::decode_canonical(response_bytes)?;
 		let mut records = self.records.write().map_err(|_| lock_error())?;
 		if *self.poisoned.read().map_err(|_| lock_error())? {
-			return Err(ContentError::IntegrityFailed)
+			return Err(ContentError::IntegrityFailed);
 		}
 		let current = records.get(&key).cloned().ok_or(ContentError::NotFound)?;
 		if current.proposal != *proposal {
-			return Err(ContentError::IdempotencyConflict)
+			return Err(ContentError::IdempotencyConflict);
 		}
 		let target_hex = account_hex(&response.target_provider);
 		let index = current
@@ -306,7 +324,7 @@ impl CheckpointPrimaryQuorumStore {
 				snapshot(&current)
 			} else {
 				Err(ContentError::IdempotencyConflict)
-			}
+			};
 		}
 		validate_response(&current, index, &response)?;
 		let mut next = current;
@@ -330,7 +348,7 @@ impl CheckpointPrimaryQuorumStore {
 		next.record_hash = record_hash(&next)?;
 		if let Err(error) = self.persist(&key, &next) {
 			*self.poisoned.write().map_err(|_| lock_error())? = true;
-			return Err(error)
+			return Err(error);
 		}
 		records.insert(key, next.clone());
 		snapshot(&next)
@@ -338,11 +356,11 @@ impl CheckpointPrimaryQuorumStore {
 
 	fn persist(&self, key: &str, record: &PrimaryQuorumRecordV1) -> Result<(), ContentError> {
 		if validate_record(record)? != key {
-			return Err(ContentError::IntegrityFailed)
+			return Err(ContentError::IntegrityFailed);
 		}
 		let bytes = serde_json::to_vec(record).map_err(io_error)?;
 		if bytes.len() > MAX_RECORD_BYTES {
-			return Err(ContentError::IntegrityFailed)
+			return Err(ContentError::IntegrityFailed);
 		}
 		let temp = self.root.join(format!("{key}.json.tmp-{}", std::process::id()));
 		let mut file = File::create(&temp).map_err(io_error)?;
@@ -372,14 +390,15 @@ impl CheckpointPrimaryQuorumStore {
 fn selected_targets(
 	duty: &CheckpointDutyInfo<AccountId32, H256, u32>,
 ) -> Result<Vec<ProviderDutyAuthority<AccountId32, H256, u32>>, ContentError> {
-	if duty.replicas.iter().any(|replica| replica == &duty.primary) ||
-		duty.replicas
+	if duty.replicas.iter().any(|replica| replica == &duty.primary)
+		|| duty
+			.replicas
 			.iter()
 			.enumerate()
-			.any(|(index, replica)| duty.replicas[..index].contains(replica)) ||
-		duty.authorities.len() != duty.replicas.len().saturating_add(1)
+			.any(|(index, replica)| duty.replicas[..index].contains(replica))
+		|| duty.authorities.len() != duty.replicas.len().saturating_add(1)
 	{
-		return Err(ContentError::IntegrityFailed)
+		return Err(ContentError::IntegrityFailed);
 	}
 	let expected = std::iter::once((&duty.primary, ProviderDutyRole::Primary, 0u8)).chain(
 		duty.replicas.iter().enumerate().map(|(index, replica)| {
@@ -389,7 +408,7 @@ fn selected_targets(
 	if expected.zip(&duty.authorities).any(|((provider, role, order), authority)| {
 		authority.provider != *provider || authority.role != role || authority.order != order
 	}) {
-		return Err(ContentError::IntegrityFailed)
+		return Err(ContentError::IntegrityFailed);
 	}
 	let initiator = duty.initiator.as_ref().ok_or(ContentError::IntegrityFailed)?;
 	let candidates = match duty.phase {
@@ -413,16 +432,16 @@ fn selected_targets(
 		})
 		.collect::<Result<Vec<_>, _>>()?;
 	targets.retain(|target| {
-		target.active_service_key_version > 0 &&
-			target.may_sign &&
-			target.eligible &&
-			target.organization_sla_eligible &&
-			!target.overdue_challenge &&
-			target.exclusion.is_none()
+		target.active_service_key_version > 0
+			&& target.may_sign
+			&& target.eligible
+			&& target.organization_sla_eligible
+			&& !target.overdue_challenge
+			&& target.exclusion.is_none()
 	});
 	targets.sort_by_key(|target| target.provider.encode());
 	if targets.len() < 2 || targets.windows(2).any(|pair| pair[0].provider == pair[1].provider) {
-		return Err(ContentError::IntegrityFailed)
+		return Err(ContentError::IntegrityFailed);
 	}
 	targets.truncate(2);
 	Ok(targets)
@@ -437,12 +456,12 @@ fn validate_response(
 	let request = ReplicaConfirmationRequestV1::decode_canonical(
 		&hex::decode(&selected.request).map_err(|_| ContentError::IntegrityFailed)?,
 	)?;
-	if response.proposal_record_hash != request.proposal_record_hash ||
-		response.duty_id != request.duty_id ||
-		response.target_provider != request.target_provider ||
-		response.confirmation.provider != request.target_provider ||
-		response.confirmation.service_key != request.target_service_key ||
-		!ed25519::Pair::verify(
+	if response.proposal_record_hash != request.proposal_record_hash
+		|| response.duty_id != request.duty_id
+		|| response.target_provider != request.target_provider
+		|| response.confirmation.provider != request.target_provider
+		|| response.confirmation.service_key != request.target_service_key
+		|| !ed25519::Pair::verify(
 			&response.confirmation.signature,
 			&checkpoint_digest(&request.payload),
 			&response.confirmation.service_key,
@@ -451,54 +470,54 @@ fn validate_response(
 		&checkpoint_context_digest(&request.context),
 		&response.confirmation.service_key,
 	) {
-		return Err(ContentError::IntegrityFailed)
+		return Err(ContentError::IntegrityFailed);
 	}
 	Ok(())
 }
 
 fn validate_record(record: &PrimaryQuorumRecordV1) -> Result<String, ContentError> {
 	if record.version != VERSION || record.record_hash != record_hash(record)? {
-		return Err(ContentError::IntegrityFailed)
+		return Err(ContentError::IntegrityFailed);
 	}
 	validate_proposal(&record.proposal)?;
 	let duty = decode_duty(&record.proposal)?;
 	let expected = selected_targets(&duty)?;
 	if record.selected.len() != 2 {
-		return Err(ContentError::IntegrityFailed)
+		return Err(ContentError::IntegrityFailed);
 	}
 	for (index, selected) in record.selected.iter().enumerate() {
 		let target = &expected[index];
 		let request_bytes =
 			hex::decode(&selected.request).map_err(|_| ContentError::IntegrityFailed)?;
 		let request = ReplicaConfirmationRequestV1::decode_canonical(&request_bytes)?;
-		if selected.provider != account_hex(&target.provider) ||
-			selected.service_key_version != target.active_service_key_version ||
-			selected.service_key != hex::encode(target.active_service_key) ||
-			selected.request_hash != hex::encode(blake2_256(&request_bytes)) ||
-			request.target_provider != target.provider ||
-			request.target_service_key_version != target.active_service_key_version ||
-			request.target_service_key.0 != target.active_service_key ||
-			request.proposal_record_hash != decode_32(&record.proposal.record_hash)? ||
-			request.duty_id != duty.duty_id ||
-			request.primary_provider != decode_account(&record.proposal.primary_provider)? ||
-			request.primary_service_key.0 != decode_32(&record.proposal.service_key)? ||
-			hex::encode(request.payload.encode()) != record.proposal.payload_scale ||
-			hex::encode(request.context.encode()) != record.proposal.context_scale ||
-			hex::encode(request.primary_signature.0) != record.proposal.signature ||
-			hex::encode(request.primary_context_signature.0) != record.proposal.context_signature ||
-			!ed25519::Pair::verify(
+		if selected.provider != account_hex(&target.provider)
+			|| selected.service_key_version != target.active_service_key_version
+			|| selected.service_key != hex::encode(target.active_service_key)
+			|| selected.request_hash != hex::encode(blake2_256(&request_bytes))
+			|| request.target_provider != target.provider
+			|| request.target_service_key_version != target.active_service_key_version
+			|| request.target_service_key.0 != target.active_service_key
+			|| request.proposal_record_hash != decode_32(&record.proposal.record_hash)?
+			|| request.duty_id != duty.duty_id
+			|| request.primary_provider != decode_account(&record.proposal.primary_provider)?
+			|| request.primary_service_key.0 != decode_32(&record.proposal.service_key)?
+			|| hex::encode(request.payload.encode()) != record.proposal.payload_scale
+			|| hex::encode(request.context.encode()) != record.proposal.context_scale
+			|| hex::encode(request.primary_signature.0) != record.proposal.signature
+			|| hex::encode(request.primary_context_signature.0) != record.proposal.context_signature
+			|| !ed25519::Pair::verify(
 				&request.auth_signature,
 				&request.auth_message(),
 				&request.primary_service_key,
 			) {
-			return Err(ContentError::IntegrityFailed)
+			return Err(ContentError::IntegrityFailed);
 		}
 		match (&selected.response, &selected.response_hash) {
 			(None, None) => {},
 			(Some(encoded), Some(hash)) => {
 				let bytes = hex::decode(encoded).map_err(|_| ContentError::IntegrityFailed)?;
 				if hash != &hex::encode(blake2_256(&bytes)) {
-					return Err(ContentError::IntegrityFailed)
+					return Err(ContentError::IntegrityFailed);
 				}
 				let response = ReplicaConfirmationResponseV1::decode_canonical(&bytes)?;
 				validate_response(record, index, &response)?;
@@ -524,14 +543,14 @@ fn validate_record(record: &PrimaryQuorumRecordV1) -> Result<String, ContentErro
 					Ok(ReplicaConfirmationResponseV1::decode_canonical(&bytes)?.confirmation)
 				})
 				.collect::<Result<Vec<_>, ContentError>>()?;
-			if confirmations != expected_confirmations ||
-				confirmations.len() != 2 ||
-				confirmations
+			if confirmations != expected_confirmations
+				|| confirmations.len() != 2
+				|| confirmations
 					.iter()
 					.map(|item| account_hex(&item.provider))
 					.ne(record.selected.iter().map(|item| item.provider.clone()))
 			{
-				return Err(ContentError::IntegrityFailed)
+				return Err(ContentError::IntegrityFailed);
 			}
 		},
 		_ => return Err(ContentError::IntegrityFailed),
@@ -587,7 +606,7 @@ fn decode_duty(
 ) -> Result<CheckpointDutyInfo<AccountId32, H256, u32>, ContentError> {
 	let duty = decode_exact::<CheckpointDutyInfo<AccountId32, H256, u32>>(&proposal.duty_scale)?;
 	if duty.response_version != RESPONSE_VERSION {
-		return Err(ContentError::IntegrityFailed)
+		return Err(ContentError::IntegrityFailed);
 	}
 	Ok(duty)
 }
@@ -595,12 +614,12 @@ fn decode_duty(
 fn decode_exact<T: Decode + Encode>(encoded: &str) -> Result<T, ContentError> {
 	let bytes = hex::decode(encoded).map_err(|_| ContentError::IntegrityFailed)?;
 	if hex::encode(&bytes) != encoded {
-		return Err(ContentError::IntegrityFailed)
+		return Err(ContentError::IntegrityFailed);
 	}
 	let mut input = &bytes[..];
 	let value = T::decode(&mut input).map_err(|_| ContentError::IntegrityFailed)?;
 	if !input.is_empty() || value.encode() != bytes {
-		return Err(ContentError::IntegrityFailed)
+		return Err(ContentError::IntegrityFailed);
 	}
 	Ok(value)
 }

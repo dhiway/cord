@@ -87,9 +87,9 @@ enum QuorumDutyPhase {
 const fn valid_quorum_mode_phase(mode: QuorumDutyMode, phase: QuorumDutyPhase) -> bool {
 	matches!(
 		(mode, phase),
-		(QuorumDutyMode::Standard, QuorumDutyPhase::Primary) |
-			(QuorumDutyMode::Standard, QuorumDutyPhase::ReplicaFallback) |
-			(QuorumDutyMode::PromotionPending, QuorumDutyPhase::Primary)
+		(QuorumDutyMode::Standard, QuorumDutyPhase::Primary)
+			| (QuorumDutyMode::Standard, QuorumDutyPhase::ReplicaFallback)
+			| (QuorumDutyMode::PromotionPending, QuorumDutyPhase::Primary)
 	)
 }
 
@@ -185,6 +185,14 @@ pub(crate) struct CheckpointProposalStore {
 	fault: RwLock<Option<ProposalFault>>,
 }
 
+pub(crate) struct PreparedCheckpointProposalStore {
+	root: PathBuf,
+	root_missing: bool,
+	by_tuple: HashMap<String, PreparedCheckpointProposalV2>,
+	by_duty: HashMap<String, String>,
+	temp_artifacts: Vec<PathBuf>,
+}
+
 #[derive(Default)]
 struct ProposalState {
 	by_tuple: HashMap<String, PreparedCheckpointProposalV2>,
@@ -192,15 +200,38 @@ struct ProposalState {
 	poisoned: bool,
 }
 
+impl PreparedCheckpointProposalStore {
+	pub(crate) fn apply(self) -> Result<CheckpointProposalStore, ContentError> {
+		crate::bounded_io::create_prepared_directory(&self.root, self.root_missing)?;
+		crate::bounded_io::remove_validated_temp_artifacts(&self.root, &self.temp_artifacts)?;
+		Ok(CheckpointProposalStore {
+			root: self.root,
+			state: RwLock::new(ProposalState {
+				by_tuple: self.by_tuple,
+				by_duty: self.by_duty,
+				poisoned: false,
+			}),
+			fault: RwLock::new(None),
+		})
+	}
+}
+
 impl CheckpointProposalStore {
 	pub(crate) fn open(root: impl AsRef<Path>) -> Result<Self, ContentError> {
+		Self::prepare_open(root)?.apply()
+	}
+
+	pub(crate) fn prepare_open(
+		root: impl AsRef<Path>,
+	) -> Result<PreparedCheckpointProposalStore, ContentError> {
 		let root = root.as_ref().join(ROOT);
-		fs::create_dir_all(&root).map_err(io_error)?;
+		let root_missing = !crate::bounded_io::optional_directory_exists(&root)?;
 		let mut by_tuple = HashMap::new();
 		let mut by_duty = HashMap::new();
 		let mut visited = 0usize;
 		let mut temp_artifacts = Vec::new();
-		for item in fs::read_dir(&root).map_err(io_error)? {
+		let items = if root_missing { None } else { Some(fs::read_dir(&root).map_err(io_error)?) };
+		for item in items.into_iter().flatten() {
 			visited = visited.checked_add(1).ok_or(ContentError::IntegrityFailed)?;
 			if visited > MAX_PROPOSALS + MAX_TEMP_ARTIFACTS {
 				return Err(ContentError::IntegrityFailed);
@@ -208,8 +239,8 @@ impl CheckpointProposalStore {
 			let item = item.map_err(io_error)?;
 			let name = item.file_name().to_string_lossy().into_owned();
 			if crate::bounded_io::is_json_temp_artifact(&name) {
-				if temp_artifacts.len() >= MAX_TEMP_ARTIFACTS ||
-					!item.file_type().map_err(io_error)?.is_file()
+				if temp_artifacts.len() >= MAX_TEMP_ARTIFACTS
+					|| !item.file_type().map_err(io_error)?.is_file()
 				{
 					return Err(ContentError::IntegrityFailed);
 				}
@@ -219,10 +250,8 @@ impl CheckpointProposalStore {
 			if !name.ends_with(".json") || !item.file_type().map_err(io_error)?.is_file() {
 				return Err(ContentError::IntegrityFailed);
 			}
-			let bytes = crate::bounded_io::read_regular_file(
-				item.path(),
-				MAX_PROPOSAL_BYTES as u64,
-			)?;
+			let bytes =
+				crate::bounded_io::read_regular_file(item.path(), MAX_PROPOSAL_BYTES as u64)?;
 			let proposal: PreparedCheckpointProposalV2 =
 				serde_json::from_slice(&bytes).map_err(|_| ContentError::IntegrityFailed)?;
 			validate_proposal(&proposal)?;
@@ -230,17 +259,18 @@ impl CheckpointProposalStore {
 			if name != format!("{tuple}.json") || by_tuple.len() >= MAX_PROPOSALS {
 				return Err(ContentError::IntegrityFailed);
 			}
-			if by_tuple.insert(tuple.clone(), proposal.clone()).is_some() ||
-				by_duty.insert(proposal.duty_id.clone(), tuple).is_some()
+			if by_tuple.insert(tuple.clone(), proposal.clone()).is_some()
+				|| by_duty.insert(proposal.duty_id.clone(), tuple).is_some()
 			{
 				return Err(ContentError::IdempotencyConflict);
 			}
 		}
-		crate::bounded_io::remove_validated_temp_artifacts(&root, &temp_artifacts)?;
-		Ok(Self {
+		Ok(PreparedCheckpointProposalStore {
 			root,
-			state: RwLock::new(ProposalState { by_tuple, by_duty, poisoned: false }),
-			fault: RwLock::new(None),
+			root_missing,
+			by_tuple,
+			by_duty,
+			temp_artifacts,
 		})
 	}
 
@@ -316,8 +346,9 @@ impl CheckpointProposalStore {
 		}
 		let expected_start = match decoded.previous_commitment {
 			None => 0,
-			Some(CommitmentInfo { start_seq, leaf_count, .. }) =>
-				start_seq.checked_add(leaf_count).ok_or(ContentError::IntegrityFailed)?,
+			Some(CommitmentInfo { start_seq, leaf_count, .. }) => {
+				start_seq.checked_add(leaf_count).ok_or(ContentError::IntegrityFailed)?
+			},
 		};
 		if expected_start != decoded.expected_next_start_seq {
 			return Err(ContentError::IntegrityFailed);
@@ -340,19 +371,19 @@ impl CheckpointProposalStore {
 		let primary_provider = hex::encode(<AccountId32 as AsRef<[u8]>>::as_ref(&provider));
 		let bucket_id = normalize_hash(&duty.bucket_id)?;
 		if let Some(existing) = state.by_tuple.get(&tuple).cloned() {
-			if existing.duty_id == duty_id &&
-				existing.duty_fingerprint == duty_fingerprint &&
-				existing.duty_scale == duty_scale &&
-				existing.snapshot_checkpoint == duty.snapshot_checkpoint &&
-				existing.snapshot_hash == snapshot_hash &&
-				existing.service_key_version == duty.service_key_version &&
-				existing.service_key == service_key &&
-				existing.primary_provider == primary_provider &&
-				existing.bucket_id == bucket_id &&
-				existing.window_start == decoded.due_at &&
-				existing.window_end == decoded.grace_until &&
-				existing.nonce == decoded.expected_nonce &&
-				existing.start_seq == expected_start
+			if existing.duty_id == duty_id
+				&& existing.duty_fingerprint == duty_fingerprint
+				&& existing.duty_scale == duty_scale
+				&& existing.snapshot_checkpoint == duty.snapshot_checkpoint
+				&& existing.snapshot_hash == snapshot_hash
+				&& existing.service_key_version == duty.service_key_version
+				&& existing.service_key == service_key
+				&& existing.primary_provider == primary_provider
+				&& existing.bucket_id == bucket_id
+				&& existing.window_start == decoded.due_at
+				&& existing.window_end == decoded.grace_until
+				&& existing.nonce == decoded.expected_nonce
+				&& existing.start_seq == expected_start
 			{
 				return Ok(existing);
 			}
@@ -372,18 +403,18 @@ impl CheckpointProposalStore {
 			return Err(ContentError::IntegrityFailed);
 		}
 		let finalized_hash = normalize_hash(&watermark.finalized_hash)?;
-		if decoded.snapshot_checkpoint != duty.snapshot_checkpoint ||
-			decoded.expected_nonce != decoded.snapshot_checkpoint ||
-			hex::encode(decoded.snapshot_hash.as_bytes()) != snapshot_hash
+		if decoded.snapshot_checkpoint != duty.snapshot_checkpoint
+			|| decoded.expected_nonce != decoded.snapshot_checkpoint
+			|| hex::encode(decoded.snapshot_hash.as_bytes()) != snapshot_hash
 		{
 			return Err(ContentError::IntegrityFailed);
 		}
-		if !duty.may_sign ||
-			!duty.may_initiate ||
-			decoded.initiator.as_ref() != Some(&provider) ||
-			!valid_checkpoint_quorum_duty(duty) ||
-			decoded.required_primary_confirmations != 1 ||
-			decoded.required_replica_confirmations != 2
+		if !duty.may_sign
+			|| !duty.may_initiate
+			|| decoded.initiator.as_ref() != Some(&provider)
+			|| !valid_checkpoint_quorum_duty(duty)
+			|| decoded.required_primary_confirmations != 1
+			|| decoded.required_replica_confirmations != 2
 		{
 			return Err(ContentError::IntegrityFailed);
 		}
@@ -392,15 +423,15 @@ impl CheckpointProposalStore {
 			.iter()
 			.find(|authority| authority.provider == provider)
 			.ok_or(ContentError::IntegrityFailed)?;
-		if local.active_service_key_version != duty.service_key_version ||
-			local.active_service_key != signer.public_key() ||
-			!local.may_sign ||
-			!local.may_initiate ||
-			!local.eligible ||
-			!local.organization_sla_eligible ||
-			local.overdue_challenge ||
-			local.exclusion.is_some() ||
-			local.initiation_exclusion.is_some()
+		if local.active_service_key_version != duty.service_key_version
+			|| local.active_service_key != signer.public_key()
+			|| !local.may_sign
+			|| !local.may_initiate
+			|| !local.eligible
+			|| !local.organization_sla_eligible
+			|| local.overdue_challenge
+			|| local.exclusion.is_some()
+			|| local.initiation_exclusion.is_some()
 		{
 			return Err(ContentError::IntegrityFailed);
 		}
@@ -408,9 +439,9 @@ impl CheckpointProposalStore {
 			return Err(ContentError::IntegrityFailed);
 		}
 		let commitment = mmr.commitment_candidate(streaming, bucket, expected_start)?;
-		if commitment.leaf_count == 0 ||
-			commitment.start_seq != expected_start ||
-			commitment.range_end().is_none()
+		if commitment.leaf_count == 0
+			|| commitment.start_seq != expected_start
+			|| commitment.range_end().is_none()
 		{
 			return Err(ContentError::IntegrityFailed);
 		}
@@ -490,19 +521,16 @@ impl CheckpointProposalStore {
 		}
 		let path = self.root.join(format!("{key}.json"));
 		if path.exists() {
-			let existing = crate::bounded_io::read_regular_file(
-				&path,
-				MAX_PROPOSAL_BYTES as u64,
-			)?;
+			let existing = crate::bounded_io::read_regular_file(&path, MAX_PROPOSAL_BYTES as u64)?;
 			let existing: PreparedCheckpointProposalV2 =
 				serde_json::from_slice(&existing).map_err(|_| ContentError::IntegrityFailed)?;
 			validate_proposal(&existing)?;
 			return if existing == *proposal {
 				Ok(())
-				} else {
-					Err(ContentError::IdempotencyConflict)
-				}
-			}
+			} else {
+				Err(ContentError::IdempotencyConflict)
+			};
+		}
 		let temp = self.root.join(format!("{key}.json.tmp-{}", std::process::id()));
 		let mut file = File::create(&temp).map_err(io_error)?;
 		file.write_all(&bytes).map_err(io_error)?;
@@ -527,11 +555,11 @@ impl CheckpointProposalStore {
 }
 
 fn validate_proposal(proposal: &PreparedCheckpointProposalV2) -> Result<(), ContentError> {
-	if proposal.version != VERSION ||
-		proposal.state != "prepared" ||
-		proposal.leaf_count == 0 ||
-		proposal.nonce != proposal.snapshot_checkpoint ||
-		proposal.start_seq.checked_add(proposal.leaf_count).is_none()
+	if proposal.version != VERSION
+		|| proposal.state != "prepared"
+		|| proposal.leaf_count == 0
+		|| proposal.nonce != proposal.snapshot_checkpoint
+		|| proposal.start_seq.checked_add(proposal.leaf_count).is_none()
 	{
 		return Err(ContentError::IntegrityFailed);
 	}
@@ -559,29 +587,29 @@ fn validate_proposal(proposal: &PreparedCheckpointProposalV2) -> Result<(), Cont
 	canonical_hex(&proposal.context_signature, 64)?;
 	let duty_bytes =
 		hex::decode(&proposal.duty_scale).map_err(|_| ContentError::IntegrityFailed)?;
-	if duty_bytes.is_empty() ||
-		hex::encode(&duty_bytes) != proposal.duty_scale ||
-		hex::encode(blake2_256(&duty_bytes)) != proposal.duty_fingerprint
+	if duty_bytes.is_empty()
+		|| hex::encode(&duty_bytes) != proposal.duty_scale
+		|| hex::encode(blake2_256(&duty_bytes)) != proposal.duty_fingerprint
 	{
 		return Err(ContentError::IntegrityFailed);
 	}
 	let mut duty_input = &duty_bytes[..];
 	let duty = CheckpointDutyInfo::<AccountId32, H256, u32>::decode(&mut duty_input)
 		.map_err(|_| ContentError::IntegrityFailed)?;
-	if !duty_input.is_empty() ||
-		duty.encode() != duty_bytes ||
-		duty.response_version != RESPONSE_VERSION ||
-		hex::encode(duty.duty_id.as_bytes()) != proposal.duty_id ||
-		hex::encode(duty.bucket_id.as_bytes()) != proposal.bucket_id ||
-		hex::encode(duty.snapshot_hash.as_bytes()) != proposal.snapshot_hash ||
-		duty.snapshot_checkpoint != proposal.snapshot_checkpoint ||
-		duty.expected_nonce != proposal.nonce ||
-		duty.due_at != proposal.window_start ||
-		duty.grace_until != proposal.window_end ||
-		proposal.window_start > proposal.window_end ||
-		!valid_runtime_checkpoint_quorum_duty(&duty) ||
-		duty.required_primary_confirmations != 1 ||
-		duty.required_replica_confirmations != 2
+	if !duty_input.is_empty()
+		|| duty.encode() != duty_bytes
+		|| duty.response_version != RESPONSE_VERSION
+		|| hex::encode(duty.duty_id.as_bytes()) != proposal.duty_id
+		|| hex::encode(duty.bucket_id.as_bytes()) != proposal.bucket_id
+		|| hex::encode(duty.snapshot_hash.as_bytes()) != proposal.snapshot_hash
+		|| duty.snapshot_checkpoint != proposal.snapshot_checkpoint
+		|| duty.expected_nonce != proposal.nonce
+		|| duty.due_at != proposal.window_start
+		|| duty.grace_until != proposal.window_end
+		|| proposal.window_start > proposal.window_end
+		|| !valid_runtime_checkpoint_quorum_duty(&duty)
+		|| duty.required_primary_confirmations != 1
+		|| duty.required_replica_confirmations != 2
 	{
 		return Err(ContentError::IntegrityFailed);
 	}
@@ -594,15 +622,15 @@ fn validate_proposal(proposal: &PreparedCheckpointProposalV2) -> Result<(), Cont
 		.iter()
 		.find(|authority| &authority.provider == initiator)
 		.ok_or(ContentError::IntegrityFailed)?;
-	if authority.active_service_key_version != proposal.service_key_version ||
-		authority.active_service_key != decode_32(&proposal.service_key)? ||
-		!authority.may_sign ||
-		!authority.may_initiate ||
-		!authority.eligible ||
-		!authority.organization_sla_eligible ||
-		authority.overdue_challenge ||
-		authority.exclusion.is_some() ||
-		authority.initiation_exclusion.is_some()
+	if authority.active_service_key_version != proposal.service_key_version
+		|| authority.active_service_key != decode_32(&proposal.service_key)?
+		|| !authority.may_sign
+		|| !authority.may_initiate
+		|| !authority.eligible
+		|| !authority.organization_sla_eligible
+		|| authority.overdue_challenge
+		|| authority.exclusion.is_some()
+		|| authority.initiation_exclusion.is_some()
 	{
 		return Err(ContentError::IntegrityFailed);
 	}
@@ -614,14 +642,14 @@ fn validate_proposal(proposal: &PreparedCheckpointProposalV2) -> Result<(), Cont
 	let mut payload_input = &payload_bytes[..];
 	let payload = CommitmentPayloadV2::<H256, u32>::decode(&mut payload_input)
 		.map_err(|_| ContentError::IntegrityFailed)?;
-	if !payload_input.is_empty() ||
-		payload.version != 2 ||
-		hex::encode(payload.bucket_id.as_bytes()) != proposal.bucket_id ||
-		payload.nonce != proposal.nonce ||
-		payload.commitment.start_seq != proposal.start_seq ||
-		payload.commitment.leaf_count != proposal.leaf_count ||
-		hex::encode(payload.commitment.mmr_root.as_bytes()) != proposal.mmr_root ||
-		payload.commitment.range_end().is_none()
+	if !payload_input.is_empty()
+		|| payload.version != 2
+		|| hex::encode(payload.bucket_id.as_bytes()) != proposal.bucket_id
+		|| payload.nonce != proposal.nonce
+		|| payload.commitment.start_seq != proposal.start_seq
+		|| payload.commitment.leaf_count != proposal.leaf_count
+		|| hex::encode(payload.commitment.mmr_root.as_bytes()) != proposal.mmr_root
+		|| payload.commitment.range_end().is_none()
 	{
 		return Err(ContentError::IntegrityFailed);
 	}
@@ -712,9 +740,9 @@ fn decode_32(value: &str) -> Result<[u8; 32], ContentError> {
 }
 
 fn canonical_hex(value: &str, bytes: usize) -> Result<(), ContentError> {
-	if value.len() != bytes.saturating_mul(2) ||
-		value.bytes().any(|byte| byte.is_ascii_uppercase()) ||
-		hex::decode(value).map_err(|_| ContentError::IntegrityFailed)?.len() != bytes
+	if value.len() != bytes.saturating_mul(2)
+		|| value.bytes().any(|byte| byte.is_ascii_uppercase())
+		|| hex::decode(value).map_err(|_| ContentError::IntegrityFailed)?.len() != bytes
 	{
 		return Err(ContentError::IntegrityFailed);
 	}
