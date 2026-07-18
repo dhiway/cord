@@ -879,6 +879,7 @@ mod tests {
 		let context = IdentityAuthorityContextV2 { profile_id: [1; 32], genesis_hash: [2; 32] };
 		let keystore = IdentityKeystoreMaterialV2 {
 			state_key: [3; 32],
+			recovery_receipt_signing_seed: [7; 32],
 			subject_master_seed: [4; 32],
 			recovery_incarnation: [5; 32],
 			epoch: 1,

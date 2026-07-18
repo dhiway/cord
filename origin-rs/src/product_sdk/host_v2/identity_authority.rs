@@ -30,6 +30,7 @@ use ciborium::value::Value;
 use codec::{Decode, Encode};
 use ed25519_dalek::{Signer as _, SigningKey};
 use hkdf::Hkdf;
+use rand::{rngs::OsRng, RngCore};
 use sha2::{Digest, Sha256};
 
 use crate::product_sdk::host_outbox::{decrypt, encrypt, sync_dir, HostOutboxError};
@@ -53,9 +54,9 @@ use super::{
 		IdentityProfileReadAccepted, IdentityProfileReadError, IdentityProfileReadFrame,
 		IdentityProfileReadResult, IdentitySubjectDeriveAccepted, IdentitySubjectDeriveError,
 		IdentitySubjectDeriveFrame, IdentitySubjectDeriveResult, Production, ProgressEventV2,
-		ResultEventV2, SubjectContextV2, SubjectProofEnvelopeV2, SubjectProofV2,
-		TransactionSignAccepted, TransactionSignError, TransactionSignFrame,
-		TransactionSignProgress, TransactionSignResult, ERRORS, OPERATIONS,
+		RecoveryInstallV2, RecoveryReceiptV2, ResultEventV2, SubjectContextV2,
+		SubjectProofEnvelopeV2, SubjectProofV2, TransactionSignAccepted, TransactionSignError,
+		TransactionSignFrame, TransactionSignProgress, TransactionSignResult, ERRORS, OPERATIONS,
 	},
 };
 
@@ -76,7 +77,11 @@ const SUBJECT_ID_DOMAIN: &[u8] = b"cord.identity.subject.id.v2";
 const SUBJECT_PROOF_DOMAIN: &[u8] = b"cord.identity.subject.proof.v2";
 const CHALLENGE_DOMAIN: &[u8] = b"cord.identity.challenge.v2";
 const EFFECT_DOMAIN: &[u8] = b"cord.identity.effect.v2";
+const RECOVERY_RECEIPT_DOMAIN: &[u8] = b"cord.identity.recovery.receipt.v2";
 const PROOF_MAX_BLOCKS: u64 = 128;
+const MAX_RETIRED_ROOTS: usize = 16_384;
+const MAX_RECOVERY_RECEIPTS: usize = MAX_RETIRED_ROOTS;
+const RECOVERY_ENTROPY_ATTEMPTS: usize = 3;
 
 #[derive(Clone, Copy, Debug, Eq, PartialEq, thiserror::Error)]
 pub(crate) enum IdentityAuthorityErrorV2 {
@@ -114,6 +119,12 @@ pub(crate) enum IdentityAuthorityErrorV2 {
 	AuthorityUnavailable,
 	#[error("IDENTITY_EFFECT_CONFLICT")]
 	EffectConflict,
+	#[error("IDENTITY_RECOVERY_ENTROPY_FAILED")]
+	RecoveryEntropyFailed,
+	#[error("IDENTITY_RECOVERY_INSTALL_FAILED")]
+	RecoveryInstallFailed,
+	#[error("IDENTITY_RETIRED_SET_FULL")]
+	RetiredSetFull,
 }
 
 impl IdentityAuthorityErrorV2 {
@@ -134,6 +145,9 @@ impl IdentityAuthorityErrorV2 {
 			Self::EpochInvalid => ErrorCode::IdentityEpochInvalid,
 			Self::AuthorityUnavailable => ErrorCode::IdentityAuthorityUnavailable,
 			Self::EffectConflict => ErrorCode::IdentityEffectConflict,
+			Self::RecoveryEntropyFailed => ErrorCode::IdentityRecoveryEntropyFailed,
+			Self::RecoveryInstallFailed => ErrorCode::IdentityRecoveryInstallFailed,
+			Self::RetiredSetFull => ErrorCode::IdentityRetiredSetFull,
 		}
 	}
 }
@@ -157,6 +171,7 @@ pub(crate) struct IdentityAuthorityContextV2 {
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
 pub(crate) struct IdentityKeystoreMaterialV2 {
 	pub(crate) state_key: [u8; 32],
+	pub(crate) recovery_receipt_signing_seed: [u8; 32],
 	pub(crate) subject_master_seed: [u8; 32],
 	pub(crate) recovery_incarnation: [u8; 32],
 	pub(crate) epoch: u32,
@@ -343,6 +358,13 @@ pub(crate) struct DurableIdentityOperationV2 {
 }
 
 #[derive(Clone, Debug, Decode, Encode, Eq, PartialEq)]
+struct DurableIdentityRecoveryV2 {
+	operation_id: [u8; 16],
+	install: Vec<u8>,
+	receipt: Vec<u8>,
+}
+
+#[derive(Clone, Debug, Decode, Encode, Eq, PartialEq)]
 struct DurableIdentityStateV2 {
 	version: u8,
 	revision: u64,
@@ -350,11 +372,16 @@ struct DurableIdentityStateV2 {
 	genesis_hash: [u8; 32],
 	subject_master_seed: [u8; 32],
 	recovery_incarnation: [u8; 32],
+	recovery_receipt_public_key: [u8; 32],
 	epoch: u32,
 	continuity: bool,
 	grants: BTreeMap<[u8; 32], IdentityGrantRecordV2>,
 	operations: BTreeMap<[u8; 16], DurableIdentityOperationV2>,
 	challenges: BTreeSet<[u8; 32]>,
+	recoveries: BTreeMap<[u8; 16], DurableIdentityRecoveryV2>,
+	retired_roots: BTreeSet<[u8; 32]>,
+	retired_grants: BTreeSet<[u8; 32]>,
+	pending_recovery: Option<[u8; 16]>,
 }
 
 impl DurableIdentityStateV2 {
@@ -368,14 +395,29 @@ impl DurableIdentityStateV2 {
 			self.genesis_hash != context.genesis_hash ||
 			self.subject_master_seed == [0; 32] ||
 			self.recovery_incarnation == [0; 32] ||
+			self.recovery_receipt_public_key == [0; 32] ||
 			self.grants.len() > MAX_GRANTS ||
 			self.operations.len() > MAX_OPERATIONS ||
-			self.challenges.len() > MAX_CHALLENGES
+			self.challenges.len() > MAX_CHALLENGES ||
+			self.recoveries.len() > MAX_RECOVERY_RECEIPTS ||
+			self.retired_roots.len() > MAX_RETIRED_ROOTS ||
+			self.retired_roots.contains(&recovery_tombstone(
+				self.subject_master_seed,
+				self.recovery_incarnation,
+			)) || (self.pending_recovery.is_some() &&
+			(!self.grants.is_empty() ||
+				!self.operations.is_empty() ||
+				!self.challenges.is_empty()))
 		{
 			return Err(IdentityAuthorityErrorV2::Corrupt);
 		}
 		for (id, grant) in &self.grants {
-			if *id != grant.id || grant.product_id.is_empty() || grant.product_id.len() > 128 {
+			if *id != grant.id ||
+				self.retired_grants.contains(id) ||
+				grant.product_id.is_empty() ||
+				grant.product_id.len() > 128 ||
+				grant.recovery_incarnation != self.recovery_incarnation
+			{
 				return Err(IdentityAuthorityErrorV2::Corrupt);
 			}
 		}
@@ -390,7 +432,31 @@ impl DurableIdentityStateV2 {
 				return Err(IdentityAuthorityErrorV2::Corrupt);
 			}
 		}
+		for (operation_id, recovery) in &self.recoveries {
+			if operation_id != &recovery.operation_id ||
+				recovery.install.len() > 1_024 ||
+				recovery.receipt.len() > 1_024 ||
+				Dto::<RecoveryInstallV2>::decode(&recovery.install).is_err() ||
+				Dto::<RecoveryReceiptV2>::decode(&recovery.receipt).is_err()
+			{
+				return Err(IdentityAuthorityErrorV2::Corrupt);
+			}
+		}
 		Ok(())
+	}
+}
+
+trait IdentityRecoveryEntropyV2 {
+	fn fill(&mut self, output: &mut [u8; 32]) -> Result<(), IdentityAuthorityErrorV2>;
+}
+
+struct OsIdentityRecoveryEntropyV2;
+
+impl IdentityRecoveryEntropyV2 for OsIdentityRecoveryEntropyV2 {
+	fn fill(&mut self, output: &mut [u8; 32]) -> Result<(), IdentityAuthorityErrorV2> {
+		OsRng
+			.try_fill_bytes(output)
+			.map_err(|_| IdentityAuthorityErrorV2::RecoveryEntropyFailed)
 	}
 }
 
@@ -399,6 +465,7 @@ pub(crate) struct IdentityAuthorityStoreV2 {
 	context: IdentityAuthorityContextV2,
 	key: [u8; 32],
 	aad: Vec<u8>,
+	recovery_receipt_signing_seed: [u8; 32],
 	state: RwLock<DurableIdentityStateV2>,
 	#[cfg(test)]
 	persist_fault: Mutex<Option<TestPersistFaultV2>>,
@@ -409,6 +476,7 @@ pub(crate) struct IdentityAuthorityStoreV2 {
 enum TestPersistFaultPointV2 {
 	BeforeWrite,
 	AfterFileSync,
+	AfterRename,
 }
 
 #[cfg(test)]
@@ -426,8 +494,6 @@ impl IdentityAuthorityStoreV2 {
 	) -> Result<Self, IdentityAuthorityErrorV2> {
 		let keystore = keystore.ok_or(IdentityAuthorityErrorV2::KeystoreUnavailable)?;
 		let grants = grants.ok_or(IdentityAuthorityErrorV2::GrantsUnavailable)?;
-		validate_keystore(keystore)?;
-		let grants = grants_map(grants, keystore.recovery_incarnation)?;
 		let root = root.as_ref().join(ROOT);
 		ensure_directory(&root)?;
 		ensure_directory(&root.join(QUARANTINE))?;
@@ -436,9 +502,16 @@ impl IdentityAuthorityStoreV2 {
 		}
 		cleanup_stale_temporaries(&root)?;
 		let key = state_key(keystore.state_key, context)?;
+		validate_recovery_receipt_signing_seed(keystore.recovery_receipt_signing_seed)?;
 		let aad = state_aad(context);
 		let path = root.join(STATE);
-		let state = if path.exists() {
+		let existing = path.exists();
+		if existing {
+			validate_state_key(keystore.state_key)?;
+		} else {
+			validate_keystore(keystore)?;
+		}
+		let state = if existing {
 			match load_state(&path, &key, &aad, context) {
 				Ok(state) => state,
 				Err(error) => {
@@ -456,24 +529,31 @@ impl IdentityAuthorityStoreV2 {
 				recovery_incarnation: keystore.recovery_incarnation,
 				epoch: keystore.epoch,
 				continuity: keystore.continuity,
-				grants: grants.clone(),
+				recovery_receipt_public_key: recovery_receipt_public_key(
+					keystore.recovery_receipt_signing_seed,
+				),
+				grants: grants_map(grants.clone(), keystore.recovery_incarnation)?,
 				operations: BTreeMap::new(),
 				challenges: BTreeSet::new(),
+				recoveries: BTreeMap::new(),
+				retired_roots: BTreeSet::new(),
+				retired_grants: BTreeSet::new(),
+				pending_recovery: None,
 			}
 		};
-		if state.subject_master_seed != keystore.subject_master_seed ||
-			state.recovery_incarnation != keystore.recovery_incarnation ||
-			state.epoch != keystore.epoch ||
-			state.continuity != keystore.continuity
-		{
-			return Err(IdentityAuthorityErrorV2::OldIncarnation);
-		}
 		state.validate(context)?;
+		if state.recovery_receipt_public_key !=
+			recovery_receipt_public_key(keystore.recovery_receipt_signing_seed)
+		{
+			return Err(IdentityAuthorityErrorV2::KeystoreUnavailable);
+		}
+		let grants = grants_map(grants, state.recovery_incarnation)?;
 		let store = Self {
 			root,
 			context,
 			key,
 			aad,
+			recovery_receipt_signing_seed: keystore.recovery_receipt_signing_seed,
 			state: RwLock::new(state),
 			#[cfg(test)]
 			persist_fault: Mutex::new(None),
@@ -525,11 +605,122 @@ impl IdentityAuthorityStoreV2 {
 		Ok((state.subject_master_seed, state.recovery_incarnation, state.epoch, state.continuity))
 	}
 
+	/// Installs a fresh root for any import, cross-device restore, stale backup, or other recovery
+	/// that cannot prove an authenticated monotonic same-store restart. The encrypted state,
+	/// install record, signed receipt, old-root tombstone, cleared grants, cleared operations, and
+	/// cleared replay journal are committed by one atomic state-file replacement.
+	pub(crate) fn recover_unproven(
+		&self,
+		operation_id: [u8; 16],
+		installed_at: u64,
+	) -> Result<Vec<u8>, IdentityAuthorityErrorV2> {
+		self.recover_unproven_with(operation_id, installed_at, &mut OsIdentityRecoveryEntropyV2)
+	}
+
+	fn recover_unproven_with(
+		&self,
+		operation_id: [u8; 16],
+		installed_at: u64,
+		entropy: &mut impl IdentityRecoveryEntropyV2,
+	) -> Result<Vec<u8>, IdentityAuthorityErrorV2> {
+		if operation_id == [0; 16] {
+			return Err(IdentityAuthorityErrorV2::RecoveryInstallFailed);
+		}
+		if let Some(receipt) =
+			self.read()?.recoveries.get(&operation_id).map(|record| record.receipt.clone())
+		{
+			return Ok(receipt);
+		}
+
+		// Persist the recovery barrier before entropy or installation. Once this succeeds, no old
+		// grant, prepared operation, or replay entry can authorize a derivation after a later
+		// entropy/install failure or restart.
+		self.mutate(|state| match state.pending_recovery {
+			Some(pending) if pending != operation_id =>
+				Err(IdentityAuthorityErrorV2::RecoveryInstallFailed),
+			Some(_) => Ok(()),
+			None => {
+				state.pending_recovery = Some(operation_id);
+				state.retired_grants.extend(state.grants.keys().copied());
+				state.grants.clear();
+				state.operations.clear();
+				state.challenges.clear();
+				Ok(())
+			},
+		})
+		.map_err(recovery_install_error)?;
+
+		let (old_seed, old_incarnation, old_tombstone, previous_root, retired_roots) = {
+			let state = self.read()?;
+			if state.recoveries.len() >= MAX_RECOVERY_RECEIPTS {
+				return Err(IdentityAuthorityErrorV2::RecoveryInstallFailed);
+			}
+			if state.retired_roots.len() >= MAX_RETIRED_ROOTS {
+				return Err(IdentityAuthorityErrorV2::RetiredSetFull);
+			}
+			let old_tombstone =
+				recovery_tombstone(state.subject_master_seed, state.recovery_incarnation);
+			(
+				state.subject_master_seed,
+				state.recovery_incarnation,
+				old_tombstone,
+				Sha256::digest(state.subject_master_seed).into(),
+				state.retired_roots.clone(),
+			)
+		};
+		let (new_seed, new_incarnation) =
+			fresh_recovery_root(entropy, old_tombstone, &retired_roots)?;
+		let (install, receipt) = recovery_records(
+			operation_id,
+			new_seed,
+			new_incarnation,
+			self.recovery_receipt_signing_seed,
+			Some(previous_root),
+			installed_at,
+		)?;
+
+		self.mutate(|state| {
+			if let Some(existing) = state.recoveries.get(&operation_id) {
+				return Ok(existing.receipt.clone());
+			}
+			if state.pending_recovery != Some(operation_id) ||
+				state.subject_master_seed != old_seed ||
+				state.recovery_incarnation != old_incarnation
+			{
+				return Err(IdentityAuthorityErrorV2::RecoveryInstallFailed);
+			}
+			state.subject_master_seed = new_seed;
+			state.recovery_incarnation = new_incarnation;
+			state.epoch = 0;
+			state.continuity = false;
+			state.retired_roots.insert(old_tombstone);
+			state.recoveries.insert(
+				operation_id,
+				DurableIdentityRecoveryV2 { operation_id, install, receipt: receipt.clone() },
+			);
+			state.pending_recovery = None;
+			Ok(receipt)
+		})
+		.map_err(recovery_install_error)
+	}
+
+	#[cfg(test)]
+	fn retired_root_count(&self) -> Result<usize, IdentityAuthorityErrorV2> {
+		Ok(self.read()?.retired_roots.len())
+	}
+
 	pub(crate) fn grant(
 		&self,
 		grant_id: [u8; 32],
 	) -> Result<Option<IdentityGrantRecordV2>, IdentityAuthorityErrorV2> {
-		Ok(self.read()?.grants.get(&grant_id).cloned())
+		let state = self.read()?;
+		if let Some(grant) = state.grants.get(&grant_id) {
+			return Ok(Some(grant.clone()));
+		}
+		if state.retired_grants.contains(&grant_id) {
+			return Err(IdentityAuthorityErrorV2::OldIncarnation);
+		}
+		Ok(None)
 	}
 
 	pub(crate) fn operation(
@@ -649,7 +840,17 @@ impl IdentityAuthorityStoreV2 {
 		}
 		next.revision = next.revision.checked_add(1).ok_or(IdentityAuthorityErrorV2::Full)?;
 		next.validate(self.context)?;
-		self.persist(&next)?;
+		if let Err(error) = self.persist(&next) {
+			// Rename may have committed the complete authenticated state before a directory-sync
+			// failure was reported. Reconcile memory with that exact state so a same-process retry
+			// observes the durable idempotency journal instead of installing different material.
+			if load_state(&self.root.join(STATE), &self.key, &self.aad, self.context)
+				.is_ok_and(|committed| committed == next)
+			{
+				*current = next;
+			}
+			return Err(error);
+		}
 		*current = next;
 		Ok(output)
 	}
@@ -694,6 +895,10 @@ impl IdentityAuthorityStoreV2 {
 				return Err(IdentityAuthorityErrorV2::Unavailable);
 			}
 			fs::rename(&temporary, &target).map_err(|_| IdentityAuthorityErrorV2::Unavailable)?;
+			#[cfg(test)]
+			if matches!(fault, Some(TestPersistFaultPointV2::AfterRename)) {
+				return Err(IdentityAuthorityErrorV2::Unavailable);
+			}
 			sync_dir(&self.root)?;
 			Ok(())
 		})();
@@ -1917,11 +2122,131 @@ fn same_operation(left: &DurableIdentityOperationV2, right: &DurableIdentityOper
 		left.events == right.events
 }
 
-fn validate_keystore(keystore: IdentityKeystoreMaterialV2) -> Result<(), IdentityAuthorityErrorV2> {
-	if keystore.state_key == [0; 32] ||
-		keystore.subject_master_seed == [0; 32] ||
-		keystore.recovery_incarnation == [0; 32]
+fn fresh_recovery_root(
+	entropy: &mut impl IdentityRecoveryEntropyV2,
+	current_tombstone: [u8; 32],
+	retired_roots: &BTreeSet<[u8; 32]>,
+) -> Result<([u8; 32], [u8; 32]), IdentityAuthorityErrorV2> {
+	for _ in 0..RECOVERY_ENTROPY_ATTEMPTS {
+		let mut seed = [0; 32];
+		let mut incarnation = [0; 32];
+		entropy.fill(&mut seed)?;
+		entropy.fill(&mut incarnation)?;
+		let tombstone = recovery_tombstone(seed, incarnation);
+		if seed != [0; 32] &&
+			incarnation != [0; 32] &&
+			tombstone != current_tombstone &&
+			!retired_roots.contains(&tombstone)
+		{
+			return Ok((seed, incarnation));
+		}
+	}
+	Err(IdentityAuthorityErrorV2::RecoveryEntropyFailed)
+}
+
+fn recovery_tombstone(seed: [u8; 32], incarnation: [u8; 32]) -> [u8; 32] {
+	let mut hash = Sha256::new();
+	hash.update(seed);
+	hash.update(incarnation);
+	hash.finalize().into()
+}
+
+fn recovery_records(
+	operation_id: [u8; 16],
+	seed: [u8; 32],
+	incarnation: [u8; 32],
+	receipt_signing_seed: [u8; 32],
+	previous_root: Option<[u8; 32]>,
+	installed_at: u64,
+) -> Result<(Vec<u8>, Vec<u8>), IdentityAuthorityErrorV2> {
+	if operation_id == [0; 16] ||
+		seed == [0; 32] ||
+		incarnation == [0; 32] ||
+		receipt_signing_seed == [0; 32]
 	{
+		return Err(IdentityAuthorityErrorV2::RecoveryEntropyFailed);
+	}
+	let mut install_fields = vec![
+		(0, uint(2)),
+		(1, Value::Bytes(operation_id.to_vec())),
+		(2, Value::Bytes(seed.to_vec())),
+		(3, Value::Bytes(incarnation.to_vec())),
+		(4, uint(0)),
+		(5, Value::Bool(false)),
+	];
+	if let Some(previous_root) = previous_root {
+		install_fields.push((6, Value::Bytes(previous_root.to_vec())));
+	}
+	install_fields.push((7, uint(installed_at)));
+	let install = Dto::<RecoveryInstallV2>::from_value(map(install_fields))
+		.map_err(|_| IdentityAuthorityErrorV2::RecoveryInstallFailed)?;
+
+	let root: [u8; 32] = Sha256::digest(seed).into();
+	let mut receipt_fields = vec![
+		(0, uint(2)),
+		(1, Value::Bytes(operation_id.to_vec())),
+		(2, Value::Bytes(root.to_vec())),
+		(3, Value::Bytes(incarnation.to_vec())),
+		(4, uint(0)),
+		(5, Value::Bool(false)),
+	];
+	if let Some(previous_root) = previous_root {
+		receipt_fields.push((6, Value::Bytes(previous_root.to_vec())));
+	}
+	receipt_fields.push((7, uint(installed_at)));
+	let unsigned_bytes = canonical_value(&map(receipt_fields.clone()))?;
+	let mut signed = Vec::with_capacity(RECOVERY_RECEIPT_DOMAIN.len() + unsigned_bytes.len());
+	signed.extend_from_slice(RECOVERY_RECEIPT_DOMAIN);
+	signed.extend_from_slice(&unsigned_bytes);
+	let signature = SigningKey::from_bytes(&receipt_signing_seed).sign(&signed).to_bytes();
+	receipt_fields.push((8, Value::Bytes(signature.to_vec())));
+	let receipt = Dto::<RecoveryReceiptV2>::from_value(map(receipt_fields))
+		.map_err(|_| IdentityAuthorityErrorV2::RecoveryInstallFailed)?;
+	Ok((install.canonical().to_vec(), receipt.canonical().to_vec()))
+}
+
+fn canonical_value(value: &Value) -> Result<Vec<u8>, IdentityAuthorityErrorV2> {
+	let mut bytes = Vec::new();
+	ciborium::ser::into_writer(value, &mut bytes)
+		.map_err(|_| IdentityAuthorityErrorV2::RecoveryInstallFailed)?;
+	Ok(bytes)
+}
+
+fn recovery_install_error(error: IdentityAuthorityErrorV2) -> IdentityAuthorityErrorV2 {
+	match error {
+		IdentityAuthorityErrorV2::Unavailable |
+		IdentityAuthorityErrorV2::Corrupt |
+		IdentityAuthorityErrorV2::Full => IdentityAuthorityErrorV2::RecoveryInstallFailed,
+		other => other,
+	}
+}
+
+fn validate_state_key(state_key: [u8; 32]) -> Result<(), IdentityAuthorityErrorV2> {
+	if state_key == [0; 32] {
+		return Err(IdentityAuthorityErrorV2::KeystoreUnavailable);
+	}
+	Ok(())
+}
+
+fn validate_recovery_receipt_signing_seed(
+	recovery_receipt_signing_seed: [u8; 32],
+) -> Result<(), IdentityAuthorityErrorV2> {
+	if recovery_receipt_signing_seed == [0; 32] {
+		return Err(IdentityAuthorityErrorV2::KeystoreUnavailable);
+	}
+	Ok(())
+}
+
+fn recovery_receipt_public_key(recovery_receipt_signing_seed: [u8; 32]) -> [u8; 32] {
+	SigningKey::from_bytes(&recovery_receipt_signing_seed)
+		.verifying_key()
+		.to_bytes()
+}
+
+fn validate_keystore(keystore: IdentityKeystoreMaterialV2) -> Result<(), IdentityAuthorityErrorV2> {
+	validate_state_key(keystore.state_key)?;
+	validate_recovery_receipt_signing_seed(keystore.recovery_receipt_signing_seed)?;
+	if keystore.subject_master_seed == [0; 32] || keystore.recovery_incarnation == [0; 32] {
 		return Err(IdentityAuthorityErrorV2::KeystoreUnavailable);
 	}
 	Ok(())
@@ -1936,10 +2261,12 @@ fn grants_map(
 	}
 	let mut output = BTreeMap::new();
 	for grant in grants {
+		if grant.recovery_incarnation != incarnation {
+			return Err(IdentityAuthorityErrorV2::OldIncarnation);
+		}
 		if grant.id == [0; 32] ||
 			grant.product_id.is_empty() ||
 			grant.product_id.len() > 128 ||
-			grant.recovery_incarnation != incarnation ||
 			grant
 				.audience
 				.as_ref()
@@ -2087,7 +2414,11 @@ fn set_private_file(file: &File) -> Result<(), IdentityAuthorityErrorV2> {
 
 #[cfg(test)]
 mod tests {
-	use std::sync::atomic::{AtomicBool, AtomicU64, AtomicUsize, Ordering};
+	use ed25519_dalek::{Signature, Verifier as _, VerifyingKey};
+	use std::{
+		collections::VecDeque,
+		sync::atomic::{AtomicBool, AtomicU64, AtomicUsize, Ordering},
+	};
 
 	use super::*;
 	use crate::product_sdk::host_v2::execution::{HostRequestMetaV2, ProviderOutboxContextV2};
@@ -2099,6 +2430,7 @@ mod tests {
 	fn keystore() -> IdentityKeystoreMaterialV2 {
 		IdentityKeystoreMaterialV2 {
 			state_key: [3; 32],
+			recovery_receipt_signing_seed: [7; 32],
 			subject_master_seed: [4; 32],
 			recovery_incarnation: [5; 32],
 			epoch: 7,
@@ -2132,6 +2464,30 @@ mod tests {
 			consent_recorded: true,
 			events: vec![b"accepted".to_vec(), b"result".to_vec()],
 			completed: false,
+		}
+	}
+
+	struct ScriptedRecoveryEntropyV2 {
+		values: VecDeque<Result<[u8; 32], ()>>,
+		calls: usize,
+	}
+
+	impl ScriptedRecoveryEntropyV2 {
+		fn new(values: impl IntoIterator<Item = [u8; 32]>) -> Self {
+			Self { values: values.into_iter().map(Ok).collect(), calls: 0 }
+		}
+	}
+
+	impl IdentityRecoveryEntropyV2 for ScriptedRecoveryEntropyV2 {
+		fn fill(&mut self, output: &mut [u8; 32]) -> Result<(), IdentityAuthorityErrorV2> {
+			self.calls += 1;
+			match self.values.pop_front() {
+				Some(Ok(value)) => {
+					*output = value;
+					Ok(())
+				},
+				_ => Err(IdentityAuthorityErrorV2::RecoveryEntropyFailed),
+			}
 		}
 	}
 
@@ -2279,6 +2635,288 @@ mod tests {
 		.unwrap();
 		assert!(!temporary.exists());
 		assert!(restored.grant([6; 32]).unwrap().is_some());
+	}
+
+	#[test]
+	fn recovery_install_and_receipt_match_the_frozen_canonical_vector() {
+		let (install, receipt) =
+			recovery_records([0x44; 16], [0x91; 32], [0x92; 32], [0x93; 32], Some([0x11; 32]), 100)
+				.unwrap();
+		let vectors: serde_json::Value =
+			serde_json::from_str(include_str!("../../../../docs/specs/identity-v2.vectors.json"))
+				.unwrap();
+		let vector = vectors["executable_vectors"]
+			.as_array()
+			.unwrap()
+			.iter()
+			.find(|vector| vector["id"] == "recovery-install-v2")
+			.unwrap();
+		let crypto = &vector["crypto"];
+		let public_key: [u8; 32] = hex::decode(crypto["receipt_public_key_hex"].as_str().unwrap())
+			.unwrap()
+			.try_into()
+			.unwrap();
+		let signed = hex::decode(crypto["receipt_signed_bytes_hex"].as_str().unwrap()).unwrap();
+		let signature = Signature::from_slice(
+			&hex::decode(crypto["receipt_signature_hex"].as_str().unwrap()).unwrap(),
+		)
+		.unwrap();
+		assert_eq!(recovery_receipt_public_key([0x93; 32]), public_key);
+		VerifyingKey::from_bytes(&public_key)
+			.unwrap()
+			.verify(&signed, &signature)
+			.unwrap();
+		assert_eq!(hex::encode(install), vector["canonical_cbor_hex"]);
+		assert_eq!(hex::encode(receipt), vector["exact_response_cbor_hex"]);
+	}
+
+	#[test]
+	fn unproven_recovery_is_fresh_idempotent_and_restart_safe_without_grant_inheritance() {
+		let root = tempfile::tempdir().unwrap();
+		let store = IdentityAuthorityStoreV2::open(
+			root.path(),
+			context(),
+			Some(keystore()),
+			Some(vec![grant()]),
+		)
+		.unwrap();
+		let mut no_entropy = ScriptedRecoveryEntropyV2::new([]);
+		assert_eq!(
+			store.recover_unproven_with([0; 16], 100, &mut no_entropy),
+			Err(IdentityAuthorityErrorV2::RecoveryInstallFailed)
+		);
+		assert_eq!(no_entropy.calls, 0);
+		assert!(store.grant([6; 32]).unwrap().is_some());
+		store.prepare_operation(operation(), Some([12; 32])).unwrap();
+
+		let mut entropy = ScriptedRecoveryEntropyV2::new([[0x91; 32], [0x92; 32]]);
+		let receipt = store.recover_unproven_with([0x44; 16], 100, &mut entropy).unwrap();
+		assert_eq!(entropy.calls, 2);
+		assert_eq!(store.root_material().unwrap(), ([0x91; 32], [0x92; 32], 0, false));
+		assert_eq!(store.grant([6; 32]), Err(IdentityAuthorityErrorV2::OldIncarnation));
+		assert!(store.operation([7; 16]).unwrap().is_none());
+		assert!(!store.challenge_consumed([12; 32]).unwrap());
+		assert_eq!(store.retired_root_count().unwrap(), 1);
+
+		let mut unused_entropy = ScriptedRecoveryEntropyV2::new([]);
+		assert_eq!(
+			store.recover_unproven_with([0x44; 16], 999, &mut unused_entropy).unwrap(),
+			receipt
+		);
+		assert_eq!(unused_entropy.calls, 0);
+		drop(store);
+
+		let mut wrong_receipt_authority = keystore();
+		wrong_receipt_authority.recovery_receipt_signing_seed = [8; 32];
+		assert!(matches!(
+			IdentityAuthorityStoreV2::open(
+				root.path(),
+				context(),
+				Some(wrong_receipt_authority),
+				Some(vec![]),
+			),
+			Err(IdentityAuthorityErrorV2::KeystoreUnavailable)
+		));
+
+		let reopened =
+			IdentityAuthorityStoreV2::open(root.path(), context(), Some(keystore()), Some(vec![]))
+				.unwrap();
+		let mut restart_entropy = ScriptedRecoveryEntropyV2::new([]);
+		assert_eq!(
+			reopened.recover_unproven_with([0x44; 16], 1_000, &mut restart_entropy).unwrap(),
+			receipt
+		);
+		assert_eq!(restart_entropy.calls, 0);
+		assert!(matches!(
+			IdentityAuthorityStoreV2::open(
+				root.path(),
+				context(),
+				Some(keystore()),
+				Some(vec![grant()]),
+			),
+			Err(IdentityAuthorityErrorV2::OldIncarnation)
+		));
+	}
+
+	#[test]
+	fn recovery_retries_a_retired_root_collision() {
+		let root = tempfile::tempdir().unwrap();
+		let store = IdentityAuthorityStoreV2::open(
+			root.path(),
+			context(),
+			Some(keystore()),
+			Some(vec![grant()]),
+		)
+		.unwrap();
+		let mut first = ScriptedRecoveryEntropyV2::new([[0x61; 32], [0x62; 32]]);
+		store.recover_unproven_with([0x4a; 16], 100, &mut first).unwrap();
+
+		let mut second = ScriptedRecoveryEntropyV2::new([[4; 32], [5; 32], [0x63; 32], [0x64; 32]]);
+		store.recover_unproven_with([0x4b; 16], 101, &mut second).unwrap();
+		assert_eq!(second.calls, 4);
+		assert_eq!(store.root_material().unwrap(), ([0x63; 32], [0x64; 32], 0, false));
+		assert_eq!(store.retired_root_count().unwrap(), 2);
+	}
+
+	#[test]
+	fn entropy_failure_persists_a_fail_closed_recovery_barrier_and_retry_can_finish() {
+		let root = tempfile::tempdir().unwrap();
+		let store = IdentityAuthorityStoreV2::open(
+			root.path(),
+			context(),
+			Some(keystore()),
+			Some(vec![grant()]),
+		)
+		.unwrap();
+		let mut zeros = ScriptedRecoveryEntropyV2::new([[0; 32]; 6]);
+		assert_eq!(
+			store.recover_unproven_with([0x45; 16], 100, &mut zeros),
+			Err(IdentityAuthorityErrorV2::RecoveryEntropyFailed)
+		);
+		assert_eq!(zeros.calls, 6);
+		assert_eq!(store.grant([6; 32]), Err(IdentityAuthorityErrorV2::OldIncarnation));
+		assert_eq!(store.root_material().unwrap(), ([4; 32], [5; 32], 7, true));
+		drop(store);
+
+		let reopened =
+			IdentityAuthorityStoreV2::open(root.path(), context(), Some(keystore()), Some(vec![]))
+				.unwrap();
+		let mut fresh = ScriptedRecoveryEntropyV2::new([[0x61; 32], [0x62; 32]]);
+		reopened.recover_unproven_with([0x45; 16], 101, &mut fresh).unwrap();
+		assert_eq!(reopened.root_material().unwrap(), ([0x61; 32], [0x62; 32], 0, false));
+	}
+
+	#[test]
+	fn recovery_retries_collisions_and_install_failure_never_commits_partial_material() {
+		for point in [TestPersistFaultPointV2::BeforeWrite, TestPersistFaultPointV2::AfterFileSync]
+		{
+			let root = tempfile::tempdir().unwrap();
+			let store = IdentityAuthorityStoreV2::open(
+				root.path(),
+				context(),
+				Some(keystore()),
+				Some(vec![grant()]),
+			)
+			.unwrap();
+			store.fail_persist_after(1, point);
+			let mut entropy =
+				ScriptedRecoveryEntropyV2::new([[4; 32], [5; 32], [0x71; 32], [0x72; 32]]);
+			assert_eq!(
+				store.recover_unproven_with([0x46; 16], 100, &mut entropy),
+				Err(IdentityAuthorityErrorV2::RecoveryInstallFailed)
+			);
+			assert_eq!(entropy.calls, 4);
+			assert_eq!(store.root_material().unwrap(), ([4; 32], [5; 32], 7, true));
+			assert_eq!(store.grant([6; 32]), Err(IdentityAuthorityErrorV2::OldIncarnation));
+			drop(store);
+
+			let reopened = IdentityAuthorityStoreV2::open(
+				root.path(),
+				context(),
+				Some(keystore()),
+				Some(vec![]),
+			)
+			.unwrap();
+			let mut retry = ScriptedRecoveryEntropyV2::new([[0x73; 32], [0x74; 32]]);
+			reopened.recover_unproven_with([0x46; 16], 101, &mut retry).unwrap();
+			assert_eq!(reopened.root_material().unwrap(), ([0x73; 32], [0x74; 32], 0, false));
+		}
+	}
+
+	#[test]
+	fn lost_success_after_atomic_rename_replays_the_committed_receipt() {
+		let root = tempfile::tempdir().unwrap();
+		let store = IdentityAuthorityStoreV2::open(
+			root.path(),
+			context(),
+			Some(keystore()),
+			Some(vec![grant()]),
+		)
+		.unwrap();
+		store.fail_persist_after(1, TestPersistFaultPointV2::AfterRename);
+		let mut entropy = ScriptedRecoveryEntropyV2::new([[0x75; 32], [0x76; 32]]);
+		assert_eq!(
+			store.recover_unproven_with([0x49; 16], 100, &mut entropy),
+			Err(IdentityAuthorityErrorV2::RecoveryInstallFailed)
+		);
+		assert_eq!(store.root_material().unwrap(), ([0x75; 32], [0x76; 32], 0, false));
+
+		let mut unused_entropy = ScriptedRecoveryEntropyV2::new([]);
+		let receipt = store.recover_unproven_with([0x49; 16], 999, &mut unused_entropy).unwrap();
+		assert_eq!(unused_entropy.calls, 0);
+		drop(store);
+
+		let reopened =
+			IdentityAuthorityStoreV2::open(root.path(), context(), Some(keystore()), Some(vec![]))
+				.unwrap();
+		let mut restart_entropy = ScriptedRecoveryEntropyV2::new([]);
+		assert_eq!(
+			reopened.recover_unproven_with([0x49; 16], 1_000, &mut restart_entropy).unwrap(),
+			receipt
+		);
+		assert_eq!(restart_entropy.calls, 0);
+	}
+
+	#[test]
+	fn retired_root_capacity_blocks_recovery_before_entropy() {
+		let root = tempfile::tempdir().unwrap();
+		let store = IdentityAuthorityStoreV2::open(
+			root.path(),
+			context(),
+			Some(keystore()),
+			Some(vec![grant()]),
+		)
+		.unwrap();
+		let current = recovery_tombstone([4; 32], [5; 32]);
+		store
+			.mutate(|state| {
+				for index in 0..MAX_RETIRED_ROOTS as u32 {
+					let mut candidate = [0; 32];
+					candidate[..4].copy_from_slice(&index.to_be_bytes());
+					if candidate == current {
+						candidate[31] = 1;
+					}
+					state.retired_roots.insert(candidate);
+				}
+				Ok(())
+			})
+			.unwrap();
+		let mut entropy = ScriptedRecoveryEntropyV2::new([[0x81; 32], [0x82; 32]]);
+		assert_eq!(
+			store.recover_unproven_with([0x47; 16], 100, &mut entropy),
+			Err(IdentityAuthorityErrorV2::RetiredSetFull)
+		);
+		assert_eq!(entropy.calls, 0);
+		assert_eq!(store.root_material().unwrap(), ([4; 32], [5; 32], 7, true));
+		assert_eq!(store.retired_root_count().unwrap(), MAX_RETIRED_ROOTS);
+		assert_eq!(store.grant([6; 32]), Err(IdentityAuthorityErrorV2::OldIncarnation));
+	}
+
+	#[test]
+	fn disconnected_recoveries_from_one_backup_install_distinct_roots() {
+		let left_root = tempfile::tempdir().unwrap();
+		let right_root = tempfile::tempdir().unwrap();
+		let left = IdentityAuthorityStoreV2::open(
+			left_root.path(),
+			context(),
+			Some(keystore()),
+			Some(vec![grant()]),
+		)
+		.unwrap();
+		let right = IdentityAuthorityStoreV2::open(
+			right_root.path(),
+			context(),
+			Some(keystore()),
+			Some(vec![grant()]),
+		)
+		.unwrap();
+		let mut left_entropy = ScriptedRecoveryEntropyV2::new([[0x91; 32], [0x92; 32]]);
+		let mut right_entropy = ScriptedRecoveryEntropyV2::new([[0xa1; 32], [0xa2; 32]]);
+		left.recover_unproven_with([0x48; 16], 100, &mut left_entropy).unwrap();
+		right.recover_unproven_with([0x48; 16], 100, &mut right_entropy).unwrap();
+		assert_ne!(left.root_material().unwrap().0, right.root_material().unwrap().0);
+		assert!(!left.root_material().unwrap().3);
+		assert!(!right.root_material().unwrap().3);
 	}
 
 	#[derive(Clone)]
