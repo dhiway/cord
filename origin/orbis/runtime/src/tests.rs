@@ -4950,7 +4950,14 @@ fn sponsored_meta_tx_preserves_actor_and_rejects_replay_and_forgery_core(emit_v4
 			},
 		);
 		let reservation = apply_meta_through_executive(resource_meta, &bob, &bob_pair);
-		assert!(format!("{reservation:?}").contains("ReservationBackendFailed"));
+		let reservation_error = reservation
+			.expect_err("the unavailable reservation backend must fail closed")
+			.error;
+		assert!(matches!(
+			reservation_error,
+			sp_runtime::DispatchError::Module(module)
+				if module.index == 96 && module.error == [15, 0, 0, 0]
+		));
 		assert_eq!(System::account_nonce(&alice), inner_nonce);
 		assert_eq!(System::account_nonce(&bob), sponsor_nonce + 1);
 		assert!(Balances::free_balance(&bob) < sponsor_balance);
