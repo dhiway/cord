@@ -44,7 +44,7 @@ use pallet_orbis_storage_provider::{
 	CheckpointFallbackPromotionV1, CommitmentPayloadV2, ReplicaSignature,
 };
 use scale_info::{meta_type, TypeInfo};
-use serde::Serialize;
+use serde::{Serialize, Serializer};
 use sp_core::{crypto::AccountId32, ed25519, Pair as _, H256};
 use sp_crypto_hashing::blake2_256;
 
@@ -154,11 +154,31 @@ pub struct PromotionObservation {
 pub struct RecoveryOutcomeObservation {
 	pub phase: String,
 	pub provider: String,
+	#[serde(serialize_with = "serialize_recovery_state")]
 	pub state: ProviderRecoveryOutcome,
 	pub action: ProviderRecoveryAction,
 	pub retryable: bool,
 	pub byte_plane_ready: bool,
 	pub redacted_counts: RecoveryRedactedCounts,
+}
+
+fn serialize_recovery_state<S>(
+	state: &ProviderRecoveryOutcome,
+	serializer: S,
+) -> Result<S::Ok, S::Error>
+where
+	S: Serializer,
+{
+	serializer.serialize_str(match state {
+		ProviderRecoveryOutcome::LocalStateUnavailable => "LOCAL_STATE_UNAVAILABLE",
+		ProviderRecoveryOutcome::ControlSnapshotUnavailable => "CONTROL_SNAPSHOT_UNAVAILABLE",
+		ProviderRecoveryOutcome::RepairRequired => "REPAIR_REQUIRED",
+		ProviderRecoveryOutcome::FailoverReady => "FAILOVER_READY",
+		ProviderRecoveryOutcome::FailoverPending => "FAILOVER_PENDING",
+		ProviderRecoveryOutcome::PromotionPending => "PROMOTION_PENDING",
+		ProviderRecoveryOutcome::Blocked => "BLOCKED",
+		ProviderRecoveryOutcome::Ready => "READY",
+	})
 }
 
 #[allow(missing_docs)]
@@ -1070,6 +1090,7 @@ fn recovery_outcomes(
 		.iter()
 		.map(|service| {
 			let provider = service.store().profile().expect("validated provider profile").provider;
+			let provider = redacted_provider_alias(&provider).into();
 			let status: ProviderRecoveryStatus = service.recovery_status();
 			let control = status.control.expect("complete duty snapshot installed");
 			RecoveryOutcomeObservation {
@@ -1092,6 +1113,18 @@ fn recovery_outcomes(
 			}
 		})
 		.collect()
+}
+
+fn redacted_provider_alias(provider: &str) -> &'static str {
+	if provider == hex::encode(PROVIDER_A) {
+		"provider-1"
+	} else if provider == hex::encode(PROVIDER_B) {
+		"provider-2"
+	} else if provider == hex::encode(PROVIDER_C) {
+		"provider-3"
+	} else {
+		panic!("recovery evidence provider is outside the fixed three-provider scenario")
+	}
 }
 
 fn runtime_duty(

@@ -98,9 +98,17 @@ async fn deterministic_failover() {
 	);
 	assert!(evidence.typed_outcomes.iter().all(|outcome| {
 		!outcome.phase.is_empty() &&
-			!outcome.provider.is_empty() &&
+			matches!(outcome.provider.as_str(), "provider-1" | "provider-2" | "provider-3") &&
 			serde_json::to_value(outcome)
 				.ok()
+				.filter(|value| {
+					value.get("state").and_then(serde_json::Value::as_str).is_some_and(|state| {
+						state.len() <= 64 &&
+							state.bytes().all(|byte| {
+								byte.is_ascii_uppercase() || byte == b'_' || byte.is_ascii_digit()
+							})
+					})
+				})
 				.and_then(|value| value.get("redacted_counts").cloned())
 				.and_then(|value| value.as_object().cloned())
 				.is_some_and(|counts| {
