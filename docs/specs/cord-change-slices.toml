@@ -30,7 +30,12 @@ path_globs = [
   "scripts/tests/test_storage_identity_deletion.py",
   "scripts/tests/fixtures/**",
 ]
-commit_shas = []
+commit_shas = [
+  "e342141ccaf67bb0e90bdf6fb6f699c21c407fd1",
+  "b2b495633d953f9e0ff2957117abe5c31a0b1178",
+  "9b215d7738d0623a0b519f5e091d1782030f0cc2",
+  "3ac8758c344bb62da0204bf248772860bba3cbbc",
+]
 
 [[slice]]
 id = "P0_INVENTORY"
@@ -44,7 +49,7 @@ path_globs = [
   "scripts/validate-web3-storage-parity.py",
   "scripts/test-web3-storage-inventory.py",
 ]
-commit_shas = []
+commit_shas = ["c2d5afe1898e0593105d63da2376c4ca9d7c0acb"]
 
 [[slice]]
 id = "P0_CONTRACTS"
@@ -59,8 +64,10 @@ path_globs = [
   "docs/adr/**",
   "Cargo.lock",
   "origin-rs/Cargo.toml",
+  "origin-rs/src/product_sdk/domains/storage_events.rs",
+  "origin-rs/src/product_sdk/storage_events.rs",
   "origin-rs/tests/origin_host_registry_conformance.rs",
   "origin-rs/tests/generated/**",
   "product-sdk/tools/origin-host-conformance/**",
 ]
-commit_shas = []
+commit_shas = ["d9ff69b6ef41c7ee823a4ce542cfa958439369cc"]

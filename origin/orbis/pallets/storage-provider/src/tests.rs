@@ -371,6 +371,40 @@ fn organization_admission_rejects_every_invalid_authority_case_without_state() {
 }
 
 #[test]
+fn provider_organization_contract_rejects_atomically_and_emits_ordered_rotation() {
+	new_test_ext().execute_with(|| {
+		register(1, 100);
+		let before = Providers::<Test>::get(1).expect("registered provider");
+		let events_before = System::events().len();
+		let mut invalid = organization(&before.service_key.active);
+		invalid.entity_id = b"replacement-enterprise".to_vec().try_into().unwrap();
+		assert_noop!(
+			StorageProvider::rotate_provider_organization(RuntimeOrigin::root(), 1, invalid),
+			Error::<Test>::ProviderAttestationInvalid
+		);
+		assert_eq!(Providers::<Test>::get(1).expect("provider remains"), before);
+		assert_eq!(System::events().len(), events_before);
+
+		let predecessor = <Test as frame_system::Config>::Hashing::hash_of(&before.organization);
+		let mut replacement = organization(&before.service_key.active);
+		replacement.entity_id = b"replacement-enterprise".to_vec().try_into().unwrap();
+		replacement.rotation_predecessor = Some(predecessor);
+		assert_ok!(StorageProvider::rotate_provider_organization(
+			RuntimeOrigin::root(),
+			1,
+			replacement.clone(),
+		));
+		assert_eq!(Providers::<Test>::get(1).expect("rotated provider").organization, replacement);
+		assert_eq!(System::events().len(), events_before + 1);
+		assert!(matches!(
+			System::events().last().map(|record| &record.event),
+			Some(RuntimeEvent::StorageProvider(Event::ProviderOrganizationRotated { provider, predecessor: observed }))
+				if *provider == 1 && *observed == predecessor
+		));
+	});
+}
+
+#[test]
 fn governed_finality_is_authorized_monotonic_and_fails_closed_when_uninitialized() {
 	new_test_ext().execute_with(|| {
 		GovernedFinalizedCheckpoint::<Test>::kill();
