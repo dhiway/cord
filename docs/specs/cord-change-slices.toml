@@ -71,3 +71,49 @@ path_globs = [
   "product-sdk/tools/origin-host-conformance/**",
 ]
 commit_shas = ["d9ff69b6ef41c7ee823a4ce542cfa958439369cc"]
+
+[[slice]]
+id = "P7_FINAL_CLOSURE"
+enabled = true
+# Accepted clean-break integration commits.  The scoped globs cover only the
+# Origin/Orbis implementation, developer SDK facade, and reproducibility evidence.
+path_globs = [
+  "Cargo.lock",
+  "Cargo.toml",
+  "docs/**",
+  "origin-rs/**",
+  "origin/orbis/**",
+  "product-sdk/**",
+  "scripts/**",
+]
+commit_shas = [
+  "35e8e37608a0127d7e9185ec23bad086ebf41780",
+  "14b40c909965a4e4f39016e62343b4afb4ac0c38",
+  "4466b70a0e7ef5336e95587011c9410859c6bec0",
+  "f7a87f1fd293d8599c75bb38490b57f7b3fcd5ae",
+  "4f5238a174fae445d82b7d56a09c294fc4a85a88",
+  "55fae8967a9e0d57ad4b9309e678ee1cff8d9e49",
+  "b6f74b317d972ee79e289b70861f751f5ce0d64d",
+  "3be0447646ab75e83fc69b3829ed8d2b4667b0a5",
+  "62a4d9c3e9a43a0d54ccfa645532599de87f1461",
+  "134e590c60054b80fc3b2690aae47ae0895166cd",
+  "c61e216df0cf8df0f36d28200587f8c8083be1a5",
+  "19c5ca13f9523bd3bfbb658882a5b798b2ddb0f7",
+  "467e5b7e6ecb035b655555ead9fde099a640c298",
+  "4d32aea4245fb42acf93d9f80e1d36d0e6ce11f0",
+  "64a21dd750c770b309278d56e8ed6ada14e70768",
+  "2723a8698deb52d745c83e28a192567bf64607cb",
+  "e7b09aa60147f37b44602c8f81fb62fe428674ce",
+  "756ac4690c52f79c389d6f732c70e54f453c93b6",
+  "7108030486c278e617555b7d38ddd29d3decc507",
+  "b515f8d155af200e18a7a15d0b3e51afd5a10342",
+  "f89020d725d03d5fb0d545345eca503e3e04b7d8",
+  "0ddcd99c2d4d672935c75933880893d2668bf48e",
+  "6b395be3ef52df0fdf4e9d09f4e73658fe9d7476",
+  "54fb01e5685b09664e0c2b78e0cd0a1b759dfe96",
+  "8e5e60c88f6c37dd073193087d5902036a83863c",
+  "46e072b66ad493a92e8742867cbd677d6b121bce",
+  "8487a9e8f6a6ec119408b908265e4b84bf3c83ec",
+  "d7a7a5d913fdfa0c784d10b4abe7cf46934649d6",
+  "6285d0afedda69e6b0d888202dcd627906376201",
+]
