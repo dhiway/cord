@@ -249,9 +249,15 @@ docker run --rm \
 	"$SRTOOL_LOCAL_IMAGE" -lc "
 		set -euo pipefail
 		rustup override set 1.93.0
-		# rocksdb's bindgen/clang-sys needs the pinned image's installed libclang;
-		# declare the exact in-image location rather than downloading a host toolchain.
-		export LIBCLANG_PATH=/usr/lib/llvm-14/lib
+		# rocksdb's bindgen/clang-sys needs a libclang.so filename. The pinned
+		# image's llvm-14 compatibility link is broken, but its verified Debian
+		# library is present. Create an ephemeral in-container discovery link;
+		# do not alter the image or use a host toolchain.
+		test -r /usr/lib/x86_64-linux-gnu/libclang-14.so.14.0.0
+		mkdir -p /tmp/cord-srtool-libclang
+		ln -sfn /usr/lib/x86_64-linux-gnu/libclang-14.so.14.0.0 /tmp/cord-srtool-libclang/libclang.so
+		test -r /tmp/cord-srtool-libclang/libclang.so
+		export LIBCLANG_PATH=/tmp/cord-srtool-libclang
 		export CLANG_PATH=/usr/bin/clang-14
 		cargo build --locked --profile $PROFILE \
 			--package origin \
