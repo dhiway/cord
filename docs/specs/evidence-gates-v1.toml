@@ -1813,7 +1813,7 @@ sha256 = "58ee013c5639e42ce284873cb19ab0bb8261114647707f2ac4203f41dfd533ef"
 
 [[gate.input]]
 path = "scripts/run-evidence-gate.py"
-sha256 = "995f18062ebefb11eb2c57575ea6e33bd9fc61d47aba1bdc5630a878019e1545"
+sha256 = "373293574b9b18fd6981d75749e9c5b6f8edcad3243e9711523315d279357be1"
 
 [[gate.input]]
 path = "scripts/evidence_common.py"
@@ -2476,7 +2476,7 @@ sha256 = "be55b5543f285248683f7eccab5e9ca66f5935f10ffa2c11ed138277618fb3e1"
 
 [[gate.input]]
 path = "origin"
-sha256 = "0e8a046a6f8913921a655e6fc4994f3c006683a74bba7dda2bfaa52b2f47f387"
+sha256 = "ffe9a723740b4e8bbd9c90971a1dffbccb2bcb24d7812c5dfefb21ab44bb34ff"
 
 [[gate.input]]
 path = "scripts/export-origin-commons-metadata.py"
@@ -2518,6 +2518,13 @@ schema = "scale-metadata-v15"
 path = "target/evidence/origin-commons-runtime.portable-registry.json"
 sha256 = "record"
 schema = "portable-registry-v1"
+
+[[gate.assertion]]
+clause = "metadata-export"
+source = "target/evidence/origin-commons-runtime.receipt.json"
+json_pointer = "/schema_version"
+operator = "eq"
+expected = 1
 
 [[gate]]
 id = "P1"
@@ -2589,7 +2596,7 @@ sha256 = "1ee21acc0580bc7698cef67d6ef293c15d54d506288e38252fb6bcad7659e52a"
 
 [[gate.input]]
 path = "origin"
-sha256 = "0e8a046a6f8913921a655e6fc4994f3c006683a74bba7dda2bfaa52b2f47f387"
+sha256 = "ffe9a723740b4e8bbd9c90971a1dffbccb2bcb24d7812c5dfefb21ab44bb34ff"
 
 [[gate.input]]
 path = "Cargo.toml"

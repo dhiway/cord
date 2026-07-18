@@ -532,8 +532,13 @@ def main() -> int:
                 actual_hash = canonical_release_hash(root, declared)
                 input_hashes[declared["path"]] = actual_hash
                 input_ancestry[declared["path"]] = {
-                    "input_class": input_class,
-                    "attestation": declared["attestation"],
+                    # EvidenceReportV1 records all input ancestry with this
+                    # common shape. Here SHA256SUMS is the external producer
+                    # receipt rather than a prior in-repository gate report.
+                    "producer_gate": "CANONICAL_RELEASE",
+                    "producer_output": declared["path"],
+                    "producer_report": declared["attestation"],
+                    "producer_report_sha256": sha256_file(root / declared["attestation"]),
                     "artifact_sha256": actual_hash,
                 }
             elif declared["sha256"] == "record" and input_class != "generated":
