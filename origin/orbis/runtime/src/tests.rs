@@ -4389,7 +4389,10 @@ fn sponsored_meta_tx_preserves_actor_and_rejects_replay_and_forgery_core(emit_v4
 		));
 		assert!(Balances::free_balance(&bob) >= bob_after_withdrawal);
 		assert!(Balances::free_balance(&bob) < bob_balance);
-		assert!(indiv_pallet_resources::StorageClaims::<Runtime>::contains_key(0));
+		assert!(
+			indiv_pallet_resources::StorageClaims::<Runtime>::iter().next().is_some(),
+			"signed paid-meta ingress creates a storage claim without depending on its fixture-local id"
+		);
 		assert_eq!(System::account_nonce(&alice), 1);
 		assert_eq!(Balances::free_balance(&alice), alice_balance);
 
