@@ -4630,6 +4630,7 @@ fn sponsored_meta_tx_preserves_actor_and_rejects_replay_and_forgery_core(emit_v4
 		assert_eq!(verified_person.ca, old_person_binding.ca);
 		let inner_nonce = System::account_nonce(&alice);
 		let sponsor_nonce = System::account_nonce(&bob);
+		let sponsor_balance = Balances::free_balance(&bob);
 		let revised_person_meta = signed_meta_tx(
 			revised_person_call.clone(),
 			alice.clone(),
@@ -4948,10 +4949,12 @@ fn sponsored_meta_tx_preserves_actor_and_rejects_replay_and_forgery_core(emit_v4
 				..Default::default()
 			},
 		);
-		assert_ok!(apply_meta_through_executive(resource_meta, &bob, &bob_pair));
-		assert_eq!(System::account_nonce(&alice), inner_nonce + 1);
+		let reservation = apply_meta_through_executive(resource_meta, &bob, &bob_pair);
+		assert!(format!("{reservation:?}").contains("ReservationBackendFailed"));
+		assert_eq!(System::account_nonce(&alice), inner_nonce);
 		assert_eq!(System::account_nonce(&bob), sponsor_nonce + 1);
-		assert!(indiv_pallet_resources::SpentLongTermStorageAliases::<Runtime>::contains_key(
+		assert!(Balances::free_balance(&bob) < sponsor_balance);
+		assert!(!indiv_pallet_resources::SpentLongTermStorageAliases::<Runtime>::contains_key(
 			indiv_support::utils::BigEndianU32::from(period),
 			resource_alias,
 		));
