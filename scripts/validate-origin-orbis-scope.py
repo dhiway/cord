@@ -77,12 +77,40 @@ def main() -> int:
     obsolete = deletion.get("obsolete", [])
     if not obsolete:
         duplicate.append("obsolete-surface inventory is empty")
-    # A replacement is complete only if every declared cleanup row has a
-    # terminal deletion receipt; pending compatibility rows are prohibited.
+    # A replacement is complete only if every cleanup row is a terminal
+    # deletion receipt or an independently present canonical replacement.
     items = deletion.get("item", [])
-    non_deleted = [str(row.get("id", "?")) for row in items if row.get("status") != "deleted"]
-    if non_deleted:
-        migration.append("non-deleted clean-break items: " + ", ".join(non_deleted))
+    invalid = [str(row.get("id", "?")) for row in items
+               if row.get("status") not in {"deleted", "replacement-active"}]
+    if invalid:
+        migration.append("non-terminal clean-break items: " + ", ".join(invalid))
+    active = [row for row in items if row.get("status") == "replacement-active"]
+    if not active:
+        duplicate.append("replacement-active inventory is empty")
+    root = Path.cwd()
+    for row in active:
+        identifier = str(row.get("id", "?"))
+        path = root / str(row.get("path", ""))
+        symbol = str(row.get("symbol", ""))
+        locator = str(row.get("surface_locator", ""))
+        if not path.is_file():
+            duplicate.append(f"{identifier}: replacement path is absent: {path}")
+            continue
+        source = path.read_text(encoding="utf-8")
+        if locator == "http-route":
+            # The route token is sufficient here: API verb dispatch may be
+            # macro-generated, but the canonical path must remain concrete.
+            route = symbol.split(" ", 1)[-1]
+            present = route in source
+        elif locator == "file":
+            present = True
+        elif locator == "rust-export":
+            name = symbol.removeprefix("rust-export::")
+            present = f"pub fn {name}" in source or f"pub(crate) fn {name}" in source
+        else:
+            present = symbol in source
+        if not present:
+            duplicate.append(f"{identifier}: active replacement marker is absent: {symbol}")
     repositories = read_json(args.repositories, external, "repository boundary report")
     if repositories.get("status") != "pass":
         external.append("repository boundary report is not pass")
