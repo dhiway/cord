@@ -39,7 +39,7 @@ component internal.
   lightweight enrolment call or read verifier allowance through the product facade.
 - Runtime operators can inspect and govern the retained state through normal FRAME tooling.
 - Removing the pallet requires a new accepted ADR proving every `distinct` row reproduced and must
-  delete the runtime index, extension, API, storage, weights and tests together.
+  delete the runtime index, extension, configuration, storage, weights and tests together.
 - Origin and Commons are new networks; no compatibility route or data migration is authorized.
 
 ## Verification

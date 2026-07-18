@@ -119,9 +119,9 @@ projects_to = []
 
 [[internal_surface]]
 id = "PL-INT-04"
-path = "origin/orbis/runtime-api/identity-personhood/src/lib.rs"
-marker = "fn attestation_allowance"
-kind = "operator-runtime-api"
+path = "origin/orbis/runtime/src/lib.rs"
+marker = "impl indiv_pallet_people_lite::Config for Runtime"
+kind = "runtime-configuration"
 visibility = "internal"
 projects_to = []
 

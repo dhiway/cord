@@ -1018,15 +1018,15 @@ sha256 = "71c9653ceec006b594fe59129da0b776f20fa6ee5e85cbd42136e0de8e5bfb69"
 
 [[gate.input]]
 path = "docs/specs/web3-storage-disposition-v1.toml"
-sha256 = "5c63ef945c68a4d7b062626c0eac1a8f5eb2b784127ca68181aafa289e818e79"
+sha256 = "9dc1c9d3b41c33148a854e5d0109be5f3b30857757a0ef4373f036b32253b825"
 
 [[gate.input]]
 path = "docs/adr/0021-lightweight-humanity-internal-disposition.md"
-sha256 = "a325953c4942aa2f4d9d5a907163210ee78d8eaf8770093d29c4784e78739a4a"
+sha256 = "d46f669da01d538bdf7dff1ade2352a83e7fb98c37784c2501eb4eefc0546a87"
 
 [[gate.input]]
 path = "origin/orbis"
-sha256 = "cc236a1b3edd1071d5ff0e4943c9a80ed89082349d18c2c5037987fa49d44a8d"
+sha256 = "ec7cdaf01462edfa56536b5158356a0fae08d06a150b49f83cbfe23d611fa274"
 
 [[gate.input]]
 path = "origin-rs"
@@ -1572,7 +1572,7 @@ sha256 = "26ac748843843568a1bf24fb054c182cc9db4b457dd227f47b89ca8755871762"
 
 [[gate.input]]
 path = "docs/specs/web3-storage-disposition-v1.toml"
-sha256 = "5c63ef945c68a4d7b062626c0eac1a8f5eb2b784127ca68181aafa289e818e79"
+sha256 = "9dc1c9d3b41c33148a854e5d0109be5f3b30857757a0ef4373f036b32253b825"
 
 [[gate.command]]
 cwd = "."
