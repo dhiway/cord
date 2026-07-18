@@ -322,7 +322,21 @@ import pathlib
 import sys
 
 output, commit, cargo_lock_sha256, image_digest, image_id, srtool_version, rust_tag = sys.argv[1:]
+def material_hash(root):
+    import hashlib
+    roots = ["Cargo.lock", "origin/orbis/runtime", "origin/orbis/runtime-api/storage", "origin/orbis/primitives", "origin/orbis/pallets/storage-provider", "origin/orbis/pallets/drive", "origin/orbis/pallets/s3"]
+    digest = hashlib.sha256()
+    files = []
+    for relative in roots:
+        candidate = pathlib.Path(root, relative)
+        files.extend([candidate] if candidate.is_file() else [p for p in candidate.rglob("*") if p.is_file()])
+    for path in sorted(files, key=lambda p: p.relative_to(root).as_posix().encode()):
+        relative = path.relative_to(root).as_posix().encode()
+        digest.update(len(relative).to_bytes(8, "big")); digest.update(relative)
+        digest.update(bytes.fromhex(hashlib.sha256(path.read_bytes()).hexdigest()))
+    return digest.hexdigest()
 report = {
+    "p1_runtime_material_sha256": material_hash(pathlib.Path.cwd()),
     "cargo_lock_sha256": cargo_lock_sha256,
     "fresh_srtool_target": True,
     "independent_clean_source_runs": 2,

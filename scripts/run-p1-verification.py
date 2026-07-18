@@ -332,17 +332,42 @@ def ratification(path: Path, amendment_path: Path, failures: list[str]) -> dict[
     }
 
 
+MATERIAL_PATHS = [
+    Path("Cargo.lock"), Path("origin/orbis/runtime"), Path("origin/orbis/runtime-api/storage"),
+    Path("origin/orbis/primitives"), Path("origin/orbis/pallets/storage-provider"),
+    Path("origin/orbis/pallets/drive"), Path("origin/orbis/pallets/s3"),
+]
+
 def source_tree_hash(paths: list[Path]) -> str:
+    """Hash content with repository-relative names, independent of worktree path."""
     digest = hashlib.sha256()
     files = []
+    root = Path.cwd().resolve()
     for path in paths:
         files.extend([path] if path.is_file() else [item for item in path.rglob("*") if item.is_file()])
-    for path in sorted(set(files), key=lambda item: str(item).encode("utf-8")):
-        encoded = str(path).encode("utf-8")
-        digest.update(len(encoded).to_bytes(8, "big"))
-        digest.update(encoded)
+    for path in sorted(set(files), key=lambda item: item.resolve().relative_to(root).as_posix().encode("utf-8")):
+        relative = path.resolve().relative_to(root).as_posix().encode("utf-8")
+        digest.update(len(relative).to_bytes(8, "big"))
+        digest.update(relative)
         digest.update(bytes.fromhex(sha256(path)))
     return digest.hexdigest()
+
+def canonical_provenance(path: Path, failures: list[str]) -> dict[str, Any]:
+    release = load_json(path)
+    current_material = source_tree_hash(MATERIAL_PATHS)
+    commit = str(release.get("source_commit", ""))
+    ancestor = run(["git", "merge-base", "--is-ancestor", commit, "HEAD"]).returncode == 0 if commit else False
+    valid = (
+        release.get("p1_runtime_material_sha256") == current_material
+        and release.get("cargo_lock_sha256") == sha256(Path("Cargo.lock"))
+        and release.get("independent_clean_source_runs") == 2
+        and release.get("srtool_no_cache") is True
+        and release.get("srtool_image_digest") == "docker.io/paritytech/srtool@sha256:8638a668bd6d29111dc01953fbead6eb08c062e1cc62d3047a245a52b6edb3bf"
+        and ancestor
+    )
+    if not valid:
+        failures.append("canonical release provenance does not match current runtime material")
+    return {"valid": valid, "source_commit": commit, "runtime_material_sha256": current_material}
 
 
 def main() -> int:
@@ -357,11 +382,13 @@ def main() -> int:
     parser.add_argument("--weight-evidence", required=True, type=Path)
     parser.add_argument("--metadata-evidence", required=True, type=Path)
     parser.add_argument("--compact-wasm", required=True, type=Path)
+    parser.add_argument("--release-inputs", required=True, type=Path)
     parser.add_argument("--repositories-before", required=True, type=Path)
     parser.add_argument("--repositories-after", required=True, type=Path)
     parser.add_argument("--out", required=True, type=Path)
     args = parser.parse_args()
     failures: list[str] = []
+    provenance = canonical_provenance(args.release_inputs, failures)
 
     commands = {
         "provider": ["cargo", "test", "-p", "pallet-orbis-storage-provider", "--features", "runtime-benchmarks"],
@@ -460,6 +487,7 @@ def main() -> int:
     ratification_report = ratification(args.ratification, args.amendment, failures)
     report = {
         "benchmark_evidence": benchmarks,
+        "canonical_provenance": provenance,
         "branch": branch,
         "cord_only_boundary": boundary,
         "header_check": {"exit_code": header.returncode, "output_sha256": hashlib.sha256(header.stdout.encode()).hexdigest()},
