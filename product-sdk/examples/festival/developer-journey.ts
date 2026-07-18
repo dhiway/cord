@@ -252,11 +252,23 @@ export async function runFestivalDeveloperJourney(): Promise<JsonObject> {
   for (const capability of ["chain", "accounts", "signing", "local-storage"] as const) {
     host.grant(PRODUCT.id, capability);
   }
+  const nativeProvider = {
+    content: {
+      async put(): Promise<never> { throw new Error("Festival native provider upload is not configured in this deterministic journey"); },
+      async get(): Promise<never> { throw new Error("Festival native provider read is not configured in this deterministic journey"); },
+    },
+    blocks: {
+      async has(): Promise<never> { throw new Error("Festival native provider block store is not configured in this deterministic journey"); },
+      async put(): Promise<never> { throw new Error("Festival native provider block store is not configured in this deterministic journey"); },
+    },
+  };
+
   const created = await createApp({
     product: PRODUCT,
     bridge: host.bridge,
     identityBridge: identityBridge(state),
     runtime: developerRuntime(state),
+    ...nativeProvider,
   });
   assert.equal(created.success, true);
   if ("error" in created) throw created.error;

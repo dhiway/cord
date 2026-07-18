@@ -23,13 +23,13 @@ import {
   type AssetsRuntimeAdapter,
 } from "@cord-network/origin-sdk-assets";
 import {
-  createHostOriginAppContentStore,
-  createHostOriginAppBlockStore,
   createOriginAppDeployer,
   createOriginAppsClient,
   type PrepareOriginAppDeployment,
   type PreparedOriginAppDeployment,
   type OriginAppsClient,
+  type OriginAppContentStore,
+  type OriginAppBlockStore,
 } from "@cord-network/origin-sdk-apps";
 import {
   createAttestationClient,
@@ -103,6 +103,10 @@ export interface CreateAppOptions {
   readonly identityBridge: IdentityV2Bridge;
   /** One descriptor-backed integration bundle supplied by the host/platform integration. */
   readonly runtime: OriginAppRuntime | CommonsRuntimeExecutor;
+  /** Authenticated native-provider adapter for application manifest bytes. */
+  readonly content: OriginAppContentStore;
+  /** Authenticated native-provider adapter for raw application blocks. */
+  readonly blocks: OriginAppBlockStore;
   readonly account?: string;
   readonly storageNamespace?: string;
   readonly signal?: AbortSignal;
@@ -186,11 +190,11 @@ export async function createApp(
     identityReplay,
   );
   const cloudStorage = createCloudStorageClient(chain, runtime.storage);
-  const apps = createOriginAppsClient(chain, runtime.names, createHostOriginAppContentStore(host));
+  const apps = createOriginAppsClient(chain, runtime.names, options.content);
   const deployer = createOriginAppDeployer(
     apps,
     cloudStorage,
-    createHostOriginAppBlockStore(host),
+    options.blocks,
   );
   let closed = false;
   const app: OriginApp = {

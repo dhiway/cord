@@ -107,7 +107,7 @@ export interface OriginAppsClient {
 }
 
 const ALL_CAPABILITIES: readonly OriginRequestedCapability[] = [
-  "accounts", "chain", "signing", "local-storage", "preimages", "statements",
+  "accounts", "chain", "signing", "local-storage", "statements",
   "camera", "nfc", "bluetooth", "location", "biometrics", "external-urls",
 ];
 const utf8 = new TextEncoder();
@@ -177,9 +177,8 @@ function normalizeManifest(value: OriginAppManifestV1): OriginAppManifestV1 {
   }
   if (!isRecord(value.bundle) || !isRecord(value.bundle.address)
     || typeof value.bundle.address.cid !== "string"
-    || (value.bundle.address.codec !== "raw" && value.bundle.address.codec !== "dag-pb")
-    || (value.bundle.address.multihash !== "blake2b-256"
-      && value.bundle.address.multihash !== "sha2-256")) {
+    || value.bundle.address.codec !== "raw"
+    || value.bundle.address.multihash !== "blake2b-256") {
     throw new TypeError("manifest bundle address is invalid");
   }
   const parsed = parseContentCid(value.bundle.address.cid);
@@ -246,35 +245,6 @@ export function decodeOriginAppManifest(bytes: Uint8Array): OriginAppManifestV1 
   }
   const parsed: unknown = JSON.parse(decoder.decode(bytes));
   return normalizeManifest(parsed as OriginAppManifestV1);
-}
-
-export function createHostOriginAppContentStore(host: OriginHostClient): OriginAppContentStore {
-  return {
-    async put(bytes, contentType, signal) {
-      const address = rawContentAddress(bytes, "blake2b-256");
-      const expected = hashFromAddress(address);
-      const reference = throwSdkResult(await host.putPreimage(bytes, contentType, signal));
-      if (reference.contentHash.toLowerCase() !== expected) {
-        throw new OriginSdkError({
-          source: "apps", domain: "content", code: "content_commitment_mismatch",
-          message: "Host preimage commitment does not match the canonical Commons content hash",
-        });
-      }
-      return { commitment: expected, address };
-    },
-    async get(commitment, signal) {
-      contentCommitment(commitment);
-      const bytes = throwSdkResult(await host.getPreimage(commitment as `0x${string}`, signal));
-      const actual = hashFromAddress(rawContentAddress(bytes, "blake2b-256"));
-      if (actual !== commitment) {
-        throw new OriginSdkError({
-          source: "apps", domain: "content", code: "content_integrity",
-          message: "Manifest bytes do not match the native Names content commitment",
-        });
-      }
-      return bytes;
-    },
-  };
 }
 
 export function createOriginAppsClient(

@@ -28,7 +28,6 @@ export type HostCapability =
   | "chain"
   | "signing"
   | "local-storage"
-  | "preimages"
   | "statements";
 
 export interface ProductIdentity {
@@ -67,12 +66,6 @@ export interface HostRuntimeIdentity {
   readonly chain_spec_source_sha256: string;
 }
 
-export interface HostPreimageReference {
-  readonly contentHash: `0x${string}`;
-  readonly size: number;
-  readonly contentType?: string;
-}
-
 export interface HostStatementDraft {
   readonly account: string;
   readonly topics: readonly string[];
@@ -103,11 +96,6 @@ export interface HostMethodMap {
   "local-storage.get": { readonly input: { readonly key: string }; readonly output: Uint8Array | undefined };
   "local-storage.set": { readonly input: { readonly key: string; readonly value: Uint8Array }; readonly output: void };
   "local-storage.delete": { readonly input: { readonly key: string }; readonly output: void };
-  "preimages.put": {
-    readonly input: { readonly bytes: Uint8Array; readonly contentType?: string };
-    readonly output: HostPreimageReference;
-  };
-  "preimages.get": { readonly input: { readonly contentHash: `0x${string}` }; readonly output: Uint8Array };
   "statements.submit": { readonly input: HostStatementDraft; readonly output: HostStatementRecord };
   "statements.query": { readonly input: HostStatementQuery; readonly output: readonly HostStatementRecord[] };
 }

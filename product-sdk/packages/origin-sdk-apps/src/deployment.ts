@@ -30,7 +30,7 @@ import {
   type ObjectKey,
 } from "@cord-network/origin-sdk-cloud-storage";
 import { OriginSdkError, asSdkError, type SdkResult } from "@cord-network/origin-sdk-errors";
-import type { OriginHostClient, ProductIdentity } from "@cord-network/origin-sdk-host";
+import type { ProductIdentity } from "@cord-network/origin-sdk-host";
 import { contentCommitment, type AttestationId, type BlockNumber, type ContentCommitment, type NameId, type OperationId } from "@cord-network/origin-sdk-names";
 import { err, ok } from "@cord-network/origin-sdk-result";
 import type { PreparedTransaction } from "@cord-network/origin-sdk-tx";
@@ -168,28 +168,6 @@ export function createOriginStaticPackager(): OriginBundlePackager {
         mediaType: "application/vnd.cord.origin-static+json",
       };
       return { format: "origin-static-v1", root, size: total, blocks: [...fileBlocks, rootBlock] };
-    },
-  };
-}
-
-/** Host transport adapter used for content bytes; native S3 stores only object metadata. */
-export function createHostOriginAppBlockStore(host: OriginHostClient): OriginAppBlockStore {
-  return {
-    async has(commitment, signal) {
-      const result = await host.getPreimage(commitment as `0x${string}`, signal);
-      if (result.success) return true;
-      if (result.error.code === "not_found") return false;
-      throw result.error;
-    },
-    async put(block, signal) {
-      const stored = await host.putPreimage(block.bytes, block.mediaType, signal);
-      if (!stored.success) throw stored.error;
-      if (stored.value.contentHash.toLowerCase() !== block.commitment) {
-        throw new OriginSdkError({
-          source: "apps", domain: "deployment.upload", code: "content_commitment_mismatch",
-          message: "Uploaded block commitment does not match its canonical CID",
-        });
-      }
     },
   };
 }

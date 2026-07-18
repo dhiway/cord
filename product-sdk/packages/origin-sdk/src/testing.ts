@@ -89,9 +89,19 @@ export async function createFakeApp(
   const account = options.account ?? { address: "5FakeOrigin", name: "Fake Origin" };
   const host = createFakeHost({ accounts: [account], runtimeIdentity });
   for (const capability of [
-    "accounts", "chain", "signing", "local-storage", "preimages",
+    "accounts", "chain", "signing", "local-storage",
   ] as const) host.grant(product.id, capability);
 
+  const nativeProvider = {
+    content: {
+      async put(): Promise<never> { throw new Error("fake native provider is not configured"); },
+      async get(): Promise<never> { throw new Error("fake native provider is not configured"); },
+    },
+    blocks: {
+      async has(): Promise<never> { throw new Error("fake native provider is not configured"); },
+      async put(): Promise<never> { throw new Error("fake native provider is not configured"); },
+    },
+  };
   const prepared: FakePreparedRuntimeCall[] = [];
   const runtime = options.runtime ?? {
     async read(_at, target) {
@@ -128,6 +138,7 @@ export async function createFakeApp(
       },
     },
     runtime,
+    ...nativeProvider,
     account: account.address,
     ...(options.storageNamespace === undefined ? {} : { storageNamespace: options.storageNamespace }),
   });

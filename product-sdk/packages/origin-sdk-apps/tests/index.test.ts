@@ -22,14 +22,11 @@ import test from "node:test";
 import { createCommonsChainClient } from "@cord-network/origin-sdk-chain-client";
 import { parseContentCid, rawContentAddress } from "@cord-network/origin-sdk-cloud-storage";
 import { COMMONS_NETWORK_BINDING } from "@cord-network/origin-sdk-descriptors";
-import { createHostClient } from "@cord-network/origin-sdk-host";
-import { createFakeHost } from "@cord-network/origin-sdk-host/testing";
 import { contentCommitment, nameId, type NamesRuntimeAdapter } from "@cord-network/origin-sdk-names";
 import type { PreparedTransaction } from "@cord-network/origin-sdk-tx";
 import {
   ORIGIN_APP_MANIFEST_SCHEMA,
   createOriginAppsClient,
-  createHostOriginAppContentStore,
   decodeOriginAppManifest,
   encodeOriginAppManifest,
   type OriginAppContentStore,
@@ -69,17 +66,13 @@ test("OriginAppManifestV1 is canonical, bounded, and round-trips", () => {
   assert.deepEqual(first, reordered);
   assert.deepEqual(decodeOriginAppManifest(first), manifest);
   assert.throws(() => encodeOriginAppManifest({ ...manifest, entrypoint: "../index.html" }), /safe relative/);
-});
-
-test("host content store derives and verifies the native Commons commitment", async () => {
-  const product = { id: "festival.app", name: "Festival" };
-  const fake = createFakeHost();
-  fake.grant(product.id, "preimages");
-  const store = createHostOriginAppContentStore(createHostClient(fake.bridge, product));
-  const bytes = encodeOriginAppManifest(manifest);
-  const stored = await store.put(bytes, "application/vnd.cord.origin-app+json");
-  assert.deepEqual(await store.get(stored.commitment), bytes);
-  assert.equal(stored.address.multihash, "blake2b-256");
+  assert.throws(
+    () => encodeOriginAppManifest({
+      ...manifest,
+      bundle: { address: rawContentAddress(bundleBytes, "sha2-256"), size: bundleBytes.length },
+    }),
+    /bundle address is invalid/,
+  );
 });
 
 test("resolver pins all native authority reads to one finalized block", async () => {
