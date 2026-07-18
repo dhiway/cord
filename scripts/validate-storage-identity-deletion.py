@@ -179,9 +179,18 @@ def exact_surface_exists(row: dict[str, Any], root: Path) -> bool:
         ) is not None
     if locator == "rust-export":
         name = symbol.removeprefix("rust-export::")
-        return symbol.startswith("rust-export::") and re.search(
-            rf"(?m)^\s*(?:pub\s+)?(?:async\s+)?fn\s+{re.escape(name)}\s*\(", text
-        ) is not None
+        if not symbol.startswith("rust-export::"):
+            return False
+        if re.search(
+            rf"(?m)^pub\s+(?:async\s+)?fn\s+{re.escape(name)}\s*\(", text
+        ):
+            return True
+        return any(
+            re.search(rf"(?m)^\s*async fn\s+{re.escape(name)}\s*\(", body)
+            for body in re.findall(
+                r"pub trait FinalizedReadBinding[^\{]*\{([\s\S]*?)\n\}", text
+            )
+        )
     if locator == "ts-host-route":
         object_name, separator, method = symbol.partition("::")
         return bool(separator and re.search(

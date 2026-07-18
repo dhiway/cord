@@ -74,6 +74,44 @@ class DeletionCensusTests(unittest.TestCase):
         self.assertIn(row["id"], report["dag_details"]["invalid_items"])
         self.assertEqual(report["unmapped_surface_count"], 1)
 
+    def test_rust_export_excludes_internal_identity_routes(self) -> None:
+        with tempfile.TemporaryDirectory() as temporary:
+            root = Path(temporary)
+            relative = "origin-rs/src/product_sdk/transport.rs"
+            source = root / relative
+            source.parent.mkdir(parents=True)
+            source.write_text(
+                """
+pub(crate) trait InternalIdentityReadBinding {
+    async fn identity_personhood(&self) {}
+}
+pub(crate) fn prepare_identity_personhood_command() {}
+""",
+                encoding="utf-8",
+            )
+            row = {
+                "path": relative,
+                "surface_locator": "rust-export",
+                "symbol": "rust-export::identity_personhood",
+            }
+            self.assertFalse(VALIDATOR.exact_surface_exists(row, root))
+            row["symbol"] = "rust-export::prepare_identity_personhood_command"
+            self.assertFalse(VALIDATOR.exact_surface_exists(row, root))
+
+            source.write_text(
+                """
+pub trait FinalizedReadBinding {
+    async fn identity_personhood(&self) {}
+}
+pub fn prepare_identity_personhood_command() {}
+""",
+                encoding="utf-8",
+            )
+            row["symbol"] = "rust-export::identity_personhood"
+            self.assertTrue(VALIDATOR.exact_surface_exists(row, root))
+            row["symbol"] = "rust-export::prepare_identity_personhood_command"
+            self.assertTrue(VALIDATOR.exact_surface_exists(row, root))
+
     def test_unmapped_new_dispatchable_is_rejected(self) -> None:
         with tempfile.TemporaryDirectory() as temporary:
             root = Path(temporary)

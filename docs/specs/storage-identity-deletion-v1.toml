@@ -4179,7 +4179,7 @@ replacement_test = "python3 scripts/validate-storage-identity-deletion.py --mani
 replacement_gate = "AC8"
 slice = "P5"
 order = 241
-status = "replacement-active"
+status = "deleted"
 prerequisites = ["DEL-DESCRIPTOR-9F93E4FF87F3"]
 post_delete_scans = ["path:origin-rs/src/product_sdk/transport.rs", "symbol:rust-export::identity_personhood", "consumer:unified Identity/storage SDK facade"]
 [[item]]
@@ -4211,7 +4211,7 @@ replacement_test = "python3 scripts/validate-storage-identity-deletion.py --mani
 replacement_gate = "AC8"
 slice = "P5"
 order = 243
-status = "replacement-active"
+status = "deleted"
 prerequisites = ["DEL-PUBLIC-ROUTE-ADBED539E84C"]
 post_delete_scans = ["path:origin-rs/src/product_sdk/transport.rs", "symbol:rust-export::prepare_identity_personhood_command", "consumer:unified Identity/storage SDK facade"]
 [[item]]

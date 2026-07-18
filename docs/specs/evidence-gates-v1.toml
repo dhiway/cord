@@ -1061,7 +1061,7 @@ sha256 = "149cb782ad6643cab681916d85d6c7402f3333e8984a6eb2d483bf6ae318d0ee"
 
 [[gate.input]]
 path = "docs/specs/storage-identity-deletion-v1.toml"
-sha256 = "c43f90fe060a651bb78a001276e7914ecca5656ca5645008a0613d4df739c838"
+sha256 = "f94f2c046ddcb9792b646c52923136cda0370f294f171fcecdbd379007028e57"
 
 [[gate.input]]
 path = "docs/specs/web3-storage-capability-ledger-v1.json"
@@ -1073,7 +1073,7 @@ sha256 = "d2ecce3900ebebced3ebc566d39f6d47c792d70c9b0e813764a59000c65db8cc"
 
 [[gate.input]]
 path = "scripts/validate-storage-identity-deletion.py"
-sha256 = "fdc322ece0f0cfe220c5bf184ad4d67b541643e63278a9d948a70d098d02d539"
+sha256 = "cd15c905cf9184e9b370abc11de1fb1432358dd8008ccc4ed02ffaa85e311ca8"
 
 [[gate.command]]
 cwd = "."
@@ -1505,7 +1505,7 @@ sha256 = "149cb782ad6643cab681916d85d6c7402f3333e8984a6eb2d483bf6ae318d0ee"
 
 [[gate.input]]
 path = "docs/specs/storage-identity-deletion-v1.toml"
-sha256 = "c43f90fe060a651bb78a001276e7914ecca5656ca5645008a0613d4df739c838"
+sha256 = "f94f2c046ddcb9792b646c52923136cda0370f294f171fcecdbd379007028e57"
 
 [[gate.input]]
 path = "target/evidence/ac12-assertions.json"
@@ -1628,7 +1628,7 @@ sha256 = "8bcf8b2a37a30214fc9188f6796c99a1f84e610c909eb989fab64d9fe4b3a9b4"
 
 [[gate.input]]
 path = "docs/specs/storage-identity-deletion-v1.toml"
-sha256 = "c43f90fe060a651bb78a001276e7914ecca5656ca5645008a0613d4df739c838"
+sha256 = "f94f2c046ddcb9792b646c52923136cda0370f294f171fcecdbd379007028e57"
 
 [[gate.input]]
 path = "docs/adr/0020-web3-storage-component-disposition-policy.md"
@@ -1792,7 +1792,7 @@ sha256 = "2b9c997cb28128f88ff47a2485a10728a4eb32745b0910163d70cb389b432829"
 
 [[gate.input]]
 path = "scripts/validate-storage-identity-deletion.py"
-sha256 = "fdc322ece0f0cfe220c5bf184ad4d67b541643e63278a9d948a70d098d02d539"
+sha256 = "cd15c905cf9184e9b370abc11de1fb1432358dd8008ccc4ed02ffaa85e311ca8"
 
 [[gate.input]]
 path = "scripts/validate-phase-gate.py"
