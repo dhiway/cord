@@ -30,13 +30,11 @@ use crate::{
 	config::{build_orbis_params, OrbisConfig},
 	product_sdk::{
 		domains::{
-			attestation::AttestationCommand, names::NamesCommand, drive::DriveCommand,
-			identity_personhood::IdentityPersonhoodCommand, s3::S3Command,
-			storage_provider::StorageProviderCommand, BlockNumber, Validate,
+			attestation::AttestationCommand, drive::DriveCommand, names::NamesCommand,
+			s3::S3Command, storage_provider::StorageProviderCommand, BlockNumber, Validate,
 		},
-		prepare_attestation_command, prepare_names_command, prepare_drive_command,
-		prepare_identity_personhood_command, prepare_s3_command,
-		prepare_storage_provider_command, OrbisNativeClient,
+		prepare_attestation_command, prepare_drive_command, prepare_names_command,
+		prepare_s3_command, prepare_storage_provider_command, OrbisNativeClient,
 	},
 	tx::meta::{
 		meta_tx_value_from_signed, prepare_sponsored_intent as prepare_wire, SponsoredIntent,
@@ -51,7 +49,6 @@ use crate::{
 /// metadata. Applications cannot inject an arbitrary pallet/call name or pre-encoded SCALE.
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub enum SponsoredNativeTarget {
-	IdentityPersonhood(IdentityPersonhoodCommand),
 	Attestation(AttestationCommand),
 	Names(NamesCommand),
 	StorageProvider(StorageProviderCommand),
@@ -62,7 +59,6 @@ pub enum SponsoredNativeTarget {
 impl SponsoredNativeTarget {
 	fn validate_at(&self, current_block: BlockNumber) -> Result<(), OriginSdkError> {
 		let result = match self {
-			Self::IdentityPersonhood(command) => command.validate(),
 			Self::Attestation(command) => command.validate_at(current_block),
 			Self::Names(command) => command.validate_at(current_block),
 			Self::StorageProvider(command) => command.validate_at(current_block),
@@ -80,7 +76,6 @@ impl SponsoredNativeTarget {
 		// before any payload is prepared so sponsored dispatch cannot bypass domain invariants.
 		self.validate_at(current_block)?;
 		let payload = match self {
-			Self::IdentityPersonhood(command) => prepare_identity_personhood_command(&command),
 			Self::Attestation(command) => prepare_attestation_command(&command),
 			Self::Names(command) => prepare_names_command(&command),
 			Self::StorageProvider(command) => prepare_storage_provider_command(&command),
@@ -121,8 +116,8 @@ impl SponsoredMortality {
 			));
 		}
 		let era = sp_runtime::generic::Era::mortal(period.into(), self.valid_from.into());
-		if era.birth(self.valid_from.into()) != u64::from(self.valid_from) ||
-			era.death(self.valid_from.into()) != u64::from(self.valid_until)
+		if era.birth(self.valid_from.into()) != u64::from(self.valid_from)
+			|| era.death(self.valid_from.into()) != u64::from(self.valid_until)
 		{
 			return Err(OriginSdkError::InvalidInput(
 				"sponsored mortality window is not exactly representable as a mortal era".into(),
@@ -295,8 +290,9 @@ fn decode_dispatched_result<T>(result: &Value<T>) -> Result<(), OriginSdkError> 
 		ValueDef::Variant(variant) if variant.name == "Err" => Err(OriginSdkError::MetaTx(
 			"MetaTx::Dispatched reported an inner dispatch error".into(),
 		)),
-		_ =>
-			Err(OriginSdkError::MetaTx("MetaTx::Dispatched result has an unexpected shape".into())),
+		_ => {
+			Err(OriginSdkError::MetaTx("MetaTx::Dispatched result has an unexpected shape".into()))
+		},
 	}
 }
 

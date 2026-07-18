@@ -38,7 +38,7 @@ use crate::product_sdk::host_v2::{
 
 #[derive(Clone, Copy, Debug, Deserialize, Eq, Ord, PartialEq, PartialOrd, Serialize)]
 #[repr(u16)]
-pub(crate) enum IdentityV2Operation {
+pub enum IdentityV2Operation {
 	#[serde(rename = "identity.account")]
 	IdentityAccount = 1100,
 	#[serde(rename = "identity.profile.read")]
@@ -58,7 +58,7 @@ pub(crate) enum IdentityV2Operation {
 }
 
 impl IdentityV2Operation {
-	pub(crate) const ALL: [Self; 8] = [
+	pub const ALL: [Self; 8] = [
 		Self::IdentityAccount,
 		Self::IdentityProfileRead,
 		Self::IdentityProfileDisclose,
@@ -69,7 +69,7 @@ impl IdentityV2Operation {
 		Self::TransactionSign,
 	];
 
-	pub(crate) const fn name(self) -> &'static str {
+	pub const fn name(self) -> &'static str {
 		match self {
 			Self::IdentityAccount => "identity.account",
 			Self::IdentityProfileRead => "identity.profile.read",
@@ -82,14 +82,14 @@ impl IdentityV2Operation {
 		}
 	}
 
-	pub(crate) const fn requires_fresh_consent(self) -> bool {
+	pub const fn requires_fresh_consent(self) -> bool {
 		matches!(
 			self,
 			Self::IdentityProfileDisclose | Self::IdentityHumanityProve | Self::TransactionSign
 		)
 	}
 
-	pub(crate) const fn cddl(self) -> (&'static str, &'static str, &'static str) {
+	pub const fn cddl(self) -> (&'static str, &'static str, &'static str) {
 		match self {
 			Self::IdentityAccount => {
 				("IdentityAccountRequest", "IdentityAccountResult", "IdentityAccountError")
@@ -132,13 +132,13 @@ impl IdentityV2Operation {
 }
 
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
-pub(crate) struct IdentityV2ErrorTuple {
-	pub(crate) code: u16,
-	pub(crate) name: &'static str,
-	pub(crate) retryable: bool,
+pub struct IdentityV2ErrorTuple {
+	pub code: u16,
+	pub name: &'static str,
+	pub retryable: bool,
 }
 
-pub(crate) const IDENTITY_V2_ERRORS: [IdentityV2ErrorTuple; 29] = [
+pub const IDENTITY_V2_ERRORS: [IdentityV2ErrorTuple; 29] = [
 	IdentityV2ErrorTuple { code: 100, name: "WIRE_SCHEMA_INVALID", retryable: false },
 	IdentityV2ErrorTuple { code: 101, name: "WIRE_NON_CANONICAL", retryable: false },
 	IdentityV2ErrorTuple { code: 102, name: "WIRE_VERSION_MISMATCH", retryable: false },
@@ -170,14 +170,14 @@ pub(crate) const IDENTITY_V2_ERRORS: [IdentityV2ErrorTuple; 29] = [
 	IdentityV2ErrorTuple { code: 411, name: "IDENTITY_RETIRED_SET_FULL", retryable: false },
 ];
 
-pub(crate) const fn identity_v2_errors_for(
+pub const fn identity_v2_errors_for(
 	_operation: IdentityV2Operation,
 ) -> &'static [IdentityV2ErrorTuple; 29] {
 	&IDENTITY_V2_ERRORS
 }
 
 #[derive(Clone, Copy, Debug, Eq, PartialEq, thiserror::Error)]
-pub(crate) enum IdentityV2Error {
+pub enum IdentityV2Error {
 	#[error("WIRE_SCHEMA_INVALID")]
 	WireSchemaInvalid,
 	#[error("WIRE_NON_CANONICAL")]
@@ -204,32 +204,29 @@ pub(crate) enum IdentityV2Error {
 
 #[derive(Clone, Debug, Default, Deserialize, Eq, PartialEq, Serialize)]
 #[serde(rename_all = "camelCase", deny_unknown_fields)]
-pub(crate) struct IdentityV2ErrorDetails {
+pub struct IdentityV2ErrorDetails {
 	#[serde(skip_serializing_if = "Option::is_none")]
-	pub(crate) message: Option<String>,
+	pub message: Option<String>,
 	#[serde(skip_serializing_if = "Option::is_none")]
-	pub(crate) lower: Option<u64>,
+	pub lower: Option<u64>,
 	#[serde(skip_serializing_if = "Option::is_none")]
-	pub(crate) upper: Option<u64>,
+	pub upper: Option<u64>,
 	#[serde(skip_serializing_if = "Option::is_none")]
-	pub(crate) hash: Option<[u8; 32]>,
+	pub hash: Option<[u8; 32]>,
 }
 
 #[derive(Clone, Debug, Deserialize, Eq, PartialEq, Serialize)]
 #[serde(rename_all = "camelCase", deny_unknown_fields)]
-pub(crate) struct IdentityV2ErrorEnvelope {
-	pub(crate) code: u16,
-	pub(crate) name: String,
-	pub(crate) retryable: bool,
+pub struct IdentityV2ErrorEnvelope {
+	pub code: u16,
+	pub name: String,
+	pub retryable: bool,
 	#[serde(skip_serializing_if = "Option::is_none")]
-	pub(crate) details: Option<IdentityV2ErrorDetails>,
+	pub details: Option<IdentityV2ErrorDetails>,
 }
 
 impl IdentityV2ErrorEnvelope {
-	pub(crate) fn validate_for(
-		&self,
-		operation: IdentityV2Operation,
-	) -> Result<(), IdentityV2Error> {
+	pub fn validate_for(&self, operation: IdentityV2Operation) -> Result<(), IdentityV2Error> {
 		let frozen = identity_v2_errors_for(operation).iter().find(|error| error.code == self.code);
 		if !frozen.is_some_and(|error| error.name == self.name && error.retryable == self.retryable)
 		{
@@ -249,157 +246,157 @@ impl IdentityV2ErrorEnvelope {
 
 #[derive(Clone, Debug, Deserialize, Eq, PartialEq, Serialize)]
 #[serde(rename_all = "camelCase", deny_unknown_fields)]
-pub(crate) struct FinalizedIdentityV2 {
-	pub(crate) block_number: u64,
-	pub(crate) block_hash: [u8; 32],
+pub struct FinalizedIdentityV2 {
+	pub block_number: u64,
+	pub block_hash: [u8; 32],
 }
 
 #[derive(Clone, Debug, Deserialize, Eq, PartialEq, Serialize)]
 #[serde(rename_all = "camelCase", deny_unknown_fields)]
-pub(crate) struct IdentityReceiptV2 {
-	pub(crate) commitment: [u8; 32],
-	pub(crate) valid_until: u64,
+pub struct IdentityReceiptV2 {
+	pub commitment: [u8; 32],
+	pub valid_until: u64,
 	#[serde(skip_serializing_if = "Option::is_none")]
-	pub(crate) finalized: Option<FinalizedIdentityV2>,
+	pub finalized: Option<FinalizedIdentityV2>,
 }
 
 #[derive(Clone, Debug, Deserialize, Eq, PartialEq, Serialize)]
 #[serde(rename_all = "camelCase", deny_unknown_fields)]
-pub(crate) struct IdentityAccountRequestV2 {
-	pub(crate) session: String,
+pub struct IdentityAccountRequestV2 {
+	pub session: String,
 }
 
 #[derive(Clone, Debug, Deserialize, Eq, PartialEq, Serialize)]
 #[serde(rename_all = "camelCase", deny_unknown_fields)]
-pub(crate) struct IdentityAccountResultV2 {
-	pub(crate) account: [u8; 32],
-	pub(crate) session_expires_at: u64,
-	pub(crate) finalized: FinalizedIdentityV2,
+pub struct IdentityAccountResultV2 {
+	pub account: [u8; 32],
+	pub session_expires_at: u64,
+	pub finalized: FinalizedIdentityV2,
 }
 
 #[derive(Clone, Debug, Deserialize, Eq, PartialEq, Serialize)]
 #[serde(rename_all = "camelCase", deny_unknown_fields)]
-pub(crate) struct IdentityProfileReadRequestV2 {
-	pub(crate) subject: [u8; 32],
-	pub(crate) fields: Vec<String>,
+pub struct IdentityProfileReadRequestV2 {
+	pub subject: [u8; 32],
+	pub fields: Vec<String>,
 	#[serde(skip_serializing_if = "Option::is_none")]
-	pub(crate) at: Option<[u8; 32]>,
+	pub at: Option<[u8; 32]>,
 }
 
 #[derive(Clone, Debug, Deserialize, Eq, PartialEq, Serialize)]
 #[serde(rename_all = "camelCase", deny_unknown_fields)]
-pub(crate) struct IdentityProfileReadResultV2 {
-	pub(crate) receipt: IdentityReceiptV2,
+pub struct IdentityProfileReadResultV2 {
+	pub receipt: IdentityReceiptV2,
 }
 
 #[derive(Clone, Debug, Deserialize, Eq, PartialEq, Serialize)]
 #[serde(rename_all = "camelCase", deny_unknown_fields)]
-pub(crate) struct IdentityProfileDiscloseRequestV2 {
-	pub(crate) audience: String,
-	pub(crate) fields: Vec<String>,
-	pub(crate) purpose: String,
-	pub(crate) expires_at: u64,
+pub struct IdentityProfileDiscloseRequestV2 {
+	pub audience: String,
+	pub fields: Vec<String>,
+	pub purpose: String,
+	pub expires_at: u64,
 }
 
 #[derive(Clone, Debug, Deserialize, Eq, PartialEq, Serialize)]
 #[serde(rename_all = "camelCase", deny_unknown_fields)]
-pub(crate) struct IdentityProfileDiscloseResultV2 {
-	pub(crate) receipt: IdentityReceiptV2,
+pub struct IdentityProfileDiscloseResultV2 {
+	pub receipt: IdentityReceiptV2,
 }
 
 #[derive(Clone, Debug, Deserialize, Eq, PartialEq, Serialize)]
 #[serde(rename_all = "camelCase", deny_unknown_fields)]
-pub(crate) struct IdentityHumanityStatusRequestV2 {
-	pub(crate) subject: [u8; 32],
+pub struct IdentityHumanityStatusRequestV2 {
+	pub subject: [u8; 32],
 	#[serde(skip_serializing_if = "Option::is_none")]
-	pub(crate) at: Option<[u8; 32]>,
+	pub at: Option<[u8; 32]>,
 }
 
 #[derive(Clone, Debug, Deserialize, Eq, PartialEq, Serialize)]
 #[serde(rename_all = "camelCase", deny_unknown_fields)]
-pub(crate) struct IdentityHumanityStatusResultV2 {
-	pub(crate) status: u16,
-	pub(crate) fresh_until: u64,
-	pub(crate) finalized: FinalizedIdentityV2,
+pub struct IdentityHumanityStatusResultV2 {
+	pub status: u16,
+	pub fresh_until: u64,
+	pub finalized: FinalizedIdentityV2,
 }
 
 #[derive(Clone, Debug, Deserialize, Eq, PartialEq, Serialize)]
 #[serde(rename_all = "camelCase", deny_unknown_fields)]
-pub(crate) struct IdentityHumanityProveRequestV2 {
-	pub(crate) audience: String,
-	pub(crate) challenge: Vec<u8>,
-	pub(crate) expires_at: u64,
-	pub(crate) claims: Vec<String>,
+pub struct IdentityHumanityProveRequestV2 {
+	pub audience: String,
+	pub challenge: Vec<u8>,
+	pub expires_at: u64,
+	pub claims: Vec<String>,
 }
 
 #[derive(Clone, Debug, Deserialize, Eq, PartialEq, Serialize)]
 #[serde(rename_all = "camelCase", deny_unknown_fields)]
-pub(crate) struct IdentityHumanityProveResultV2 {
-	pub(crate) proof: Vec<u8>,
-	pub(crate) derived_public_key: [u8; 32],
-	pub(crate) proof_hash: [u8; 32],
-	pub(crate) continuity: bool,
-	pub(crate) expires_at: u64,
+pub struct IdentityHumanityProveResultV2 {
+	pub proof: Vec<u8>,
+	pub derived_public_key: [u8; 32],
+	pub proof_hash: [u8; 32],
+	pub continuity: bool,
+	pub expires_at: u64,
 }
 
 #[derive(Clone, Debug, Deserialize, Eq, PartialEq, Serialize)]
 #[serde(rename_all = "camelCase", deny_unknown_fields)]
-pub(crate) struct IdentitySubjectDeriveRequestV2 {
-	pub(crate) product_id: String,
-	pub(crate) context: String,
-	pub(crate) verifier_audience: String,
+pub struct IdentitySubjectDeriveRequestV2 {
+	pub product_id: String,
+	pub context: String,
+	pub verifier_audience: String,
 	#[serde(skip_serializing_if = "Option::is_none")]
-	pub(crate) epoch: Option<u32>,
+	pub epoch: Option<u32>,
 }
 
 #[derive(Clone, Debug, Deserialize, Eq, PartialEq, Serialize)]
 #[serde(rename_all = "camelCase", deny_unknown_fields)]
-pub(crate) struct IdentitySubjectDeriveResultV2 {
-	pub(crate) subject: [u8; 32],
-	pub(crate) derived_public_key: [u8; 32],
-	pub(crate) epoch: u32,
-	pub(crate) recovery_incarnation_hash: [u8; 32],
-	pub(crate) continuity: bool,
+pub struct IdentitySubjectDeriveResultV2 {
+	pub subject: [u8; 32],
+	pub derived_public_key: [u8; 32],
+	pub epoch: u32,
+	pub recovery_incarnation_hash: [u8; 32],
+	pub continuity: bool,
 }
 
 #[derive(Clone, Debug, Deserialize, Eq, PartialEq, Serialize)]
 #[serde(rename_all = "camelCase", deny_unknown_fields)]
-pub(crate) struct IdentityEntitlementsReadRequestV2 {
-	pub(crate) subject: [u8; 32],
-	pub(crate) scope: String,
+pub struct IdentityEntitlementsReadRequestV2 {
+	pub subject: [u8; 32],
+	pub scope: String,
 	#[serde(skip_serializing_if = "Option::is_none")]
-	pub(crate) at: Option<[u8; 32]>,
+	pub at: Option<[u8; 32]>,
 }
 
 #[derive(Clone, Debug, Deserialize, Eq, PartialEq, Serialize)]
 #[serde(rename_all = "camelCase", deny_unknown_fields)]
-pub(crate) struct IdentityEntitlementsReadResultV2 {
-	pub(crate) allowed: bool,
-	pub(crate) scope: String,
-	pub(crate) policy_version: u32,
-	pub(crate) expires_at: u64,
-	pub(crate) fresh_until: u64,
-	pub(crate) finalized: FinalizedIdentityV2,
+pub struct IdentityEntitlementsReadResultV2 {
+	pub allowed: bool,
+	pub scope: String,
+	pub policy_version: u32,
+	pub expires_at: u64,
+	pub fresh_until: u64,
+	pub finalized: FinalizedIdentityV2,
 }
 
 #[derive(Clone, Debug, Deserialize, Eq, PartialEq, Serialize)]
 #[serde(rename_all = "camelCase", deny_unknown_fields)]
-pub(crate) struct TransactionSignRequestV2 {
-	pub(crate) payload_hash: [u8; 32],
-	pub(crate) policy_hash: [u8; 32],
-	pub(crate) expires_at: u64,
+pub struct TransactionSignRequestV2 {
+	pub payload_hash: [u8; 32],
+	pub policy_hash: [u8; 32],
+	pub expires_at: u64,
 }
 
 #[derive(Clone, Debug, Deserialize, Eq, PartialEq, Serialize)]
 #[serde(rename_all = "camelCase", deny_unknown_fields)]
-pub(crate) struct TransactionSignResultV2 {
-	pub(crate) transaction_hash: [u8; 32],
-	pub(crate) finalized: FinalizedIdentityV2,
+pub struct TransactionSignResultV2 {
+	pub transaction_hash: [u8; 32],
+	pub finalized: FinalizedIdentityV2,
 }
 
 #[derive(Clone, Debug, Deserialize, Eq, PartialEq, Serialize)]
 #[serde(untagged)]
-pub(crate) enum IdentityRequestV2 {
+pub enum IdentityRequestV2 {
 	#[serde(rename = "identity.account")]
 	Account(IdentityAccountRequestV2),
 	#[serde(rename = "identity.profile.read")]
@@ -419,7 +416,7 @@ pub(crate) enum IdentityRequestV2 {
 }
 
 impl IdentityRequestV2 {
-	pub(crate) const fn operation(&self) -> IdentityV2Operation {
+	pub const fn operation(&self) -> IdentityV2Operation {
 		match self {
 			Self::Account(_) => IdentityV2Operation::IdentityAccount,
 			Self::ProfileRead(_) => IdentityV2Operation::IdentityProfileRead,
@@ -546,7 +543,7 @@ impl IdentityRequestV2 {
 
 #[derive(Clone, Debug, Deserialize, Eq, PartialEq, Serialize)]
 #[serde(tag = "operation", content = "result")]
-pub(crate) enum IdentityResultV2 {
+pub enum IdentityResultV2 {
 	#[serde(rename = "identity.account")]
 	Account(IdentityAccountResultV2),
 	#[serde(rename = "identity.profile.read")]
@@ -566,7 +563,7 @@ pub(crate) enum IdentityResultV2 {
 }
 
 impl IdentityResultV2 {
-	pub(crate) const fn operation(&self) -> IdentityV2Operation {
+	pub const fn operation(&self) -> IdentityV2Operation {
 		match self {
 			Self::Account(_) => IdentityV2Operation::IdentityAccount,
 			Self::ProfileRead(_) => IdentityV2Operation::IdentityProfileRead,
@@ -592,7 +589,7 @@ impl IdentityResultV2 {
 		}
 	}
 
-	pub(crate) fn validate_for_request(
+	pub fn validate_for_request(
 		&self,
 		request: &IdentityRequestV2,
 		finalized_block: u64,
@@ -712,20 +709,20 @@ fn validate_profile_receipt(
 
 #[derive(Clone, Debug, Deserialize, Eq, PartialEq, Serialize)]
 #[serde(rename_all = "camelCase", deny_unknown_fields)]
-pub(crate) struct IdentityGrantCoreV2 {
-	pub(crate) version: u8,
-	pub(crate) id: [u8; 32],
-	pub(crate) product_id: String,
-	pub(crate) scope: IdentityV2Operation,
-	pub(crate) recovery_incarnation: [u8; 32],
-	pub(crate) expires_at: u64,
+pub struct IdentityGrantCoreV2 {
+	pub version: u8,
+	pub id: [u8; 32],
+	pub product_id: String,
+	pub scope: IdentityV2Operation,
+	pub recovery_incarnation: [u8; 32],
+	pub expires_at: u64,
 	#[serde(skip_serializing_if = "Option::is_none")]
-	pub(crate) audience: Option<String>,
+	pub audience: Option<String>,
 	#[serde(skip_serializing_if = "Option::is_none")]
-	pub(crate) revoked: Option<bool>,
+	pub revoked: Option<bool>,
 }
 
-pub(crate) trait IdentityGrantV2 {
+pub trait IdentityGrantV2 {
 	fn operation(&self) -> IdentityV2Operation;
 	fn core(&self) -> &IdentityGrantCoreV2;
 }
@@ -743,7 +740,7 @@ macro_rules! identity_grant {
 	($name:ident, $operation:expr) => {
 		#[derive(Clone, Debug, Deserialize, Eq, PartialEq, Serialize)]
 		#[serde(transparent)]
-		pub(crate) struct $name(pub(crate) IdentityGrantCoreV2);
+		pub struct $name(pub IdentityGrantCoreV2);
 
 		impl IdentityGrantV2 for $name {
 			fn operation(&self) -> IdentityV2Operation {
@@ -767,39 +764,39 @@ identity_grant!(TransactionSignGrantV2, IdentityV2Operation::TransactionSign);
 
 #[derive(Clone, Debug, Deserialize, Eq, PartialEq, Serialize)]
 #[serde(rename_all = "camelCase", deny_unknown_fields)]
-pub(crate) struct IdentityInvocationV2 {
-	pub(crate) protocol: String,
-	pub(crate) code: u16,
-	pub(crate) request_id: [u8; 16],
-	pub(crate) product_id: String,
-	pub(crate) grant_id: [u8; 32],
-	pub(crate) recovery_incarnation: [u8; 32],
-	pub(crate) deadline_block: u64,
+pub struct IdentityInvocationV2 {
+	pub protocol: String,
+	pub code: u16,
+	pub request_id: [u8; 16],
+	pub product_id: String,
+	pub grant_id: [u8; 32],
+	pub recovery_incarnation: [u8; 32],
+	pub deadline_block: u64,
 	#[serde(skip, default)]
 	finalized_block: u64,
 	#[serde(skip, default)]
 	finalized_hash: [u8; 32],
-	pub(crate) operation: IdentityV2Operation,
-	pub(crate) input: IdentityRequestV2,
+	pub operation: IdentityV2Operation,
+	pub input: IdentityRequestV2,
 	#[serde(skip_serializing_if = "Option::is_none")]
-	pub(crate) operation_id: Option<[u8; 16]>,
+	pub operation_id: Option<[u8; 16]>,
 	#[serde(skip, default)]
 	replay_commit: FreshConsentReplayV2,
 }
 
 impl IdentityInvocationV2 {
-	pub(crate) fn validate_result(&self, result: &IdentityResultV2) -> Result<(), IdentityV2Error> {
+	pub fn validate_result(&self, result: &IdentityResultV2) -> Result<(), IdentityV2Error> {
 		result.validate_for_request(&self.input, self.finalized_block, self.finalized_hash)
 	}
 
-	pub(crate) fn commit_durable_acceptance(
+	pub fn commit_durable_acceptance(
 		&self,
 		replay_journal: &mut FreshConsentJournalV2,
 	) -> Result<(), IdentityV2Error> {
 		replay_journal.commit(&self.replay_commit)
 	}
 
-	pub(crate) fn rollback_pre_accept(&self, replay_journal: &mut FreshConsentJournalV2) {
+	pub fn rollback_pre_accept(&self, replay_journal: &mut FreshConsentJournalV2) {
 		replay_journal.rollback(&self.replay_commit);
 	}
 
@@ -818,7 +815,7 @@ impl IdentityInvocationV2 {
 		cbor_map(fields)
 	}
 
-	pub(crate) fn canonical_frame(&self) -> Result<Vec<u8>, IdentityV2Error> {
+	pub fn canonical_frame(&self) -> Result<Vec<u8>, IdentityV2Error> {
 		let value = self.frame_value();
 		macro_rules! encode {
 			($production:ty) => {
@@ -839,7 +836,7 @@ impl IdentityInvocationV2 {
 		}
 	}
 
-	pub(crate) fn decode_canonical_frame(
+	pub fn decode_canonical_frame(
 		operation: IdentityV2Operation,
 		bytes: &[u8],
 	) -> Result<Vec<u8>, IdentityV2Error> {
@@ -870,7 +867,7 @@ fn map_host_codec_error(error: HostV2CodecError) -> IdentityV2Error {
 	}
 }
 
-pub(crate) fn prepare_identity_v2_invocation(
+pub fn prepare_identity_v2_invocation(
 	product_id: &str,
 	grant: &dyn IdentityGrantV2,
 	request: IdentityRequestV2,
@@ -951,20 +948,20 @@ pub(crate) fn prepare_identity_v2_invocation(
 }
 
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
-pub(crate) struct IdentityRecoveryEvidenceV2 {
-	pub(crate) same_store: bool,
-	pub(crate) authenticated: bool,
-	pub(crate) complete_replay_journal: bool,
-	pub(crate) monotonic: bool,
+pub struct IdentityRecoveryEvidenceV2 {
+	pub same_store: bool,
+	pub authenticated: bool,
+	pub complete_replay_journal: bool,
+	pub monotonic: bool,
 }
 
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
-pub(crate) enum IdentityRecoveryDispositionV2 {
+pub enum IdentityRecoveryDispositionV2 {
 	RestoreCompleteStore,
 	InstallFreshRoot { epoch: u32 },
 }
 
-pub(crate) const fn identity_recovery_disposition_v2(
+pub const fn identity_recovery_disposition_v2(
 	evidence: IdentityRecoveryEvidenceV2,
 ) -> IdentityRecoveryDispositionV2 {
 	if evidence.same_store
@@ -986,7 +983,7 @@ struct FreshConsentReplayV2 {
 }
 
 #[derive(Default)]
-pub(crate) struct FreshConsentJournalV2 {
+pub struct FreshConsentJournalV2 {
 	operation_ids: BTreeSet<[u8; 16]>,
 	proof_challenges: BTreeSet<Vec<u8>>,
 	reserved_operation_ids: BTreeMap<[u8; 16], u64>,

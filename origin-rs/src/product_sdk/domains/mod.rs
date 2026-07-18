@@ -24,12 +24,11 @@
 
 pub mod attestation;
 pub mod common;
-pub mod names;
 pub mod drive;
-pub mod identity_personhood;
-// Private P3 replacement facade; P5 controls its public cutover.
 #[allow(dead_code)]
-pub(crate) mod identity_v2;
+pub(crate) mod identity_personhood;
+pub mod identity_v2;
+pub mod names;
 pub mod s3;
 pub mod storage_events;
 pub mod storage_provider;
@@ -37,8 +36,8 @@ pub mod storage_provider;
 pub use common::{
 	AccountId, AgreementId, AttestationId, BlockNumber, BucketId, ChallengeId, ContainerId,
 	ContentCommitment, ContentHash, DomainResult, DriveId, FinalizedPage, FinalizedQuery,
-	FinalizedValue, Hash32, NameId, ObjectId, OperationId, PageRequest, PayloadCommitment, ProofCommitment,
-	ProviderReference, RegistrationCommitment, ReservationId, ReservationReference, SchemaId,
-	StatusCommitment, SubjectCommitment, SubjectId, SubmitAndFinalize, UniquenessCommitment,
-	Validate, DOMAIN_CONTRACT_VERSION, MAX_PAGE_SIZE,
+	FinalizedValue, Hash32, NameId, ObjectId, OperationId, PageRequest, PayloadCommitment,
+	ProofCommitment, ProviderReference, RegistrationCommitment, ReservationId,
+	ReservationReference, SchemaId, StatusCommitment, SubjectCommitment, SubjectId,
+	SubmitAndFinalize, UniquenessCommitment, Validate, DOMAIN_CONTRACT_VERSION, MAX_PAGE_SIZE,
 };

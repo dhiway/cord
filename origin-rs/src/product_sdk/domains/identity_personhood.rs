@@ -18,18 +18,13 @@
 
 use serde::{Deserialize, Serialize};
 
-use super::{
-	attestation::Signature,
-	common::{
-		ensure_bytes, invalid, AccountId, DomainResult, FinalizedQuery, FinalizedValue, Hash32,
-		SubmitAndFinalize, Validate,
-	},
+use super::common::{
+	ensure_bytes, invalid, AccountId, DomainResult, FinalizedQuery, FinalizedValue, Hash32,
+	SubmitAndFinalize, Validate,
 };
 
 pub const MAX_IDENTITY_RAW_BYTES: usize = 32;
 pub const MAX_ADDITIONAL_IDENTITY_FIELDS: usize = 32;
-pub const RING_VRF_KEY_BYTES: usize = 32;
-pub const RING_VRF_SIGNATURE_BYTES: usize = 64;
 
 pub type IdentityPersonhoodRead = FinalizedQuery<IdentityPersonhoodQuery>;
 pub type IdentityPersonhoodWrite = SubmitAndFinalize<IdentityPersonhoodCommand>;
@@ -39,15 +34,14 @@ pub type IdentityPersonhoodWrite = SubmitAndFinalize<IdentityPersonhoodCommand>;
 pub enum IdentityPersonhoodQuery {
 	IdentityStatus { account: AccountId },
 	PersonhoodStatus { account: AccountId },
-	AttestationAllowance { account: AccountId },
 }
 
 impl Validate for IdentityPersonhoodQuery {
 	fn validate(&self) -> DomainResult<()> {
 		match self {
-			Self::IdentityStatus { account } |
-			Self::PersonhoodStatus { account } |
-			Self::AttestationAllowance { account } => account.validate(),
+			Self::IdentityStatus { account } | Self::PersonhoodStatus { account } => {
+				account.validate()
+			},
 		}
 	}
 }
@@ -70,7 +64,6 @@ pub struct IdentityStatusView {
 pub struct PersonhoodStatusView {
 	pub full_personal_id: Option<PersonalId>,
 	pub full_recognized: bool,
-	pub lite_recognized: bool,
 }
 
 /// Canonical decimal-string projection of the runtime's `u64` personal identifier.
@@ -114,17 +107,10 @@ impl Validate for PersonalId {
 }
 
 #[derive(Clone, Debug, Deserialize, Eq, PartialEq, Serialize)]
-#[serde(deny_unknown_fields)]
-pub struct AttestationAllowanceView {
-	pub remaining: u32,
-}
-
-#[derive(Clone, Debug, Deserialize, Eq, PartialEq, Serialize)]
 #[serde(tag = "response", content = "result", rename_all = "snake_case")]
 pub enum IdentityPersonhoodResponse {
 	IdentityStatus(FinalizedValue<IdentityStatusView>),
 	PersonhoodStatus(FinalizedValue<PersonhoodStatusView>),
-	AttestationAllowance(FinalizedValue<AttestationAllowanceView>),
 }
 
 #[derive(Clone, Debug, Deserialize, Eq, PartialEq, Serialize)]
@@ -156,12 +142,13 @@ impl Validate for IdentityData {
 	fn validate(&self) -> DomainResult<()> {
 		match self {
 			Self::None => Ok(()),
-			Self::Raw { value } =>
-				ensure_bytes(value.as_bytes(), 1, MAX_IDENTITY_RAW_BYTES, "identity data"),
-			Self::BlakeTwo256 { hash } |
-			Self::Sha256 { hash } |
-			Self::Keccak256 { hash } |
-			Self::ShaThree256 { hash } => hash.validate(),
+			Self::Raw { value } => {
+				ensure_bytes(value.as_bytes(), 1, MAX_IDENTITY_RAW_BYTES, "identity data")
+			},
+			Self::BlakeTwo256 { hash }
+			| Self::Sha256 { hash }
+			| Self::Keccak256 { hash }
+			| Self::ShaThree256 { hash } => hash.validate(),
 		}
 	}
 }
@@ -212,61 +199,13 @@ pub enum Judgement {
 }
 
 #[derive(Clone, Debug, Deserialize, Eq, PartialEq, Serialize)]
-#[serde(transparent)]
-pub struct RingVrfSignature(String);
-
-impl RingVrfSignature {
-	pub fn new(value: impl Into<String>) -> DomainResult<Self> {
-		let value = Self(value.into());
-		value.validate()?;
-		Ok(value)
-	}
-
-	pub fn raw_bytes(&self) -> DomainResult<Vec<u8>> {
-		self.validate()?;
-		hex::decode(&self.0[2..]).map_err(|_| invalid("invalid ring VRF signature hex"))
-	}
-}
-
-impl Validate for RingVrfSignature {
-	fn validate(&self) -> DomainResult<()> {
-		let raw = self.0.as_bytes();
-		if raw.len() != 2 + RING_VRF_SIGNATURE_BYTES * 2 ||
-			!self.0.starts_with("0x") ||
-			!raw[2..]
-				.iter()
-				.all(|byte| byte.is_ascii_digit() || (b'a'..=b'f').contains(byte))
-		{
-			return Err(invalid("ring VRF signature must be 64 lowercase hex bytes"));
-		}
-		Ok(())
-	}
-}
-
-#[derive(Clone, Debug, Deserialize, Eq, PartialEq, Serialize)]
 #[serde(tag = "command", content = "arguments", rename_all = "snake_case")]
 pub enum IdentityPersonhoodCommand {
-	SetIdentity {
-		info: IdentityInfo,
-	},
+	SetIdentity { info: IdentityInfo },
 	ClearIdentity,
-	RequestJudgement {
-		registrar: AccountId,
-	},
-	CancelJudgement {
-		registrar: AccountId,
-	},
-	ProvideJudgement {
-		target: AccountId,
-		judgement: Judgement,
-		identity_hash: Hash32,
-	},
-	AttestLitePerson {
-		candidate: AccountId,
-		candidate_signature: Signature,
-		ring_vrf_key: Hash32,
-		proof_of_ownership: RingVrfSignature,
-	},
+	RequestJudgement { registrar: AccountId },
+	CancelJudgement { registrar: AccountId },
+	ProvideJudgement { target: AccountId, judgement: Judgement, identity_hash: Hash32 },
 }
 
 impl Validate for IdentityPersonhoodCommand {
@@ -274,22 +213,12 @@ impl Validate for IdentityPersonhoodCommand {
 		match self {
 			Self::SetIdentity { info } => info.validate(),
 			Self::ClearIdentity => Ok(()),
-			Self::RequestJudgement { registrar } | Self::CancelJudgement { registrar } =>
-				registrar.validate(),
+			Self::RequestJudgement { registrar } | Self::CancelJudgement { registrar } => {
+				registrar.validate()
+			},
 			Self::ProvideJudgement { target, identity_hash, .. } => {
 				target.validate()?;
 				identity_hash.validate()
-			},
-			Self::AttestLitePerson {
-				candidate,
-				candidate_signature,
-				ring_vrf_key,
-				proof_of_ownership,
-			} => {
-				candidate.validate()?;
-				candidate_signature.validate()?;
-				ring_vrf_key.validate()?;
-				proof_of_ownership.validate()
 			},
 		}
 	}
@@ -304,14 +233,12 @@ mod tests {
 		let value = PersonhoodStatusView {
 			full_personal_id: Some(PersonalId::from_u64(u64::MAX)),
 			full_recognized: true,
-			lite_recognized: false,
 		};
 		assert_eq!(
 			serde_json::to_value(&value).unwrap(),
 			serde_json::json!({
 				"full_personal_id": "18446744073709551615",
 				"full_recognized": true,
-				"lite_recognized": false,
 			})
 		);
 		assert!(PersonalId::new("18446744073709551615").is_ok());

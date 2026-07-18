@@ -39,7 +39,7 @@ export const NATIVE_SDK_VERSION = {
     productionActivationReady: false,
   },
   runtimeApis: {
-    identityPersonhood: 1,
+    identity: 2,
     attestation: 1,
     names: 1,
     storageProvider: 11,

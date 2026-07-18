@@ -835,7 +835,7 @@ expected = 0
 id = "AC8"
 output = "../.omx/evidence/origin-orbis-web3-storage/ac8.json"
 decidability = "mechanical"
-clauses = ["v2-vectors", "codes", "seven-ops", "separate-signing", "restart-replay", "fresh-recovery", "continuity", "leakage"]
+clauses = ["v2-vectors", "codes", "seven-ops", "separate-signing", "typescript-public-v2", "rust-public-v2", "restart-replay", "fresh-recovery", "continuity", "leakage"]
 enforce_write_set = true
 write_paths = ["target/evidence/ac8-assertions.json", "product-sdk/node_modules/.cache/**", "target/debug/**", "target/.rustc_info.json"]
 
@@ -853,15 +853,15 @@ sha256 = "404e7debb220a86cdc76279396af748d9eade829a89a95ef456eb0b70bb45112"
 
 [[gate.input]]
 path = "origin-rs"
-sha256 = "205ebec8fd19bcd9ad924fe00a5007c95478a8ffe871d19fd3afc222cd8e9d5b"
+sha256 = "7ccb989561d0ab4d413980419b7041792e05a0caf351f37c9897fa04fbd1dcec"
 
 [[gate.input]]
 path = "product-sdk"
-sha256 = "7c36536d467c9122b27bc75d5214f09d453ddd2b458a323843d507e623907518"
+sha256 = "be6cb6e10ecb9ffede9a12b87dd666f893a5e4c93a092b112a5612f1f051f3d6"
 
 [[gate.input]]
 path = "product-sdk/package-lock.json"
-sha256 = "af3df09e588712027030a05815bbe75a1e5282f38fad9da97e14d80eda39a518"
+sha256 = "18781247226bad2b6ae5dcb49fc8bebba5fb552c90a76f236d7c86bcbbc64163"
 
 [[gate.input]]
 path = "product-sdk/package.json"
@@ -869,10 +869,19 @@ sha256 = "eedc18cefac692fdf6100119b1f9b14d11d9d7e5e15589a4e2c1d8f4d8f7ae2c"
 
 [[gate.input]]
 path = "scripts/validate-product-projection.py"
-sha256 = "record"
-input_class = "generated"
-producer_gate = "AC8-implementation"
-producer_output = "scripts/validate-product-projection.py"
+sha256 = "3e7186d25d25c443ead785c85994386e8ab5bd0dca19bf151a7a6ce99f42b36f"
+
+[[gate.input]]
+path = "docs/specs/identity-v2.md"
+sha256 = "370336c2e73e43278cbb832c1318756cf882ba2aab5ddf4b4638c547f80b3b3a"
+
+[[gate.input]]
+path = "docs/specs/identity-v2.vectors.json"
+sha256 = "480988ed6529c7f4fd7e93395074d77d5c6a97ae29868ec4a62eb4baa1ddd57e"
+
+[[gate.input]]
+path = "docs/specs/origin-host-registry-v2.errors.json"
+sha256 = "20e8135116ac9b82f86891b798224ec5c08ac09cdc6c249269e7a8e236ae88c5"
 
 [[gate.command]]
 cwd = "."
@@ -895,7 +904,7 @@ cwd = "."
 argv = ["python3", "scripts/validate-product-projection.py", "--mode", "identity", "--out", "target/evidence/ac8-assertions.json"]
 test_count = 0
 outputs = ["target/evidence/ac8-assertions.json"]
-inputs = ["scripts/validate-product-projection.py"]
+inputs = ["scripts/validate-product-projection.py", "docs/specs/identity-v2.md", "docs/specs/identity-v2.vectors.json", "docs/specs/origin-host-registry-v2.errors.json", "product-sdk/packages/origin-sdk-identity", "origin-rs/src/product_sdk/domains/identity_v2.rs", "origin-rs/src/product_sdk/host_v2/identity_authority.rs", "origin/orbis/provider-node/src"]
 allowed_writes = []
 
 [[gate.artifact]]
@@ -928,6 +937,20 @@ expected = 7
 clause = "separate-signing"
 source = "target/evidence/ac8-assertions.json"
 json_pointer = "/separate_signing"
+operator = "eq"
+expected = true
+
+[[gate.assertion]]
+clause = "typescript-public-v2"
+source = "target/evidence/ac8-assertions.json"
+json_pointer = "/public_v2_export"
+operator = "eq"
+expected = true
+
+[[gate.assertion]]
+clause = "rust-public-v2"
+source = "target/evidence/ac8-assertions.json"
+json_pointer = "/rust_v2_public"
 operator = "eq"
 expected = true
 
@@ -973,17 +996,22 @@ sha256 = "149cb782ad6643cab681916d85d6c7402f3333e8984a6eb2d483bf6ae318d0ee"
 
 [[gate.input]]
 path = "scripts/validate-product-projection.py"
-sha256 = "record"
-input_class = "generated"
-producer_gate = "AC9-implementation"
-producer_output = "scripts/validate-product-projection.py"
+sha256 = "3e7186d25d25c443ead785c85994386e8ab5bd0dca19bf151a7a6ce99f42b36f"
+
+[[gate.input]]
+path = "docs/specs/web3-storage-disposition-v1.toml"
+sha256 = "5c63ef945c68a4d7b062626c0eac1a8f5eb2b784127ca68181aafa289e818e79"
+
+[[gate.input]]
+path = "docs/adr/0021-lightweight-humanity-internal-disposition.md"
+sha256 = "a325953c4942aa2f4d9d5a907163210ee78d8eaf8770093d29c4784e78739a4a"
 
 [[gate.command]]
 cwd = "."
 argv = ["python3", "scripts/validate-product-projection.py", "--mode", "people-lite-disposition", "--ledger", "docs/specs/web3-storage-disposition-v1.toml", "--out", "target/evidence/ac9-assertions.json"]
 test_count = 0
 outputs = ["target/evidence/ac9-assertions.json"]
-inputs = ["scripts/validate-product-projection.py"]
+inputs = ["scripts/validate-product-projection.py", "docs/specs/web3-storage-disposition-v1.toml", "docs/adr/0021-lightweight-humanity-internal-disposition.md", "origin/orbis/pallets/people-lite", "origin/orbis/pallets/members", "origin/orbis/pallets/personhood", "origin/orbis/runtime/src/lib.rs", "origin/orbis/runtime-api/identity-personhood/src/lib.rs", "origin-rs/src/product_sdk", "product-sdk/src", "product-sdk/packages", "product-sdk/examples", "docs/Developer.md", "docs/cord-features.md", "docs/architecture/domains"]
 allowed_writes = []
 
 [[gate.artifact]]

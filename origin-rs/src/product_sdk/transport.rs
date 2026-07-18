@@ -67,10 +67,6 @@ use crate::{
 /// runtime-API response, preserve that same hash in its result, and reject version drift.
 #[async_trait]
 pub trait FinalizedReadBinding: Send + Sync {
-	async fn identity_personhood(
-		&self,
-		query: &IdentityPersonhoodRead,
-	) -> DomainResult<IdentityPersonhoodResponse>;
 	async fn attestation(&self, query: &AttestationRead) -> DomainResult<AttestationResponse>;
 	async fn names(&self, query: &NamesRead) -> DomainResult<NamesResponse>;
 	async fn storage_provider(
@@ -81,19 +77,20 @@ pub trait FinalizedReadBinding: Send + Sync {
 	async fn s3(&self, query: &S3Read) -> DomainResult<S3Response>;
 }
 
+#[async_trait]
+pub(crate) trait InternalIdentityReadBinding: Send + Sync {
+	async fn identity_personhood(
+		&self,
+		query: &IdentityPersonhoodRead,
+	) -> DomainResult<IdentityPersonhoodResponse>;
+}
+
 /// Fail-closed reader used when an exact pinned-hash runtime-API binding was not installed.
 #[derive(Clone, Copy, Debug, Default)]
 pub struct MissingFinalizedReadBinding;
 
 #[async_trait]
 impl FinalizedReadBinding for MissingFinalizedReadBinding {
-	async fn identity_personhood(
-		&self,
-		_query: &IdentityPersonhoodRead,
-	) -> DomainResult<IdentityPersonhoodResponse> {
-		Err(read_binding_required())
-	}
-
 	async fn attestation(&self, _query: &AttestationRead) -> DomainResult<AttestationResponse> {
 		Err(read_binding_required())
 	}
@@ -114,6 +111,16 @@ impl FinalizedReadBinding for MissingFinalizedReadBinding {
 	}
 
 	async fn s3(&self, _query: &S3Read) -> DomainResult<S3Response> {
+		Err(read_binding_required())
+	}
+}
+
+#[async_trait]
+impl InternalIdentityReadBinding for MissingFinalizedReadBinding {
+	async fn identity_personhood(
+		&self,
+		_query: &IdentityPersonhoodRead,
+	) -> DomainResult<IdentityPersonhoodResponse> {
 		Err(read_binding_required())
 	}
 }
@@ -146,14 +153,6 @@ impl<R> NativeDomainTransport<R> {
 }
 
 impl<R: FinalizedReadBinding> NativeDomainTransport<R> {
-	pub async fn read_identity_personhood(
-		&self,
-		query: &IdentityPersonhoodRead,
-	) -> DomainResult<IdentityPersonhoodResponse> {
-		query.validate()?;
-		self.reads.identity_personhood(query).await
-	}
-
 	pub async fn read_attestation(
 		&self,
 		query: &AttestationRead,
@@ -191,7 +190,7 @@ impl<R: FinalizedReadBinding> NativeDomainTransport<R> {
 		self.submit(intent, prepare_attestation_command(&intent.command)?).await
 	}
 
-	pub async fn submit_identity_personhood(
+	pub(crate) async fn submit_identity_personhood(
 		&self,
 		intent: &SubmitAndFinalize<IdentityPersonhoodCommand>,
 	) -> DomainResult<NativeLifecycle> {
@@ -253,6 +252,17 @@ impl<R: FinalizedReadBinding> NativeDomainTransport<R> {
 		};
 		lifecycle.validate()?;
 		Ok(lifecycle)
+	}
+}
+
+#[allow(private_bounds)]
+impl<R: FinalizedReadBinding + InternalIdentityReadBinding> NativeDomainTransport<R> {
+	pub(crate) async fn read_identity_personhood(
+		&self,
+		query: &IdentityPersonhoodRead,
+	) -> DomainResult<IdentityPersonhoodResponse> {
+		query.validate()?;
+		self.reads.identity_personhood(query).await
 	}
 }
 
@@ -468,14 +478,6 @@ impl<R, G> OrbisDomainTransport<R, G> {
 }
 
 impl<R: FinalizedReadBinding, G: GovernedSudoBinding> OrbisDomainTransport<R, G> {
-	pub async fn read_identity_personhood(
-		&self,
-		query: &IdentityPersonhoodRead,
-	) -> DomainResult<IdentityPersonhoodResponse> {
-		query.validate()?;
-		self.reads.identity_personhood(query).await
-	}
-
 	pub async fn read_attestation(
 		&self,
 		query: &AttestationRead,
@@ -515,7 +517,7 @@ impl<R: FinalizedReadBinding, G: GovernedSudoBinding> OrbisDomainTransport<R, G>
 			.await
 	}
 
-	pub async fn submit_identity_personhood(
+	pub(crate) async fn submit_identity_personhood(
 		&self,
 		intent: &SubmitAndFinalize<IdentityPersonhoodCommand>,
 	) -> DomainResult<NativeLifecycle> {
@@ -568,6 +570,19 @@ impl<R: FinalizedReadBinding, G: GovernedSudoBinding> OrbisDomainTransport<R, G>
 		} else {
 			self.client.submit_and_finalize(&self.signer, &intent.intent_id, payload).await
 		}
+	}
+}
+
+#[allow(private_bounds)]
+impl<R: FinalizedReadBinding + InternalIdentityReadBinding, G: GovernedSudoBinding>
+	OrbisDomainTransport<R, G>
+{
+	pub(crate) async fn read_identity_personhood(
+		&self,
+		query: &IdentityPersonhoodRead,
+	) -> DomainResult<IdentityPersonhoodResponse> {
+		query.validate()?;
+		self.reads.identity_personhood(query).await
 	}
 }
 
@@ -654,39 +669,11 @@ pub(crate) const fn identity_personhood_command_source(
 		IdentityPersonhoodCommand::RequestJudgement { .. } => ("People", "request_judgement"),
 		IdentityPersonhoodCommand::CancelJudgement { .. } => ("People", "cancel_request"),
 		IdentityPersonhoodCommand::ProvideJudgement { .. } => ("People", "provide_judgement"),
-		IdentityPersonhoodCommand::AttestLitePerson { .. } => (concat!("People", "Lite"), "attest"),
-	}
-}
-
-#[cfg(test)]
-mod identity_route_tests {
-	use super::*;
-	use crate::product_sdk::domains::{
-		attestation::SignatureScheme, identity_personhood::RingVrfSignature,
-	};
-
-	#[test]
-	fn lightweight_attestation_remains_an_internal_metadata_route() {
-		let command = IdentityPersonhoodCommand::AttestLitePerson {
-			candidate: AccountId::new("candidate").expect("valid account DTO"),
-			candidate_signature: Signature::new(
-				SignatureScheme::Ed25519,
-				format!("0x{}", "11".repeat(64)),
-			)
-			.expect("valid signature"),
-			ring_vrf_key: Hash32::from_bytes([0x22; 32]),
-			proof_of_ownership: RingVrfSignature::new(format!("0x{}", "33".repeat(64)))
-				.expect("valid ring proof"),
-		};
-		assert_eq!(
-			identity_personhood_command_source(&command),
-			(concat!("People", "Lite"), "attest")
-		);
 	}
 }
 
 /// Prepare one of the six native identity writes using live metadata encoding.
-pub fn prepare_identity_personhood_command(
+pub(crate) fn prepare_identity_personhood_command(
 	command: &IdentityPersonhoodCommand,
 ) -> DomainResult<DynamicPayload> {
 	command.validate()?;
@@ -700,18 +687,6 @@ pub fn prepare_identity_personhood_command(
 			lookup_account_value(target)?,
 			judgement_value(*judgement),
 			hash_value(identity_hash)?,
-		],
-		IdentityPersonhoodCommand::AttestLitePerson {
-			candidate,
-			candidate_signature,
-			ring_vrf_key,
-			proof_of_ownership,
-		} => vec![
-			account_value(candidate)?,
-			signature_value(candidate_signature)?,
-			hash_value(ring_vrf_key)?,
-			Value::from_bytes(proof_of_ownership.raw_bytes()?),
-			option_value(None),
 		],
 	};
 	Ok(subxt::dynamic::tx(pallet, call, args))

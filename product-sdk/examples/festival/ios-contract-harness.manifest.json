@@ -54,8 +54,7 @@
     "access_mode"
   ],
   "supported_native_routes": {
-    "identity_personhood": 9,
-    "personhood_status": 1,
+    "identity_host_operations": 8,
     "sponsored_transaction": 2
   },
   "deferred_production_evidence": [

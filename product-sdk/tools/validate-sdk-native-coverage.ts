@@ -221,7 +221,7 @@ const observedApis = {
   s3: apiVersions[2],
 };
 const apiBindings = {
-  identity_personhood: ["identityPersonhood", "IDENTITY_PERSONHOOD_RUNTIME_API_VERSION"],
+  identity_personhood: [null, "IDENTITY_PERSONHOOD_RUNTIME_API_VERSION"],
   attestation: ["attestation", "ATTESTATION_RUNTIME_API_VERSION"],
   names: ["names", "NAMES_RUNTIME_API_VERSION"],
   storage_provider: ["storageProvider", "STORAGE_PROVIDER_RUNTIME_API_VERSION"],
@@ -230,7 +230,9 @@ const apiBindings = {
 } as const;
 for (const [name, contract] of Object.entries(matrix.native_runtime_apis) as [keyof typeof apiBindings, any][]) {
   equal((observedApis as any)[name], contract.version, `${name} runtime API`);
-  equal((NATIVE_SDK_VERSION.runtimeApis as any)[apiBindings[name][0]], contract.version, `${name} TypeScript runtime API`);
+  const publicBinding = apiBindings[name][0];
+  if (publicBinding !== null)
+    equal((NATIVE_SDK_VERSION.runtimeApis as any)[publicBinding], contract.version, `${name} TypeScript runtime API`);
   equal(Number(rustConstant(rust, apiBindings[name][1])), contract.version, `${name} Rust runtime API`);
 }
 
