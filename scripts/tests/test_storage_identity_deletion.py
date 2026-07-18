@@ -22,7 +22,6 @@ from __future__ import annotations
 
 import copy
 import importlib.util
-import shutil
 import tempfile
 import unittest
 from pathlib import Path
@@ -54,6 +53,27 @@ class DeletionCensusTests(unittest.TestCase):
         row["symbol"] = "definitely_absent_surface"
         self.assertFalse(VALIDATOR.exact_surface_exists(row, CORD))
 
+    def test_post_cutover_manifest_has_no_pending_or_structural_drift(self) -> None:
+        report = VALIDATOR.deletion_dag(self.manifest, CORD, None)
+        for key in (
+            "dag_missing_fields", "dag_duplicate_ids", "dag_duplicate_orders",
+            "dag_invalid_items", "dag_invalid_edges", "dag_cycle_count",
+            "absent_symbol_count", "duplicate_surface_count", "unmapped_surface_count",
+            "declaration_only_surface_count",
+        ):
+            self.assertEqual(report[key], 0, key)
+        self.assertEqual(report["pending_delete_item_count"], 0)
+        self.assertGreater(report["deleted_item_count"], 0)
+        self.assertGreater(report["replacement_active_item_count"], 0)
+
+    def test_deleted_surface_cannot_silently_reappear(self) -> None:
+        manifest = copy.deepcopy(self.manifest)
+        row = next(item for item in manifest["item"] if item["status"] == "replacement-active")
+        row["status"] = "deleted"
+        report = VALIDATOR.deletion_dag(manifest, CORD, None)
+        self.assertIn(row["id"], report["dag_details"]["invalid_items"])
+        self.assertEqual(report["unmapped_surface_count"], 1)
+
     def test_unmapped_new_dispatchable_is_rejected(self) -> None:
         with tempfile.TemporaryDirectory() as temporary:
             root = Path(temporary)
@@ -68,27 +88,52 @@ class DeletionCensusTests(unittest.TestCase):
             )
 
     def _copy_census_fixture(self, root: Path) -> None:
-        directories = (
-            "origin/orbis/pallets/transaction-storage",
-            "origin/orbis/pallets/hop-promotion",
-            "origin/orbis/node/src/proof_campaign",
-            "product-sdk/packages/descriptors/generated",
-            "product-sdk/packages/origin-sdk-personhood/src",
-            "product-sdk/packages/origin-sdk-resources/src",
-        )
-        files = (
-            "origin/orbis/provider-node/src/api.rs",
-            "origin/orbis/runtime/src/lib.rs",
-            "product-sdk/packages/descriptors/src/identity-host-routes.ts",
-            "product-sdk/packages/origin-sdk-host/src/protocol.ts",
-            "origin-rs/src/product_sdk/transport.rs",
-        )
-        for relative in directories:
-            shutil.copytree(CORD / relative, root / relative)
-        for relative in files:
-            target = root / relative
-            target.parent.mkdir(parents=True, exist_ok=True)
-            shutil.copy2(CORD / relative, target)
+        fixtures = {
+            "origin/orbis/pallets/transaction-storage/Cargo.toml":
+                '[package]\nname = "pallet-orbis-transaction-storage"\nversion = "0.1.0"\n',
+            "origin/orbis/pallets/transaction-storage/src/lib.rs": """
+#[pallet::call_index(0)]
+pub fn store() {}
+pub enum Event<T: Config> {
+    Stored,
+}
+#[pallet::storage]
+pub type Transactions<T> = ();
+""",
+            "origin/orbis/pallets/transaction-storage/src/extension.rs":
+                "pub struct ValidateStorageCalls;\n",
+            "origin/orbis/pallets/hop-promotion/Cargo.toml":
+                '[package]\nname = "pallet-orbis-hop-promotion"\nversion = "0.1.0"\n',
+            "origin/orbis/node/src/proof_campaign/config.rs": "pub fn run() {}\n",
+            "origin/orbis/provider-node/src/api.rs": '(Method::GET, "/health"),\n',
+            "origin/orbis/runtime/src/lib.rs": """
+TransactionStorage: pallet_orbis_transaction_storage = 110,
+HopPromotion: pallet_orbis_hop_promotion = 111,
+impl sp_transaction_storage_proof::runtime_api::TransactionStorageApi<Block> for Runtime {
+    fn proof() {}
+}
+type LongTermStorageDataStore = TransactionStorage;
+pallet_orbis_transaction_storage::extension::ValidateStorageCalls<Runtime>
+""",
+            "product-sdk/packages/descriptors/generated/incumbent.json": "{}\n",
+            "product-sdk/packages/descriptors/src/identity-host-routes.ts": """
+export const personhoodHostRoutes = {
+  read() {},
+};
+""",
+            "product-sdk/packages/origin-sdk-host/src/protocol.ts":
+                '  "resources.allocate": {},\n',
+            "product-sdk/packages/origin-sdk-personhood/src/index.ts":
+                "export interface PersonhoodClient {}\n",
+            "product-sdk/packages/origin-sdk-resources/src/index.ts":
+                "export interface ResourcesClient {}\n",
+            "origin-rs/src/product_sdk/transport.rs":
+                "pub async fn read_personhood() {}\npub async fn prepare_storage_command() {}\n",
+        }
+        for relative, content in fixtures.items():
+            path = root / relative
+            path.parent.mkdir(parents=True, exist_ok=True)
+            path.write_text(content, encoding="utf-8")
 
     @staticmethod
     def _append(root: Path, relative: str, text: str) -> None:

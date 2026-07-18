@@ -438,7 +438,7 @@ def deletion_dag(
             or not re.fullmatch(r"AC(?:[1-9]|1[0-4])", row["replacement_gate"])
             or not isinstance(row["order"], int)
             or row["order"] < 1
-            or row["status"] not in ("pending-delete", "deleted")
+            or row["status"] not in ("pending-delete", "deleted", "replacement-active")
             or any(token in row["path"] for token in ("*", "?", "["))
             or not all(isinstance(value, str) and value for value in (
                 row["path"], row["symbol"], row["replacement_consumer"],
@@ -458,10 +458,12 @@ def deletion_dag(
         }
         if not required_scans.issubset(scans):
             invalid_items.append(item_id)
-        if row["status"] == "pending-delete" and not (root / row["path"]).exists():
+        if row["status"] in ("pending-delete", "replacement-active") and not (root / row["path"]).exists():
             invalid_items.append(item_id)
-        elif row["status"] == "pending-delete" and not exact_surface_exists(row, root):
+        elif row["status"] in ("pending-delete", "replacement-active") and not exact_surface_exists(row, root):
             absent_symbols.append(item_id)
+        elif row["status"] == "deleted" and exact_surface_exists(row, root):
+            invalid_items.append(item_id)
         for dependency in row["prerequisites"]:
             target = by_id.get(dependency)
             if target is None or target.get("order", row["order"]) >= row["order"]:
@@ -486,7 +488,11 @@ def deletion_dag(
     for item_id in sorted(by_id):
         visit(item_id, [])
 
-    declared_surfaces = set(surface_keys)
+    declared_surfaces = {
+        (row.get("path"), row.get("kind"), row.get("symbol"))
+        for row in items
+        if row.get("status") in ("pending-delete", "replacement-active")
+    }
     observed_surfaces = current_surface_census(root)
     unmapped_surfaces = sorted(observed_surfaces - declared_surfaces)
     declaration_only_surfaces = sorted(declared_surfaces - observed_surfaces)
@@ -523,6 +529,9 @@ def deletion_dag(
     )
     return {
         "deletion_item_count": len(items),
+        "deleted_item_count": sum(row.get("status") == "deleted" for row in items),
+        "replacement_active_item_count": sum(row.get("status") == "replacement-active" for row in items),
+        "pending_delete_item_count": sum(row.get("status") == "pending-delete" for row in items),
         "dag_missing_fields": len(missing_fields),
         "dag_duplicate_ids": duplicate_ids,
         "dag_duplicate_orders": duplicate_orders,
@@ -663,6 +672,8 @@ def main() -> int:
             "approved_exclusion_invalid",
         )
     ) + ownership["unmapped_finding_count"] + ownership["duplicate_owner_count"] + len(allowlist_errors)
+    if not args.p0_audit:
+        structural_failures += dag["pending_delete_item_count"]
     stale_failures = len(findings)
     passed = structural_failures == 0 and (args.p0_audit or stale_failures == 0)
     result = {

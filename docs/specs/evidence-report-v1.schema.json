@@ -633,6 +633,9 @@
     ],
     "AC10": [
       "deletion-items",
+      "deleted-receipts",
+      "active-replacements",
+      "no-pending",
       "dag-fields",
       "dag-ids",
       "dag-orders",

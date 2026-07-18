@@ -82,6 +82,9 @@ value = "origin/orbis/pallets/hop-promotion/**"
 
 # Exact replacement-before-deletion DAG. Broad obsolete scans above are only
 # supporting stale-code evidence; these stable items own the cutover order.
+# `deleted` rows are negative receipts and fail if their exact surface returns.
+# `replacement-active` rows are the canonical post-cutover surfaces that the
+# independent census must still observe. A strict proof permits no pending row.
 
 [[item]]
 id = "OWN-429A84F5A135"
@@ -96,7 +99,7 @@ replacement_test = "python3 scripts/validate-storage-identity-deletion.py --mani
 replacement_gate = "AC10"
 slice = "P5"
 order = 1
-status = "pending-delete"
+status = "deleted"
 prerequisites = []
 post_delete_scans = ["path:origin-rs/src/product_sdk/transport.rs", "symbol:PeopleLite", "consumer:unified identity facade"]
 
@@ -113,7 +116,7 @@ replacement_test = "python3 scripts/validate-storage-identity-deletion.py --mani
 replacement_gate = "AC10"
 slice = "P5"
 order = 2
-status = "pending-delete"
+status = "deleted"
 prerequisites = ["OWN-429A84F5A135"]
 post_delete_scans = ["path:product-sdk/packages/descriptors/generated/native-route-contract.ts", "symbol:PeopleLite", "consumer:unified identity facade"]
 
@@ -130,7 +133,7 @@ replacement_test = "python3 scripts/validate-storage-identity-deletion.py --mani
 replacement_gate = "AC10"
 slice = "P5"
 order = 3
-status = "pending-delete"
+status = "deleted"
 prerequisites = ["OWN-F02BDBF045BC"]
 post_delete_scans = ["path:product-sdk/packages/descriptors/src/identity-host-routes.ts", "symbol:PeopleLite", "consumer:unified identity facade"]
 
@@ -147,7 +150,7 @@ replacement_test = "python3 scripts/validate-storage-identity-deletion.py --mani
 replacement_gate = "AC10"
 slice = "P5"
 order = 4
-status = "pending-delete"
+status = "deleted"
 prerequisites = ["OWN-8D90446693BF"]
 post_delete_scans = ["path:product-sdk/packages/origin-sdk-personhood/README.md", "symbol:PeopleLite", "consumer:unified identity facade"]
 
@@ -164,7 +167,7 @@ replacement_test = "python3 scripts/validate-storage-identity-deletion.py --mani
 replacement_gate = "AC10"
 slice = "P5"
 order = 5
-status = "pending-delete"
+status = "deleted"
 prerequisites = ["OWN-70E4BD48DFA8"]
 post_delete_scans = ["path:product-sdk/packages/origin-sdk-personhood/package.json", "symbol:PeopleLite", "consumer:unified identity facade"]
 
@@ -181,7 +184,7 @@ replacement_test = "python3 scripts/validate-storage-identity-deletion.py --mani
 replacement_gate = "AC10"
 slice = "P5"
 order = 6
-status = "pending-delete"
+status = "deleted"
 prerequisites = ["OWN-3F0FB7AB2FBD"]
 post_delete_scans = ["path:product-sdk/packages/origin-sdk-personhood/src/index.ts", "symbol:PeopleLite", "consumer:unified identity facade"]
 
@@ -198,7 +201,7 @@ replacement_test = "python3 scripts/validate-storage-identity-deletion.py --mani
 replacement_gate = "AC10"
 slice = "P5"
 order = 7
-status = "pending-delete"
+status = "deleted"
 prerequisites = ["OWN-E0DC35EE65F9"]
 post_delete_scans = ["path:product-sdk/packages/origin-sdk-personhood/tests/index.test.ts", "symbol:PeopleLite", "consumer:unified identity facade"]
 
@@ -215,7 +218,7 @@ replacement_test = "python3 scripts/validate-storage-identity-deletion.py --mani
 replacement_gate = "AC10"
 slice = "P5"
 order = 8
-status = "pending-delete"
+status = "deleted"
 prerequisites = ["OWN-7077F76E4804"]
 post_delete_scans = ["path:product-sdk/packages/origin-sdk/src/runtime.ts", "symbol:PeopleLite", "consumer:unified identity facade"]
 
@@ -232,7 +235,7 @@ replacement_test = "python3 scripts/validate-storage-identity-deletion.py --mani
 replacement_gate = "AC10"
 slice = "P5"
 order = 9
-status = "pending-delete"
+status = "deleted"
 prerequisites = ["OWN-67EF6FE2BFAB"]
 post_delete_scans = ["path:product-sdk/tools/generate-papi-app-surface.ts", "symbol:PeopleLite", "consumer:unified identity facade"]
 
@@ -249,7 +252,7 @@ replacement_test = "python3 scripts/validate-storage-identity-deletion.py --mani
 replacement_gate = "AC10"
 slice = "P5"
 order = 10
-status = "pending-delete"
+status = "deleted"
 prerequisites = ["OWN-D029C1243394"]
 post_delete_scans = ["path:docs/architecture/domains/identity-personhood-attestation.md", "symbol:personhood", "consumer:unified identity facade"]
 
@@ -266,7 +269,7 @@ replacement_test = "python3 scripts/validate-storage-identity-deletion.py --mani
 replacement_gate = "AC10"
 slice = "P5"
 order = 11
-status = "pending-delete"
+status = "deleted"
 prerequisites = ["OWN-B7D85CC690F5"]
 post_delete_scans = ["path:origin-rs/src/product_sdk/transport.rs", "symbol:personhood", "consumer:unified identity facade"]
 
@@ -283,7 +286,7 @@ replacement_test = "python3 scripts/validate-storage-identity-deletion.py --mani
 replacement_gate = "AC10"
 slice = "P5"
 order = 12
-status = "pending-delete"
+status = "deleted"
 prerequisites = ["OWN-C0281F415BA3"]
 post_delete_scans = ["path:product-sdk/examples/festival/mobile-contract-harness.ts", "symbol:personhood", "consumer:unified identity facade"]
 
@@ -300,7 +303,7 @@ replacement_test = "python3 scripts/validate-storage-identity-deletion.py --mani
 replacement_gate = "AC10"
 slice = "P5"
 order = 13
-status = "pending-delete"
+status = "deleted"
 prerequisites = ["OWN-8E4E2596D559"]
 post_delete_scans = ["path:product-sdk/examples/festival/mobile-contract-vectors.json", "symbol:personhood", "consumer:unified identity facade"]
 
@@ -317,7 +320,7 @@ replacement_test = "python3 scripts/validate-storage-identity-deletion.py --mani
 replacement_gate = "AC10"
 slice = "P5"
 order = 14
-status = "pending-delete"
+status = "deleted"
 prerequisites = ["OWN-84D834731D08"]
 post_delete_scans = ["path:product-sdk/package-lock.json", "symbol:personhood", "consumer:unified identity facade"]
 
@@ -334,7 +337,7 @@ replacement_test = "python3 scripts/validate-storage-identity-deletion.py --mani
 replacement_gate = "AC10"
 slice = "P5"
 order = 15
-status = "pending-delete"
+status = "deleted"
 prerequisites = ["OWN-A3961C6F485D"]
 post_delete_scans = ["path:product-sdk/packages/descriptors/generated/native-route-contract.ts", "symbol:personhood", "consumer:unified identity facade"]
 
@@ -351,7 +354,7 @@ replacement_test = "python3 scripts/validate-storage-identity-deletion.py --mani
 replacement_gate = "AC10"
 slice = "P5"
 order = 16
-status = "pending-delete"
+status = "deleted"
 prerequisites = ["OWN-D5EC116EF8A6"]
 post_delete_scans = ["path:product-sdk/packages/descriptors/src/identity-host-routes.ts", "symbol:personhood", "consumer:unified identity facade"]
 
@@ -368,7 +371,7 @@ replacement_test = "python3 scripts/validate-storage-identity-deletion.py --mani
 replacement_gate = "AC10"
 slice = "P5"
 order = 17
-status = "pending-delete"
+status = "deleted"
 prerequisites = ["OWN-F479F03C221D"]
 post_delete_scans = ["path:product-sdk/packages/origin-sdk-contracts/README.md", "symbol:personhood", "consumer:unified identity facade"]
 
@@ -385,7 +388,7 @@ replacement_test = "python3 scripts/validate-storage-identity-deletion.py --mani
 replacement_gate = "AC10"
 slice = "P5"
 order = 18
-status = "pending-delete"
+status = "deleted"
 prerequisites = ["OWN-44E3AADF05FE"]
 post_delete_scans = ["path:product-sdk/packages/origin-sdk-contracts/src/index.ts", "symbol:personhood", "consumer:unified identity facade"]
 
@@ -402,7 +405,7 @@ replacement_test = "python3 scripts/validate-storage-identity-deletion.py --mani
 replacement_gate = "AC10"
 slice = "P5"
 order = 19
-status = "pending-delete"
+status = "deleted"
 prerequisites = ["OWN-95A5F348FFE9"]
 post_delete_scans = ["path:product-sdk/packages/origin-sdk-personhood/README.md", "symbol:personhood", "consumer:unified identity facade"]
 
@@ -419,7 +422,7 @@ replacement_test = "python3 scripts/validate-storage-identity-deletion.py --mani
 replacement_gate = "AC10"
 slice = "P5"
 order = 20
-status = "pending-delete"
+status = "deleted"
 prerequisites = ["OWN-6E406CCB461B"]
 post_delete_scans = ["path:product-sdk/packages/origin-sdk-personhood/package.json", "symbol:personhood", "consumer:unified identity facade"]
 
@@ -436,7 +439,7 @@ replacement_test = "python3 scripts/validate-storage-identity-deletion.py --mani
 replacement_gate = "AC10"
 slice = "P5"
 order = 21
-status = "pending-delete"
+status = "deleted"
 prerequisites = ["OWN-8428194E8DEB"]
 post_delete_scans = ["path:product-sdk/packages/origin-sdk-personhood/src/index.ts", "symbol:personhood", "consumer:unified identity facade"]
 
@@ -453,7 +456,7 @@ replacement_test = "python3 scripts/validate-storage-identity-deletion.py --mani
 replacement_gate = "AC10"
 slice = "P5"
 order = 22
-status = "pending-delete"
+status = "deleted"
 prerequisites = ["OWN-3B3030A34CCD"]
 post_delete_scans = ["path:product-sdk/packages/origin-sdk-personhood/tests/index.test.ts", "symbol:personhood", "consumer:unified identity facade"]
 
@@ -470,7 +473,7 @@ replacement_test = "python3 scripts/validate-storage-identity-deletion.py --mani
 replacement_gate = "AC10"
 slice = "P5"
 order = 23
-status = "pending-delete"
+status = "deleted"
 prerequisites = ["OWN-E4D68FBB46D8"]
 post_delete_scans = ["path:product-sdk/packages/origin-sdk-resources/README.md", "symbol:personhood", "consumer:unified identity facade"]
 
@@ -487,7 +490,7 @@ replacement_test = "python3 scripts/validate-storage-identity-deletion.py --mani
 replacement_gate = "AC10"
 slice = "P5"
 order = 24
-status = "pending-delete"
+status = "deleted"
 prerequisites = ["OWN-1950C20DB229"]
 post_delete_scans = ["path:product-sdk/packages/origin-sdk-resources/package.json", "symbol:personhood", "consumer:unified identity facade"]
 
@@ -504,7 +507,7 @@ replacement_test = "python3 scripts/validate-storage-identity-deletion.py --mani
 replacement_gate = "AC10"
 slice = "P5"
 order = 25
-status = "pending-delete"
+status = "deleted"
 prerequisites = ["OWN-74241A1542B7"]
 post_delete_scans = ["path:product-sdk/packages/origin-sdk-resources/src/index.ts", "symbol:personhood", "consumer:unified identity facade"]
 
@@ -521,7 +524,7 @@ replacement_test = "python3 scripts/validate-storage-identity-deletion.py --mani
 replacement_gate = "AC10"
 slice = "P5"
 order = 26
-status = "pending-delete"
+status = "deleted"
 prerequisites = ["OWN-E308E46E21F4"]
 post_delete_scans = ["path:product-sdk/packages/origin-sdk-resources/tests/index.test.ts", "symbol:personhood", "consumer:unified identity facade"]
 
@@ -538,7 +541,7 @@ replacement_test = "python3 scripts/validate-storage-identity-deletion.py --mani
 replacement_gate = "AC10"
 slice = "P5"
 order = 27
-status = "pending-delete"
+status = "deleted"
 prerequisites = ["OWN-2E0EDBC6E3E8"]
 post_delete_scans = ["path:product-sdk/packages/origin-sdk/package.json", "symbol:personhood", "consumer:unified identity facade"]
 
@@ -555,7 +558,7 @@ replacement_test = "python3 scripts/validate-storage-identity-deletion.py --mani
 replacement_gate = "AC10"
 slice = "P5"
 order = 28
-status = "pending-delete"
+status = "deleted"
 prerequisites = ["OWN-98B2C0D325D1"]
 post_delete_scans = ["path:product-sdk/packages/origin-sdk/src/index.ts", "symbol:personhood", "consumer:unified identity facade"]
 
@@ -572,7 +575,7 @@ replacement_test = "python3 scripts/validate-storage-identity-deletion.py --mani
 replacement_gate = "AC10"
 slice = "P5"
 order = 29
-status = "pending-delete"
+status = "deleted"
 prerequisites = ["OWN-8FEDC0436F1B"]
 post_delete_scans = ["path:product-sdk/packages/origin-sdk/src/runtime.ts", "symbol:personhood", "consumer:unified identity facade"]
 
@@ -589,7 +592,7 @@ replacement_test = "python3 scripts/validate-storage-identity-deletion.py --mani
 replacement_gate = "AC10"
 slice = "P5"
 order = 30
-status = "pending-delete"
+status = "deleted"
 prerequisites = ["OWN-021907B3576C"]
 post_delete_scans = ["path:product-sdk/packages/origin-sdk/src/testing.ts", "symbol:personhood", "consumer:unified identity facade"]
 
@@ -606,7 +609,7 @@ replacement_test = "python3 scripts/validate-storage-identity-deletion.py --mani
 replacement_gate = "AC10"
 slice = "P5"
 order = 31
-status = "pending-delete"
+status = "deleted"
 prerequisites = ["OWN-346D7E889D0B"]
 post_delete_scans = ["path:product-sdk/packages/origin-sdk/tests/index.test.ts", "symbol:personhood", "consumer:unified identity facade"]
 
@@ -623,7 +626,7 @@ replacement_test = "python3 scripts/validate-storage-identity-deletion.py --mani
 replacement_gate = "AC10"
 slice = "P5"
 order = 32
-status = "pending-delete"
+status = "deleted"
 prerequisites = ["OWN-404F423EBC4C"]
 post_delete_scans = ["path:product-sdk/packages/origin-sdk/tests/runtime.test.ts", "symbol:personhood", "consumer:unified identity facade"]
 
@@ -640,7 +643,7 @@ replacement_test = "python3 scripts/validate-storage-identity-deletion.py --mani
 replacement_gate = "AC10"
 slice = "P5"
 order = 33
-status = "pending-delete"
+status = "deleted"
 prerequisites = ["OWN-15453C0696AC"]
 post_delete_scans = ["path:product-sdk/tests/conformance/identity-sponsored-contract.test.ts", "symbol:personhood", "consumer:unified identity facade"]
 
@@ -657,7 +660,7 @@ replacement_test = "python3 scripts/validate-storage-identity-deletion.py --mani
 replacement_gate = "AC10"
 slice = "P5"
 order = 34
-status = "pending-delete"
+status = "deleted"
 prerequisites = ["OWN-EC9699847B06"]
 post_delete_scans = ["path:product-sdk/tools/test-packed-consumer.ts", "symbol:personhood", "consumer:unified identity facade"]
 
@@ -674,7 +677,7 @@ replacement_test = "python3 scripts/validate-storage-identity-deletion.py --mani
 replacement_gate = "AC10"
 slice = "P5"
 order = 35
-status = "pending-delete"
+status = "deleted"
 prerequisites = ["OWN-5BD48AD17E99"]
 post_delete_scans = ["path:product-sdk/package-lock.json", "symbol:resources", "consumer:unified identity facade"]
 
@@ -691,7 +694,7 @@ replacement_test = "python3 scripts/validate-storage-identity-deletion.py --mani
 replacement_gate = "AC10"
 slice = "P5"
 order = 36
-status = "pending-delete"
+status = "deleted"
 prerequisites = ["OWN-BF2EF310C55D"]
 post_delete_scans = ["path:product-sdk/packages/origin-sdk-apps/src/index.ts", "symbol:resources", "consumer:unified identity facade"]
 
@@ -708,7 +711,7 @@ replacement_test = "python3 scripts/validate-storage-identity-deletion.py --mani
 replacement_gate = "AC10"
 slice = "P5"
 order = 37
-status = "pending-delete"
+status = "deleted"
 prerequisites = ["OWN-5932EA64BB31"]
 post_delete_scans = ["path:product-sdk/packages/origin-sdk-contracts/src/index.ts", "symbol:resources", "consumer:unified identity facade"]
 
@@ -725,7 +728,7 @@ replacement_test = "python3 scripts/validate-storage-identity-deletion.py --mani
 replacement_gate = "AC10"
 slice = "P5"
 order = 38
-status = "pending-delete"
+status = "deleted"
 prerequisites = ["OWN-02E3CA8C191E"]
 post_delete_scans = ["path:product-sdk/packages/origin-sdk-host/src/index.ts", "symbol:resources", "consumer:unified identity facade"]
 
@@ -742,7 +745,7 @@ replacement_test = "python3 scripts/validate-storage-identity-deletion.py --mani
 replacement_gate = "AC10"
 slice = "P5"
 order = 39
-status = "pending-delete"
+status = "deleted"
 prerequisites = ["OWN-F697FEBBA358"]
 post_delete_scans = ["path:product-sdk/packages/origin-sdk-host/src/protocol.ts", "symbol:resources", "consumer:unified identity facade"]
 
@@ -759,7 +762,7 @@ replacement_test = "python3 scripts/validate-storage-identity-deletion.py --mani
 replacement_gate = "AC10"
 slice = "P5"
 order = 40
-status = "pending-delete"
+status = "deleted"
 prerequisites = ["OWN-3CE4B793B7BA"]
 post_delete_scans = ["path:product-sdk/packages/origin-sdk-host/src/testing.ts", "symbol:resources", "consumer:unified identity facade"]
 
@@ -776,7 +779,7 @@ replacement_test = "python3 scripts/validate-storage-identity-deletion.py --mani
 replacement_gate = "AC10"
 slice = "P5"
 order = 41
-status = "pending-delete"
+status = "deleted"
 prerequisites = ["OWN-7F87DE60F2D1"]
 post_delete_scans = ["path:product-sdk/packages/origin-sdk-host/tests/index.test.ts", "symbol:resources", "consumer:unified identity facade"]
 
@@ -793,7 +796,7 @@ replacement_test = "python3 scripts/validate-storage-identity-deletion.py --mani
 replacement_gate = "AC10"
 slice = "P5"
 order = 42
-status = "pending-delete"
+status = "deleted"
 prerequisites = ["OWN-6E984CC98BFE"]
 post_delete_scans = ["path:product-sdk/packages/origin-sdk-resources/README.md", "symbol:resources", "consumer:unified identity facade"]
 
@@ -810,7 +813,7 @@ replacement_test = "python3 scripts/validate-storage-identity-deletion.py --mani
 replacement_gate = "AC10"
 slice = "P5"
 order = 43
-status = "pending-delete"
+status = "deleted"
 prerequisites = ["OWN-EF6A06BB5441"]
 post_delete_scans = ["path:product-sdk/packages/origin-sdk-resources/package.json", "symbol:resources", "consumer:unified identity facade"]
 
@@ -827,7 +830,7 @@ replacement_test = "python3 scripts/validate-storage-identity-deletion.py --mani
 replacement_gate = "AC10"
 slice = "P5"
 order = 44
-status = "pending-delete"
+status = "deleted"
 prerequisites = ["OWN-DBCA33E21655"]
 post_delete_scans = ["path:product-sdk/packages/origin-sdk-resources/src/index.ts", "symbol:resources", "consumer:unified identity facade"]
 
@@ -844,7 +847,7 @@ replacement_test = "python3 scripts/validate-storage-identity-deletion.py --mani
 replacement_gate = "AC10"
 slice = "P5"
 order = 45
-status = "pending-delete"
+status = "deleted"
 prerequisites = ["OWN-3832F3EA3E54"]
 post_delete_scans = ["path:product-sdk/packages/origin-sdk-resources/tests/index.test.ts", "symbol:resources", "consumer:unified identity facade"]
 
@@ -861,7 +864,7 @@ replacement_test = "python3 scripts/validate-storage-identity-deletion.py --mani
 replacement_gate = "AC10"
 slice = "P5"
 order = 46
-status = "pending-delete"
+status = "deleted"
 prerequisites = ["OWN-F61D9992CCE2"]
 post_delete_scans = ["path:product-sdk/packages/origin-sdk-statement-store/README.md", "symbol:resources", "consumer:unified identity facade"]
 
@@ -878,7 +881,7 @@ replacement_test = "python3 scripts/validate-storage-identity-deletion.py --mani
 replacement_gate = "AC10"
 slice = "P5"
 order = 47
-status = "pending-delete"
+status = "deleted"
 prerequisites = ["OWN-734C6552E709"]
 post_delete_scans = ["path:product-sdk/packages/origin-sdk-statement-store/package.json", "symbol:resources", "consumer:unified identity facade"]
 
@@ -895,7 +898,7 @@ replacement_test = "python3 scripts/validate-storage-identity-deletion.py --mani
 replacement_gate = "AC10"
 slice = "P5"
 order = 48
-status = "pending-delete"
+status = "deleted"
 prerequisites = ["OWN-2FB6E71234FB"]
 post_delete_scans = ["path:product-sdk/packages/origin-sdk-statement-store/src/index.ts", "symbol:resources", "consumer:unified identity facade"]
 
@@ -912,7 +915,7 @@ replacement_test = "python3 scripts/validate-storage-identity-deletion.py --mani
 replacement_gate = "AC10"
 slice = "P5"
 order = 49
-status = "pending-delete"
+status = "deleted"
 prerequisites = ["OWN-CBCE895632CF"]
 post_delete_scans = ["path:product-sdk/packages/origin-sdk-statement-store/tests/index.test.ts", "symbol:resources", "consumer:unified identity facade"]
 
@@ -929,7 +932,7 @@ replacement_test = "python3 scripts/validate-storage-identity-deletion.py --mani
 replacement_gate = "AC10"
 slice = "P5"
 order = 50
-status = "pending-delete"
+status = "deleted"
 prerequisites = ["OWN-DC8C5D78D472"]
 post_delete_scans = ["path:product-sdk/packages/origin-sdk/package.json", "symbol:resources", "consumer:unified identity facade"]
 
@@ -946,7 +949,7 @@ replacement_test = "python3 scripts/validate-storage-identity-deletion.py --mani
 replacement_gate = "AC10"
 slice = "P5"
 order = 51
-status = "pending-delete"
+status = "deleted"
 prerequisites = ["OWN-B731D03FE1D5"]
 post_delete_scans = ["path:product-sdk/packages/origin-sdk/src/index.ts", "symbol:resources", "consumer:unified identity facade"]
 
@@ -963,7 +966,7 @@ replacement_test = "python3 scripts/validate-storage-identity-deletion.py --mani
 replacement_gate = "AC10"
 slice = "P5"
 order = 52
-status = "pending-delete"
+status = "deleted"
 prerequisites = ["OWN-E41D4B65DB54"]
 post_delete_scans = ["path:product-sdk/packages/origin-sdk/src/runtime.ts", "symbol:resources", "consumer:unified identity facade"]
 
@@ -980,7 +983,7 @@ replacement_test = "python3 scripts/validate-storage-identity-deletion.py --mani
 replacement_gate = "AC10"
 slice = "P5"
 order = 53
-status = "pending-delete"
+status = "deleted"
 prerequisites = ["OWN-503DA93727E4"]
 post_delete_scans = ["path:product-sdk/packages/origin-sdk/src/testing.ts", "symbol:resources", "consumer:unified identity facade"]
 
@@ -997,7 +1000,7 @@ replacement_test = "python3 scripts/validate-storage-identity-deletion.py --mani
 replacement_gate = "AC10"
 slice = "P5"
 order = 54
-status = "pending-delete"
+status = "deleted"
 prerequisites = ["OWN-8C2779A9AB16"]
 post_delete_scans = ["path:product-sdk/packages/origin-sdk/tests/index.test.ts", "symbol:resources", "consumer:unified identity facade"]
 
@@ -1014,7 +1017,7 @@ replacement_test = "python3 scripts/validate-storage-identity-deletion.py --mani
 replacement_gate = "AC10"
 slice = "P5"
 order = 55
-status = "pending-delete"
+status = "deleted"
 prerequisites = ["OWN-59B4E045D85E"]
 post_delete_scans = ["path:product-sdk/packages/origin-sdk/tests/runtime.test.ts", "symbol:resources", "consumer:unified identity facade"]
 
@@ -1031,7 +1034,7 @@ replacement_test = "python3 scripts/validate-storage-identity-deletion.py --mani
 replacement_gate = "AC10"
 slice = "P5"
 order = 56
-status = "pending-delete"
+status = "deleted"
 prerequisites = ["OWN-D72BB61C7CC1"]
 post_delete_scans = ["path:product-sdk/src/version.ts", "symbol:resources", "consumer:unified identity facade"]
 
@@ -1048,7 +1051,7 @@ replacement_test = "python3 scripts/validate-storage-identity-deletion.py --mani
 replacement_gate = "AC10"
 slice = "P5"
 order = 57
-status = "pending-delete"
+status = "deleted"
 prerequisites = ["OWN-D8FE68E92BB3"]
 post_delete_scans = ["path:product-sdk/tools/test-packed-consumer.ts", "symbol:resources", "consumer:unified identity facade"]
 
@@ -1065,7 +1068,7 @@ replacement_test = "python3 scripts/validate-storage-identity-deletion.py --mani
 replacement_gate = "AC10"
 slice = "P5"
 order = 58
-status = "pending-delete"
+status = "deleted"
 prerequisites = ["OWN-0A12CCA3C7EB"]
 post_delete_scans = ["path:product-sdk/tools/validate-sdk-native-coverage.ts", "symbol:resources", "consumer:unified identity facade"]
 
@@ -1592,7 +1595,7 @@ replacement_test = "python3 scripts/validate-storage-identity-deletion.py --mani
 replacement_gate = "AC10"
 slice = "P4_RUNTIME"
 order = 89
-status = "pending-delete"
+status = "deleted"
 prerequisites = ["OWN-618B99A21165"]
 post_delete_scans = ["path:origin/orbis/runtime/src/lib.rs", "symbol:HopPromotion", "consumer:canonical Commons storage surface"]
 
@@ -1609,7 +1612,7 @@ replacement_test = "python3 scripts/validate-storage-identity-deletion.py --mani
 replacement_gate = "AC10"
 slice = "P4_RUNTIME"
 order = 90
-status = "pending-delete"
+status = "deleted"
 prerequisites = ["OWN-7BD33A3CCBA3"]
 post_delete_scans = ["path:origin/orbis/runtime/src/tests.rs", "symbol:HopPromotion", "consumer:canonical Commons storage surface"]
 
@@ -1643,7 +1646,7 @@ replacement_test = "python3 scripts/validate-storage-identity-deletion.py --mani
 replacement_gate = "AC10"
 slice = "P4_RUNTIME"
 order = 92
-status = "pending-delete"
+status = "deleted"
 prerequisites = ["OWN-D17BF6C7267D"]
 post_delete_scans = ["path:origin-rs/src/product_sdk/domains/storage_provider.rs", "symbol:TransactionStorage", "consumer:canonical Commons storage surface"]
 
@@ -1660,7 +1663,7 @@ replacement_test = "python3 scripts/validate-storage-identity-deletion.py --mani
 replacement_gate = "AC10"
 slice = "P4_RUNTIME"
 order = 93
-status = "pending-delete"
+status = "deleted"
 prerequisites = ["OWN-8004F29754D9"]
 post_delete_scans = ["path:origin-rs/src/product_sdk/transport.rs", "symbol:TransactionStorage", "consumer:canonical Commons storage surface"]
 
@@ -1694,7 +1697,7 @@ replacement_test = "python3 scripts/validate-storage-identity-deletion.py --mani
 replacement_gate = "AC10"
 slice = "P4_RUNTIME"
 order = 95
-status = "pending-delete"
+status = "deleted"
 prerequisites = ["OWN-9F195D6BCB26"]
 post_delete_scans = ["path:origin/orbis/pallets/drive/src/lib.rs", "symbol:TransactionStorage", "consumer:canonical Commons storage surface"]
 
@@ -1728,7 +1731,7 @@ replacement_test = "python3 scripts/validate-storage-identity-deletion.py --mani
 replacement_gate = "AC10"
 slice = "P4_RUNTIME"
 order = 97
-status = "pending-delete"
+status = "deleted"
 prerequisites = ["OWN-F287EC3D9120"]
 post_delete_scans = ["path:origin/orbis/pallets/s3/src/lib.rs", "symbol:TransactionStorage", "consumer:canonical Commons storage surface"]
 
@@ -1745,7 +1748,7 @@ replacement_test = "python3 scripts/validate-storage-identity-deletion.py --mani
 replacement_gate = "AC10"
 slice = "P4_RUNTIME"
 order = 98
-status = "pending-delete"
+status = "deleted"
 prerequisites = ["OWN-297CBB2BA1C3"]
 post_delete_scans = ["path:origin/orbis/pallets/storage-provider/src/lib.rs", "symbol:TransactionStorage", "consumer:canonical Commons storage surface"]
 
@@ -1881,7 +1884,7 @@ replacement_test = "python3 scripts/validate-storage-identity-deletion.py --mani
 replacement_gate = "AC10"
 slice = "P4_RUNTIME"
 order = 106
-status = "pending-delete"
+status = "deleted"
 prerequisites = ["OWN-9979F68D1241"]
 post_delete_scans = ["path:origin/orbis/provider-node/README.md", "symbol:TransactionStorage", "consumer:canonical Commons storage surface"]
 
@@ -1898,7 +1901,7 @@ replacement_test = "python3 scripts/validate-storage-identity-deletion.py --mani
 replacement_gate = "AC10"
 slice = "P4_RUNTIME"
 order = 107
-status = "pending-delete"
+status = "deleted"
 prerequisites = ["OWN-88FA7A838ADD"]
 post_delete_scans = ["path:origin/orbis/runtime/src/enterprise_journey.rs", "symbol:TransactionStorage", "consumer:canonical Commons storage surface"]
 
@@ -1915,7 +1918,7 @@ replacement_test = "python3 scripts/validate-storage-identity-deletion.py --mani
 replacement_gate = "AC10"
 slice = "P4_RUNTIME"
 order = 108
-status = "pending-delete"
+status = "deleted"
 prerequisites = ["OWN-F0B4D6BA9B3F"]
 post_delete_scans = ["path:origin/orbis/runtime/src/lib.rs", "symbol:TransactionStorage", "consumer:canonical Commons storage surface"]
 
@@ -1932,7 +1935,7 @@ replacement_test = "python3 scripts/validate-storage-identity-deletion.py --mani
 replacement_gate = "AC10"
 slice = "P4_RUNTIME"
 order = 109
-status = "pending-delete"
+status = "deleted"
 prerequisites = ["OWN-2F3BB8421F18"]
 post_delete_scans = ["path:origin/orbis/runtime/src/tests.rs", "symbol:TransactionStorage", "consumer:canonical Commons storage surface"]
 
@@ -1966,7 +1969,7 @@ replacement_test = "python3 scripts/validate-storage-identity-deletion.py --mani
 replacement_gate = "AC10"
 slice = "P4_RUNTIME"
 order = 111
-status = "pending-delete"
+status = "deleted"
 prerequisites = ["OWN-5832F649F8BB"]
 post_delete_scans = ["path:product-sdk/packages/descriptors/generated/native-route-contract.ts", "symbol:TransactionStorage", "consumer:canonical Commons storage surface"]
 
@@ -1983,7 +1986,7 @@ replacement_test = "python3 scripts/validate-storage-identity-deletion.py --mani
 replacement_gate = "AC10"
 slice = "P4_RUNTIME"
 order = 112
-status = "pending-delete"
+status = "deleted"
 prerequisites = ["OWN-EAA21AFFC3F9"]
 post_delete_scans = ["path:product-sdk/packages/origin-sdk-apps/README.md", "symbol:TransactionStorage", "consumer:canonical Commons storage surface"]
 
@@ -2000,7 +2003,7 @@ replacement_test = "python3 scripts/validate-storage-identity-deletion.py --mani
 replacement_gate = "AC10"
 slice = "P4_RUNTIME"
 order = 113
-status = "pending-delete"
+status = "deleted"
 prerequisites = ["OWN-2B679C5A0496"]
 post_delete_scans = ["path:product-sdk/packages/origin-sdk-cloud-storage/README.md", "symbol:TransactionStorage", "consumer:canonical Commons storage surface"]
 
@@ -2017,7 +2020,7 @@ replacement_test = "python3 scripts/validate-storage-identity-deletion.py --mani
 replacement_gate = "AC10"
 slice = "P4_RUNTIME"
 order = 114
-status = "pending-delete"
+status = "deleted"
 prerequisites = ["OWN-ABF49D4778E5"]
 post_delete_scans = ["path:product-sdk/packages/origin-sdk-cloud-storage/src/client.ts", "symbol:TransactionStorage", "consumer:canonical Commons storage surface"]
 
@@ -2034,7 +2037,7 @@ replacement_test = "python3 scripts/validate-storage-identity-deletion.py --mani
 replacement_gate = "AC10"
 slice = "P4_RUNTIME"
 order = 115
-status = "pending-delete"
+status = "deleted"
 prerequisites = ["OWN-F8C8F644A1C9"]
 post_delete_scans = ["path:product-sdk/tests/content/content.test.ts", "symbol:TransactionStorage", "consumer:canonical Commons storage surface"]
 
@@ -2051,7 +2054,7 @@ replacement_test = "python3 scripts/validate-storage-identity-deletion.py --mani
 replacement_gate = "AC10"
 slice = "P4_RUNTIME"
 order = 116
-status = "pending-delete"
+status = "deleted"
 prerequisites = ["OWN-43CBFA7DF07E"]
 post_delete_scans = ["path:product-sdk/tools/generate-papi-app-surface.ts", "symbol:TransactionStorage", "consumer:canonical Commons storage surface"]
 
@@ -3377,7 +3380,7 @@ replacement_test = "python3 scripts/validate-storage-identity-deletion.py --mani
 replacement_gate = "AC10"
 slice = "P4_RUNTIME"
 order = 194
-status = "pending-delete"
+status = "deleted"
 prerequisites = ["DEL-RUNTIME-EAB69C977779"]
 post_delete_scans = ["path:origin/orbis/runtime/src/lib.rs", "symbol:LongTermStorageDataStore = TransactionStorage", "consumer:canonical Commons runtime integration"]
 
@@ -3751,7 +3754,7 @@ replacement_test = "python3 scripts/validate-storage-identity-deletion.py --mani
 replacement_gate = "AC7"
 slice = "P4_PROVIDER"
 order = 216
-status = "pending-delete"
+status = "replacement-active"
 prerequisites = ["DEL-NODE-PROOF-F6155F31BBAE"]
 post_delete_scans = ["path:origin/orbis/provider-node/src/api.rs", "symbol:GET /buckets", "consumer:provider protocol v1 canonical routes"]
 
@@ -3768,7 +3771,7 @@ replacement_test = "python3 scripts/validate-storage-identity-deletion.py --mani
 replacement_gate = "AC7"
 slice = "P4_PROVIDER"
 order = 217
-status = "pending-delete"
+status = "deleted"
 prerequisites = ["DEL-PROVIDER-ROUTE-4DFFA696663B"]
 post_delete_scans = ["path:origin/orbis/provider-node/src/api.rs", "symbol:GET /checkpoint-signature", "consumer:provider protocol v1 canonical routes"]
 
@@ -3785,7 +3788,7 @@ replacement_test = "python3 scripts/validate-storage-identity-deletion.py --mani
 replacement_gate = "AC7"
 slice = "P4_PROVIDER"
 order = 218
-status = "pending-delete"
+status = "deleted"
 prerequisites = ["DEL-PROVIDER-ROUTE-E6226CF4B9DE"]
 post_delete_scans = ["path:origin/orbis/provider-node/src/api.rs", "symbol:GET /checkpoint/duty", "consumer:provider protocol v1 canonical routes"]
 
@@ -3802,7 +3805,7 @@ replacement_test = "python3 scripts/validate-storage-identity-deletion.py --mani
 replacement_gate = "AC7"
 slice = "P4_PROVIDER"
 order = 219
-status = "pending-delete"
+status = "replacement-active"
 prerequisites = ["DEL-PROVIDER-ROUTE-7F17E6686883"]
 post_delete_scans = ["path:origin/orbis/provider-node/src/api.rs", "symbol:GET /chunk_proof", "consumer:provider protocol v1 canonical routes"]
 
@@ -3819,7 +3822,7 @@ replacement_test = "python3 scripts/validate-storage-identity-deletion.py --mani
 replacement_gate = "AC7"
 slice = "P4_PROVIDER"
 order = 220
-status = "pending-delete"
+status = "replacement-active"
 prerequisites = ["DEL-PROVIDER-ROUTE-CA7DF522B70D"]
 post_delete_scans = ["path:origin/orbis/provider-node/src/api.rs", "symbol:GET /commitment", "consumer:provider protocol v1 canonical routes"]
 
@@ -3836,7 +3839,7 @@ replacement_test = "python3 scripts/validate-storage-identity-deletion.py --mani
 replacement_gate = "AC7"
 slice = "P4_PROVIDER"
 order = 221
-status = "pending-delete"
+status = "replacement-active"
 prerequisites = ["DEL-PROVIDER-ROUTE-20D6F4C9FD95"]
 post_delete_scans = ["path:origin/orbis/provider-node/src/api.rs", "symbol:GET /health", "consumer:provider protocol v1 canonical routes"]
 
@@ -3853,7 +3856,7 @@ replacement_test = "python3 scripts/validate-storage-identity-deletion.py --mani
 replacement_gate = "AC7"
 slice = "P4_PROVIDER"
 order = 222
-status = "pending-delete"
+status = "replacement-active"
 prerequisites = ["DEL-PROVIDER-ROUTE-74FAC65F350E"]
 post_delete_scans = ["path:origin/orbis/provider-node/src/api.rs", "symbol:GET /info", "consumer:provider protocol v1 canonical routes"]
 
@@ -3870,7 +3873,7 @@ replacement_test = "python3 scripts/validate-storage-identity-deletion.py --mani
 replacement_gate = "AC7"
 slice = "P4_PROVIDER"
 order = 223
-status = "pending-delete"
+status = "replacement-active"
 prerequisites = ["DEL-PROVIDER-ROUTE-738181B06D10"]
 post_delete_scans = ["path:origin/orbis/provider-node/src/api.rs", "symbol:GET /mmr_peaks", "consumer:provider protocol v1 canonical routes"]
 
@@ -3887,7 +3890,7 @@ replacement_test = "python3 scripts/validate-storage-identity-deletion.py --mani
 replacement_gate = "AC7"
 slice = "P4_PROVIDER"
 order = 224
-status = "pending-delete"
+status = "replacement-active"
 prerequisites = ["DEL-PROVIDER-ROUTE-10BB293D96B1"]
 post_delete_scans = ["path:origin/orbis/provider-node/src/api.rs", "symbol:GET /mmr_proof", "consumer:provider protocol v1 canonical routes"]
 
@@ -3904,7 +3907,7 @@ replacement_test = "python3 scripts/validate-storage-identity-deletion.py --mani
 replacement_gate = "AC7"
 slice = "P4_PROVIDER"
 order = 225
-status = "pending-delete"
+status = "replacement-active"
 prerequisites = ["DEL-PROVIDER-ROUTE-22E3E1136631"]
 post_delete_scans = ["path:origin/orbis/provider-node/src/api.rs", "symbol:GET /mmr_subtree", "consumer:provider protocol v1 canonical routes"]
 
@@ -3921,7 +3924,7 @@ replacement_test = "python3 scripts/validate-storage-identity-deletion.py --mani
 replacement_gate = "AC7"
 slice = "P4_PROVIDER"
 order = 226
-status = "pending-delete"
+status = "replacement-active"
 prerequisites = ["DEL-PROVIDER-ROUTE-75095FCC3DA3"]
 post_delete_scans = ["path:origin/orbis/provider-node/src/api.rs", "symbol:GET /node", "consumer:provider protocol v1 canonical routes"]
 
@@ -3938,7 +3941,7 @@ replacement_test = "python3 scripts/validate-storage-identity-deletion.py --mani
 replacement_gate = "AC7"
 slice = "P4_PROVIDER"
 order = 227
-status = "pending-delete"
+status = "replacement-active"
 prerequisites = ["DEL-PROVIDER-ROUTE-55EB60DFD382"]
 post_delete_scans = ["path:origin/orbis/provider-node/src/api.rs", "symbol:GET /read", "consumer:provider protocol v1 canonical routes"]
 
@@ -3955,7 +3958,7 @@ replacement_test = "python3 scripts/validate-storage-identity-deletion.py --mani
 replacement_gate = "AC7"
 slice = "P4_PROVIDER"
 order = 228
-status = "pending-delete"
+status = "deleted"
 prerequisites = ["DEL-PROVIDER-ROUTE-00926533CE52"]
 post_delete_scans = ["path:origin/orbis/provider-node/src/api.rs", "symbol:GET /replica/historical_roots", "consumer:provider protocol v1 canonical routes"]
 
@@ -3972,7 +3975,7 @@ replacement_test = "python3 scripts/validate-storage-identity-deletion.py --mani
 replacement_gate = "AC7"
 slice = "P4_PROVIDER"
 order = 229
-status = "pending-delete"
+status = "replacement-active"
 prerequisites = ["DEL-PROVIDER-ROUTE-62C3B69E4C52"]
 post_delete_scans = ["path:origin/orbis/provider-node/src/api.rs", "symbol:GET /replica/sync_status", "consumer:provider protocol v1 canonical routes"]
 
@@ -3989,7 +3992,7 @@ replacement_test = "python3 scripts/validate-storage-identity-deletion.py --mani
 replacement_gate = "AC7"
 slice = "P4_PROVIDER"
 order = 230
-status = "pending-delete"
+status = "replacement-active"
 prerequisites = ["DEL-PROVIDER-ROUTE-84BDF7FDED81"]
 post_delete_scans = ["path:origin/orbis/provider-node/src/api.rs", "symbol:GET /stats", "consumer:provider protocol v1 canonical routes"]
 
@@ -4006,7 +4009,7 @@ replacement_test = "python3 scripts/validate-storage-identity-deletion.py --mani
 replacement_gate = "AC7"
 slice = "P4_PROVIDER"
 order = 231
-status = "pending-delete"
+status = "deleted"
 prerequisites = ["DEL-PROVIDER-ROUTE-AC869A77B689"]
 post_delete_scans = ["path:origin/orbis/provider-node/src/api.rs", "symbol:POST /checkpoint/sign", "consumer:provider protocol v1 canonical routes"]
 
@@ -4023,7 +4026,7 @@ replacement_test = "python3 scripts/validate-storage-identity-deletion.py --mani
 replacement_gate = "AC7"
 slice = "P4_PROVIDER"
 order = 232
-status = "pending-delete"
+status = "replacement-active"
 prerequisites = ["DEL-PROVIDER-ROUTE-3620FFB5C5D0"]
 post_delete_scans = ["path:origin/orbis/provider-node/src/api.rs", "symbol:POST /commit", "consumer:provider protocol v1 canonical routes"]
 
@@ -4040,7 +4043,7 @@ replacement_test = "python3 scripts/validate-storage-identity-deletion.py --mani
 replacement_gate = "AC7"
 slice = "P4_PROVIDER"
 order = 233
-status = "pending-delete"
+status = "replacement-active"
 prerequisites = ["DEL-PROVIDER-ROUTE-171A9C7C60E5"]
 post_delete_scans = ["path:origin/orbis/provider-node/src/api.rs", "symbol:POST /delete", "consumer:provider protocol v1 canonical routes"]
 
@@ -4057,7 +4060,7 @@ replacement_test = "python3 scripts/validate-storage-identity-deletion.py --mani
 replacement_gate = "AC7"
 slice = "P4_PROVIDER"
 order = 234
-status = "pending-delete"
+status = "replacement-active"
 prerequisites = ["DEL-PROVIDER-ROUTE-29865739049E"]
 post_delete_scans = ["path:origin/orbis/provider-node/src/api.rs", "symbol:POST /exists", "consumer:provider protocol v1 canonical routes"]
 
@@ -4074,7 +4077,7 @@ replacement_test = "python3 scripts/validate-storage-identity-deletion.py --mani
 replacement_gate = "AC7"
 slice = "P4_PROVIDER"
 order = 235
-status = "pending-delete"
+status = "replacement-active"
 prerequisites = ["DEL-PROVIDER-ROUTE-E6FADE0F166A"]
 post_delete_scans = ["path:origin/orbis/provider-node/src/api.rs", "symbol:POST /fetch_nodes", "consumer:provider protocol v1 canonical routes"]
 
@@ -4091,7 +4094,7 @@ replacement_test = "python3 scripts/validate-storage-identity-deletion.py --mani
 replacement_gate = "AC7"
 slice = "P4_PROVIDER"
 order = 236
-status = "pending-delete"
+status = "replacement-active"
 prerequisites = ["DEL-PROVIDER-ROUTE-2569656435CD"]
 post_delete_scans = ["path:origin/orbis/provider-node/src/api.rs", "symbol:PUT /node", "consumer:provider protocol v1 canonical routes"]
 
@@ -4108,7 +4111,7 @@ replacement_test = "python3 scripts/validate-storage-identity-deletion.py --mani
 replacement_gate = "AC8"
 slice = "P4_RUNTIME"
 order = 237
-status = "pending-delete"
+status = "replacement-active"
 prerequisites = ["DEL-PROVIDER-ROUTE-8FE2F9E35149"]
 post_delete_scans = ["path:product-sdk/packages/descriptors/generated/commons-papi-manifest.json", "symbol:file:product-sdk/packages/descriptors/generated/commons-papi-manifest.json", "consumer:native runtime metadata descriptor"]
 
@@ -4125,7 +4128,7 @@ replacement_test = "python3 scripts/validate-storage-identity-deletion.py --mani
 replacement_gate = "AC8"
 slice = "P4_RUNTIME"
 order = 238
-status = "pending-delete"
+status = "replacement-active"
 prerequisites = ["DEL-DESCRIPTOR-65518AACD373"]
 post_delete_scans = ["path:product-sdk/packages/descriptors/generated/native-route-contract.ts", "symbol:file:product-sdk/packages/descriptors/generated/native-route-contract.ts", "consumer:native runtime metadata descriptor"]
 
@@ -4142,7 +4145,7 @@ replacement_test = "python3 scripts/validate-storage-identity-deletion.py --mani
 replacement_gate = "AC8"
 slice = "P4_RUNTIME"
 order = 239
-status = "pending-delete"
+status = "replacement-active"
 prerequisites = ["DEL-DESCRIPTOR-3CEDE43E180B"]
 post_delete_scans = ["path:product-sdk/packages/descriptors/generated/orbis-descriptor.json", "symbol:file:product-sdk/packages/descriptors/generated/orbis-descriptor.json", "consumer:native runtime metadata descriptor"]
 
@@ -4159,7 +4162,7 @@ replacement_test = "python3 scripts/validate-storage-identity-deletion.py --mani
 replacement_gate = "AC8"
 slice = "P4_RUNTIME"
 order = 240
-status = "pending-delete"
+status = "replacement-active"
 prerequisites = ["DEL-DESCRIPTOR-61A432BC779D"]
 post_delete_scans = ["path:product-sdk/packages/descriptors/generated/orbis-network-binding.ts", "symbol:file:product-sdk/packages/descriptors/generated/orbis-network-binding.ts", "consumer:native runtime metadata descriptor"]
 
@@ -4176,7 +4179,7 @@ replacement_test = "python3 scripts/validate-storage-identity-deletion.py --mani
 replacement_gate = "AC8"
 slice = "P5"
 order = 241
-status = "pending-delete"
+status = "replacement-active"
 prerequisites = ["DEL-DESCRIPTOR-9F93E4FF87F3"]
 post_delete_scans = ["path:origin-rs/src/product_sdk/transport.rs", "symbol:rust-export::identity_personhood", "consumer:unified Identity/storage SDK facade"]
 [[item]]
@@ -4192,7 +4195,7 @@ replacement_test = "python3 scripts/validate-storage-identity-deletion.py --mani
 replacement_gate = "AC8"
 slice = "P5"
 order = 242
-status = "pending-delete"
+status = "deleted"
 prerequisites = ["DEL-PUBLIC-ROUTE-BF08ACC34F16"]
 post_delete_scans = ["path:origin-rs/src/product_sdk/transport.rs", "symbol:rust-export::orbis_storage", "consumer:unified Identity/storage SDK facade"]
 [[item]]
@@ -4208,7 +4211,7 @@ replacement_test = "python3 scripts/validate-storage-identity-deletion.py --mani
 replacement_gate = "AC8"
 slice = "P5"
 order = 243
-status = "pending-delete"
+status = "replacement-active"
 prerequisites = ["DEL-PUBLIC-ROUTE-ADBED539E84C"]
 post_delete_scans = ["path:origin-rs/src/product_sdk/transport.rs", "symbol:rust-export::prepare_identity_personhood_command", "consumer:unified Identity/storage SDK facade"]
 [[item]]
@@ -4224,7 +4227,7 @@ replacement_test = "python3 scripts/validate-storage-identity-deletion.py --mani
 replacement_gate = "AC8"
 slice = "P5"
 order = 244
-status = "pending-delete"
+status = "deleted"
 prerequisites = ["DEL-PUBLIC-ROUTE-2CB885557587"]
 post_delete_scans = ["path:origin-rs/src/product_sdk/transport.rs", "symbol:rust-export::prepare_storage_command", "consumer:unified Identity/storage SDK facade"]
 [[item]]
@@ -4240,7 +4243,7 @@ replacement_test = "python3 scripts/validate-storage-identity-deletion.py --mani
 replacement_gate = "AC8"
 slice = "P5"
 order = 245
-status = "pending-delete"
+status = "replacement-active"
 prerequisites = ["DEL-PUBLIC-ROUTE-31B3EF4B3DB6"]
 post_delete_scans = ["path:origin-rs/src/product_sdk/transport.rs", "symbol:rust-export::prepare_storage_provider_command", "consumer:unified Identity/storage SDK facade"]
 [[item]]
@@ -4256,7 +4259,7 @@ replacement_test = "python3 scripts/validate-storage-identity-deletion.py --mani
 replacement_gate = "AC8"
 slice = "P5"
 order = 246
-status = "pending-delete"
+status = "replacement-active"
 prerequisites = ["DEL-PUBLIC-ROUTE-6D495119BC6B"]
 post_delete_scans = ["path:origin-rs/src/product_sdk/transport.rs", "symbol:rust-export::storage_provider", "consumer:unified Identity/storage SDK facade"]
 [[item]]
@@ -4480,7 +4483,7 @@ replacement_test = "python3 scripts/validate-storage-identity-deletion.py --mani
 replacement_gate = "AC7"
 slice = "P5"
 order = 260
-status = "pending-delete"
+status = "deleted"
 prerequisites = ["DEL-RUNTIME-API-METHOD-CEC28A87AACA"]
 post_delete_scans = ["path:product-sdk/packages/descriptors/src/identity-host-routes.ts", "symbol:personhoodHostRoutes::attestLitePerson", "consumer:origin host registry v2 operation"]
 [[item]]
@@ -4496,7 +4499,7 @@ replacement_test = "python3 scripts/validate-storage-identity-deletion.py --mani
 replacement_gate = "AC7"
 slice = "P5"
 order = 261
-status = "pending-delete"
+status = "deleted"
 prerequisites = ["DEL-HOST-OP-AE0E43EBE7F4"]
 post_delete_scans = ["path:product-sdk/packages/descriptors/src/identity-host-routes.ts", "symbol:personhoodHostRoutes::attestationAllowance", "consumer:origin host registry v2 operation"]
 [[item]]
@@ -4512,7 +4515,7 @@ replacement_test = "python3 scripts/validate-storage-identity-deletion.py --mani
 replacement_gate = "AC7"
 slice = "P5"
 order = 262
-status = "pending-delete"
+status = "deleted"
 prerequisites = ["DEL-HOST-OP-45CA0A60CB39"]
 post_delete_scans = ["path:product-sdk/packages/descriptors/src/identity-host-routes.ts", "symbol:personhoodHostRoutes::personhoodStatus", "consumer:origin host registry v2 operation"]
 [[item]]
@@ -4528,7 +4531,7 @@ replacement_test = "python3 scripts/validate-storage-identity-deletion.py --mani
 replacement_gate = "AC7"
 slice = "P5"
 order = 263
-status = "pending-delete"
+status = "deleted"
 prerequisites = ["DEL-HOST-OP-47E9BF98898E"]
 post_delete_scans = ["path:product-sdk/packages/origin-sdk-host/src/protocol.ts", "symbol:resources.allocate", "consumer:origin host registry v2 operation"]
 [[item]]
@@ -4544,7 +4547,7 @@ replacement_test = "python3 scripts/validate-storage-identity-deletion.py --mani
 replacement_gate = "AC8"
 slice = "P5"
 order = 264
-status = "pending-delete"
+status = "deleted"
 prerequisites = ["DEL-HOST-OP-503C47EB2613"]
 post_delete_scans = ["path:product-sdk/packages/origin-sdk-personhood/src/index.ts", "symbol:export::AttestationAllowanceView", "consumer:unified Identity/storage SDK facade"]
 [[item]]
@@ -4560,7 +4563,7 @@ replacement_test = "python3 scripts/validate-storage-identity-deletion.py --mani
 replacement_gate = "AC8"
 slice = "P5"
 order = 265
-status = "pending-delete"
+status = "deleted"
 prerequisites = ["DEL-PUBLIC-ROUTE-F027F882ED85"]
 post_delete_scans = ["path:product-sdk/packages/origin-sdk-personhood/src/index.ts", "symbol:export::CandidateSignature", "consumer:unified Identity/storage SDK facade"]
 [[item]]
@@ -4576,7 +4579,7 @@ replacement_test = "python3 scripts/validate-storage-identity-deletion.py --mani
 replacement_gate = "AC8"
 slice = "P5"
 order = 266
-status = "pending-delete"
+status = "deleted"
 prerequisites = ["DEL-PUBLIC-ROUTE-CB764FA4F35A"]
 post_delete_scans = ["path:product-sdk/packages/origin-sdk-personhood/src/index.ts", "symbol:export::LitePersonAttestation", "consumer:unified Identity/storage SDK facade"]
 [[item]]
@@ -4592,7 +4595,7 @@ replacement_test = "python3 scripts/validate-storage-identity-deletion.py --mani
 replacement_gate = "AC8"
 slice = "P5"
 order = 267
-status = "pending-delete"
+status = "deleted"
 prerequisites = ["DEL-PUBLIC-ROUTE-CAF5B39F6A8A"]
 post_delete_scans = ["path:product-sdk/packages/origin-sdk-personhood/src/index.ts", "symbol:export::PERSONHOOD_ADMIN_EXCLUSIONS", "consumer:unified Identity/storage SDK facade"]
 [[item]]
@@ -4608,7 +4611,7 @@ replacement_test = "python3 scripts/validate-storage-identity-deletion.py --mani
 replacement_gate = "AC8"
 slice = "P5"
 order = 268
-status = "pending-delete"
+status = "deleted"
 prerequisites = ["DEL-PUBLIC-ROUTE-2B5A17C110FE"]
 post_delete_scans = ["path:product-sdk/packages/origin-sdk-personhood/src/index.ts", "symbol:export::PERSONHOOD_NATIVE_BINDINGS", "consumer:unified Identity/storage SDK facade"]
 [[item]]
@@ -4624,7 +4627,7 @@ replacement_test = "python3 scripts/validate-storage-identity-deletion.py --mani
 replacement_gate = "AC8"
 slice = "P5"
 order = 269
-status = "pending-delete"
+status = "deleted"
 prerequisites = ["DEL-PUBLIC-ROUTE-4638D3FC118D"]
 post_delete_scans = ["path:product-sdk/packages/origin-sdk-personhood/src/index.ts", "symbol:export::PersonhoodClient", "consumer:unified Identity/storage SDK facade"]
 [[item]]
@@ -4640,7 +4643,7 @@ replacement_test = "python3 scripts/validate-storage-identity-deletion.py --mani
 replacement_gate = "AC8"
 slice = "P5"
 order = 270
-status = "pending-delete"
+status = "deleted"
 prerequisites = ["DEL-PUBLIC-ROUTE-DBD6DD273D53"]
 post_delete_scans = ["path:product-sdk/packages/origin-sdk-personhood/src/index.ts", "symbol:export::PersonhoodProfile", "consumer:unified Identity/storage SDK facade"]
 [[item]]
@@ -4656,7 +4659,7 @@ replacement_test = "python3 scripts/validate-storage-identity-deletion.py --mani
 replacement_gate = "AC8"
 slice = "P5"
 order = 271
-status = "pending-delete"
+status = "deleted"
 prerequisites = ["DEL-PUBLIC-ROUTE-C331B9DC53F3"]
 post_delete_scans = ["path:product-sdk/packages/origin-sdk-personhood/src/index.ts", "symbol:export::PersonhoodReadAdapter", "consumer:unified Identity/storage SDK facade"]
 [[item]]
@@ -4672,7 +4675,7 @@ replacement_test = "python3 scripts/validate-storage-identity-deletion.py --mani
 replacement_gate = "AC8"
 slice = "P5"
 order = 272
-status = "pending-delete"
+status = "deleted"
 prerequisites = ["DEL-PUBLIC-ROUTE-E356B03BBF56"]
 post_delete_scans = ["path:product-sdk/packages/origin-sdk-personhood/src/index.ts", "symbol:export::PersonhoodRuntimeAdapter", "consumer:unified Identity/storage SDK facade"]
 [[item]]
@@ -4688,7 +4691,7 @@ replacement_test = "python3 scripts/validate-storage-identity-deletion.py --mani
 replacement_gate = "AC8"
 slice = "P5"
 order = 273
-status = "pending-delete"
+status = "deleted"
 prerequisites = ["DEL-PUBLIC-ROUTE-989B04CF0344"]
 post_delete_scans = ["path:product-sdk/packages/origin-sdk-personhood/src/index.ts", "symbol:export::PersonhoodStatusView", "consumer:unified Identity/storage SDK facade"]
 [[item]]
@@ -4704,7 +4707,7 @@ replacement_test = "python3 scripts/validate-storage-identity-deletion.py --mani
 replacement_gate = "AC8"
 slice = "P5"
 order = 274
-status = "pending-delete"
+status = "deleted"
 prerequisites = ["DEL-PUBLIC-ROUTE-89C55C3C7EA4"]
 post_delete_scans = ["path:product-sdk/packages/origin-sdk-personhood/src/index.ts", "symbol:export::RingVrfKey", "consumer:unified Identity/storage SDK facade"]
 [[item]]
@@ -4720,7 +4723,7 @@ replacement_test = "python3 scripts/validate-storage-identity-deletion.py --mani
 replacement_gate = "AC8"
 slice = "P5"
 order = 275
-status = "pending-delete"
+status = "deleted"
 prerequisites = ["DEL-PUBLIC-ROUTE-D718D122C4EB"]
 post_delete_scans = ["path:product-sdk/packages/origin-sdk-personhood/src/index.ts", "symbol:export::RingVrfProof", "consumer:unified Identity/storage SDK facade"]
 [[item]]
@@ -4736,7 +4739,7 @@ replacement_test = "python3 scripts/validate-storage-identity-deletion.py --mani
 replacement_gate = "AC8"
 slice = "P5"
 order = 276
-status = "pending-delete"
+status = "deleted"
 prerequisites = ["DEL-PUBLIC-ROUTE-8B8196535E4A"]
 post_delete_scans = ["path:product-sdk/packages/origin-sdk-personhood/src/index.ts", "symbol:export::createPersonhoodClient", "consumer:unified Identity/storage SDK facade"]
 [[item]]
@@ -4752,7 +4755,7 @@ replacement_test = "python3 scripts/validate-storage-identity-deletion.py --mani
 replacement_gate = "AC8"
 slice = "P5"
 order = 277
-status = "pending-delete"
+status = "deleted"
 prerequisites = ["DEL-PUBLIC-ROUTE-7B17BAF098C8"]
 post_delete_scans = ["path:product-sdk/packages/origin-sdk-resources/src/index.ts", "symbol:export::Alias", "consumer:unified Identity/storage SDK facade"]
 [[item]]
@@ -4768,7 +4771,7 @@ replacement_test = "python3 scripts/validate-storage-identity-deletion.py --mani
 replacement_gate = "AC8"
 slice = "P5"
 order = 278
-status = "pending-delete"
+status = "deleted"
 prerequisites = ["DEL-PUBLIC-ROUTE-43810F035349"]
 post_delete_scans = ["path:product-sdk/packages/origin-sdk-resources/src/index.ts", "symbol:export::CommunicationIdentifier", "consumer:unified Identity/storage SDK facade"]
 [[item]]
@@ -4784,7 +4787,7 @@ replacement_test = "python3 scripts/validate-storage-identity-deletion.py --mani
 replacement_gate = "AC8"
 slice = "P5"
 order = 279
-status = "pending-delete"
+status = "deleted"
 prerequisites = ["DEL-PUBLIC-ROUTE-371E273348CE"]
 post_delete_scans = ["path:product-sdk/packages/origin-sdk-resources/src/index.ts", "symbol:export::ConsumerCredibility", "consumer:unified Identity/storage SDK facade"]
 [[item]]
@@ -4800,7 +4803,7 @@ replacement_test = "python3 scripts/validate-storage-identity-deletion.py --mani
 replacement_gate = "AC8"
 slice = "P5"
 order = 280
-status = "pending-delete"
+status = "deleted"
 prerequisites = ["DEL-PUBLIC-ROUTE-625BBC0EF466"]
 post_delete_scans = ["path:product-sdk/packages/origin-sdk-resources/src/index.ts", "symbol:export::ConsumerInfo", "consumer:unified Identity/storage SDK facade"]
 [[item]]
@@ -4816,7 +4819,7 @@ replacement_test = "python3 scripts/validate-storage-identity-deletion.py --mani
 replacement_gate = "AC8"
 slice = "P5"
 order = 281
-status = "pending-delete"
+status = "deleted"
 prerequisites = ["DEL-PUBLIC-ROUTE-C1F697C11617"]
 post_delete_scans = ["path:product-sdk/packages/origin-sdk-resources/src/index.ts", "symbol:export::LitePersonAuthorization", "consumer:unified Identity/storage SDK facade"]
 [[item]]
@@ -4832,7 +4835,7 @@ replacement_test = "python3 scripts/validate-storage-identity-deletion.py --mani
 replacement_gate = "AC8"
 slice = "P5"
 order = 282
-status = "pending-delete"
+status = "deleted"
 prerequisites = ["DEL-PUBLIC-ROUTE-BC2DA0396908"]
 post_delete_scans = ["path:product-sdk/packages/origin-sdk-resources/src/index.ts", "symbol:export::LongTermStorageClaimInput", "consumer:unified Identity/storage SDK facade"]
 [[item]]
@@ -4848,7 +4851,7 @@ replacement_test = "python3 scripts/validate-storage-identity-deletion.py --mani
 replacement_gate = "AC8"
 slice = "P5"
 order = 283
-status = "pending-delete"
+status = "deleted"
 prerequisites = ["DEL-PUBLIC-ROUTE-5AA8AB7FC265"]
 post_delete_scans = ["path:product-sdk/packages/origin-sdk-resources/src/index.ts", "symbol:export::MembershipCollection", "consumer:unified Identity/storage SDK facade"]
 [[item]]
@@ -4864,7 +4867,7 @@ replacement_test = "python3 scripts/validate-storage-identity-deletion.py --mani
 replacement_gate = "AC8"
 slice = "P5"
 order = 284
-status = "pending-delete"
+status = "deleted"
 prerequisites = ["DEL-PUBLIC-ROUTE-8B8FF6B5A462"]
 post_delete_scans = ["path:product-sdk/packages/origin-sdk-resources/src/index.ts", "symbol:export::MembershipProof", "consumer:unified Identity/storage SDK facade"]
 [[item]]
@@ -4880,7 +4883,7 @@ replacement_test = "python3 scripts/validate-storage-identity-deletion.py --mani
 replacement_gate = "AC8"
 slice = "P5"
 order = 285
-status = "pending-delete"
+status = "deleted"
 prerequisites = ["DEL-PUBLIC-ROUTE-E4E3044B1BCA"]
 post_delete_scans = ["path:product-sdk/packages/origin-sdk-resources/src/index.ts", "symbol:export::OffchainSignature", "consumer:unified Identity/storage SDK facade"]
 [[item]]
@@ -4896,7 +4899,7 @@ replacement_test = "python3 scripts/validate-storage-identity-deletion.py --mani
 replacement_gate = "AC8"
 slice = "P5"
 order = 286
-status = "pending-delete"
+status = "deleted"
 prerequisites = ["DEL-PUBLIC-ROUTE-E7EDD5C8A158"]
 post_delete_scans = ["path:product-sdk/packages/origin-sdk-resources/src/index.ts", "symbol:export::PersonAuthorization", "consumer:unified Identity/storage SDK facade"]
 [[item]]
@@ -4912,7 +4915,7 @@ replacement_test = "python3 scripts/validate-storage-identity-deletion.py --mani
 replacement_gate = "AC8"
 slice = "P5"
 order = 287
-status = "pending-delete"
+status = "deleted"
 prerequisites = ["DEL-PUBLIC-ROUTE-D1FF4F7982F0"]
 post_delete_scans = ["path:product-sdk/packages/origin-sdk-resources/src/index.ts", "symbol:export::RESOURCES_ADMIN_EXCLUSIONS", "consumer:unified Identity/storage SDK facade"]
 [[item]]
@@ -4928,7 +4931,7 @@ replacement_test = "python3 scripts/validate-storage-identity-deletion.py --mani
 replacement_gate = "AC8"
 slice = "P5"
 order = 288
-status = "pending-delete"
+status = "deleted"
 prerequisites = ["DEL-PUBLIC-ROUTE-05D18F592896"]
 post_delete_scans = ["path:product-sdk/packages/origin-sdk-resources/src/index.ts", "symbol:export::RESOURCES_NATIVE_BINDINGS", "consumer:unified Identity/storage SDK facade"]
 [[item]]
@@ -4944,7 +4947,7 @@ replacement_test = "python3 scripts/validate-storage-identity-deletion.py --mani
 replacement_gate = "AC8"
 slice = "P5"
 order = 289
-status = "pending-delete"
+status = "deleted"
 prerequisites = ["DEL-PUBLIC-ROUTE-42FEF235C515"]
 post_delete_scans = ["path:product-sdk/packages/origin-sdk-resources/src/index.ts", "symbol:export::RegisterLitePersonInput", "consumer:unified Identity/storage SDK facade"]
 [[item]]
@@ -4960,7 +4963,7 @@ replacement_test = "python3 scripts/validate-storage-identity-deletion.py --mani
 replacement_gate = "AC8"
 slice = "P5"
 order = 290
-status = "pending-delete"
+status = "deleted"
 prerequisites = ["DEL-PUBLIC-ROUTE-04EA6B6E6CC8"]
 post_delete_scans = ["path:product-sdk/packages/origin-sdk-resources/src/index.ts", "symbol:export::RegisterPersonInput", "consumer:unified Identity/storage SDK facade"]
 [[item]]
@@ -4976,7 +4979,7 @@ replacement_test = "python3 scripts/validate-storage-identity-deletion.py --mani
 replacement_gate = "AC8"
 slice = "P5"
 order = 291
-status = "pending-delete"
+status = "deleted"
 prerequisites = ["DEL-PUBLIC-ROUTE-FE00F2BC56B3"]
 post_delete_scans = ["path:product-sdk/packages/origin-sdk-resources/src/index.ts", "symbol:export::ReservationId", "consumer:unified Identity/storage SDK facade"]
 [[item]]
@@ -4992,7 +4995,7 @@ replacement_test = "python3 scripts/validate-storage-identity-deletion.py --mani
 replacement_gate = "AC8"
 slice = "P5"
 order = 292
-status = "pending-delete"
+status = "deleted"
 prerequisites = ["DEL-PUBLIC-ROUTE-9C151BF79A77"]
 post_delete_scans = ["path:product-sdk/packages/origin-sdk-resources/src/index.ts", "symbol:export::ReservationPurpose", "consumer:unified Identity/storage SDK facade"]
 [[item]]
@@ -5008,7 +5011,7 @@ replacement_test = "python3 scripts/validate-storage-identity-deletion.py --mani
 replacement_gate = "AC8"
 slice = "P5"
 order = 293
-status = "pending-delete"
+status = "deleted"
 prerequisites = ["DEL-PUBLIC-ROUTE-D562274A9E50"]
 post_delete_scans = ["path:product-sdk/packages/origin-sdk-resources/src/index.ts", "symbol:export::ResourceAuthorization", "consumer:unified Identity/storage SDK facade"]
 [[item]]
@@ -5024,7 +5027,7 @@ replacement_test = "python3 scripts/validate-storage-identity-deletion.py --mani
 replacement_gate = "AC8"
 slice = "P5"
 order = 294
-status = "pending-delete"
+status = "deleted"
 prerequisites = ["DEL-PUBLIC-ROUTE-096EFCA82935"]
 post_delete_scans = ["path:product-sdk/packages/origin-sdk-resources/src/index.ts", "symbol:export::ResourceEvent", "consumer:unified Identity/storage SDK facade"]
 [[item]]
@@ -5040,7 +5043,7 @@ replacement_test = "python3 scripts/validate-storage-identity-deletion.py --mani
 replacement_gate = "AC8"
 slice = "P5"
 order = 295
-status = "pending-delete"
+status = "deleted"
 prerequisites = ["DEL-PUBLIC-ROUTE-6200EEF2E25F"]
 post_delete_scans = ["path:product-sdk/packages/origin-sdk-resources/src/index.ts", "symbol:export::ResourceProfile", "consumer:unified Identity/storage SDK facade"]
 [[item]]
@@ -5056,7 +5059,7 @@ replacement_test = "python3 scripts/validate-storage-identity-deletion.py --mani
 replacement_gate = "AC8"
 slice = "P5"
 order = 296
-status = "pending-delete"
+status = "deleted"
 prerequisites = ["DEL-PUBLIC-ROUTE-56E8B76C5900"]
 post_delete_scans = ["path:product-sdk/packages/origin-sdk-resources/src/index.ts", "symbol:export::ResourcesClient", "consumer:unified Identity/storage SDK facade"]
 [[item]]
@@ -5072,7 +5075,7 @@ replacement_test = "python3 scripts/validate-storage-identity-deletion.py --mani
 replacement_gate = "AC8"
 slice = "P5"
 order = 297
-status = "pending-delete"
+status = "deleted"
 prerequisites = ["DEL-PUBLIC-ROUTE-1BF1196818D3"]
 post_delete_scans = ["path:product-sdk/packages/origin-sdk-resources/src/index.ts", "symbol:export::ResourcesRuntimeAdapter", "consumer:unified Identity/storage SDK facade"]
 [[item]]
@@ -5088,7 +5091,7 @@ replacement_test = "python3 scripts/validate-storage-identity-deletion.py --mani
 replacement_gate = "AC8"
 slice = "P5"
 order = 298
-status = "pending-delete"
+status = "deleted"
 prerequisites = ["DEL-PUBLIC-ROUTE-2EAD1C78F893"]
 post_delete_scans = ["path:product-sdk/packages/origin-sdk-resources/src/index.ts", "symbol:export::StatementAllowance", "consumer:unified Identity/storage SDK facade"]
 [[item]]
@@ -5104,7 +5107,7 @@ replacement_test = "python3 scripts/validate-storage-identity-deletion.py --mani
 replacement_gate = "AC8"
 slice = "P5"
 order = 299
-status = "pending-delete"
+status = "deleted"
 prerequisites = ["DEL-PUBLIC-ROUTE-2427BC3AB1F9"]
 post_delete_scans = ["path:product-sdk/packages/origin-sdk-resources/src/index.ts", "symbol:export::StatementAllowanceInput", "consumer:unified Identity/storage SDK facade"]
 [[item]]
@@ -5120,7 +5123,7 @@ replacement_test = "python3 scripts/validate-storage-identity-deletion.py --mani
 replacement_gate = "AC8"
 slice = "P5"
 order = 300
-status = "pending-delete"
+status = "deleted"
 prerequisites = ["DEL-PUBLIC-ROUTE-F79642B25916"]
 post_delete_scans = ["path:product-sdk/packages/origin-sdk-resources/src/index.ts", "symbol:export::StorageClaim", "consumer:unified Identity/storage SDK facade"]
 [[item]]
@@ -5136,7 +5139,7 @@ replacement_test = "python3 scripts/validate-storage-identity-deletion.py --mani
 replacement_gate = "AC8"
 slice = "P5"
 order = 301
-status = "pending-delete"
+status = "deleted"
 prerequisites = ["DEL-PUBLIC-ROUTE-DA03CB20CDCC"]
 post_delete_scans = ["path:product-sdk/packages/origin-sdk-resources/src/index.ts", "symbol:export::communicationIdentifier", "consumer:unified Identity/storage SDK facade"]
 [[item]]
@@ -5152,7 +5155,7 @@ replacement_test = "python3 scripts/validate-storage-identity-deletion.py --mani
 replacement_gate = "AC8"
 slice = "P5"
 order = 302
-status = "pending-delete"
+status = "deleted"
 prerequisites = ["DEL-PUBLIC-ROUTE-B5FD3FFE91A4"]
 post_delete_scans = ["path:product-sdk/packages/origin-sdk-resources/src/index.ts", "symbol:export::createResourcesClient", "consumer:unified Identity/storage SDK facade"]
 [[item]]
@@ -5168,7 +5171,7 @@ replacement_test = "python3 scripts/validate-storage-identity-deletion.py --mani
 replacement_gate = "AC8"
 slice = "P5"
 order = 303
-status = "pending-delete"
+status = "deleted"
 prerequisites = ["DEL-PUBLIC-ROUTE-7ED4343A5BF0"]
 post_delete_scans = ["path:product-sdk/packages/origin-sdk-resources/src/index.ts", "symbol:export::membershipProof", "consumer:unified Identity/storage SDK facade"]
 [[item]]
@@ -5184,7 +5187,7 @@ replacement_test = "python3 scripts/validate-storage-identity-deletion.py --mani
 replacement_gate = "AC8"
 slice = "P5"
 order = 304
-status = "pending-delete"
+status = "deleted"
 prerequisites = ["DEL-PUBLIC-ROUTE-A01C97E42F16"]
 post_delete_scans = ["path:product-sdk/packages/origin-sdk-resources/src/index.ts", "symbol:export::offchainSignature", "consumer:unified Identity/storage SDK facade"]
 [[item]]
@@ -5200,7 +5203,7 @@ replacement_test = "python3 scripts/validate-storage-identity-deletion.py --mani
 replacement_gate = "AC8"
 slice = "P5"
 order = 305
-status = "pending-delete"
+status = "deleted"
 prerequisites = ["DEL-PUBLIC-ROUTE-66713B0A881F"]
 post_delete_scans = ["path:product-sdk/packages/origin-sdk-resources/src/index.ts", "symbol:export::reservationId", "consumer:unified Identity/storage SDK facade"]
 
