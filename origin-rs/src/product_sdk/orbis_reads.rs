@@ -23,7 +23,6 @@
 //! each response into a concrete `DecodeAsType` wire type.
 
 use async_trait::async_trait;
-use orbis_identity_personhood_runtime_api as identity_api;
 use orbis_storage_runtime_api as storage_api;
 use pallet_orbis_attestation_runtime_api as att_api;
 use pallet_orbis_names_runtime_api as names_api;
@@ -44,10 +43,6 @@ use super::{
 			ProofCommitment, SchemaId, SubjectId, UniquenessCommitment, Validate,
 		},
 		drive::{DriveName, DriveQuery, DriveRead, DriveResponse, DriveStatus, DriveView},
-		identity_personhood::{
-			IdentityPersonhoodQuery, IdentityPersonhoodRead, IdentityPersonhoodResponse,
-			IdentityStatusView, PersonalId, PersonhoodStatusView,
-		},
 		names::{
 			Address, ContentPublication as DomainContentPublication, Label,
 			NameStatus as DomainNameStatus, NameView as DomainNameView, NamesQuery, NamesRead,
@@ -65,7 +60,7 @@ use super::{
 			StorageProviderRead, StorageProviderResponse,
 		},
 	},
-	transport::{FinalizedReadBinding, InternalIdentityReadBinding, OrbisNativeClient},
+	transport::{FinalizedReadBinding, OrbisNativeClient},
 	NativeError, NativeErrorCode,
 };
 use crate::{
@@ -477,62 +472,6 @@ mod finalized_ancestry_tests {
 	}
 }
 
-#[async_trait]
-impl InternalIdentityReadBinding for OrbisFinalizedReadBinding {
-	async fn identity_personhood(
-		&self,
-		read: &IdentityPersonhoodRead,
-	) -> DomainResult<IdentityPersonhoodResponse> {
-		read.validate()?;
-		let hash = &read.finalized_block_hash;
-		match &read.query {
-			IdentityPersonhoodQuery::IdentityStatus { account } => {
-				let response: identity_api::Versioned<identity_api::IdentityStatus> = self
-					.call_at(
-						hash,
-						"IdentityPersonhoodApi",
-						"identity_status",
-						vec![account_arg(account)?],
-					)
-					.await?;
-				let value = response.value;
-				Ok(IdentityPersonhoodResponse::IdentityStatus(finalized_value(
-					hash,
-					response.version,
-					Some(IdentityStatusView {
-						registered: value.registered,
-						judgement_count: value.judgement_count,
-						requested: value.requested,
-						reasonable: value.reasonable,
-						known_good: value.known_good,
-						out_of_date: value.out_of_date,
-						low_quality: value.low_quality,
-						erroneous: value.erroneous,
-					}),
-				)?))
-			},
-			IdentityPersonhoodQuery::PersonhoodStatus { account } => {
-				let response: identity_api::Versioned<identity_api::PersonhoodStatus> = self
-					.call_at(
-						hash,
-						"IdentityPersonhoodApi",
-						"personhood_status",
-						vec![account_arg(account)?],
-					)
-					.await?;
-				let value = response.value;
-				Ok(IdentityPersonhoodResponse::PersonhoodStatus(finalized_value(
-					hash,
-					response.version,
-					Some(PersonhoodStatusView {
-						full_personal_id: value.full_personal_id.map(PersonalId::from_u64),
-						full_recognized: value.full_recognized || value.lite_recognized,
-					}),
-				)?))
-			},
-		}
-	}
-}
 
 #[async_trait]
 impl FinalizedReadBinding for OrbisFinalizedReadBinding {

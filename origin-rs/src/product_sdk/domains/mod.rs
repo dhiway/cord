@@ -25,8 +25,6 @@
 pub mod attestation;
 pub mod common;
 pub mod drive;
-#[allow(dead_code)]
-pub(crate) mod identity_personhood;
 pub mod identity_v2;
 pub mod names;
 pub mod s3;

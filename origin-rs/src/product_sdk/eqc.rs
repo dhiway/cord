@@ -172,7 +172,7 @@ pub fn validate_slo_manifest(
 	}
 	validate_mix(
 		&manifest.e.mix_percent,
-		&["assets", "attestation", "names", "identity_personhood", "sponsored_meta_tx", "storage"],
+		&["assets", "attestation", "names", "identity", "sponsored_meta_tx", "storage"],
 		"E",
 	)?;
 	validate_mix(
@@ -181,7 +181,7 @@ pub fn validate_slo_manifest(
 			"assets",
 			"attestation",
 			"names",
-			"identity_personhood",
+			"identity",
 			"storage",
 			"subscriptions",
 			"system",

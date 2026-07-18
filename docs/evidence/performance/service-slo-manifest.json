@@ -46,7 +46,7 @@
       "assets": 10,
       "attestation": 15,
       "names": 15,
-      "identity_personhood": 20,
+      "identity": 20,
       "sponsored_meta_tx": 15,
       "storage": 25
     },
@@ -64,7 +64,7 @@
       "assets": 10,
       "attestation": 10,
       "names": 15,
-      "identity_personhood": 15,
+      "identity": 15,
       "storage": 15,
       "subscriptions": 25,
       "system": 10

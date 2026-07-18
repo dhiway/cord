@@ -68,10 +68,6 @@
     }
   },
   "native_runtime_apis": {
-    "identity_personhood": {
-      "version": 1,
-      "source": "origin/orbis/runtime-api/identity-personhood/src/lib.rs"
-    },
     "attestation": {
       "version": 1,
       "source": "origin/orbis/pallets/attestation/runtime-api/src/lib.rs"

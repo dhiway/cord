@@ -124,11 +124,10 @@ const rustNames = read("origin-rs/src/product_sdk/domains/names.rs");
 const rustStorageProvider = read("origin-rs/src/product_sdk/domains/storage_provider.rs");
 const rustDrive = read("origin-rs/src/product_sdk/domains/drive.rs");
 const rustS3 = read("origin-rs/src/product_sdk/domains/s3.rs");
-const rustIdentityPersonhood = read("origin-rs/src/product_sdk/domains/identity_personhood.rs");
 const rustSponsoredIntent = read("origin-rs/src/product_sdk/sponsored_intent.rs");
 const rustContract = read("origin-rs/src/product_sdk/contract.rs");
 const rustCommon = read("origin-rs/src/product_sdk/domains/common.rs");
-const rustSurface = `${rust}\n${rustAttestation}\n${rustNames}\n${rustStorageProvider}\n${rustDrive}\n${rustS3}\n${rustIdentityPersonhood}\n${rustSponsoredIntent}\n${rustCommon}\n${rustContract}`;
+const rustSurface = `${rust}\n${rustAttestation}\n${rustNames}\n${rustStorageProvider}\n${rustDrive}\n${rustS3}\n${rustSponsoredIntent}\n${rustCommon}\n${rustContract}`;
 const originRuntime = read(matrix.networks.origin.runtime_source);
 const orbisRuntime = read(matrix.networks.orbis.runtime_source);
 const workspaceVersion = read("Cargo.toml").match(/^version\s*=\s*"([^"]+)"/m)?.[1];
@@ -213,7 +212,6 @@ equal(rustConstant(rust, "ORBIS_CANDIDATE_GENESIS_IDENTITY_SHA256"), matrix.netw
 
 const apiVersions = [...read("origin/orbis/runtime-api/storage/src/lib.rs").matchAll(/#\[api_version\((\d+)\)\]/g)].map((match) => Number(match[1]));
 const observedApis = {
-  identity_personhood: Number(read(matrix.native_runtime_apis.identity_personhood.source).match(/#\[api_version\((\d+)\)\]/)?.[1]),
   attestation: Number(read(matrix.native_runtime_apis.attestation.source).match(/#\[api_version\((\d+)\)\]/)?.[1]),
   names: Number(read(matrix.native_runtime_apis.names.source).match(/#\[api_version\((\d+)\)\]/)?.[1]),
   storage_provider: apiVersions[0],
@@ -221,7 +219,6 @@ const observedApis = {
   s3: apiVersions[2],
 };
 const apiBindings = {
-  identity_personhood: [null, "IDENTITY_PERSONHOOD_RUNTIME_API_VERSION"],
   attestation: ["attestation", "ATTESTATION_RUNTIME_API_VERSION"],
   names: ["names", "NAMES_RUNTIME_API_VERSION"],
   storage_provider: ["storageProvider", "STORAGE_PROVIDER_RUNTIME_API_VERSION"],

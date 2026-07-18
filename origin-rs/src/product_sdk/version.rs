@@ -42,7 +42,6 @@ pub const ORBIS_CANDIDATE_GENESIS_IDENTITY_SHA256: &str =
 pub const ORBIS_ACTIVATION_STATE: &str = "candidate-pending";
 pub const ORBIS_PRODUCTION_ACTIVATION_READY: bool = false;
 
-pub const IDENTITY_PERSONHOOD_RUNTIME_API_VERSION: u32 = 1;
 pub const ATTESTATION_RUNTIME_API_VERSION: u32 = 1;
 pub const NAMES_RUNTIME_API_VERSION: u32 = 1;
 pub const STORAGE_PROVIDER_RUNTIME_API_VERSION: u32 = 11;
@@ -86,10 +85,6 @@ mod tests {
 		assert_eq!(
 			matrix["networks"]["orbis"]["production_activation_ready"],
 			ORBIS_PRODUCTION_ACTIVATION_READY
-		);
-		assert_eq!(
-			matrix["native_runtime_apis"]["identity_personhood"]["version"],
-			IDENTITY_PERSONHOOD_RUNTIME_API_VERSION
 		);
 		assert_eq!(
 			matrix["native_runtime_apis"]["storage_provider"]["version"],

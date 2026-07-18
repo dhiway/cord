@@ -45,10 +45,6 @@ use crate::{
 			},
 			common::{AccountId, DomainResult, Hash32, SubmitAndFinalize, Validate},
 			drive::{DriveCommand, DriveRead, DriveResponse},
-			identity_personhood::{
-				IdentityData, IdentityInfo, IdentityPersonhoodCommand, IdentityPersonhoodRead,
-				IdentityPersonhoodResponse, Judgement,
-			},
 			names::{NamesCommand, NamesRead, NamesResponse},
 			s3::{S3Command, S3Read, S3Response},
 			storage_provider::{
@@ -77,13 +73,6 @@ pub trait FinalizedReadBinding: Send + Sync {
 	async fn s3(&self, query: &S3Read) -> DomainResult<S3Response>;
 }
 
-#[async_trait]
-pub(crate) trait InternalIdentityReadBinding: Send + Sync {
-	async fn identity_personhood(
-		&self,
-		query: &IdentityPersonhoodRead,
-	) -> DomainResult<IdentityPersonhoodResponse>;
-}
 
 /// Fail-closed reader used when an exact pinned-hash runtime-API binding was not installed.
 #[derive(Clone, Copy, Debug, Default)]
@@ -115,15 +104,6 @@ impl FinalizedReadBinding for MissingFinalizedReadBinding {
 	}
 }
 
-#[async_trait]
-impl InternalIdentityReadBinding for MissingFinalizedReadBinding {
-	async fn identity_personhood(
-		&self,
-		_query: &IdentityPersonhoodRead,
-	) -> DomainResult<IdentityPersonhoodResponse> {
-		Err(read_binding_required())
-	}
-}
 
 /// Native domain adapter over the existing Origin client, signer, tx queue and finality watcher.
 pub struct NativeDomainTransport<R = MissingFinalizedReadBinding> {
@@ -190,12 +170,6 @@ impl<R: FinalizedReadBinding> NativeDomainTransport<R> {
 		self.submit(intent, prepare_attestation_command(&intent.command)?).await
 	}
 
-	pub(crate) async fn submit_identity_personhood(
-		&self,
-		intent: &SubmitAndFinalize<IdentityPersonhoodCommand>,
-	) -> DomainResult<NativeLifecycle> {
-		self.submit(intent, prepare_identity_personhood_command(&intent.command)?).await
-	}
 
 	pub async fn submit_names(
 		&self,
@@ -255,16 +229,6 @@ impl<R: FinalizedReadBinding> NativeDomainTransport<R> {
 	}
 }
 
-#[allow(private_bounds)]
-impl<R: FinalizedReadBinding + InternalIdentityReadBinding> NativeDomainTransport<R> {
-	pub(crate) async fn read_identity_personhood(
-		&self,
-		query: &IdentityPersonhoodRead,
-	) -> DomainResult<IdentityPersonhoodResponse> {
-		query.validate()?;
-		self.reads.identity_personhood(query).await
-	}
-}
 
 /// Orbis-native client and transaction lane.
 ///
@@ -517,13 +481,6 @@ impl<R: FinalizedReadBinding, G: GovernedSudoBinding> OrbisDomainTransport<R, G>
 			.await
 	}
 
-	pub(crate) async fn submit_identity_personhood(
-		&self,
-		intent: &SubmitAndFinalize<IdentityPersonhoodCommand>,
-	) -> DomainResult<NativeLifecycle> {
-		self.submit(intent, prepare_identity_personhood_command(&intent.command)?, false)
-			.await
-	}
 
 	pub async fn submit_names(
 		&self,
@@ -573,18 +530,6 @@ impl<R: FinalizedReadBinding, G: GovernedSudoBinding> OrbisDomainTransport<R, G>
 	}
 }
 
-#[allow(private_bounds)]
-impl<R: FinalizedReadBinding + InternalIdentityReadBinding, G: GovernedSudoBinding>
-	OrbisDomainTransport<R, G>
-{
-	pub(crate) async fn read_identity_personhood(
-		&self,
-		query: &IdentityPersonhoodRead,
-	) -> DomainResult<IdentityPersonhoodResponse> {
-		query.validate()?;
-		self.reads.identity_personhood(query).await
-	}
-}
 
 fn is_privileged_attestation(command: &AttestationCommand) -> bool {
 	matches!(
@@ -649,107 +594,6 @@ fn is_privileged_storage_provider(command: &StorageProviderCommand) -> bool {
 			| StorageProviderCommand::RemoveProvider { .. }
 			| StorageProviderCommand::IssueChallenge { .. }
 	)
-}
-
-/// Exact metadata source for each native identity write.
-///
-/// The runtime retains a separately indexed lightweight identity-attestation pallet because its
-/// signature and ring-proof checks are distinct from profile registration. That pallet is an
-/// internal metadata target only: product grants remain the seven `identity.*` operations and the
-/// separately consented `transaction.sign` operation.
-///
-/// `CancelJudgement` intentionally binds to the pallet's `cancel_request` call; the product name
-/// describes the user outcome while the source name remains metadata-exact.
-pub(crate) const fn identity_personhood_command_source(
-	command: &IdentityPersonhoodCommand,
-) -> (&'static str, &'static str) {
-	match command {
-		IdentityPersonhoodCommand::SetIdentity { .. } => ("People", "set_identity"),
-		IdentityPersonhoodCommand::ClearIdentity => ("People", "clear_identity"),
-		IdentityPersonhoodCommand::RequestJudgement { .. } => ("People", "request_judgement"),
-		IdentityPersonhoodCommand::CancelJudgement { .. } => ("People", "cancel_request"),
-		IdentityPersonhoodCommand::ProvideJudgement { .. } => ("People", "provide_judgement"),
-	}
-}
-
-/// Prepare one of the six native identity writes using live metadata encoding.
-pub(crate) fn prepare_identity_personhood_command(
-	command: &IdentityPersonhoodCommand,
-) -> DomainResult<DynamicPayload> {
-	command.validate()?;
-	let (pallet, call) = identity_personhood_command_source(command);
-	let args = match command {
-		IdentityPersonhoodCommand::SetIdentity { info } => vec![identity_info_value(info)?],
-		IdentityPersonhoodCommand::ClearIdentity => vec![],
-		IdentityPersonhoodCommand::RequestJudgement { registrar }
-		| IdentityPersonhoodCommand::CancelJudgement { registrar } => vec![account_value(registrar)?],
-		IdentityPersonhoodCommand::ProvideJudgement { target, judgement, identity_hash } => vec![
-			lookup_account_value(target)?,
-			judgement_value(*judgement),
-			hash_value(identity_hash)?,
-		],
-	};
-	Ok(subxt::dynamic::tx(pallet, call, args))
-}
-
-fn identity_info_value(identity: &IdentityInfo) -> DomainResult<Value> {
-	identity.validate()?;
-	let additional = identity
-		.additional
-		.iter()
-		.map(|field| {
-			Ok(Value::unnamed_composite(vec![
-				identity_data_value(&field.key)?,
-				identity_data_value(&field.value)?,
-			]))
-		})
-		.collect::<DomainResult<Vec<_>>>()?;
-	Ok(Value::named_composite(vec![
-		("additional", Value::from(additional)),
-		("display", identity_data_value(&identity.display)?),
-		("legal", identity_data_value(&identity.legal)?),
-		("web", identity_data_value(&identity.web)?),
-		("email", identity_data_value(&identity.email)?),
-		("image", identity_data_value(&identity.image)?),
-	]))
-}
-
-fn identity_data_value(data: &IdentityData) -> DomainResult<Value> {
-	data.validate()?;
-	Ok(match data {
-		IdentityData::None => Value::variant("None", Composite::unnamed(vec![])),
-		IdentityData::Raw { value } => Value::variant(
-			format!("Raw{}", value.len()),
-			Composite::unnamed(vec![Value::from_bytes(value.as_bytes())]),
-		),
-		IdentityData::BlakeTwo256 { hash } => {
-			Value::variant("BlakeTwo256", Composite::unnamed(vec![hash_value(hash)?]))
-		},
-		IdentityData::Sha256 { hash } => {
-			Value::variant("Sha256", Composite::unnamed(vec![hash_value(hash)?]))
-		},
-		IdentityData::Keccak256 { hash } => {
-			Value::variant("Keccak256", Composite::unnamed(vec![hash_value(hash)?]))
-		},
-		IdentityData::ShaThree256 { hash } => {
-			Value::variant("ShaThree256", Composite::unnamed(vec![hash_value(hash)?]))
-		},
-	})
-}
-
-fn judgement_value(judgement: Judgement) -> Value {
-	let variant = match judgement {
-		Judgement::Reasonable => "Reasonable",
-		Judgement::KnownGood => "KnownGood",
-		Judgement::OutOfDate => "OutOfDate",
-		Judgement::LowQuality => "LowQuality",
-		Judgement::Erroneous => "Erroneous",
-	};
-	Value::variant(variant, Composite::unnamed(vec![]))
-}
-
-fn lookup_account_value(account: &AccountId) -> DomainResult<Value> {
-	Ok(Value::variant("Id", Composite::unnamed(vec![account_value(account)?])))
 }
 
 /// Prepare an attestation call for metadata-derived encoding without submitting it.

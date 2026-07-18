@@ -71,18 +71,12 @@ struct Cli {
 	/// Optional provider region label.
 	#[arg(long)]
 	region: Option<String>,
-	/// Environment variable containing the bearer token. The token is never persisted.
-	#[arg(long, default_value = "ORBIS_PROVIDER_BEARER_TOKEN")]
-	bearer_token_env: String,
 	/// Environment variable containing the Ed25519 secret URI for the registered service key.
 	#[arg(long, default_value = "ORBIS_PROVIDER_SERVICE_SURI")]
 	service_key_env: String,
 	/// Environment variable containing the provider account secret URI used for Orbis extrinsics.
 	#[arg(long, default_value = "ORBIS_PROVIDER_ACCOUNT_SURI")]
 	account_key_env: String,
-	/// Maximum decoded content bytes per commit.
-	#[arg(long, default_value_t = 16 * 1024 * 1024)]
-	max_content_bytes: usize,
 	/// Target replication reconciliation interval in seconds.
 	#[arg(long, default_value_t = 6)]
 	replication_seconds: u64,
@@ -101,11 +95,6 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
 		return Err("peer listener must be distinct from the public HTTP listener".into());
 	}
 	let provider = decode_account(&cli.provider)?;
-	let bearer = std::env::var(&cli.bearer_token_env)
-		.map_err(|_| format!("{} must contain a non-empty bearer token", cli.bearer_token_env))?;
-	if bearer.len() < 32 {
-		return Err("provider bearer token must contain at least 32 bytes".into());
-	}
 	let suri = std::env::var(&cli.service_key_env)
 		.map_err(|_| format!("{} must contain the service-key secret URI", cli.service_key_env))?;
 	let service_key = ed25519::Pair::from_string(&suri, None)
@@ -143,9 +132,6 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
 	let _private_host_socket_guard = private_host_socket_guard;
 	let api = ApiConfig {
 		listen: cli.listen,
-		bearer_token_hash: *blake3::hash(bearer.as_bytes()).as_bytes(),
-		max_content_bytes: cli.max_content_bytes,
-		max_json_bytes: 64 * 1024,
 	};
 	let workers = WorkerConfig::default();
 	// Bind before entering either lifecycle select so an unavailable peer endpoint is fatal.

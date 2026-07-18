@@ -25,7 +25,6 @@ origin-primitives = { workspace = true }
 origin-runtime-constants = { workspace = true }
 origin-commons-runtime-constants = { workspace = true }
 orbis-storage-runtime-api = { workspace = true }
-orbis-identity-personhood-runtime-api = { workspace = true }
 token-origin-commons-runtime-api = { workspace = true }
 indiv-pallet-chunks-manager = { workspace = true }
 indiv-pallet-members = { workspace = true }
@@ -160,7 +159,6 @@ std = [
 	"origin-runtime-constants/std",
 	"origin-commons-runtime-constants/std",
 	"orbis-storage-runtime-api/std",
-	"orbis-identity-personhood-runtime-api/std",
 	"token-origin-commons-runtime-api/std",
 	"indiv-pallet-chunks-manager/std",
 	"indiv-pallet-members/std",

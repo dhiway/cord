@@ -30,7 +30,7 @@ compile_error!("origin-orbis-provider requires Unix no-follow directory-handle s
 
 mod api;
 mod bounded_io;
-// Deliberately private until the P4 route cutover removes the shared bearer atomically.
+// Private capability parser retained for authenticated host-v2 IPC only.
 #[allow(dead_code)]
 mod capability;
 mod chain;

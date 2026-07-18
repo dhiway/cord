@@ -2388,57 +2388,6 @@ fn people_identity_is_self_claimed_and_sudo_attested() {
 }
 
 #[test]
-fn identity_personhood_runtime_api_returns_bounded_status_without_private_identity_data() {
-	use crate::identity_personhood_api::runtime_decl_for_identity_personhood_api::IdentityPersonhoodApiV1;
-	use sp_runtime::traits::{BlakeTwo256, Hash};
-
-	sp_io::TestExternalities::new_empty().execute_with(|| {
-		let account = AccountId::from(ALICE);
-		let registrar = AccountId::from([3u8; 32]);
-		let empty = Runtime::identity_status(account.clone());
-		assert_eq!(empty.version, crate::identity_personhood_api::RESPONSE_VERSION);
-		assert!(!empty.value.registered);
-
-		let mut info = pallet_orbis_people::identity_info::IdentityInfo::<
-			crate::PeopleMaxAdditionalFields,
-		>::default();
-		info.display = pallet_orbis_people::Data::Raw(b"Alice".to_vec().try_into().unwrap());
-		assert_ok!(People::set_identity(
-			RuntimeOrigin::signed(account.clone()),
-			Box::new(info.clone()),
-		));
-		assert_ok!(People::add_registrar(RuntimeOrigin::root(), registrar.clone().into()));
-		assert_ok!(People::provide_judgement(
-			RuntimeOrigin::signed(registrar),
-			account.clone().into(),
-			pallet_orbis_people::Judgement::KnownGood,
-			BlakeTwo256::hash_of(&info),
-		));
-		let identity = Runtime::identity_status(account.clone()).value;
-		assert!(identity.registered);
-		assert_eq!(identity.judgement_count, 1);
-		assert_eq!(identity.known_good, 1);
-
-		let personhood = Runtime::personhood_status(account.clone()).value;
-		assert_eq!(personhood.full_personal_id, None);
-		assert!(!personhood.full_recognized);
-		assert!(!personhood.lite_recognized);
-		assert_ok!(PeopleLite::increase_attestation_allowance(
-			RuntimeOrigin::root(),
-			account.clone(),
-			7,
-		));
-		assert_eq!(Runtime::attestation_allowance(account).value.remaining, 7);
-	});
-}
-fn full_core_task(task: u32) -> Schedule {
-	Schedule::truncate_from(vec![ScheduleItem {
-		mask: CoreMask::complete(),
-		assignment: CoreAssignment::Task(task),
-	}])
-}
-
-#[test]
 fn orbis_sudo_can_reserve_multiple_full_cores_for_one_parachain() {
 	sp_io::TestExternalities::new_empty().execute_with(|| {
 		let orbis = full_core_task(1006);

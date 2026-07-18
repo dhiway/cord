@@ -70,7 +70,6 @@ use frame_system::{
 	limits::{BlockLength, BlockWeights},
 	EnsureRoot, EnsureRootWithSuccess, EnsureSigned,
 };
-pub use orbis_identity_personhood_runtime_api as identity_personhood_api;
 pub use orbis_storage_runtime_api as storage_api;
 pub use origin_commons_runtime_constants::async_backing::SLOT_DURATION;
 use origin_commons_runtime_constants::{
@@ -3951,52 +3950,6 @@ pallet_revive::impl_runtime_apis_plus_revive_traits!(
 			let version = pallet_origin_token::StateVersion::<Runtime>::get(&ss58_id);
 			let last_state = version.checked_sub(1);
 			token_api::TokenStatusApi::Found { last_state }
-		}
-	}
-
-	impl identity_personhood_api::IdentityPersonhoodApi<Block, AccountId> for Runtime {
-		fn identity_status(
-			account: AccountId,
-		) -> identity_personhood_api::Versioned<identity_personhood_api::IdentityStatus> {
-			let counts = People::identity_judgement_counts(&account);
-			let (judgement_count, requested, reasonable, known_good, out_of_date, low_quality, erroneous) =
-				counts.unwrap_or_default();
-			identity_personhood_api::Versioned::new(identity_personhood_api::IdentityStatus {
-				registered: counts.is_some(),
-				judgement_count,
-				requested,
-				reasonable,
-				known_good,
-				out_of_date,
-				low_quality,
-				erroneous,
-			})
-		}
-
-		fn personhood_status(
-			account: AccountId,
-		) -> identity_personhood_api::Versioned<identity_personhood_api::PersonhoodStatus> {
-			let full_personal_id = indiv_pallet_people::AccountToPersonalId::<Runtime>::get(&account);
-			let full_recognized = full_personal_id
-				.is_some_and(indiv_pallet_people::People::<Runtime>::contains_key);
-			let lite_recognized = indiv_pallet_people_lite::LitePeople::<Runtime>::contains_key(account);
-			identity_personhood_api::Versioned::new(
-				identity_personhood_api::PersonhoodStatus {
-					full_personal_id,
-					full_recognized,
-					lite_recognized,
-				},
-			)
-		}
-
-		fn attestation_allowance(
-			account: AccountId,
-		) -> identity_personhood_api::Versioned<identity_personhood_api::AttestationAllowance> {
-			identity_personhood_api::Versioned::new(
-				identity_personhood_api::AttestationAllowance {
-					remaining: indiv_pallet_people_lite::AttestationAllowance::<Runtime>::get(account),
-				},
-			)
 		}
 	}
 
