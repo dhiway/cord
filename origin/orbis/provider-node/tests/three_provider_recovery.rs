@@ -18,16 +18,33 @@
 
 use std::{collections::BTreeSet, fs, path::PathBuf};
 
-use origin_orbis_provider::run_three_provider_recovery_evidence;
+use origin_orbis_provider::{run_three_provider_recovery_evidence, RecoveryOutcomeObservation};
+use serde::Serialize;
 use tempfile::TempDir;
 
 const ARTIFACT_NAME: &str = "ac5-three-provider-recovery-v1.json";
+const TYPED_OUTCOME_ARTIFACT: &str = "p1-provider-typed-outcomes.json";
+
+#[derive(Serialize)]
+struct TypedOutcomeEvidence<'a> {
+	schema: u16,
+	status: &'static str,
+	provider_count: usize,
+	active_provider_count: usize,
+	typed_outcome_count: usize,
+	failure_count: usize,
+	typed_outcomes: &'a [RecoveryOutcomeObservation],
+}
 
 #[tokio::test]
 async fn deterministic_failover() {
 	let artifact = artifact_path();
+	let typed_artifact = typed_outcome_artifact_path();
 	if artifact.exists() {
 		fs::remove_file(&artifact).expect("remove stale AC5 evidence artifact");
+	}
+	if typed_artifact.exists() {
+		fs::remove_file(&typed_artifact).expect("remove stale typed recovery artifact");
 	}
 	let providers = TempDir::new().expect("create isolated provider roots");
 	let evidence = run_three_provider_recovery_evidence(providers.path())
@@ -68,7 +85,28 @@ async fn deterministic_failover() {
 	let converged = evidence.runtime_observations[5].finalized_number;
 	assert!(repaired < converged);
 	assert!(converged - fallback <= 200);
-	assert_eq!(evidence.runtime_duty_reads, 7);
+	assert_eq!(evidence.runtime_duty_reads, 9);
+	assert_eq!(evidence.typed_outcomes.len(), 9);
+	assert_eq!(
+		evidence
+			.typed_outcomes
+			.iter()
+			.map(|outcome| &outcome.provider)
+			.collect::<BTreeSet<_>>()
+			.len(),
+		3
+	);
+	assert!(evidence.typed_outcomes.iter().all(|outcome| {
+		!outcome.phase.is_empty() &&
+			!outcome.provider.is_empty() &&
+			serde_json::to_value(outcome)
+				.ok()
+				.and_then(|value| value.get("redacted_counts").cloned())
+				.and_then(|value| value.as_object().cloned())
+				.is_some_and(|counts| {
+					!counts.is_empty() && counts.values().all(|value| value.is_u64())
+				})
+	}));
 
 	assert_eq!(evidence.checkpoints.len(), 2);
 	assert_eq!(evidence.checkpoints[0].phase, "initial");
@@ -100,6 +138,31 @@ async fn deterministic_failover() {
 	let temporary = artifact.with_extension("json.tmp");
 	fs::write(&temporary, encoded).expect("write temporary AC5 evidence artifact");
 	fs::rename(&temporary, &artifact).expect("publish AC5 evidence artifact atomically");
+
+	let typed = TypedOutcomeEvidence {
+		schema: 1,
+		status: "pass",
+		provider_count: evidence.provider_count,
+		active_provider_count: evidence
+			.typed_outcomes
+			.iter()
+			.map(|outcome| &outcome.provider)
+			.collect::<BTreeSet<_>>()
+			.len(),
+		typed_outcome_count: evidence.typed_outcomes.len(),
+		failure_count: 0,
+		typed_outcomes: &evidence.typed_outcomes,
+	};
+	fs::create_dir_all(typed_artifact.parent().expect("typed artifact parent"))
+		.expect("create target/evidence");
+	let typed_temporary = typed_artifact.with_extension("json.tmp");
+	fs::write(
+		&typed_temporary,
+		serde_json::to_vec_pretty(&typed).expect("encode typed recovery outcomes"),
+	)
+	.expect("write temporary typed recovery artifact");
+	fs::rename(&typed_temporary, &typed_artifact)
+		.expect("publish typed recovery artifact atomically");
 }
 
 fn artifact_path() -> PathBuf {
@@ -110,4 +173,14 @@ fn artifact_path() -> PathBuf {
 		.expect("provider crate is nested under the workspace")
 		.to_path_buf();
 	workspace.join("target").join("debug").join(ARTIFACT_NAME)
+}
+
+fn typed_outcome_artifact_path() -> PathBuf {
+	let workspace = PathBuf::from(env!("CARGO_MANIFEST_DIR"))
+		.parent()
+		.and_then(|path| path.parent())
+		.and_then(|path| path.parent())
+		.expect("provider crate is nested under the workspace")
+		.to_path_buf();
+	workspace.join("target").join("evidence").join(TYPED_OUTCOME_ARTIFACT)
 }

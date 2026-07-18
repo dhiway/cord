@@ -251,6 +251,18 @@ impl<A: ChainAuthority> ProviderService<A> {
 		self.checkpoint_stack.integrity_summary()
 	}
 
+	/// Return one redacted typed outcome derived from durable byte-plane and Commons duty state.
+	pub fn recovery_status(&self) -> crate::ProviderRecoveryStatus {
+		let integrity = self.integrity_summary();
+		let inventory = self.store.checkpoint_duty_inventory();
+		let local_state_available = integrity.is_ok() && inventory.is_ok();
+		crate::recovery_status::status(
+			integrity.ok(),
+			inventory.ok().flatten(),
+			local_state_available,
+		)
+	}
+
 	pub(crate) fn outbox(&self) -> &Arc<dyn ManifestDeletionSubmitter> {
 		&self.outbox
 	}
@@ -434,6 +446,7 @@ where
 				"/chunk_proof" |
 				"/mmr_peaks" | "/mmr_subtree" |
 				"/replica/sync_status" |
+				"/replica/recovery_status" |
 				"/stats"
 			);
 	if requires_auth && !authorized(&request, config.bearer_token_hash) {
@@ -523,6 +536,8 @@ where
 			)
 		},
 		(Method::GET, "/replica/sync_status") => replica_sync_status(&service),
+		(Method::GET, "/replica/recovery_status") =>
+			json(StatusCode::OK, &service.recovery_status()),
 		_ => Err(ApiError::not_found()),
 	}
 }
@@ -1348,6 +1363,40 @@ mod lifecycle_tests {
 		);
 		assert_integrity_response_is_redacted(&sync, &cid);
 
+		let unauthenticated =
+			dispatch(get("/replica/recovery_status", None), Arc::clone(&service), &config).await;
+		assert_eq!(unauthenticated.status(), StatusCode::UNAUTHORIZED);
+		let recovery = dispatch(
+			get("/replica/recovery_status", Some("route-health-test-token")),
+			Arc::clone(&service),
+			&config,
+		)
+		.await;
+		assert_eq!(recovery.status(), StatusCode::OK);
+		let recovery = response_json(recovery).await;
+		assert_eq!(
+			recovery,
+			serde_json::json!({
+				"version": PROTOCOL_VERSION,
+				"outcome": "control_snapshot_unavailable",
+				"action": "await_control_snapshot",
+				"retryable": true,
+				"byte_plane_ready": true,
+				"installed_objects": 1,
+				"ready_objects": 1,
+				"quarantined_objects": 0
+			})
+		);
+		assert_integrity_response_is_redacted(&recovery, &cid);
+
+		let mutation = dispatch(
+			post("/replica/recovery_status", "route-health-test-token", b"{}"),
+			Arc::clone(&service),
+			&config,
+		)
+		.await;
+		assert_eq!(mutation.status(), StatusCode::NOT_FOUND);
+
 		let stats = dispatch(get("/stats", None), Arc::clone(&service), &config).await;
 		assert_eq!(stats.status(), StatusCode::UNAUTHORIZED);
 		let stats =
@@ -1418,7 +1467,7 @@ mod lifecycle_tests {
 
 		let sync = dispatch(
 			get("/replica/sync_status", Some("route-health-test-token")),
-			service,
+			Arc::clone(&service),
 			&config,
 		)
 		.await;
@@ -1436,5 +1485,28 @@ mod lifecycle_tests {
 			})
 		);
 		assert_integrity_response_is_redacted(&sync, &cid);
+
+		let recovery = dispatch(
+			get("/replica/recovery_status", Some("route-health-test-token")),
+			service,
+			&config,
+		)
+		.await;
+		assert_eq!(recovery.status(), StatusCode::OK);
+		let recovery = response_json(recovery).await;
+		assert_eq!(
+			recovery,
+			serde_json::json!({
+				"version": PROTOCOL_VERSION,
+				"outcome": "repair_required",
+				"action": "repair_local_data",
+				"retryable": true,
+				"byte_plane_ready": false,
+				"installed_objects": 1,
+				"ready_objects": 0,
+				"quarantined_objects": 1
+			})
+		);
+		assert_integrity_response_is_redacted(&recovery, &cid);
 	}
 }

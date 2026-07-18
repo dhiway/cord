@@ -60,6 +60,7 @@ mod replication;
 // Private bounded target reconciler driven by the dedicated replication worker.
 mod replication_reconciler;
 mod replication_worker;
+mod recovery_status;
 // Private deterministic bridge from finalized topology evidence into authenticated peer context.
 mod replication_session;
 mod storage;
@@ -87,6 +88,10 @@ pub use content::{
 };
 #[doc(hidden)]
 pub use private_host_ipc::serve_private_host_ipc;
+pub use recovery_status::{
+	ProviderControlRecoveryStatus, ProviderRecoveryAction, ProviderRecoveryOutcome,
+	ProviderRecoveryStatus,
+};
 pub use storage::{
 	BeginStreaming, CheckpointDutyWatermark, ChunkProof, ContentRecord, DiskStore, IngressPermit,
 	IntegritySummary, NodeProfile, ProgressAck, ProviderStats, StoreError, StreamingDescriptor,
@@ -99,7 +104,7 @@ pub use storage::StreamingStore;
 #[doc(hidden)]
 pub use three_provider_evidence::{
 	run_three_provider_recovery_evidence, CorruptReadObservation, EligibleSourceObservation,
-	ThreeProviderRecoveryEvidence,
+	RecoveryOutcomeObservation, RecoveryRedactedCounts, ThreeProviderRecoveryEvidence,
 };
 pub(crate) use workers::{JsonlManifestDeletionOutbox, ManifestDeletionSubmitter};
 #[cfg(any(test, feature = "evidence"))]
