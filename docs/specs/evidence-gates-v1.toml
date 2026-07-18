@@ -3443,6 +3443,14 @@ path = "origin/orbis/provider-node"
 sha256 = "b9d72a0ac5d45f131186a68908b985c0059b6fab460261412801d65083fd7299"
 
 [[gate.input]]
+path = "origin/orbis/pallets"
+sha256 = "611a14c6100c527aa97e3e616e588e3ab7bfc75ad9513cba2fd7ae876816bec6"
+
+[[gate.input]]
+path = "origin/orbis/runtime"
+sha256 = "93244d70b3a349d162278bd912a20bc8b5d53c0efc667dc889ff826d163b33b2"
+
+[[gate.input]]
 path = "scripts/validate-p6-journeys.py"
 sha256 = "54cd6de963d0fc0d7df0d7f2caa00397c3365ec6faf02d74bf63a198db677ee4"
 
@@ -3466,7 +3474,7 @@ cwd = "."
 argv = ["cargo", "test", "-p", "origin-orbis-provider", "observability::tests", "--lib"]
 test_count = 2
 outputs = []
-inputs = ["origin/orbis/provider-node", "Cargo.toml", "Cargo.lock"]
+inputs = ["origin/orbis/provider-node", "origin/orbis/pallets", "origin/orbis/runtime", "Cargo.toml", "Cargo.lock"]
 allowed_writes = ["target/debug/**", "target/.rustc_info.json"]
 
 [[gate.command]]
@@ -3474,7 +3482,7 @@ cwd = "."
 argv = ["python3", "scripts/validate-p6-observability.py", "--contract", "docs/operations/origin-orbis-p6-observability.json", "--scenarios", "docs/operations/origin-orbis-p6-observability.scenarios.json", "--provider-outcomes", "target/evidence/p1-provider-typed-outcomes.json", "--registry", "docs/specs/evidence-gates-v1.toml", "--out", "target/evidence/p6-observability-assertions.json"]
 test_count = 0
 outputs = ["target/evidence/p6-observability-assertions.json"]
-inputs = ["scripts/validate-p6-observability.py", "docs/operations/origin-orbis-p6-observability.json", "docs/operations/origin-orbis-p6-observability.scenarios.json", "docs/operations/origin-orbis-p6-incidents.md", "docs/sdk/failure-recovery.md", "origin/orbis/provider-node", "scripts/validate-p6-journeys.py", "target/evidence/p1-provider-typed-outcomes.json", "@registry"]
+inputs = ["scripts/validate-p6-observability.py", "docs/operations/origin-orbis-p6-observability.json", "docs/operations/origin-orbis-p6-observability.scenarios.json", "docs/operations/origin-orbis-p6-incidents.md", "docs/sdk/failure-recovery.md", "origin/orbis/provider-node", "origin/orbis/pallets", "origin/orbis/runtime", "scripts/validate-p6-journeys.py", "target/evidence/p1-provider-typed-outcomes.json", "@registry"]
 allowed_writes = []
 
 [[gate.command]]
