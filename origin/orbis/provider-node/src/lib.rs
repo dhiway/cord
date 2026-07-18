@@ -45,6 +45,7 @@ mod checkpoint_stack;
 mod checkpoint_transport;
 mod content;
 mod merkle;
+mod observability;
 mod peer;
 // Private HTTP/1 listener for the service-key-authenticated replication wire protocol.
 mod peer_http;

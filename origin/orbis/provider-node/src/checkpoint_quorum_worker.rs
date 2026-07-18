@@ -47,6 +47,7 @@ use crate::{
 		CheckpointConfirmationEndpoint, CheckpointConfirmationTransport,
 		HyperCheckpointConfirmationTransport,
 	},
+	observability::{emit_failure, ProviderFailureCode},
 	CheckpointDuty, ContentError, DiskStore, FinalizedRuntimeAuthority,
 };
 
@@ -73,7 +74,7 @@ pub(crate) async fn run(
 	ticker.set_missed_tick_behavior(MissedTickBehavior::Skip);
 	loop {
 		ticker.tick().await;
-		if let Err(error) = tick(
+		if tick(
 			Arc::clone(&authority),
 			Arc::clone(&stack),
 			Arc::clone(&store),
@@ -83,8 +84,9 @@ pub(crate) async fn run(
 			Arc::clone(&scheduler),
 		)
 		.await
+		.is_err()
 		{
-			eprintln!("checkpoint quorum tick failed: {error}");
+			emit_failure(ProviderFailureCode::CheckpointQuorumTickFailed);
 		}
 	}
 }
@@ -164,7 +166,7 @@ where
 					actions.push((proposal, duty, request));
 				}
 			},
-			Err(error) => eprintln!("checkpoint quorum selection skipped: {error}"),
+			Err(_) => emit_failure(ProviderFailureCode::CheckpointQuorumSelectionFailed),
 		}
 	}
 	if progress.has_considerations() {
@@ -195,8 +197,8 @@ where
 	while let Some(result) = tasks.join_next().await {
 		match result {
 			Ok(Ok(())) => {},
-			Ok(Err(error)) => eprintln!("checkpoint quorum action skipped: {error}"),
-			Err(error) => eprintln!("checkpoint quorum action join failed: {error}"),
+			Ok(Err(_)) => emit_failure(ProviderFailureCode::CheckpointQuorumActionFailed),
+			Err(_) => emit_failure(ProviderFailureCode::CheckpointQuorumJoinFailed),
 		}
 	}
 	Ok(())

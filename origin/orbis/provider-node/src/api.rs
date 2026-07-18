@@ -395,8 +395,10 @@ pub async fn serve<A: ChainAuthority>(
 				io,
 				service_fn(move |request| route(request, service.clone(), config.clone())),
 			);
-			if let Err(error) = connection.await {
-				eprintln!("provider HTTP connection failed: {error}");
+			if connection.await.is_err() {
+				crate::observability::emit_failure(
+					crate::observability::ProviderFailureCode::ProviderHttpConnectionFailed,
+				);
 			}
 		});
 	}

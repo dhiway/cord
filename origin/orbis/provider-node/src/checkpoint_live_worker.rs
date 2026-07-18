@@ -36,6 +36,7 @@ use crate::{
 	},
 	checkpoint_promotion_worker::PromotionDiscoveryScheduler,
 	checkpoint_stack::CheckpointStack,
+	observability::{emit_failure, ProviderFailureCode},
 	ContentError, DiskStore,
 };
 
@@ -97,7 +98,7 @@ where
 					println!("checkpoint publication reconciled");
 				}
 			},
-			Err(_) => eprintln!("checkpoint live lifecycle tick failed"),
+			Err(_) => emit_failure(ProviderFailureCode::CheckpointLifecycleFailed),
 		}
 	}
 }

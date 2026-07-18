@@ -2,6 +2,8 @@
 
 This page gives you the practical surface of `origin-rs`: how to connect, build authorizations, compose extrinsics for entity/register/packet flows, and read runtime views. Pair it with [`docs/origin-overview.md`](../origin-overview.md) when you need pallet-level background.
 
+For retry, disconnect, cancellation, provider and Identity recovery decisions, use the [failure recovery guide](failure-recovery.md); never log a capability, proof transcript or contextual subject.
+
 ## Connect once, reuse everywhere
 
 ```rust

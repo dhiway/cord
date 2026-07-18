@@ -30,6 +30,7 @@ use tokio::{
 use crate::{
 	chain::{ReplicationAuthority, ReplicationTopologySnapshot},
 	checkpoint_stack::CheckpointStack,
+	observability::{emit_failure, ProviderFailureCode},
 	peer::PeerMmrCommitmentV1,
 	peer_transport::HyperPeerTransport,
 	replication::ReplicationResumeV1,
@@ -66,7 +67,7 @@ pub(crate) async fn run(
 		.await
 		.is_err()
 		{
-			eprintln!("replication coordinator tick failed");
+			emit_failure(ProviderFailureCode::ReplicationCoordinatorFailed);
 		}
 	}
 }
@@ -112,7 +113,7 @@ async fn tick(
 				work.push(WorkerIntent::Discovered(discovered));
 			},
 			Ok(_) => {},
-			Err(_) => eprintln!("replication discovery rejected"),
+			Err(_) => emit_failure(ProviderFailureCode::ReplicationDiscoveryRejected),
 		}
 	}
 	let remaining = MAX_TICK_INTENTS.saturating_sub(work.len());
@@ -136,7 +137,7 @@ async fn tick(
 			let result =
 				reconcile_intent(authority, stack, local_provider, target_key, intent).await;
 			if result.is_err() {
-				eprintln!("replication intent failed");
+				emit_failure(ProviderFailureCode::ReplicationIntentFailed);
 			}
 		});
 	}

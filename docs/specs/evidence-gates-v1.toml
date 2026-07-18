@@ -6,7 +6,7 @@ canonicalization = "cord-json-canonical-v1"
 [execution_policy]
 repository_manifest = "docs/specs/reference-repositories.toml"
 allowed_executables = ["python3", "cargo", "npm", "node", "product-sdk/node_modules/.bin/tsc"]
-allowed_python_scripts = ["scripts/build-web3-storage-inventory.py", "scripts/export-origin-commons-metadata.py", "scripts/check-source-headers.py", "scripts/generate-scale-metadata-binding.py", "scripts/run-origin-orbis-app-journey.py", "scripts/run-p1-verification.py", "scripts/run-p0-control-tests.py", "scripts/snapshot-repositories.py", "scripts/validate-ac-decidability.py", "scripts/validate-drive-s3-vectors.py", "scripts/validate-host-provider-wire.py", "scripts/validate-origin-orbis-scope.py", "scripts/validate-phase-gate.py", "scripts/validate-product-projection.py", "scripts/validate-provider-organization.py", "scripts/validate-repository-boundary.py", "scripts/validate-scale-metadata-binding.py", "scripts/validate-storage-content-vectors.py", "scripts/validate-storage-identity-deletion.py", "scripts/validate-storage-phase-ownership.py", "scripts/validate-storage-proof-vectors.py", "scripts/validate-three-provider-recovery.py", "scripts/validate-web3-storage-parity.py", "scripts/verify-slice-commits.py"]
+allowed_python_scripts = ["scripts/build-web3-storage-inventory.py", "scripts/export-origin-commons-metadata.py", "scripts/check-source-headers.py", "scripts/generate-scale-metadata-binding.py", "scripts/run-origin-orbis-app-journey.py", "scripts/run-p1-verification.py", "scripts/run-p0-control-tests.py", "scripts/snapshot-repositories.py", "scripts/validate-ac-decidability.py", "scripts/validate-drive-s3-vectors.py", "scripts/validate-host-provider-wire.py", "scripts/validate-origin-orbis-scope.py", "scripts/validate-p6-observability.py", "scripts/validate-phase-gate.py", "scripts/validate-product-projection.py", "scripts/validate-provider-organization.py", "scripts/validate-repository-boundary.py", "scripts/validate-scale-metadata-binding.py", "scripts/validate-storage-content-vectors.py", "scripts/validate-storage-identity-deletion.py", "scripts/validate-storage-phase-ownership.py", "scripts/validate-storage-proof-vectors.py", "scripts/validate-three-provider-recovery.py", "scripts/validate-web3-storage-parity.py", "scripts/verify-slice-commits.py"]
 allowed_external_output_roots = ["../.omx/evidence/origin-orbis-web3-storage"]
 
 [[gate]]
@@ -3316,9 +3316,9 @@ expected = 0
 id = "P6"
 output = "../.omx/evidence/origin-orbis-web3-storage/p6.json"
 decidability = "mechanical"
-clauses = ["phase-contract"]
+clauses = ["metrics", "alerts", "typed-logs", "redaction", "developer-recovery", "evidence-claims", "provider-outcomes", "phase-contract"]
 enforce_write_set = true
-write_paths = ["target/evidence/p6-assertions.json"]
+write_paths = ["target/evidence/p6-observability-assertions.json", "target/evidence/p6-assertions.json", "target/debug/**", "target/.rustc_info.json"]
 
 [[gate.input]]
 path = "docs/specs/evidence-report-v1.schema.json"
@@ -3332,6 +3332,65 @@ sha256 = "d2ecce3900ebebced3ebc566d39f6d47c792d70c9b0e813764a59000c65db8cc"
 path = "scripts/validate-phase-gate.py"
 sha256 = "b64e1974b760f0020df8d9283f5a8778759319d561f90c8612573615bfe6aea3"
 
+[[gate.input]]
+path = "scripts/validate-p6-observability.py"
+sha256 = "f859e95230c0ce7c7912d495f5fdf6ab0348df3abddbf2498f7834af4e078002"
+
+[[gate.input]]
+path = "docs/operations/origin-orbis-p6-observability.json"
+sha256 = "93ad26aa9f227ca36dc4528914ebdf8417d686fa94eed0d0b6f6e5cb83435733"
+
+[[gate.input]]
+path = "docs/operations/origin-orbis-p6-observability.scenarios.json"
+sha256 = "8c72f426be057cc4d9230a46a08032296384c82e9afc3e7258528427c738caff"
+
+[[gate.input]]
+path = "docs/operations/origin-orbis-p6-incidents.md"
+sha256 = "cdf3d45a97119c8d51e53c9fd80ea55ff7d0688c08535a4599a7550f04bef027"
+
+[[gate.input]]
+path = "docs/sdk/failure-recovery.md"
+sha256 = "9013cba387667eb652c25804dd57f80eea4c58abce4e6cafcb29ee5d65380052"
+
+[[gate.input]]
+path = "origin/orbis/provider-node"
+sha256 = "41e60c0de1c4504d7fa805250c4d4c305c99f58f6b7981ca5cd6612bc613e874"
+
+[[gate.input]]
+path = "scripts/validate-p6-journeys.py"
+sha256 = "15f6cfc5c2aa666d38067a0fcb2f2305abdfdb0f24687cb8e64aae72ebb99474"
+
+[[gate.input]]
+path = "target/evidence/p1-provider-typed-outcomes.json"
+sha256 = "record"
+input_class = "generated"
+producer_gate = "P1"
+producer_output = "target/evidence/p1-provider-typed-outcomes.json"
+
+[[gate.input]]
+path = "Cargo.toml"
+sha256 = "404e7debb220a86cdc76279396af748d9eade829a89a95ef456eb0b70bb45112"
+
+[[gate.input]]
+path = "Cargo.lock"
+sha256 = "528b8986a1803dc92c30305304714b42691453acd7b6881420a405c9c988d64c"
+
+[[gate.command]]
+cwd = "."
+argv = ["cargo", "test", "-p", "origin-orbis-provider", "observability::tests", "--lib"]
+test_count = 2
+outputs = []
+inputs = ["origin/orbis/provider-node", "Cargo.toml", "Cargo.lock"]
+allowed_writes = ["target/debug/**", "target/.rustc_info.json"]
+
+[[gate.command]]
+cwd = "."
+argv = ["python3", "scripts/validate-p6-observability.py", "--contract", "docs/operations/origin-orbis-p6-observability.json", "--scenarios", "docs/operations/origin-orbis-p6-observability.scenarios.json", "--provider-outcomes", "target/evidence/p1-provider-typed-outcomes.json", "--registry", "docs/specs/evidence-gates-v1.toml", "--out", "target/evidence/p6-observability-assertions.json"]
+test_count = 0
+outputs = ["target/evidence/p6-observability-assertions.json"]
+inputs = ["scripts/validate-p6-observability.py", "docs/operations/origin-orbis-p6-observability.json", "docs/operations/origin-orbis-p6-observability.scenarios.json", "docs/operations/origin-orbis-p6-incidents.md", "docs/sdk/failure-recovery.md", "origin/orbis/provider-node", "scripts/validate-p6-journeys.py", "target/evidence/p1-provider-typed-outcomes.json", "@registry"]
+allowed_writes = []
+
 [[gate.command]]
 cwd = "."
 argv = ["python3", "scripts/validate-phase-gate.py", "--gate", "P6", "--out", "target/evidence/p6-assertions.json"]
@@ -3341,9 +3400,63 @@ inputs = ["scripts/validate-phase-gate.py", "scripts/evidence_common.py"]
 allowed_writes = []
 
 [[gate.artifact]]
+path = "target/evidence/p6-observability-assertions.json"
+sha256 = "record"
+schema = "unversioned-assertions-v1"
+
+[[gate.artifact]]
 path = "target/evidence/p6-assertions.json"
 sha256 = "record"
 schema = "unversioned-phase-assertions-v1"
+
+[[gate.assertion]]
+clause = "metrics"
+source = "target/evidence/p6-observability-assertions.json"
+json_pointer = "/metric_contract_failures"
+operator = "zero"
+expected = 0
+
+[[gate.assertion]]
+clause = "alerts"
+source = "target/evidence/p6-observability-assertions.json"
+json_pointer = "/alert_scenario_failures"
+operator = "zero"
+expected = 0
+
+[[gate.assertion]]
+clause = "typed-logs"
+source = "target/evidence/p6-observability-assertions.json"
+json_pointer = "/typed_log_failures"
+operator = "zero"
+expected = 0
+
+[[gate.assertion]]
+clause = "redaction"
+source = "target/evidence/p6-observability-assertions.json"
+json_pointer = "/redaction_findings"
+operator = "zero"
+expected = 0
+
+[[gate.assertion]]
+clause = "developer-recovery"
+source = "target/evidence/p6-observability-assertions.json"
+json_pointer = "/developer_guidance_failures"
+operator = "zero"
+expected = 0
+
+[[gate.assertion]]
+clause = "evidence-claims"
+source = "target/evidence/p6-observability-assertions.json"
+json_pointer = "/evidence_claim_failures"
+operator = "zero"
+expected = 0
+
+[[gate.assertion]]
+clause = "provider-outcomes"
+source = "target/evidence/p6-observability-assertions.json"
+json_pointer = "/provider_outcome_failures"
+operator = "zero"
+expected = 0
 
 [[gate.assertion]]
 clause = "phase-contract"

@@ -1,0 +1,97 @@
+{
+  "schema": "cord.origin-orbis-p6-observability.v1",
+  "status": "feature-guardrail",
+  "cardinality_policy": {
+    "allowed_labels": ["chain", "provider_id_hash", "operation", "result", "error_code"],
+    "forbidden_labels": [
+      "account", "account_id", "agreement_id", "bearer", "bucket_id", "capability",
+      "cid", "content", "grant_id", "name", "nonce", "operation_id", "organization_id",
+      "plaintext", "profile", "proof", "request_id", "secret", "subject", "token"
+    ],
+    "provider_id_hash": "lowercase hex SHA-256 digest truncated to 16 characters",
+    "max_values": {
+      "chain": 2,
+      "provider_id_hash": 1024,
+      "operation": 32,
+      "result": 4,
+      "error_code": 64
+    }
+  },
+  "metrics": [
+    {"name": "cord_storage_checkpoint_age_blocks", "kind": "gauge", "labels": ["chain", "provider_id_hash"], "unit": "blocks"},
+    {"name": "cord_storage_replica_lag_chunks", "kind": "gauge", "labels": ["chain", "provider_id_hash"], "unit": "chunks"},
+    {"name": "cord_storage_challenge_deadline_blocks", "kind": "gauge", "labels": ["chain", "provider_id_hash"], "unit": "blocks"},
+    {"name": "cord_storage_integrity_failures_total", "kind": "counter", "labels": ["chain", "provider_id_hash", "operation", "error_code"], "unit": "failures"},
+    {"name": "cord_storage_auth_rejections_total", "kind": "counter", "labels": ["chain", "provider_id_hash", "operation", "error_code"], "unit": "rejections"},
+    {"name": "cord_host_inflight_chunks", "kind": "gauge", "labels": ["chain", "operation", "result"], "unit": "chunks"},
+    {"name": "cord_chain_finality_lag_blocks", "kind": "gauge", "labels": ["chain"], "unit": "blocks"}
+  ],
+  "alerts": [
+    {
+      "code": "P6_CHECKPOINT_STALE",
+      "metric": "cord_storage_checkpoint_age_blocks",
+      "operator": "gt",
+      "threshold": 120,
+      "window_seconds": 0,
+      "severity": "critical",
+      "action": "stop new agreements and inspect finalized checkpoint publication",
+      "runbook": "origin-orbis-p6-incidents.md#p6-checkpoint-stale"
+    },
+    {
+      "code": "P6_REPLICA_LAG",
+      "metric": "cord_storage_replica_lag_chunks",
+      "operator": "gt",
+      "threshold": 256,
+      "window_seconds": 0,
+      "severity": "critical",
+      "action": "remove the replica from reads and resume bounded repair",
+      "runbook": "origin-orbis-p6-incidents.md#p6-replica-lag"
+    },
+    {
+      "code": "P6_CHALLENGE_DEADLINE",
+      "metric": "cord_storage_challenge_deadline_blocks",
+      "operator": "lt",
+      "threshold": 5,
+      "window_seconds": 0,
+      "required_flag": {"proof_present": false},
+      "severity": "critical",
+      "action": "stop admission and restore the durable proof submitter",
+      "runbook": "origin-orbis-p6-incidents.md#p6-challenge-deadline"
+    },
+    {
+      "code": "P6_INTEGRITY_FAILURE",
+      "metric": "cord_storage_integrity_failures_total",
+      "operator": "gt",
+      "threshold": 0,
+      "window_seconds": 300,
+      "severity": "critical",
+      "action": "quarantine bytes and fail over to a verified replica",
+      "runbook": "origin-orbis-p6-incidents.md#p6-integrity-failure"
+    },
+    {
+      "code": "P6_AUTH_REJECTION_SPIKE",
+      "metric": "cord_storage_auth_rejections_total",
+      "operator": "gt",
+      "threshold": 10,
+      "window_seconds": 60,
+      "severity": "warning",
+      "action": "rate limit the caller and inspect finalized grant state",
+      "runbook": "origin-orbis-p6-incidents.md#p6-auth-rejection-spike"
+    },
+    {
+      "code": "P6_FINALITY_LAG",
+      "metric": "cord_chain_finality_lag_blocks",
+      "operator": "gt",
+      "threshold": 20,
+      "window_seconds": 0,
+      "severity": "critical",
+      "action": "pause non-idempotent submission and diagnose finality",
+      "runbook": "origin-orbis-p6-incidents.md#p6-finality-lag"
+    }
+  ],
+  "typed_provider_log": {
+    "format": "provider_failure code=<bounded-code> action=<bounded-action>",
+    "source": "origin/orbis/provider-node/src/observability.rs",
+    "raw_error_details": false
+  }
+}

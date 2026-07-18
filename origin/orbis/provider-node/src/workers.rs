@@ -46,6 +46,7 @@ const MANIFEST_DELETION_OUTBOX_FILE: &str = "provider-submissions-v3.jsonl";
 const MANIFEST_DELETION_OUTBOX_LOCK_FILE: &str = "provider-submissions-v3.jsonl.lock";
 
 use crate::{
+	observability::{emit_failure, ProviderFailureCode},
 	storage::{PendingDeletion, PendingRootSubmission},
 	BucketId, ChainAuthority, DeletionDuty, ProviderService,
 };
@@ -1083,10 +1084,10 @@ pub async fn run_workers<A: ChainAuthority>(
 		runtime_duties.tick().await;
 		let (checkpoint, deletion) = poll_canonical_runtime_duties_once(&service).await;
 		if checkpoint.is_err() {
-			eprintln!("checkpoint-v2 duty intake failed");
+			emit_failure(ProviderFailureCode::CheckpointDutyIntakeFailed);
 		}
 		if deletion.is_err() {
-			eprintln!("manifest deletion duty processing failed");
+			emit_failure(ProviderFailureCode::ManifestDeletionFailed);
 		}
 	}
 }
