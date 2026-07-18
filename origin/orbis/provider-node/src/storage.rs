@@ -984,18 +984,6 @@ impl DiskStore {
 		Ok(())
 	}
 
-	/// Return deletion journal entries which must be re-enqueued after a crash.
-	pub(crate) fn pending_deletions(&self) -> Result<Vec<PendingDeletion>, StoreError> {
-		Ok(self.read_state()?.pending_deletions.values().cloned().collect())
-	}
-
-	/// Return root append journal entries in exact sequence order.
-	pub(crate) fn pending_root_submissions(
-		&self,
-	) -> Result<Vec<PendingRootSubmission>, StoreError> {
-		Ok(self.read_state()?.pending_roots.values().cloned().collect())
-	}
-
 	/// Atomically stage one page or install a terminal finalized checkpoint-duty snapshot.
 	///
 	/// Non-terminal pages retain the fixed finalized hash, exact next cursor, and accumulated
@@ -1375,19 +1363,6 @@ impl DiskStore {
 		if next.pending_manifest_deletions.is_empty() {
 			Self::finalize_manifest_deletion_page(&mut next);
 		}
-		self.persist_state(&next)?;
-		*state = next;
-		Ok(())
-	}
-
-	/// Remove a root journal entry only after it has been durably appended to the outbox.
-	pub(crate) fn complete_root_submission(&self, sequence: u64) -> Result<(), StoreError> {
-		let mut state = self.write_state()?;
-		if !state.pending_roots.contains_key(&sequence) {
-			return Ok(());
-		}
-		let mut next = state.clone();
-		next.pending_roots.remove(&sequence);
 		self.persist_state(&next)?;
 		*state = next;
 		Ok(())
