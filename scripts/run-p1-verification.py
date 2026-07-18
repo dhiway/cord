@@ -339,13 +339,15 @@ MATERIAL_PATHS = [
 ]
 
 def source_tree_hash(paths: list[Path]) -> str:
-    """Hash content with repository-relative names, independent of worktree path."""
+    """Hash the tracked runtime material, never worktree build by-products."""
     digest = hashlib.sha256()
-    files = []
     root = Path.cwd().resolve()
-    for path in paths:
-        files.extend([path] if path.is_file() else [item for item in path.rglob("*") if item.is_file()])
-    for path in sorted(set(files), key=lambda item: item.resolve().relative_to(root).as_posix().encode("utf-8")):
+    tracked = subprocess.run(
+        ["git", "ls-files", "-z", "--", *(str(path) for path in paths)],
+        check=True, stdout=subprocess.PIPE,
+    ).stdout.split(b"\0")
+    files = [root / item.decode("utf-8") for item in tracked if item]
+    for path in sorted(files, key=lambda item: item.resolve().relative_to(root).as_posix().encode("utf-8")):
         relative = path.resolve().relative_to(root).as_posix().encode("utf-8")
         digest.update(len(relative).to_bytes(8, "big"))
         digest.update(relative)

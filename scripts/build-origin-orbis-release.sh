@@ -337,12 +337,11 @@ import sys
 output, commit, cargo_lock_sha256, image_digest, image_id, srtool_version, rust_tag = sys.argv[1:]
 def material_hash(root):
     import hashlib
+    import subprocess
     roots = ["Cargo.lock", "origin/orbis/runtime", "origin/orbis/runtime-api/storage", "origin/orbis/primitives", "origin/orbis/pallets/storage-provider", "origin/orbis/pallets/drive", "origin/orbis/pallets/s3"]
     digest = hashlib.sha256()
-    files = []
-    for relative in roots:
-        candidate = pathlib.Path(root, relative)
-        files.extend([candidate] if candidate.is_file() else [p for p in candidate.rglob("*") if p.is_file()])
+    tracked = subprocess.check_output(["git", "ls-files", "-z", "--", *roots], cwd=root).split(b"\0")
+    files = [pathlib.Path(root, item.decode("utf-8")) for item in tracked if item]
     for path in sorted(files, key=lambda p: p.relative_to(root).as_posix().encode()):
         relative = path.relative_to(root).as_posix().encode()
         digest.update(len(relative).to_bytes(8, "big")); digest.update(relative)
