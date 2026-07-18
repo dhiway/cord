@@ -1388,7 +1388,7 @@ sha256 = "3848cde7c62912f9aafe0144df39a09cc0b6f176a3edbf2c9e16c2f6f768c5e3"
 
 [[gate.input]]
 path = "docs/specs/reference-repositories.toml"
-sha256 = "ac457c5d367c90a60e21da46652d32abbdb237f3a43c07d43a7897b1d52757b4"
+sha256 = "79cb858b0faf8d0ae463c9d5d3f863c572ba114f4a6e1d2057912e05f3553da0"
 
 [[gate.input]]
 path = "scripts/evidence_common.py"
@@ -1396,7 +1396,7 @@ sha256 = "d2ecce3900ebebced3ebc566d39f6d47c792d70c9b0e813764a59000c65db8cc"
 
 [[gate.input]]
 path = "scripts/snapshot-repositories.py"
-sha256 = "9856273aeaeb254ed0138cb0aa3b8fa562ea4680ddda201f1370a46fc7d428d9"
+sha256 = "4b95be2dae422b815b7a623a3cf9ca0468f9bc735f01373c583c4183b4e9c4a7"
 
 [[gate.input]]
 path = "scripts/validate-repository-boundary.py"
@@ -1640,7 +1640,7 @@ sha256 = "149cb782ad6643cab681916d85d6c7402f3333e8984a6eb2d483bf6ae318d0ee"
 
 [[gate.input]]
 path = "docs/specs/reference-repositories.toml"
-sha256 = "ac457c5d367c90a60e21da46652d32abbdb237f3a43c07d43a7897b1d52757b4"
+sha256 = "79cb858b0faf8d0ae463c9d5d3f863c572ba114f4a6e1d2057912e05f3553da0"
 
 [[gate.input]]
 path = "docs/specs/web3-storage-upstream-sources-v1.toml"
@@ -1804,7 +1804,7 @@ sha256 = "d2ecce3900ebebced3ebc566d39f6d47c792d70c9b0e813764a59000c65db8cc"
 
 [[gate.input]]
 path = "scripts/snapshot-repositories.py"
-sha256 = "9856273aeaeb254ed0138cb0aa3b8fa562ea4680ddda201f1370a46fc7d428d9"
+sha256 = "4b95be2dae422b815b7a623a3cf9ca0468f9bc735f01373c583c4183b4e9c4a7"
 
 [[gate.input]]
 path = "scripts/validate-repository-boundary.py"
@@ -2605,11 +2605,11 @@ sha256 = "d2ecce3900ebebced3ebc566d39f6d47c792d70c9b0e813764a59000c65db8cc"
 
 [[gate.input]]
 path = "scripts/snapshot-repositories.py"
-sha256 = "9856273aeaeb254ed0138cb0aa3b8fa562ea4680ddda201f1370a46fc7d428d9"
+sha256 = "4b95be2dae422b815b7a623a3cf9ca0468f9bc735f01373c583c4183b4e9c4a7"
 
 [[gate.input]]
 path = "docs/specs/reference-repositories.toml"
-sha256 = "ac457c5d367c90a60e21da46652d32abbdb237f3a43c07d43a7897b1d52757b4"
+sha256 = "79cb858b0faf8d0ae463c9d5d3f863c572ba114f4a6e1d2057912e05f3553da0"
 
 [[gate.input]]
 path = "../.omx/evidence/origin-orbis-web3-storage/repos-before.json"
