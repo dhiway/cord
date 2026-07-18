@@ -1498,6 +1498,7 @@ test_count = 0
 outputs = []
 inputs = ["scripts/check-source-headers.py"]
 allowed_writes = []
+allowed_reads = ["**"]
 
 [[gate.command]]
 cwd = "."
@@ -1506,6 +1507,7 @@ test_count = 0
 outputs = ["target/evidence/ac13-assertions.json"]
 inputs = ["docs/specs/cord-change-slices.toml", "scripts/verify-slice-commits.py"]
 allowed_writes = []
+allowed_reads = ["**"]
 
 [[gate.artifact]]
 path = "target/evidence/ac13-assertions.json"
