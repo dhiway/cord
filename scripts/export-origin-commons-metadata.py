@@ -28,6 +28,7 @@ import os
 import subprocess
 import sys
 import tempfile
+import shutil
 from pathlib import Path
 
 sys.dont_write_bytecode = True
@@ -38,6 +39,7 @@ def main() -> int:
     parser.add_argument("--metadata-scale", required=True, type=Path)
     parser.add_argument("--portable-registry", required=True, type=Path)
     parser.add_argument("--receipt", type=Path)
+    parser.add_argument("--compact-wasm", type=Path)
     args = parser.parse_args()
 
     metadata = args.metadata_scale.resolve()
@@ -71,6 +73,14 @@ def main() -> int:
             return 1
         os.replace(temp_metadata, metadata)
         os.replace(temp_registry, registry)
+        if args.compact_wasm:
+            target = Path(os.environ.get("CARGO_TARGET_DIR", "target"))
+            source = target / "release/wbuild/origin-commons-runtime/origin_commons_runtime.compact.wasm"
+            if not source.is_file():
+                print(f"BLOCKED Commons compact WASM is missing: {source}", file=sys.stderr)
+                return 1
+            args.compact_wasm.parent.mkdir(parents=True, exist_ok=True)
+            shutil.copyfile(source, args.compact_wasm)
 
     print(f"PASS Commons SCALE metadata: {metadata}")
     print(f"PASS Commons portable registry: {registry}")
@@ -81,6 +91,10 @@ def main() -> int:
                 {
                     "metadata_scale_sha256": hashlib.sha256(metadata.read_bytes()).hexdigest(),
                     "portable_registry_sha256": hashlib.sha256(registry.read_bytes()).hexdigest(),
+                    "compact_wasm_sha256": (
+                        hashlib.sha256(args.compact_wasm.read_bytes()).hexdigest()
+                        if args.compact_wasm else None
+                    ),
                     "schema_version": 1,
                 },
                 indent=2,

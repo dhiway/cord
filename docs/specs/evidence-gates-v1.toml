@@ -2460,7 +2460,7 @@ output = "../.omx/evidence/origin-orbis-web3-storage/p1-metadata.json"
 decidability = "mechanical"
 clauses = ["metadata-export"]
 enforce_write_set = true
-write_paths = ["target/evidence/origin-commons-runtime.metadata.scale", "target/evidence/origin-commons-runtime.portable-registry.json"]
+write_paths = ["target/evidence/origin-commons-runtime.metadata.scale", "target/evidence/origin-commons-runtime.portable-registry.json", "target/evidence/origin-commons-runtime.compact.wasm", "target/evidence/origin-commons-runtime.receipt.json", "target/debug/**", "target/release/**", "target/.rustc_info.json"]
 
 [[gate.input]]
 path = "docs/specs/evidence-report-v1.schema.json"
@@ -2480,13 +2480,13 @@ sha256 = "0e8a046a6f8913921a655e6fc4994f3c006683a74bba7dda2bfaa52b2f47f387"
 
 [[gate.input]]
 path = "scripts/export-origin-commons-metadata.py"
-sha256 = "6cd0dc68672c2785afff5306ba60af12496535c763307bcdbe3193a1703bd999"
+sha256 = "6d3c4c24e62a59db509a74a48526ba72de9da6bf8019f7334d2caf4850bd5b84"
 
 [[gate.command]]
 cwd = "."
-argv = ["python3", "scripts/export-origin-commons-metadata.py", "--metadata-scale", "target/evidence/origin-commons-runtime.metadata.scale", "--portable-registry", "target/evidence/origin-commons-runtime.portable-registry.json"]
+argv = ["python3", "scripts/export-origin-commons-metadata.py", "--metadata-scale", "target/evidence/origin-commons-runtime.metadata.scale", "--portable-registry", "target/evidence/origin-commons-runtime.portable-registry.json", "--compact-wasm", "target/evidence/origin-commons-runtime.compact.wasm", "--receipt", "target/evidence/origin-commons-runtime.receipt.json"]
 test_count = 0
-outputs = ["target/evidence/origin-commons-runtime.metadata.scale", "target/evidence/origin-commons-runtime.portable-registry.json"]
+outputs = ["target/evidence/origin-commons-runtime.metadata.scale", "target/evidence/origin-commons-runtime.portable-registry.json", "target/evidence/origin-commons-runtime.compact.wasm", "target/evidence/origin-commons-runtime.receipt.json"]
 inputs = ["scripts/export-origin-commons-metadata.py", "Cargo.toml", "Cargo.lock", "origin"]
 allowed_reads = ["target/debug/**", "target/release/**", "target/.rustc_info.json"]
 allowed_writes = ["target/debug/**", "target/release/**", "target/.rustc_info.json"]
@@ -2647,8 +2647,11 @@ producer_gate = "P1_METADATA"
 producer_output = "target/evidence/origin-commons-runtime.portable-registry.json"
 
 [[gate.input]]
-path = "target/orbis-metadata/release/wbuild/origin-commons-runtime/origin_commons_runtime.compact.wasm"
-sha256 = "dca623a6e247f4539594a8ecde9ae9ccb568f8081ed4c698f1fb5f5059cc18e3"
+path = "target/evidence/origin-commons-runtime.compact.wasm"
+sha256 = "record"
+input_class = "generated"
+producer_gate = "P1_METADATA"
+producer_output = "target/evidence/origin-commons-runtime.compact.wasm"
 
 [[gate.command]]
 cwd = "."
@@ -2670,10 +2673,10 @@ allowed_writes = []
 
 [[gate.command]]
 cwd = "."
-argv = ["python3", "scripts/run-p1-verification.py", "--metadata-scale", "target/evidence/origin-commons-runtime.metadata.scale", "--portable-registry", "target/evidence/origin-commons-runtime.portable-registry.json", "--scale-binding", "target/evidence/p1-scale-metadata-binding.json", "--amendment", "docs/specs/web3-storage-phase-ownership-amendment-v2.json", "--ratification", "docs/specs/p0-storage-control-ratification-v2.toml", "--metadata-record", "origin/orbis/runtime/vectors/transaction-policy-v8/metadata-hash.json", "--transaction-manifest", "origin/orbis/runtime/vectors/transaction-policy-v8/manifest.json", "--weight-evidence", "docs/evidence/p1/g002-control-plane-v1/storage-weight-evidence-v1.json", "--metadata-evidence", "docs/evidence/p1/g002-control-plane-v1/commons-metadata-evidence-v1.json", "--compact-wasm", "target/orbis-metadata/release/wbuild/origin-commons-runtime/origin_commons_runtime.compact.wasm", "--repositories-before", "../.omx/evidence/origin-orbis-web3-storage/repos-before.json", "--repositories-after", "target/evidence/p1-repositories-after.json", "--out", "target/evidence/p1-verification.json"]
+argv = ["python3", "scripts/run-p1-verification.py", "--metadata-scale", "target/evidence/origin-commons-runtime.metadata.scale", "--portable-registry", "target/evidence/origin-commons-runtime.portable-registry.json", "--scale-binding", "target/evidence/p1-scale-metadata-binding.json", "--amendment", "docs/specs/web3-storage-phase-ownership-amendment-v2.json", "--ratification", "docs/specs/p0-storage-control-ratification-v2.toml", "--metadata-record", "origin/orbis/runtime/vectors/transaction-policy-v8/metadata-hash.json", "--transaction-manifest", "origin/orbis/runtime/vectors/transaction-policy-v8/manifest.json", "--weight-evidence", "docs/evidence/p1/g002-control-plane-v1/storage-weight-evidence-v1.json", "--metadata-evidence", "docs/evidence/p1/g002-control-plane-v1/commons-metadata-evidence-v1.json", "--compact-wasm", "target/evidence/origin-commons-runtime.compact.wasm", "--repositories-before", "../.omx/evidence/origin-orbis-web3-storage/repos-before.json", "--repositories-after", "target/evidence/p1-repositories-after.json", "--out", "target/evidence/p1-verification.json"]
 test_count = 198
 outputs = ["target/evidence/p1-verification.json"]
-inputs = ["scripts/run-p1-verification.py", "scripts/check-source-headers.py", "HEADER-GPL3", "Cargo.toml", "Cargo.lock", "origin", "docs/evidence/p1/g002-control-plane-v1", "docs/evidence/p1/g002-control-plane-v1/storage-weight-evidence-v1.json", "docs/evidence/p1/g002-control-plane-v1/commons-metadata-evidence-v1.json", "docs/specs/web3-storage-phase-ownership-amendment-v2.json", "docs/specs/p0-storage-control-ratification-v2.toml", "docs/specs/reviews/p1-storage-control-architect-v2.json", "docs/specs/reviews/p1-storage-control-critic-v2.json", "docs/specs/checkpoint-v2.vectors.json", "docs/specs/drive-s3-v1.vectors.json", "docs/specs/provider-protocol-v1.vectors.json", "origin/orbis/runtime/vectors/transaction-policy-v8/metadata-hash.json", "origin/orbis/runtime/vectors/transaction-policy-v8/manifest.json", "target/evidence/origin-commons-runtime.metadata.scale", "target/evidence/origin-commons-runtime.portable-registry.json", "target/evidence/p1-scale-metadata-binding.json", "target/orbis-metadata/release/wbuild/origin-commons-runtime/origin_commons_runtime.compact.wasm", "../.omx/evidence/origin-orbis-web3-storage/repos-before.json", "target/evidence/p1-repositories-after.json", "@repository_snapshot"]
+inputs = ["scripts/run-p1-verification.py", "scripts/check-source-headers.py", "HEADER-GPL3", "Cargo.toml", "Cargo.lock", "origin", "docs/evidence/p1/g002-control-plane-v1", "docs/evidence/p1/g002-control-plane-v1/storage-weight-evidence-v1.json", "docs/evidence/p1/g002-control-plane-v1/commons-metadata-evidence-v1.json", "docs/specs/web3-storage-phase-ownership-amendment-v2.json", "docs/specs/p0-storage-control-ratification-v2.toml", "docs/specs/reviews/p1-storage-control-architect-v2.json", "docs/specs/reviews/p1-storage-control-critic-v2.json", "docs/specs/checkpoint-v2.vectors.json", "docs/specs/drive-s3-v1.vectors.json", "docs/specs/provider-protocol-v1.vectors.json", "origin/orbis/runtime/vectors/transaction-policy-v8/metadata-hash.json", "origin/orbis/runtime/vectors/transaction-policy-v8/manifest.json", "target/evidence/origin-commons-runtime.metadata.scale", "target/evidence/origin-commons-runtime.portable-registry.json", "target/evidence/p1-scale-metadata-binding.json", "target/evidence/origin-commons-runtime.compact.wasm", "../.omx/evidence/origin-orbis-web3-storage/repos-before.json", "target/evidence/p1-repositories-after.json", "@repository_snapshot"]
 allowed_reads = ["target/debug/**", "target/release/**", "target/.rustc_info.json", ".git/**"]
 allowed_writes = ["target/debug/**", "target/release/**", "target/.rustc_info.json"]
 
