@@ -1901,7 +1901,7 @@ mod tests {
 	#[tokio::test]
 	async fn checkpoint_duty_authority_failure_cannot_advance_durable_intake() {
 		let temp = tempfile::tempdir().unwrap();
-		let store = Arc::new(DiskStore::open(temp.path(), profile(), 1024).unwrap());
+		let store = Arc::new(DiskStore::open(temp.path(), profile()).unwrap());
 		let service = service(store.clone());
 		assert!(poll_checkpoint_duties_once(&service).await.is_err());
 		assert!(store.checkpoint_duty_resume_request().unwrap().is_none());
@@ -1912,7 +1912,7 @@ mod tests {
 	#[tokio::test]
 	async fn production_duty_tick_never_invokes_legacy_challenge_or_completion_seams() {
 		let temp = tempfile::tempdir().unwrap();
-		let store = Arc::new(DiskStore::open(temp.path(), profile(), 1024).unwrap());
+		let store = Arc::new(DiskStore::open(temp.path(), profile()).unwrap());
 		let authority = Arc::new(CanonicalOnlyAuthority::default());
 		let outbox = Arc::new(FaultOutbox::default());
 		let service = ProviderService::new_preopened(

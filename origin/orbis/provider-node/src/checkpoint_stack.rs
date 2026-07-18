@@ -1724,7 +1724,7 @@ mod tests {
 	#[test]
 	fn provider_service_owns_all_checkpoint_roots_under_its_disk_store() {
 		let temp = TempDir::new().unwrap();
-		let store = Arc::new(DiskStore::open(temp.path(), profile(), 1024).unwrap());
+		let store = Arc::new(DiskStore::open(temp.path(), profile()).unwrap());
 		let service = service(store, temp.path()).unwrap();
 
 		assert!(service.checkpoint_stack().submission_heads().unwrap().is_empty());
@@ -1740,7 +1740,7 @@ mod tests {
 	fn provider_service_fails_closed_for_every_corrupt_checkpoint_root() {
 		for durable_root in DURABLE_ROOTS {
 			let temp = TempDir::new().unwrap();
-			let store = Arc::new(DiskStore::open(temp.path(), profile(), 1024).unwrap());
+			let store = Arc::new(DiskStore::open(temp.path(), profile()).unwrap());
 			drop(service(store.clone(), temp.path()).unwrap());
 			let corrupt_path = temp.path().join(durable_root);
 			fs::remove_dir_all(&corrupt_path).unwrap();
@@ -1873,7 +1873,6 @@ mod tests {
 				service_key: hex::encode(signer.public().0),
 				region: None,
 			},
-			1024,
 		)
 		.unwrap();
 		store

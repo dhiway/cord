@@ -96,25 +96,23 @@ impl<A: ChainAuthority> ProviderService<A> {
 	pub fn open(
 		root: impl AsRef<Path>,
 		profile: NodeProfile,
-		capacity_bytes: u64,
 		authority: Arc<A>,
 		service_key: ed25519::Pair,
 	) -> Result<Self, ProviderOpenError> {
 		let root = root.as_ref();
 		let outbox = Arc::new(JsonlManifestDeletionOutbox::for_provider_root(root));
-		Self::open_with_submitter(root, profile, capacity_bytes, authority, service_key, outbox)
+		Self::open_with_submitter(root, profile, authority, service_key, outbox)
 	}
 
 	fn open_with_submitter(
 		root: &Path,
 		profile: NodeProfile,
-		capacity_bytes: u64,
 		authority: Arc<A>,
 		service_key: ed25519::Pair,
 		outbox: Arc<dyn ManifestDeletionSubmitter>,
 	) -> Result<Self, ProviderOpenError> {
 		DiskStore::validate_root(root)?;
-		let store = DiskStore::prepare_open(root, profile, capacity_bytes)?;
+		let store = DiskStore::prepare_open(root, profile)?;
 		let checkpoint_stack = CheckpointStack::prepare_open(root)?;
 		let checkpoint_quorum_scheduler = CheckpointQuorumScheduler::prepare_open(root)?;
 		let outbox_startup = outbox
@@ -155,26 +153,6 @@ impl<A: ChainAuthority> ProviderService<A> {
 			outbox,
 			started_unix_ms: now_ms(),
 		})
-	}
-
-	/// Construct with a crate-owned submitter for focused startup tests and evidence.
-	#[cfg(any(test, feature = "evidence"))]
-	pub(crate) fn open_injected(
-		root: impl AsRef<Path>,
-		profile: NodeProfile,
-		capacity_bytes: u64,
-		authority: Arc<A>,
-		service_key: ed25519::Pair,
-		outbox: Arc<dyn ManifestDeletionSubmitter>,
-	) -> Result<Self, ProviderOpenError> {
-		Self::open_with_submitter(
-			root.as_ref(),
-			profile,
-			capacity_bytes,
-			authority,
-			service_key,
-			outbox,
-		)
 	}
 
 	/// Construct around a store already opened by tests or the evidence harness.
@@ -483,7 +461,6 @@ impl From<StoreError> for ApiError {
 	fn from(error: StoreError) -> Self {
 		let status = match error {
 			StoreError::Invalid(_) => StatusCode::BAD_REQUEST,
-			StoreError::NotFound => StatusCode::NOT_FOUND,
 			StoreError::Capacity => StatusCode::INSUFFICIENT_STORAGE,
 			StoreError::Io(_) => StatusCode::INTERNAL_SERVER_ERROR,
 		};

@@ -42,10 +42,10 @@ completion is driven independently from finalized manifest-deletion duties and
 
 ## Persistence and workers
 
-Blob and index writes use same-directory temporary files, file/directory fsync, and atomic rename.
-The deferred P4 DiskStore model retains append-only proof leaves and private pending journals, but
-production does not create or replay generic object-completion records. Replica node fetches are
-bounded to 1024, bucket names to 255 bytes, and object keys to 1024 bytes.
+Private streaming data and control journals use bounded, crash-safe persistence. The provider
+control journal retains only canonical checkpoint and manifest-deletion duty progress; object bytes,
+proof state, and replication state are owned by the private streaming and checkpoint stacks. Replica
+node fetches are bounded to 1024, bucket names to 255 bytes, and object keys to 1024 bytes.
 
 The process runs only canonical runtime and private-data-plane coordinators:
 

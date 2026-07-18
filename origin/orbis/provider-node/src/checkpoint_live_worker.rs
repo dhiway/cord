@@ -775,7 +775,6 @@ mod tests {
 				service_key: hex::encode(pair(1).public().0),
 				region: None,
 			},
-			1024,
 		)
 		.unwrap();
 		let scheduler = PromotionDiscoveryScheduler::open(temp.path()).unwrap();
@@ -814,7 +813,7 @@ mod tests {
 			service_key: hex::encode(pair(1).public().0),
 			region: None,
 		};
-		let store = DiskStore::open(temp.path(), profile.clone(), 1024).unwrap();
+		let store = DiskStore::open(temp.path(), profile.clone()).unwrap();
 		let duties = (20..28)
 			.map(|seed| {
 				crate::chain::validate_checkpoint_duty(

@@ -58,6 +58,10 @@ TEXT_SUFFIXES = {
     ".sh", ".py", ".graphql", ".proto", ".sol", ".contract",
 }
 
+# The clean-break public provider listener is a control surface only. Any route beyond these two
+# liveness/identity reads is a stale data-plane route and must be owned by the deletion manifest.
+PROVIDER_CONTROL_ROUTES = {("GET", "/health"), ("GET", "/info")}
+
 
 def tracked_and_untracked(root: Path) -> list[str]:
     result = subprocess.run(
@@ -347,7 +351,8 @@ def current_surface_census(root: Path) -> set[tuple[str, str, str]]:
     api_path = "origin/orbis/provider-node/src/api.rs"
     api = (root / api_path).read_text(encoding="utf-8")
     for method, route in re.findall(r"\(Method::([A-Z]+),\s*\"([^\"]+)\"\)", api):
-        surfaces.add((api_path, "provider-route", f"{method} {route}"))
+        if (method, route) not in PROVIDER_CONTROL_ROUTES:
+            surfaces.add((api_path, "provider-route", f"{method} {route}"))
 
     descriptor_root = root / "product-sdk/packages/descriptors/generated"
     for path in descriptor_root.glob("*"):

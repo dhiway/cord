@@ -1083,7 +1083,7 @@ mod tests {
 			service_key: format!("0x{}", hex::encode([2; 32])),
 			region: None,
 		};
-		DiskStore::open(temp.path(), profile, 1024).unwrap();
+		DiskStore::open(temp.path(), profile).unwrap();
 		let stack = Arc::new(CheckpointStack::open(temp.path()).unwrap());
 		let entered = Arc::new(Notify::new());
 		let release = Arc::new(Notify::new());

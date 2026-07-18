@@ -74,6 +74,17 @@ class DeletionCensusTests(unittest.TestCase):
         self.assertIn(row["id"], report["dag_details"]["invalid_items"])
         self.assertEqual(report["unmapped_surface_count"], 1)
 
+    def test_provider_census_excludes_only_canonical_control_reads(self) -> None:
+        with tempfile.TemporaryDirectory() as temporary:
+            root = Path(temporary)
+            self._copy_census_fixture(root)
+            api = "origin/orbis/provider-node/src/api.rs"
+            self._append(root, api, '(Method::GET, "/info"),\n(Method::POST, "/commit"),\n')
+            surfaces = VALIDATOR.current_surface_census(root)
+            self.assertNotIn((api, "provider-route", "GET /health"), surfaces)
+            self.assertNotIn((api, "provider-route", "GET /info"), surfaces)
+            self.assertIn((api, "provider-route", "POST /commit"), surfaces)
+
     def test_rust_export_excludes_internal_identity_routes(self) -> None:
         with tempfile.TemporaryDirectory() as temporary:
             root = Path(temporary)

@@ -924,7 +924,6 @@ mod tests {
 				service_key: duty.service_key.clone(),
 				region: None,
 			},
-			1_000_000,
 		)
 		.unwrap();
 		disk.stage_checkpoint_duty_page(CheckpointDutyBatch {

@@ -69,7 +69,6 @@ use crate::{
 	checkpoint_transport::{
 		CheckpointConfirmationEndpoint, CheckpointConfirmationTransport, CheckpointTransportError,
 	},
-	content::MAX_STORED_BYTES,
 	peer::PeerMmrCommitmentV1,
 	peer_responder::PeerResponder,
 	peer_transport::{PeerTransport, PeerTransportError},
@@ -910,7 +909,7 @@ async fn run_checkpoint(
 	drop(services);
 
 	let reopened_store = Arc::new(
-		DiskStore::open(&roots[0], provider_profile(providers[0], &keys[0])?, MAX_STORED_BYTES)
+		DiskStore::open(&roots[0], provider_profile(providers[0], &keys[0])?)
 			.map_err(|error| ContentError::Io(error.to_string()))?,
 	);
 	let reopened_service = ProviderService::new_preopened(
@@ -1043,7 +1042,7 @@ async fn install_duty(
 ) -> Result<ProviderService<ScriptedCommonsAuthority>, ContentError> {
 	let profile = provider_profile(provider, &key)?;
 	let store = Arc::new(
-		DiskStore::open(root, profile.clone(), MAX_STORED_BYTES)
+		DiskStore::open(root, profile.clone())
 			.map_err(|error| ContentError::Io(error.to_string()))?,
 	);
 	let public = validate_checkpoint_duty(

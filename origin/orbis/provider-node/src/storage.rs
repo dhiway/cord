@@ -32,14 +32,13 @@ use std::{
 	fs,
 	path::{Path, PathBuf},
 	sync::RwLock,
-	time::{SystemTime, UNIX_EPOCH},
 };
 
 use orbis_storage_runtime_api::{
 	CheckpointDutyInfo, DeletionDutyInfo, MAX_CHECKPOINT_DUTY_PAGE_SIZE,
 };
 use serde::{Deserialize, Serialize};
-use codec::{Decode, Encode};
+use codec::Decode;
 use sp_core::{crypto::AccountId32, H256};
 
 use crate::{
@@ -149,7 +148,6 @@ struct DeletionDutyWatermark {
 struct PersistedState {
 	version: u16,
 	profile: NodeProfile,
-	capacity_bytes: u64,
 	checkpoint_duty_watermark: Option<CheckpointDutyWatermark>,
 	checkpoint_duty_intake: Option<CheckpointDutyIntake>,
 	pending_checkpoint_duties: BTreeMap<String, CheckpointDuty>,
@@ -160,27 +158,24 @@ struct PersistedState {
 	pending_manifest_deletions: BTreeMap<String, DeletionDuty>,
 }
 
-/// Storage failures. Callers map these to stable HTTP status codes.
+/// Provider control-journal failures. Callers map these to stable HTTP status codes.
 #[derive(Debug, thiserror::Error)]
 pub enum StoreError {
 	/// Invalid input or attempted invariant violation.
-	#[error("invalid content request: {0}")]
+	#[error("invalid provider control request: {0}")]
 	Invalid(String),
-	/// Content was not found or has been deleted.
-	#[error("content not found")]
-	NotFound,
-	/// Capacity would be exceeded.
-	#[error("provider capacity exceeded")]
+	/// A bounded provider control journal would be exceeded.
+	#[error("provider control journal capacity exceeded")]
 	Capacity,
 	/// Local filesystem or serialization failure.
 	#[error("provider store I/O failed: {0}")]
 	Io(String),
 }
 
-/// Crash-safe filesystem content store.
+/// Crash-safe provider control journal.
 ///
-/// Blob files and the JSON index are written through a same-directory temporary followed by an
-/// atomic rename. A process-local write lock serializes commit/delete/profile transitions.
+/// The JSON control index is written through a same-directory temporary followed by an atomic
+/// rename. Object bytes and provider proof state remain owned by the private streaming stack.
 pub struct DiskStore {
 	root: PathBuf,
 	state: RwLock<PersistedState>,
@@ -376,24 +371,19 @@ impl DiskStore {
 		optional_owned_directory_exists(root).map(|_| ())
 	}
 
-	/// Open or create a provider store. Existing protocol/capacity/provider identity must match.
+	/// Open or create a provider control journal. Existing protocol and provider identity must match.
 	#[cfg(any(test, feature = "evidence", feature = "test-seams"))]
 	pub fn open(
 		root: impl AsRef<Path>,
 		profile: NodeProfile,
-		capacity_bytes: u64,
 	) -> Result<Self, StoreError> {
-		Self::prepare_open(root, profile, capacity_bytes)?.arm()?.apply()
+		Self::prepare_open(root, profile)?.arm()?.apply()
 	}
 
 	pub(crate) fn prepare_open(
 		root: impl AsRef<Path>,
 		profile: NodeProfile,
-		capacity_bytes: u64,
 	) -> Result<PreparedDiskStore, StoreError> {
-		if capacity_bytes == 0 {
-			return Err(StoreError::Invalid("capacity must be non-zero".into()));
-		}
 		validate_profile(&profile)?;
 		let root = root.as_ref().to_path_buf();
 		let root_path = crate::bounded_io::prepare_directory_path(&root).map_err(io_error)?;
@@ -445,11 +435,6 @@ impl DiskStore {
 					"configured provider identity does not match persisted store".into(),
 				));
 			}
-			if existing.capacity_bytes != capacity_bytes {
-				return Err(StoreError::Invalid(
-					"capacity changes require authenticated PUT /node".into(),
-				));
-			}
 			(
 				existing,
 				PreparedProviderIndexGuard::Present {
@@ -462,7 +447,6 @@ impl DiskStore {
 			(PersistedState {
 				version: PROTOCOL_VERSION,
 				profile,
-				capacity_bytes,
 				checkpoint_duty_watermark: None,
 				checkpoint_duty_intake: None,
 				pending_checkpoint_duties: BTreeMap::new(),
@@ -512,24 +496,6 @@ impl DiskStore {
 	/// Return the finalized provider profile retained for canonical duty validation.
 	pub fn profile(&self) -> Result<NodeProfile, StoreError> {
 		Ok(self.read_state()?.profile.clone())
-	}
-
-	/// Persist only mutable endpoint/region and capacity configuration.
-	pub fn update_profile(&self, profile: NodeProfile, capacity_bytes: u64) -> Result<(), StoreError> {
-		validate_profile(&profile)?;
-		if capacity_bytes == 0 {
-			return Err(StoreError::Invalid("capacity must be non-zero".into()));
-		}
-		let mut state = self.write_state()?;
-		if profile.provider != state.profile.provider || profile.service_key != state.profile.service_key {
-			return Err(StoreError::Invalid("provider and service_key are immutable for an initialized store".into()));
-		}
-		let mut next = state.clone();
-		next.profile = profile;
-		next.capacity_bytes = capacity_bytes;
-		self.persist_state(&next)?;
-		*state = next;
-		Ok(())
 	}
 
 	/// Atomically stage one page or install a terminal finalized checkpoint-duty snapshot.
@@ -1357,13 +1323,6 @@ fn verify_checkpoint_duty_state(state: &PersistedState) -> Result<(), StoreError
 		}
 	}
 	Ok(())
-}
-
-fn now_ms() -> Result<u64, StoreError> {
-	Ok(SystemTime::now()
-		.duration_since(UNIX_EPOCH)
-		.map_err(|error| StoreError::Io(error.to_string()))?
-		.as_millis() as u64)
 }
 
 fn persist_state_at(root: &fs::File, state: &PersistedState) -> Result<(), StoreError> {

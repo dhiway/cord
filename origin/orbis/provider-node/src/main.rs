@@ -49,12 +49,9 @@ struct Cli {
 	/// Public provider HTTP endpoint recorded on Orbis.
 	#[arg(long)]
 	public_endpoint: String,
-	/// Filesystem root for blobs and the crash-safe index.
+	/// Filesystem root for the private streaming stack and crash-safe control journals.
 	#[arg(long)]
 	data_path: PathBuf,
-	/// Local storage capacity. Must match the operator-approved provider record.
-	#[arg(long)]
-	capacity_bytes: u64,
 	/// HTTP listener.
 	#[arg(long, default_value = "127.0.0.1:8080")]
 	listen: SocketAddr,
@@ -119,7 +116,6 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
 	let service = Arc::new(ProviderService::open(
 		&cli.data_path,
 		profile,
-		cli.capacity_bytes,
 		authority,
 		service_key,
 	)?);

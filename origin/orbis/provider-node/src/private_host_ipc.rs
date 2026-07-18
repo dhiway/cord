@@ -706,7 +706,6 @@ mod tests {
 			ProviderService::open(
 				temp.path(),
 				profile,
-				1024 * 1024,
 				Arc::new(PrivateHostAuthority { snapshot, topology }),
 				service_key,
 			)

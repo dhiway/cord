@@ -1294,7 +1294,7 @@ mod tests {
 			service_key: hex::encode(local_key.public().0),
 			region: None,
 		};
-		let store = DiskStore::open(temp.path(), profile.clone(), 1024).unwrap();
+		let store = DiskStore::open(temp.path(), profile.clone()).unwrap();
 		store
 			.stage_checkpoint_duty_page(CheckpointDutyBatch {
 				finalized_hash: hex::encode([5; 32]),
