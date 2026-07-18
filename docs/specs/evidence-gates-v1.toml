@@ -368,10 +368,15 @@ sha256 = "404e7debb220a86cdc76279396af748d9eade829a89a95ef456eb0b70bb45112"
 
 [[gate.input]]
 path = "scripts/validate-provider-organization.py"
-sha256 = "record"
-input_class = "generated"
-producer_gate = "AC4-implementation"
-producer_output = "scripts/validate-provider-organization.py"
+sha256 = "8c7bc304630f8aa267c7bc4209777742e3357e9c6b431a53a0023dcc43ccc0b9"
+
+[[gate.input]]
+path = "origin/orbis/pallets/storage-provider/src/lib.rs"
+sha256 = "3e7e8ae0c70cc959c8b0f7862d6296b92d5a7c544149460cbd74a245a17dd356"
+
+[[gate.input]]
+path = "origin/orbis/pallets/storage-provider/src/tests.rs"
+sha256 = "b13efd9e0804d04e5857a39a9271a073879d50220af91d93674ec859916c97be"
 
 [[gate.command]]
 cwd = "."
@@ -386,7 +391,7 @@ cwd = "."
 argv = ["python3", "scripts/validate-provider-organization.py", "--out", "target/evidence/ac4-assertions.json"]
 test_count = 0
 outputs = ["target/evidence/ac4-assertions.json"]
-inputs = ["scripts/validate-provider-organization.py"]
+inputs = ["scripts/validate-provider-organization.py", "origin/orbis/pallets/storage-provider/src/lib.rs", "origin/orbis/pallets/storage-provider/src/tests.rs"]
 allowed_writes = []
 
 [[gate.artifact]]
@@ -1395,7 +1400,7 @@ sha256 = "1ee21acc0580bc7698cef67d6ef293c15d54d506288e38252fb6bcad7659e52a"
 
 [[gate.input]]
 path = "docs/specs/cord-change-slices.toml"
-sha256 = "3848cde7c62912f9aafe0144df39a09cc0b6f176a3edbf2c9e16c2f6f768c5e3"
+sha256 = "ef7155159542129639cb24d9843137c8a903939a78658ec8e3b6269bf076a6b3"
 
 [[gate.input]]
 path = "docs/specs/reference-repositories.toml"
@@ -1476,7 +1481,7 @@ sha256 = "5e8d3425ea3660b308cbda199045e2d2937866df5ef74c8399307cc3bf0b6850"
 
 [[gate.input]]
 path = "docs/specs/cord-change-slices.toml"
-sha256 = "3848cde7c62912f9aafe0144df39a09cc0b6f176a3edbf2c9e16c2f6f768c5e3"
+sha256 = "ef7155159542129639cb24d9843137c8a903939a78658ec8e3b6269bf076a6b3"
 
 [[gate.input]]
 path = "scripts/check-source-headers.py"
@@ -1484,10 +1489,7 @@ sha256 = "7b921593b5ba35b245d853185af26905bf53037c8273877bd5a8bd6433067068"
 
 [[gate.input]]
 path = "scripts/verify-slice-commits.py"
-sha256 = "record"
-input_class = "generated"
-producer_gate = "AC13-implementation"
-producer_output = "scripts/verify-slice-commits.py"
+sha256 = "f2f877c4ca675135eab24c7442e02b65a845c46aa490d0152dacd7501804985d"
 
 [[gate.command]]
 cwd = "."
