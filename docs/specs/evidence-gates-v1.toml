@@ -2519,6 +2519,11 @@ path = "target/evidence/origin-commons-runtime.portable-registry.json"
 sha256 = "record"
 schema = "portable-registry-v1"
 
+[[gate.artifact]]
+path = "target/evidence/origin-commons-runtime.compact.wasm"
+sha256 = "record"
+schema = "compact-wasm-v1"
+
 [[gate.assertion]]
 clause = "metadata-export"
 source = "target/evidence/origin-commons-runtime.receipt.json"
