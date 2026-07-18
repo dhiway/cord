@@ -162,7 +162,7 @@
         {
           "code": 212,
           "name": "STORAGE_OPERATION_RECEIPT_CAPACITY_REACHED",
-          "retryable": true
+          "retryable": false
         },
         {
           "code": 250,
@@ -5590,7 +5590,7 @@
         {
           "code": 212,
           "name": "STORAGE_OPERATION_RECEIPT_CAPACITY_REACHED",
-          "retryable": true
+          "retryable": false
         },
         {
           "code": 250,

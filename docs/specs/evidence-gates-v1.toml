@@ -663,7 +663,7 @@ sha256 = "57ccf9526aee209063c673214cc4bec77ebea16bdc9e8762b3b64d5eed61b048"
 
 [[gate.input]]
 path = "docs/specs/host-provider-wire-v2.toml"
-sha256 = "f71085482d6ed0010ffd5adfe6dc340874e82e3ea232cf2b727c3a83fc202dc5"
+sha256 = "8eb24d30f8a0cfad5b19ad9a385809eae23dfff37449ad55e68e89f39d5cc9a4"
 
 [[gate.input]]
 path = "docs/specs/host-provider-protocol-v2.md"
@@ -675,7 +675,7 @@ sha256 = "42e4e9660d7e2c26f15565a2448f9d2b384cb5c73321422a3b9ae9107f364b57"
 
 [[gate.input]]
 path = "docs/specs/origin-host-registry-v2.operations.json"
-sha256 = "0263f2d550e07a982b8c4a5f4b5edc471ee721ab28e8acab5f25f109e5e96abc"
+sha256 = "2489e8c5b98e221cf4b93e0308f82149672ba53aadf5c22fc1fe2fa2a9c4c49b"
 
 [[gate.input]]
 path = "docs/specs/origin-host-registry-v2.errors.json"
@@ -723,7 +723,7 @@ sha256 = "a0e502543e69f06830a46a68ee9cca3a8664b709fbd338627ba8f6a27ebd53c6"
 
 [[gate.input]]
 path = "origin/orbis/provider-node/src/capability.rs"
-sha256 = "9aa355f7e80df9cfd1810c5e3e42e511de74441ecec20ca01e3794577d6e9c93"
+sha256 = "c4f277cbd62ae5c7fc383f4d4b09eb5343628cbfa28c38730f94c67ad2bccc65"
 
 [[gate.input]]
 path = "origin/orbis/provider-node/src/storage/streaming/recovery.rs"
@@ -1731,7 +1731,7 @@ sha256 = "ca9325a8adb0aad5b7db9b24bc27f1305087d0aead872d548df79ffa54139950"
 
 [[gate.input]]
 path = "docs/specs/origin-host-registry-v2.operations.json"
-sha256 = "0263f2d550e07a982b8c4a5f4b5edc471ee721ab28e8acab5f25f109e5e96abc"
+sha256 = "2489e8c5b98e221cf4b93e0308f82149672ba53aadf5c22fc1fe2fa2a9c4c49b"
 
 [[gate.input]]
 path = "docs/specs/origin-host-registry-v2.errors.json"
@@ -2387,28 +2387,28 @@ clause = "cddl-authority"
 source = "target/p0-origin-host-cross-contract-report.json"
 json_pointer = "/authority/cddl_sha256"
 operator = "sha256_eq"
-expected = "71d71f02b7c1b4e55892c88bb6cdeba53852f981625f7bf831b79c97520264e3"
+expected = "42e4e9660d7e2c26f15565a2448f9d2b384cb5c73321422a3b9ae9107f364b57"
 
 [[gate.assertion]]
 clause = "operations-authority"
 source = "target/p0-origin-host-cross-contract-report.json"
 json_pointer = "/authority/operations_sha256"
 operator = "sha256_eq"
-expected = "48934f781f5bd7f377684a5f17dd5eb3d9efa2b178b408cb0db80eb5b3d738b1"
+expected = "2489e8c5b98e221cf4b93e0308f82149672ba53aadf5c22fc1fe2fa2a9c4c49b"
 
 [[gate.assertion]]
 clause = "errors-authority"
 source = "target/p0-origin-host-cross-contract-report.json"
 json_pointer = "/authority/errors_sha256"
 operator = "sha256_eq"
-expected = "5bce2efd0c2c84d9bd09f568100467ffb2681a42e4f405746937c9651c6dc0eb"
+expected = "20e8135116ac9b82f86891b798224ec5c08ac09cdc6c249269e7a8e236ae88c5"
 
 [[gate.assertion]]
 clause = "host-vectors-authority"
 source = "target/p0-origin-host-cross-contract-report.json"
 json_pointer = "/authority/host_vectors_sha256"
 operator = "sha256_eq"
-expected = "9ef6624ba14275b9e30cca8ff786255011962e05986a12aac0071c85427be71c"
+expected = "3845b833817f14f6b7a0bebfd15d6601d6a8325d2e518bf4ea9d29dbc683fdf4"
 
 [[gate.assertion]]
 clause = "protocol-vectors-authority"
