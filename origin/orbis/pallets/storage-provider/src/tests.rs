@@ -85,6 +85,14 @@ fn setup_bucket() -> H256 {
 	BucketIds::<Test>::get()[0]
 }
 
+/// Remove idempotency receipts from bulk-admission setup so this fixture tests
+/// the duty bound rather than the independent per-owner receipt bound.
+fn clear_bucket_operation_receipts(owner: u64) {
+	for operation_id in crate::BucketOperationReceiptIds::<Test>::take(owner) {
+		crate::BucketOperationReceipts::<Test>::remove(owner, operation_id);
+	}
+}
+
 #[test]
 fn bucket_creation_operation_id_replays_once_and_rejects_rebinding() {
 	new_test_ext().execute_with(|| {
@@ -1833,6 +1841,7 @@ fn checkpoint_duty_admission_is_exactly_bounded_per_block() {
 				System::block_number().saturating_add(10),
 				(index as u128).to_le_bytes()
 			));
+			clear_bucket_operation_receipts(OWNER);
 		}
 		assert_eq!(DutyAdmissionCount::<Test>::get(), 8);
 		assert_eq!(CheckpointDutyPending::<Test>::iter().count(), 8);
@@ -1866,6 +1875,7 @@ fn checkpoint_duty_admission_is_exactly_bounded_per_block() {
 fn checkpoint_and_challenge_admissions_share_one_exact_bound() {
 	new_test_ext().execute_with(|| {
 		let bucket = setup_bucket();
+		clear_bucket_operation_receipts(OWNER);
 		BucketSnapshots::<Test>::insert(
 			bucket,
 			crate::BucketSnapshot {
@@ -1889,6 +1899,7 @@ fn checkpoint_and_challenge_admissions_share_one_exact_bound() {
 				System::block_number().saturating_add(10),
 				(index as u128).to_le_bytes()
 			));
+			clear_bucket_operation_receipts(OWNER);
 		}
 		for index in 0..4 {
 			assert_ok!(StorageProvider::issue_challenge(
