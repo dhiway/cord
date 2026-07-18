@@ -27,7 +27,7 @@ const TYPED_OUTCOME_ARTIFACT: &str = "p1-provider-typed-outcomes.json";
 
 #[derive(Serialize)]
 struct TypedOutcomeEvidence<'a> {
-	schema: u16,
+	schema: &'static str,
 	status: &'static str,
 	provider_count: usize,
 	active_provider_count: usize,
@@ -140,7 +140,7 @@ async fn deterministic_failover() {
 	fs::rename(&temporary, &artifact).expect("publish AC5 evidence artifact atomically");
 
 	let typed = TypedOutcomeEvidence {
-		schema: 1,
+		schema: "cord.p1-provider-typed-outcomes.v1",
 		status: "pass",
 		provider_count: evidence.provider_count,
 		active_provider_count: evidence
