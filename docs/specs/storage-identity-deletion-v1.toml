@@ -3742,6 +3742,363 @@ prerequisites = ["DEL-NODE-PROOF-9B2C2A1EDCCF"]
 post_delete_scans = ["path:origin/orbis/node/src/proof_campaign/service.rs", "symbol:start", "consumer:provider challenge/reconciliation workers"]
 
 [[item]]
+id = "DEL-PROVIDER-ROUTE-4DFFA696663B"
+path = "origin/orbis/provider-node/src/api.rs"
+symbol = "GET /buckets"
+kind = "provider-route"
+surface_locator = "http-route"
+owns_obsolete = []
+replacement_consumer = "provider protocol v1 canonical routes"
+replacement_owner = "provider byte-plane owner"
+replacement_test = "python3 scripts/validate-storage-identity-deletion.py --manifest docs/specs/storage-identity-deletion-v1.toml --p0-audit --out target/evidence/deletion-census.json"
+replacement_gate = "AC7"
+slice = "P4_PROVIDER"
+order = 216
+status = "deleted"
+prerequisites = ["DEL-NODE-PROOF-F6155F31BBAE"]
+post_delete_scans = ["path:origin/orbis/provider-node/src/api.rs", "symbol:GET /buckets", "consumer:provider protocol v1 canonical routes"]
+
+[[item]]
+id = "DEL-PROVIDER-ROUTE-E6226CF4B9DE"
+path = "origin/orbis/provider-node/src/api.rs"
+symbol = "GET /checkpoint-signature"
+kind = "provider-route"
+surface_locator = "http-route"
+owns_obsolete = []
+replacement_consumer = "provider protocol v1 canonical routes"
+replacement_owner = "provider byte-plane owner"
+replacement_test = "python3 scripts/validate-storage-identity-deletion.py --manifest docs/specs/storage-identity-deletion-v1.toml --p0-audit --out target/evidence/deletion-census.json"
+replacement_gate = "AC7"
+slice = "P4_PROVIDER"
+order = 217
+status = "deleted"
+prerequisites = ["DEL-PROVIDER-ROUTE-4DFFA696663B"]
+post_delete_scans = ["path:origin/orbis/provider-node/src/api.rs", "symbol:GET /checkpoint-signature", "consumer:provider protocol v1 canonical routes"]
+
+[[item]]
+id = "DEL-PROVIDER-ROUTE-7F17E6686883"
+path = "origin/orbis/provider-node/src/api.rs"
+symbol = "GET /checkpoint/duty"
+kind = "provider-route"
+surface_locator = "http-route"
+owns_obsolete = []
+replacement_consumer = "provider protocol v1 canonical routes"
+replacement_owner = "provider byte-plane owner"
+replacement_test = "python3 scripts/validate-storage-identity-deletion.py --manifest docs/specs/storage-identity-deletion-v1.toml --p0-audit --out target/evidence/deletion-census.json"
+replacement_gate = "AC7"
+slice = "P4_PROVIDER"
+order = 218
+status = "deleted"
+prerequisites = ["DEL-PROVIDER-ROUTE-E6226CF4B9DE"]
+post_delete_scans = ["path:origin/orbis/provider-node/src/api.rs", "symbol:GET /checkpoint/duty", "consumer:provider protocol v1 canonical routes"]
+
+[[item]]
+id = "DEL-PROVIDER-ROUTE-CA7DF522B70D"
+path = "origin/orbis/provider-node/src/api.rs"
+symbol = "GET /chunk_proof"
+kind = "provider-route"
+surface_locator = "http-route"
+owns_obsolete = []
+replacement_consumer = "provider protocol v1 canonical routes"
+replacement_owner = "provider byte-plane owner"
+replacement_test = "python3 scripts/validate-storage-identity-deletion.py --manifest docs/specs/storage-identity-deletion-v1.toml --p0-audit --out target/evidence/deletion-census.json"
+replacement_gate = "AC7"
+slice = "P4_PROVIDER"
+order = 219
+status = "deleted"
+prerequisites = ["DEL-PROVIDER-ROUTE-7F17E6686883"]
+post_delete_scans = ["path:origin/orbis/provider-node/src/api.rs", "symbol:GET /chunk_proof", "consumer:provider protocol v1 canonical routes"]
+
+[[item]]
+id = "DEL-PROVIDER-ROUTE-20D6F4C9FD95"
+path = "origin/orbis/provider-node/src/api.rs"
+symbol = "GET /commitment"
+kind = "provider-route"
+surface_locator = "http-route"
+owns_obsolete = []
+replacement_consumer = "provider protocol v1 canonical routes"
+replacement_owner = "provider byte-plane owner"
+replacement_test = "python3 scripts/validate-storage-identity-deletion.py --manifest docs/specs/storage-identity-deletion-v1.toml --p0-audit --out target/evidence/deletion-census.json"
+replacement_gate = "AC7"
+slice = "P4_PROVIDER"
+order = 220
+status = "deleted"
+prerequisites = ["DEL-PROVIDER-ROUTE-CA7DF522B70D"]
+post_delete_scans = ["path:origin/orbis/provider-node/src/api.rs", "symbol:GET /commitment", "consumer:provider protocol v1 canonical routes"]
+
+[[item]]
+id = "DEL-PROVIDER-ROUTE-74FAC65F350E"
+path = "origin/orbis/provider-node/src/api.rs"
+symbol = "GET /health"
+kind = "provider-route"
+surface_locator = "http-route"
+owns_obsolete = []
+replacement_consumer = "provider protocol v1 canonical routes"
+replacement_owner = "provider byte-plane owner"
+replacement_test = "python3 scripts/validate-storage-identity-deletion.py --manifest docs/specs/storage-identity-deletion-v1.toml --p0-audit --out target/evidence/deletion-census.json"
+replacement_gate = "AC7"
+slice = "P4_PROVIDER"
+order = 221
+status = "replacement-active"
+prerequisites = ["DEL-PROVIDER-ROUTE-20D6F4C9FD95"]
+post_delete_scans = ["path:origin/orbis/provider-node/src/api.rs", "symbol:GET /health", "consumer:provider protocol v1 canonical routes"]
+
+[[item]]
+id = "DEL-PROVIDER-ROUTE-738181B06D10"
+path = "origin/orbis/provider-node/src/api.rs"
+symbol = "GET /info"
+kind = "provider-route"
+surface_locator = "http-route"
+owns_obsolete = []
+replacement_consumer = "provider protocol v1 canonical routes"
+replacement_owner = "provider byte-plane owner"
+replacement_test = "python3 scripts/validate-storage-identity-deletion.py --manifest docs/specs/storage-identity-deletion-v1.toml --p0-audit --out target/evidence/deletion-census.json"
+replacement_gate = "AC7"
+slice = "P4_PROVIDER"
+order = 222
+status = "replacement-active"
+prerequisites = ["DEL-PROVIDER-ROUTE-74FAC65F350E"]
+post_delete_scans = ["path:origin/orbis/provider-node/src/api.rs", "symbol:GET /info", "consumer:provider protocol v1 canonical routes"]
+
+[[item]]
+id = "DEL-PROVIDER-ROUTE-10BB293D96B1"
+path = "origin/orbis/provider-node/src/api.rs"
+symbol = "GET /mmr_peaks"
+kind = "provider-route"
+surface_locator = "http-route"
+owns_obsolete = []
+replacement_consumer = "provider protocol v1 canonical routes"
+replacement_owner = "provider byte-plane owner"
+replacement_test = "python3 scripts/validate-storage-identity-deletion.py --manifest docs/specs/storage-identity-deletion-v1.toml --p0-audit --out target/evidence/deletion-census.json"
+replacement_gate = "AC7"
+slice = "P4_PROVIDER"
+order = 223
+status = "deleted"
+prerequisites = ["DEL-PROVIDER-ROUTE-738181B06D10"]
+post_delete_scans = ["path:origin/orbis/provider-node/src/api.rs", "symbol:GET /mmr_peaks", "consumer:provider protocol v1 canonical routes"]
+
+[[item]]
+id = "DEL-PROVIDER-ROUTE-22E3E1136631"
+path = "origin/orbis/provider-node/src/api.rs"
+symbol = "GET /mmr_proof"
+kind = "provider-route"
+surface_locator = "http-route"
+owns_obsolete = []
+replacement_consumer = "provider protocol v1 canonical routes"
+replacement_owner = "provider byte-plane owner"
+replacement_test = "python3 scripts/validate-storage-identity-deletion.py --manifest docs/specs/storage-identity-deletion-v1.toml --p0-audit --out target/evidence/deletion-census.json"
+replacement_gate = "AC7"
+slice = "P4_PROVIDER"
+order = 224
+status = "deleted"
+prerequisites = ["DEL-PROVIDER-ROUTE-10BB293D96B1"]
+post_delete_scans = ["path:origin/orbis/provider-node/src/api.rs", "symbol:GET /mmr_proof", "consumer:provider protocol v1 canonical routes"]
+
+[[item]]
+id = "DEL-PROVIDER-ROUTE-75095FCC3DA3"
+path = "origin/orbis/provider-node/src/api.rs"
+symbol = "GET /mmr_subtree"
+kind = "provider-route"
+surface_locator = "http-route"
+owns_obsolete = []
+replacement_consumer = "provider protocol v1 canonical routes"
+replacement_owner = "provider byte-plane owner"
+replacement_test = "python3 scripts/validate-storage-identity-deletion.py --manifest docs/specs/storage-identity-deletion-v1.toml --p0-audit --out target/evidence/deletion-census.json"
+replacement_gate = "AC7"
+slice = "P4_PROVIDER"
+order = 225
+status = "deleted"
+prerequisites = ["DEL-PROVIDER-ROUTE-22E3E1136631"]
+post_delete_scans = ["path:origin/orbis/provider-node/src/api.rs", "symbol:GET /mmr_subtree", "consumer:provider protocol v1 canonical routes"]
+
+[[item]]
+id = "DEL-PROVIDER-ROUTE-55EB60DFD382"
+path = "origin/orbis/provider-node/src/api.rs"
+symbol = "GET /node"
+kind = "provider-route"
+surface_locator = "http-route"
+owns_obsolete = []
+replacement_consumer = "provider protocol v1 canonical routes"
+replacement_owner = "provider byte-plane owner"
+replacement_test = "python3 scripts/validate-storage-identity-deletion.py --manifest docs/specs/storage-identity-deletion-v1.toml --p0-audit --out target/evidence/deletion-census.json"
+replacement_gate = "AC7"
+slice = "P4_PROVIDER"
+order = 226
+status = "deleted"
+prerequisites = ["DEL-PROVIDER-ROUTE-75095FCC3DA3"]
+post_delete_scans = ["path:origin/orbis/provider-node/src/api.rs", "symbol:GET /node", "consumer:provider protocol v1 canonical routes"]
+
+[[item]]
+id = "DEL-PROVIDER-ROUTE-00926533CE52"
+path = "origin/orbis/provider-node/src/api.rs"
+symbol = "GET /read"
+kind = "provider-route"
+surface_locator = "http-route"
+owns_obsolete = []
+replacement_consumer = "provider protocol v1 canonical routes"
+replacement_owner = "provider byte-plane owner"
+replacement_test = "python3 scripts/validate-storage-identity-deletion.py --manifest docs/specs/storage-identity-deletion-v1.toml --p0-audit --out target/evidence/deletion-census.json"
+replacement_gate = "AC7"
+slice = "P4_PROVIDER"
+order = 227
+status = "deleted"
+prerequisites = ["DEL-PROVIDER-ROUTE-55EB60DFD382"]
+post_delete_scans = ["path:origin/orbis/provider-node/src/api.rs", "symbol:GET /read", "consumer:provider protocol v1 canonical routes"]
+
+[[item]]
+id = "DEL-PROVIDER-ROUTE-62C3B69E4C52"
+path = "origin/orbis/provider-node/src/api.rs"
+symbol = "GET /replica/historical_roots"
+kind = "provider-route"
+surface_locator = "http-route"
+owns_obsolete = []
+replacement_consumer = "provider protocol v1 canonical routes"
+replacement_owner = "provider byte-plane owner"
+replacement_test = "python3 scripts/validate-storage-identity-deletion.py --manifest docs/specs/storage-identity-deletion-v1.toml --p0-audit --out target/evidence/deletion-census.json"
+replacement_gate = "AC7"
+slice = "P4_PROVIDER"
+order = 228
+status = "deleted"
+prerequisites = ["DEL-PROVIDER-ROUTE-00926533CE52"]
+post_delete_scans = ["path:origin/orbis/provider-node/src/api.rs", "symbol:GET /replica/historical_roots", "consumer:provider protocol v1 canonical routes"]
+
+[[item]]
+id = "DEL-PROVIDER-ROUTE-84BDF7FDED81"
+path = "origin/orbis/provider-node/src/api.rs"
+symbol = "GET /replica/sync_status"
+kind = "provider-route"
+surface_locator = "http-route"
+owns_obsolete = []
+replacement_consumer = "provider protocol v1 canonical routes"
+replacement_owner = "provider byte-plane owner"
+replacement_test = "python3 scripts/validate-storage-identity-deletion.py --manifest docs/specs/storage-identity-deletion-v1.toml --p0-audit --out target/evidence/deletion-census.json"
+replacement_gate = "AC7"
+slice = "P4_PROVIDER"
+order = 229
+status = "deleted"
+prerequisites = ["DEL-PROVIDER-ROUTE-62C3B69E4C52"]
+post_delete_scans = ["path:origin/orbis/provider-node/src/api.rs", "symbol:GET /replica/sync_status", "consumer:provider protocol v1 canonical routes"]
+
+[[item]]
+id = "DEL-PROVIDER-ROUTE-AC869A77B689"
+path = "origin/orbis/provider-node/src/api.rs"
+symbol = "GET /stats"
+kind = "provider-route"
+surface_locator = "http-route"
+owns_obsolete = []
+replacement_consumer = "provider protocol v1 canonical routes"
+replacement_owner = "provider byte-plane owner"
+replacement_test = "python3 scripts/validate-storage-identity-deletion.py --manifest docs/specs/storage-identity-deletion-v1.toml --p0-audit --out target/evidence/deletion-census.json"
+replacement_gate = "AC7"
+slice = "P4_PROVIDER"
+order = 230
+status = "deleted"
+prerequisites = ["DEL-PROVIDER-ROUTE-84BDF7FDED81"]
+post_delete_scans = ["path:origin/orbis/provider-node/src/api.rs", "symbol:GET /stats", "consumer:provider protocol v1 canonical routes"]
+
+[[item]]
+id = "DEL-PROVIDER-ROUTE-3620FFB5C5D0"
+path = "origin/orbis/provider-node/src/api.rs"
+symbol = "POST /checkpoint/sign"
+kind = "provider-route"
+surface_locator = "http-route"
+owns_obsolete = []
+replacement_consumer = "provider protocol v1 canonical routes"
+replacement_owner = "provider byte-plane owner"
+replacement_test = "python3 scripts/validate-storage-identity-deletion.py --manifest docs/specs/storage-identity-deletion-v1.toml --p0-audit --out target/evidence/deletion-census.json"
+replacement_gate = "AC7"
+slice = "P4_PROVIDER"
+order = 231
+status = "deleted"
+prerequisites = ["DEL-PROVIDER-ROUTE-AC869A77B689"]
+post_delete_scans = ["path:origin/orbis/provider-node/src/api.rs", "symbol:POST /checkpoint/sign", "consumer:provider protocol v1 canonical routes"]
+
+[[item]]
+id = "DEL-PROVIDER-ROUTE-171A9C7C60E5"
+path = "origin/orbis/provider-node/src/api.rs"
+symbol = "POST /commit"
+kind = "provider-route"
+surface_locator = "http-route"
+owns_obsolete = []
+replacement_consumer = "provider protocol v1 canonical routes"
+replacement_owner = "provider byte-plane owner"
+replacement_test = "python3 scripts/validate-storage-identity-deletion.py --manifest docs/specs/storage-identity-deletion-v1.toml --p0-audit --out target/evidence/deletion-census.json"
+replacement_gate = "AC7"
+slice = "P4_PROVIDER"
+order = 232
+status = "deleted"
+prerequisites = ["DEL-PROVIDER-ROUTE-3620FFB5C5D0"]
+post_delete_scans = ["path:origin/orbis/provider-node/src/api.rs", "symbol:POST /commit", "consumer:provider protocol v1 canonical routes"]
+
+[[item]]
+id = "DEL-PROVIDER-ROUTE-29865739049E"
+path = "origin/orbis/provider-node/src/api.rs"
+symbol = "POST /delete"
+kind = "provider-route"
+surface_locator = "http-route"
+owns_obsolete = []
+replacement_consumer = "provider protocol v1 canonical routes"
+replacement_owner = "provider byte-plane owner"
+replacement_test = "python3 scripts/validate-storage-identity-deletion.py --manifest docs/specs/storage-identity-deletion-v1.toml --p0-audit --out target/evidence/deletion-census.json"
+replacement_gate = "AC7"
+slice = "P4_PROVIDER"
+order = 233
+status = "deleted"
+prerequisites = ["DEL-PROVIDER-ROUTE-171A9C7C60E5"]
+post_delete_scans = ["path:origin/orbis/provider-node/src/api.rs", "symbol:POST /delete", "consumer:provider protocol v1 canonical routes"]
+
+[[item]]
+id = "DEL-PROVIDER-ROUTE-E6FADE0F166A"
+path = "origin/orbis/provider-node/src/api.rs"
+symbol = "POST /exists"
+kind = "provider-route"
+surface_locator = "http-route"
+owns_obsolete = []
+replacement_consumer = "provider protocol v1 canonical routes"
+replacement_owner = "provider byte-plane owner"
+replacement_test = "python3 scripts/validate-storage-identity-deletion.py --manifest docs/specs/storage-identity-deletion-v1.toml --p0-audit --out target/evidence/deletion-census.json"
+replacement_gate = "AC7"
+slice = "P4_PROVIDER"
+order = 234
+status = "deleted"
+prerequisites = ["DEL-PROVIDER-ROUTE-29865739049E"]
+post_delete_scans = ["path:origin/orbis/provider-node/src/api.rs", "symbol:POST /exists", "consumer:provider protocol v1 canonical routes"]
+
+[[item]]
+id = "DEL-PROVIDER-ROUTE-2569656435CD"
+path = "origin/orbis/provider-node/src/api.rs"
+symbol = "POST /fetch_nodes"
+kind = "provider-route"
+surface_locator = "http-route"
+owns_obsolete = []
+replacement_consumer = "provider protocol v1 canonical routes"
+replacement_owner = "provider byte-plane owner"
+replacement_test = "python3 scripts/validate-storage-identity-deletion.py --manifest docs/specs/storage-identity-deletion-v1.toml --p0-audit --out target/evidence/deletion-census.json"
+replacement_gate = "AC7"
+slice = "P4_PROVIDER"
+order = 235
+status = "deleted"
+prerequisites = ["DEL-PROVIDER-ROUTE-E6FADE0F166A"]
+post_delete_scans = ["path:origin/orbis/provider-node/src/api.rs", "symbol:POST /fetch_nodes", "consumer:provider protocol v1 canonical routes"]
+
+[[item]]
+id = "DEL-PROVIDER-ROUTE-8FE2F9E35149"
+path = "origin/orbis/provider-node/src/api.rs"
+symbol = "PUT /node"
+kind = "provider-route"
+surface_locator = "http-route"
+owns_obsolete = []
+replacement_consumer = "provider protocol v1 canonical routes"
+replacement_owner = "provider byte-plane owner"
+replacement_test = "python3 scripts/validate-storage-identity-deletion.py --manifest docs/specs/storage-identity-deletion-v1.toml --p0-audit --out target/evidence/deletion-census.json"
+replacement_gate = "AC7"
+slice = "P4_PROVIDER"
+order = 236
+status = "deleted"
+prerequisites = ["DEL-PROVIDER-ROUTE-2569656435CD"]
+post_delete_scans = ["path:origin/orbis/provider-node/src/api.rs", "symbol:PUT /node", "consumer:provider protocol v1 canonical routes"]
+
+[[item]]
 id = "DEL-DESCRIPTOR-65518AACD373"
 path = "product-sdk/packages/descriptors/generated/commons-papi-manifest.json"
 symbol = "file:product-sdk/packages/descriptors/generated/commons-papi-manifest.json"
@@ -3755,7 +4112,7 @@ replacement_gate = "AC8"
 slice = "P4_RUNTIME"
 order = 237
 status = "replacement-active"
-prerequisites = ["DEL-NODE-PROOF-F6155F31BBAE"]
+prerequisites = ["DEL-PROVIDER-ROUTE-8FE2F9E35149"]
 post_delete_scans = ["path:product-sdk/packages/descriptors/generated/commons-papi-manifest.json", "symbol:file:product-sdk/packages/descriptors/generated/commons-papi-manifest.json", "consumer:native runtime metadata descriptor"]
 
 [[item]]
@@ -3902,7 +4259,7 @@ replacement_test = "python3 scripts/validate-storage-identity-deletion.py --mani
 replacement_gate = "AC8"
 slice = "P5"
 order = 246
-status = "replacement-active"
+status = "deleted"
 prerequisites = ["DEL-PUBLIC-ROUTE-6D495119BC6B"]
 post_delete_scans = ["path:origin-rs/src/product_sdk/transport.rs", "symbol:rust-export::storage_provider", "consumer:unified Identity/storage SDK facade"]
 [[item]]
