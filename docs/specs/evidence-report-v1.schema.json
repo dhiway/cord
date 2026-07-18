@@ -620,6 +620,8 @@
       "codes",
       "seven-ops",
       "separate-signing",
+      "typescript-public-v2",
+      "rust-public-v2",
       "restart-replay",
       "fresh-recovery",
       "continuity",
@@ -662,6 +664,7 @@
       "roots",
       "errors",
       "metrics",
+      "provider-input",
       "idempotency",
       "recovery"
     ],
