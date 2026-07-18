@@ -19,7 +19,7 @@ write_paths = ["docs/specs/web3-storage-upstream-inventory-v1.json", "target/evi
 
 [[gate.input]]
 path = "docs/specs/evidence-report-v1.schema.json"
-sha256 = "149cb782ad6643cab681916d85d6c7402f3333e8984a6eb2d483bf6ae318d0ee"
+sha256 = "5e8d3425ea3660b308cbda199045e2d2937866df5ef74c8399307cc3bf0b6850"
 
 [[gate.input]]
 path = "../.omx/cache/web3-storage"
@@ -158,7 +158,7 @@ write_paths = ["target/evidence/ac2-assertions.json", "target/debug/**", "target
 
 [[gate.input]]
 path = "docs/specs/evidence-report-v1.schema.json"
-sha256 = "149cb782ad6643cab681916d85d6c7402f3333e8984a6eb2d483bf6ae318d0ee"
+sha256 = "5e8d3425ea3660b308cbda199045e2d2937866df5ef74c8399307cc3bf0b6850"
 
 [[gate.input]]
 path = "Cargo.lock"
@@ -259,7 +259,7 @@ write_paths = ["target/evidence/ac3-assertions.json", "target/debug/**", "target
 
 [[gate.input]]
 path = "docs/specs/evidence-report-v1.schema.json"
-sha256 = "149cb782ad6643cab681916d85d6c7402f3333e8984a6eb2d483bf6ae318d0ee"
+sha256 = "5e8d3425ea3660b308cbda199045e2d2937866df5ef74c8399307cc3bf0b6850"
 
 [[gate.input]]
 path = "Cargo.lock"
@@ -356,7 +356,7 @@ write_paths = ["target/evidence/ac4-assertions.json", "target/debug/**", "target
 
 [[gate.input]]
 path = "docs/specs/evidence-report-v1.schema.json"
-sha256 = "149cb782ad6643cab681916d85d6c7402f3333e8984a6eb2d483bf6ae318d0ee"
+sha256 = "5e8d3425ea3660b308cbda199045e2d2937866df5ef74c8399307cc3bf0b6850"
 
 [[gate.input]]
 path = "Cargo.lock"
@@ -432,7 +432,7 @@ write_paths = ["target/debug/ac5-three-provider-recovery-v1.json", "target/evide
 
 [[gate.input]]
 path = "docs/specs/evidence-report-v1.schema.json"
-sha256 = "149cb782ad6643cab681916d85d6c7402f3333e8984a6eb2d483bf6ae318d0ee"
+sha256 = "5e8d3425ea3660b308cbda199045e2d2937866df5ef74c8399307cc3bf0b6850"
 
 [[gate.input]]
 path = "Cargo.lock"
@@ -522,7 +522,7 @@ write_paths = ["target/evidence/ac6-assertions.json", "target/debug/**", "target
 
 [[gate.input]]
 path = "docs/specs/evidence-report-v1.schema.json"
-sha256 = "149cb782ad6643cab681916d85d6c7402f3333e8984a6eb2d483bf6ae318d0ee"
+sha256 = "5e8d3425ea3660b308cbda199045e2d2937866df5ef74c8399307cc3bf0b6850"
 
 [[gate.input]]
 path = "Cargo.lock"
@@ -626,7 +626,7 @@ write_paths = ["target/evidence/ac7-assertions.json", "product-sdk/node_modules/
 
 [[gate.input]]
 path = "docs/specs/evidence-report-v1.schema.json"
-sha256 = "149cb782ad6643cab681916d85d6c7402f3333e8984a6eb2d483bf6ae318d0ee"
+sha256 = "5e8d3425ea3660b308cbda199045e2d2937866df5ef74c8399307cc3bf0b6850"
 
 [[gate.input]]
 path = "Cargo.lock"
@@ -841,7 +841,7 @@ write_paths = ["target/evidence/ac8-assertions.json", "product-sdk/node_modules/
 
 [[gate.input]]
 path = "docs/specs/evidence-report-v1.schema.json"
-sha256 = "149cb782ad6643cab681916d85d6c7402f3333e8984a6eb2d483bf6ae318d0ee"
+sha256 = "5e8d3425ea3660b308cbda199045e2d2937866df5ef74c8399307cc3bf0b6850"
 
 [[gate.input]]
 path = "Cargo.lock"
@@ -1004,7 +1004,7 @@ write_paths = ["target/evidence/ac9-assertions.json"]
 
 [[gate.input]]
 path = "docs/specs/evidence-report-v1.schema.json"
-sha256 = "149cb782ad6643cab681916d85d6c7402f3333e8984a6eb2d483bf6ae318d0ee"
+sha256 = "5e8d3425ea3660b308cbda199045e2d2937866df5ef74c8399307cc3bf0b6850"
 
 [[gate.input]]
 path = "scripts/validate-product-projection.py"
@@ -1093,7 +1093,7 @@ write_paths = ["target/evidence/ac10-assertions.json"]
 
 [[gate.input]]
 path = "docs/specs/evidence-report-v1.schema.json"
-sha256 = "149cb782ad6643cab681916d85d6c7402f3333e8984a6eb2d483bf6ae318d0ee"
+sha256 = "5e8d3425ea3660b308cbda199045e2d2937866df5ef74c8399307cc3bf0b6850"
 
 [[gate.input]]
 path = "docs/specs/storage-identity-deletion-v1.toml"
@@ -1288,7 +1288,7 @@ write_paths = ["target/evidence/ac11-assertions.json"]
 
 [[gate.input]]
 path = "docs/specs/evidence-report-v1.schema.json"
-sha256 = "149cb782ad6643cab681916d85d6c7402f3333e8984a6eb2d483bf6ae318d0ee"
+sha256 = "5e8d3425ea3660b308cbda199045e2d2937866df5ef74c8399307cc3bf0b6850"
 
 [[gate.input]]
 path = "scripts/run-origin-orbis-app-journey.py"
@@ -1298,7 +1298,7 @@ sha256 = "1e8c3c2a8c80e0b5a7c5600fc25225059f6718e84aa80c98573e10c62c407b85"
 path = "target/evidence/p1-provider-typed-outcomes.json"
 sha256 = "record"
 input_class = "generated"
-producer_gate = "P1"
+producer_gate = "P1_PROVIDER_OUTCOMES"
 producer_output = "target/evidence/p1-provider-typed-outcomes.json"
 
 [[gate.command]]
@@ -1387,7 +1387,7 @@ write_paths = ["target/evidence/repos-after.json", "target/evidence/ac12-asserti
 
 [[gate.input]]
 path = "docs/specs/evidence-report-v1.schema.json"
-sha256 = "149cb782ad6643cab681916d85d6c7402f3333e8984a6eb2d483bf6ae318d0ee"
+sha256 = "5e8d3425ea3660b308cbda199045e2d2937866df5ef74c8399307cc3bf0b6850"
 
 [[gate.input]]
 path = "../.omx/evidence/origin-orbis-web3-storage/repos-before.json"
@@ -1472,7 +1472,7 @@ write_paths = ["target/evidence/ac13-assertions.json"]
 
 [[gate.input]]
 path = "docs/specs/evidence-report-v1.schema.json"
-sha256 = "149cb782ad6643cab681916d85d6c7402f3333e8984a6eb2d483bf6ae318d0ee"
+sha256 = "5e8d3425ea3660b308cbda199045e2d2937866df5ef74c8399307cc3bf0b6850"
 
 [[gate.input]]
 path = "docs/specs/cord-change-slices.toml"
@@ -1548,7 +1548,7 @@ write_paths = ["target/evidence/ac14-assertions.json"]
 
 [[gate.input]]
 path = "docs/specs/evidence-report-v1.schema.json"
-sha256 = "149cb782ad6643cab681916d85d6c7402f3333e8984a6eb2d483bf6ae318d0ee"
+sha256 = "5e8d3425ea3660b308cbda199045e2d2937866df5ef74c8399307cc3bf0b6850"
 
 [[gate.input]]
 path = "docs/specs/storage-identity-deletion-v1.toml"
@@ -1647,7 +1647,7 @@ write_paths = ["../.omx/evidence/origin-orbis-web3-storage/ac-decidability-v1.js
 
 [[gate.input]]
 path = "docs/specs/evidence-report-v1.schema.json"
-sha256 = "149cb782ad6643cab681916d85d6c7402f3333e8984a6eb2d483bf6ae318d0ee"
+sha256 = "5e8d3425ea3660b308cbda199045e2d2937866df5ef74c8399307cc3bf0b6850"
 
 [[gate.input]]
 path = "docs/specs/reference-repositories.toml"
@@ -2514,7 +2514,7 @@ write_paths = ["target/evidence/origin-commons-runtime.metadata.scale", "target/
 
 [[gate.input]]
 path = "docs/specs/evidence-report-v1.schema.json"
-sha256 = "149cb782ad6643cab681916d85d6c7402f3333e8984a6eb2d483bf6ae318d0ee"
+sha256 = "5e8d3425ea3660b308cbda199045e2d2937866df5ef74c8399307cc3bf0b6850"
 
 [[gate.input]]
 path = "Cargo.toml"
@@ -2568,7 +2568,7 @@ write_paths = ["target/evidence/p1-scale-metadata-binding.json", "target/evidenc
 
 [[gate.input]]
 path = "docs/specs/evidence-report-v1.schema.json"
-sha256 = "149cb782ad6643cab681916d85d6c7402f3333e8984a6eb2d483bf6ae318d0ee"
+sha256 = "5e8d3425ea3660b308cbda199045e2d2937866df5ef74c8399307cc3bf0b6850"
 
 [[gate.input]]
 path = "docs/specs/web3-storage-capability-ledger-v1.json"
@@ -2906,6 +2906,81 @@ operator = "eq"
 expected = true
 
 [[gate]]
+id = "P1_PROVIDER_OUTCOMES"
+output = "../.omx/evidence/origin-orbis-web3-storage/p1-provider-outcomes.json"
+decidability = "mechanical"
+clauses = ["schema", "status", "provider-count", "active-provider-count", "typed-outcome-count", "failure-count"]
+enforce_write_set = true
+write_paths = ["target/evidence/p1-provider-typed-outcomes.json"]
+
+[[gate.input]]
+path = "origin/orbis/provider-node"
+sha256 = "b9d72a0ac5d45f131186a68908b985c0059b6fab460261412801d65083fd7299"
+
+[[gate.input]]
+path = "Cargo.toml"
+sha256 = "404e7debb220a86cdc76279396af748d9eade829a89a95ef456eb0b70bb45112"
+
+[[gate.input]]
+path = "Cargo.lock"
+sha256 = "528b8986a1803dc92c30305304714b42691453acd7b6881420a405c9c988d64c"
+
+[[gate.command]]
+cwd = "."
+argv = ["cargo", "test", "-p", "origin-orbis-provider", "--features", "evidence", "--test", "three_provider_recovery", "--", "--exact", "deterministic_failover"]
+test_count = 1
+outputs = ["target/evidence/p1-provider-typed-outcomes.json"]
+inputs = ["origin/orbis/provider-node", "Cargo.toml", "Cargo.lock"]
+allowed_writes = ["target/debug/**", "target/.rustc_info.json"]
+
+[[gate.artifact]]
+path = "target/evidence/p1-provider-typed-outcomes.json"
+sha256 = "record"
+schema = "cord.p1-provider-typed-outcomes.v1"
+
+[[gate.assertion]]
+clause = "schema"
+source = "target/evidence/p1-provider-typed-outcomes.json"
+json_pointer = "/schema"
+operator = "eq"
+expected = "cord.p1-provider-typed-outcomes.v1"
+
+[[gate.assertion]]
+clause = "status"
+source = "target/evidence/p1-provider-typed-outcomes.json"
+json_pointer = "/status"
+operator = "eq"
+expected = "pass"
+
+[[gate.assertion]]
+clause = "provider-count"
+source = "target/evidence/p1-provider-typed-outcomes.json"
+json_pointer = "/provider_count"
+operator = "eq"
+expected = 3
+
+[[gate.assertion]]
+clause = "active-provider-count"
+source = "target/evidence/p1-provider-typed-outcomes.json"
+json_pointer = "/active_provider_count"
+operator = "eq"
+expected = 3
+
+[[gate.assertion]]
+clause = "typed-outcome-count"
+source = "target/evidence/p1-provider-typed-outcomes.json"
+json_pointer = "/typed_outcome_count"
+operator = "eq"
+expected = 9
+
+[[gate.assertion]]
+clause = "failure-count"
+source = "target/evidence/p1-provider-typed-outcomes.json"
+json_pointer = "/failure_count"
+operator = "zero"
+expected = 0
+
+[[gate]]
 id = "P2"
 output = "../.omx/evidence/origin-orbis-web3-storage/p2.json"
 decidability = "mechanical"
@@ -2915,7 +2990,7 @@ write_paths = ["target/evidence/p2-assertions.json"]
 
 [[gate.input]]
 path = "docs/specs/evidence-report-v1.schema.json"
-sha256 = "149cb782ad6643cab681916d85d6c7402f3333e8984a6eb2d483bf6ae318d0ee"
+sha256 = "5e8d3425ea3660b308cbda199045e2d2937866df5ef74c8399307cc3bf0b6850"
 
 [[gate.input]]
 path = "scripts/evidence_common.py"
@@ -2955,7 +3030,7 @@ write_paths = ["product-sdk/generated/origin-commons-runtime.descriptor.json", "
 
 [[gate.input]]
 path = "docs/specs/evidence-report-v1.schema.json"
-sha256 = "149cb782ad6643cab681916d85d6c7402f3333e8984a6eb2d483bf6ae318d0ee"
+sha256 = "5e8d3425ea3660b308cbda199045e2d2937866df5ef74c8399307cc3bf0b6850"
 
 [[gate.input]]
 path = "docs/specs/checkpoint-scale-logical-types-v1.toml"
@@ -3093,7 +3168,7 @@ write_paths = ["target/evidence/p4-object-assertions.json"]
 
 [[gate.input]]
 path = "docs/specs/evidence-report-v1.schema.json"
-sha256 = "149cb782ad6643cab681916d85d6c7402f3333e8984a6eb2d483bf6ae318d0ee"
+sha256 = "5e8d3425ea3660b308cbda199045e2d2937866df5ef74c8399307cc3bf0b6850"
 
 [[gate.input]]
 path = "scripts/evidence_common.py"
@@ -3133,7 +3208,7 @@ write_paths = ["target/evidence/p4-provider-assertions.json"]
 
 [[gate.input]]
 path = "docs/specs/evidence-report-v1.schema.json"
-sha256 = "149cb782ad6643cab681916d85d6c7402f3333e8984a6eb2d483bf6ae318d0ee"
+sha256 = "5e8d3425ea3660b308cbda199045e2d2937866df5ef74c8399307cc3bf0b6850"
 
 [[gate.input]]
 path = "scripts/evidence_common.py"
@@ -3173,7 +3248,7 @@ write_paths = ["target/evidence/p4-drive-assertions.json"]
 
 [[gate.input]]
 path = "docs/specs/evidence-report-v1.schema.json"
-sha256 = "149cb782ad6643cab681916d85d6c7402f3333e8984a6eb2d483bf6ae318d0ee"
+sha256 = "5e8d3425ea3660b308cbda199045e2d2937866df5ef74c8399307cc3bf0b6850"
 
 [[gate.input]]
 path = "scripts/evidence_common.py"
@@ -3213,7 +3288,7 @@ write_paths = ["target/evidence/p4-s3-assertions.json"]
 
 [[gate.input]]
 path = "docs/specs/evidence-report-v1.schema.json"
-sha256 = "149cb782ad6643cab681916d85d6c7402f3333e8984a6eb2d483bf6ae318d0ee"
+sha256 = "5e8d3425ea3660b308cbda199045e2d2937866df5ef74c8399307cc3bf0b6850"
 
 [[gate.input]]
 path = "scripts/evidence_common.py"
@@ -3253,7 +3328,7 @@ write_paths = ["target/evidence/p4-runtime-assertions.json"]
 
 [[gate.input]]
 path = "docs/specs/evidence-report-v1.schema.json"
-sha256 = "149cb782ad6643cab681916d85d6c7402f3333e8984a6eb2d483bf6ae318d0ee"
+sha256 = "5e8d3425ea3660b308cbda199045e2d2937866df5ef74c8399307cc3bf0b6850"
 
 [[gate.input]]
 path = "scripts/evidence_common.py"
@@ -3293,7 +3368,7 @@ write_paths = ["target/evidence/p5-assertions.json"]
 
 [[gate.input]]
 path = "docs/specs/evidence-report-v1.schema.json"
-sha256 = "149cb782ad6643cab681916d85d6c7402f3333e8984a6eb2d483bf6ae318d0ee"
+sha256 = "5e8d3425ea3660b308cbda199045e2d2937866df5ef74c8399307cc3bf0b6850"
 
 [[gate.input]]
 path = "scripts/evidence_common.py"
@@ -3333,7 +3408,7 @@ write_paths = ["target/evidence/p6-observability-assertions.json", "target/evide
 
 [[gate.input]]
 path = "docs/specs/evidence-report-v1.schema.json"
-sha256 = "149cb782ad6643cab681916d85d6c7402f3333e8984a6eb2d483bf6ae318d0ee"
+sha256 = "5e8d3425ea3660b308cbda199045e2d2937866df5ef74c8399307cc3bf0b6850"
 
 [[gate.input]]
 path = "scripts/evidence_common.py"
@@ -3375,7 +3450,7 @@ sha256 = "54cd6de963d0fc0d7df0d7f2caa00397c3365ec6faf02d74bf63a198db677ee4"
 path = "target/evidence/p1-provider-typed-outcomes.json"
 sha256 = "record"
 input_class = "generated"
-producer_gate = "P1"
+producer_gate = "P1_PROVIDER_OUTCOMES"
 producer_output = "target/evidence/p1-provider-typed-outcomes.json"
 
 [[gate.input]]
@@ -3488,7 +3563,7 @@ write_paths = ["target/evidence/p7-assertions.json"]
 
 [[gate.input]]
 path = "docs/specs/evidence-report-v1.schema.json"
-sha256 = "149cb782ad6643cab681916d85d6c7402f3333e8984a6eb2d483bf6ae318d0ee"
+sha256 = "5e8d3425ea3660b308cbda199045e2d2937866df5ef74c8399307cc3bf0b6850"
 
 [[gate.input]]
 path = "scripts/evidence_common.py"
