@@ -2565,7 +2565,7 @@ sha256 = "3efa6856658a04ea73da27450ce2aae88ec31c1dd41bf225dac8235067cdd2b8"
 
 [[gate.input]]
 path = "scripts/run-p1-verification.py"
-sha256 = "299b55c8f4f8c27c253af927f4a34f38f0c07f3a88691e38f5bc4c66f239e3a9"
+sha256 = "25868d95f658e48d306db448ac683db90a370b24998c6370b8a6519a6e1e2534"
 
 [[gate.input]]
 path = "scripts/validate-storage-phase-ownership.py"

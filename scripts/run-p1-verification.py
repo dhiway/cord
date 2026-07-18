@@ -40,10 +40,10 @@ sys.dont_write_bytecode = True
 
 
 EXPECTED_TESTS = {
-    "provider": (77, 0, 0),
+    "provider": (86, 0, 0),
     "drive": (15, 0, 0),
     "s3": (24, 0, 0),
-    "runtime": (82, 0, 1),
+    "runtime": (75, 0, 0),
 }
 EXPECTED_BENCHMARKS = {
     "provider": [
