@@ -249,6 +249,10 @@ docker run --rm \
 	"$SRTOOL_LOCAL_IMAGE" -lc "
 		set -euo pipefail
 		rustup override set 1.93.0
+		# rocksdb's bindgen/clang-sys needs the pinned image's installed libclang;
+		# declare the exact in-image location rather than downloading a host toolchain.
+		export LIBCLANG_PATH=/usr/lib/llvm-14/lib
+		export CLANG_PATH=/usr/bin/clang-14
 		cargo build --locked --profile $PROFILE \
 			--package origin \
 			--no-default-features \
