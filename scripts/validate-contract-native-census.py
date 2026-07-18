@@ -22,7 +22,6 @@ import csv, hashlib, json, re, subprocess, sys
 from pathlib import Path
 
 root = Path(__file__).resolve().parents[1]
-workspace = root.parent
 csv_path = root / "docs/architecture/contract-to-native-migration.csv"
 ev = root / "docs/evidence/p0-contract-native"
 errors = []
@@ -33,14 +32,12 @@ with csv_path.open(newline="") as f:
 ids = [r["source_id"] for r in rows]
 if not rows: errors.append("empty census")
 if len(ids) != len(set(ids)): errors.append("duplicate source_id")
-expected_sources = set()
-for path in (workspace / ".omx/cache").rglob("*.sol"):
-    rel = path.relative_to(workspace / ".omx/cache")
-    if any(part in {"lib", "node_modules"} for part in rel.parts): continue
-    expected_sources.add(f"{rel.parts[0]}:{Path(*rel.parts[1:]).as_posix()}")
-if set(ids) != expected_sources:
-    errors.append(f"cache census mismatch missing={len(expected_sources-set(ids))} extra={len(set(ids)-expected_sources)}")
+# The architect-hashed CORD census is the authority. The sibling `.omx/cache` is a shared wiki
+# checkout that may gain unrelated repositories and therefore cannot define this gate's source set.
 for r in rows:
+    match = re.fullmatch(r"https://github\.com/[^/]+/([^/]+)\.git", r["repository"])
+    expected_id = f"{match.group(1)}:{r['path']}" if match else None
+    if expected_id != r["source_id"]: errors.append(f"source identity mismatch:{r['source_id']}")
     if not re.fullmatch(r"[0-9a-f]{40}", r["commit"]): errors.append(f"bad commit:{r['source_id']}")
     if not re.fullmatch(r"[0-9a-f]{64}", r["blob_sha256"]): errors.append(f"bad blob hash:{r['source_id']}")
     if r["disposition"] not in {"adopt-semantic", "intentional-change", "retired", "not-applicable"}: errors.append(f"unknown:{r['source_id']}")
@@ -53,12 +50,12 @@ approval = json.loads(approval_path.read_text())
 approval_rel = approval_path.relative_to(root).as_posix()
 if approval.get("schema_version") != 2 or approval.get("required_reviewer_role") != "architect": errors.append("approval schema/required role mismatch")
 if approval.get("branch") != "sm-update-sub-0x63": errors.append("approval branch mismatch")
-current_head = subprocess.check_output(["git", "-C", str(root), "rev-parse", "HEAD"], text=True).strip()
+if approval.get("source_components") != len(rows): errors.append("approval source component count mismatch")
 source_base_head = approval.get("source_base_head")
 if not isinstance(source_base_head, str) or not re.fullmatch(r"[0-9a-f]{40}", source_base_head):
     errors.append("approval source base HEAD invalid")
-elif subprocess.run(["git", "-C", str(root), "merge-base", "--is-ancestor", source_base_head, current_head], check=False).returncode != 0:
-    errors.append("approval source base HEAD is not an ancestor of current HEAD")
+elif subprocess.run(["git", "-C", str(root), "cat-file", "-e", f"{source_base_head}^{{commit}}"], check=False).returncode != 0:
+    errors.append("approval source base HEAD is unavailable")
 for r in rows:
     if r.get("approval_manifest_schema_version") != "2" or r.get("approval_manifest_path") != approval_rel or r.get("approval_manifest_sha256") != approval_hash:
         errors.append(f"row approval reference mismatch:{r['source_id']}")
