@@ -25,6 +25,9 @@ readonly SRTOOL_LOCAL_REPOSITORY="cord-srtool-pinned"
 readonly SRTOOL_RUST_TAG="1.93.0"
 readonly SRTOOL_LOCAL_IMAGE="$SRTOOL_LOCAL_REPOSITORY:$SRTOOL_RUST_TAG"
 readonly PROFILE="release"
+# Serial Cargo scheduling prevents an intermittent missing dependency artifact
+# under amd64 Docker emulation while retaining fresh no-cache targets.
+readonly SRTOOL_CARGO_JOBS="1"
 readonly FOUNDATION_PACKAGE="origin-foundation-runtime"
 readonly FOUNDATION_DIR="origin/base/runtime"
 readonly COMMONS_PACKAGE="origin-commons-runtime"
@@ -142,7 +145,7 @@ run_srtool() {
 
 	verify_source_tree "$source_root" "$source_label"
 	verify_pinned_image
-	SRTOOL_TAG="$SRTOOL_RUST_TAG" srtool build \
+	CARGO_BUILD_JOBS="$SRTOOL_CARGO_JOBS" CARGO_INCREMENTAL=0 SRTOOL_TAG="$SRTOOL_RUST_TAG" srtool build \
 		--engine docker \
 		--image "$SRTOOL_LOCAL_REPOSITORY" \
 		--app \
@@ -348,6 +351,8 @@ report = {
     "srtool_image_id": image_id,
     "srtool_os": "linux",
     "srtool_no_cache": True,
+    "srtool_cargo_incremental": False,
+    "srtool_cargo_jobs": 1,
     "srtool_profile": "release",
     "srtool_rust_tag": rust_tag,
     "runtime_feature": "on-chain-release-build",

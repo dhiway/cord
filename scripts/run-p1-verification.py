@@ -362,6 +362,8 @@ def canonical_provenance(path: Path, failures: list[str]) -> dict[str, Any]:
         and release.get("cargo_lock_sha256") == sha256(Path("Cargo.lock"))
         and release.get("independent_clean_source_runs") == 2
         and release.get("srtool_no_cache") is True
+        and release.get("srtool_cargo_incremental") is False
+        and release.get("srtool_cargo_jobs") == 1
         and release.get("srtool_image_digest") == "docker.io/paritytech/srtool@sha256:8638a668bd6d29111dc01953fbead6eb08c062e1cc62d3047a245a52b6edb3bf"
         and ancestor
     )
