@@ -1,9 +1,0 @@
-$ cargo test -p origin-commons-runtime enterprise_journey::enterprise_sponsored_meta_boundaries_reject_exhaustion_and_version_drift --lib --locked -- --exact
-exit=0
-    Finished `test` profile [unoptimized + debuginfo] target(s) in 0.85s
-     Running unittests src/lib.rs (target/debug/deps/origin_commons_runtime-dec961f50d4482d3)
-
-running 1 test
-test enterprise_journey::enterprise_sponsored_meta_boundaries_reject_exhaustion_and_version_drift ... ok
-
-test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 75 filtered out; finished in 0.00s

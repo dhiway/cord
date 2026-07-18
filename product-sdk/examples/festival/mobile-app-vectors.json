@@ -1,0 +1,323 @@
+{
+  "schema": "cord.festival-mobile-app-vectors.v2",
+  "scope": "mobile-app-projection-only",
+  "wire_contracts": {
+    "request": "docs/sdk/host/host-request.schema.json",
+    "error": "docs/sdk/native-error.schema.json",
+    "network": "docs/sdk/native-version-matrix.json",
+    "routes": "docs/sdk/native-route-contract.json",
+    "events": [
+      "attestation_revoked",
+      "name_registered",
+      "sponsored_check_in"
+    ],
+    "host_v2_registry": "docs/specs/origin-host-registry-v2.operations.json",
+    "app_surface": "@cord-network/origin-sdk.createApp"
+  },
+  "vectors": [
+    {
+      "id": "scoped-permission-denial",
+      "route": "names:set_text",
+      "expected": {
+        "terminal": "permission_denied",
+        "retryable": false
+      },
+      "surface": "native-route"
+    },
+    {
+      "id": "participant-dot-registration",
+      "route": "names:register",
+      "expected": {
+        "terminal": "success",
+        "finality": "finalized",
+        "chain_signer": "participant",
+        "event": "name_registered"
+      },
+      "surface": "native-route"
+    },
+    {
+      "id": "sponsored-check-in",
+      "route": "transaction:submit_sponsored_intent",
+      "expected": {
+        "terminal": "success",
+        "finality": "finalized",
+        "chain_signer": "sponsor",
+        "event": "sponsored_check_in",
+        "meta_tx_event": "Dispatched",
+        "inner_result": "Ok"
+      },
+      "surface": "native-route"
+    },
+    {
+      "id": "sponsored-replay",
+      "route": "transaction:submit_sponsored_intent",
+      "expected": {
+        "terminal": "replay",
+        "retryable": false
+      },
+      "surface": "native-route"
+    },
+    {
+      "id": "tampered-sponsored-intent",
+      "route": "transaction:submit_sponsored_intent",
+      "expected": {
+        "terminal": "proof_invalid",
+        "retryable": false
+      },
+      "surface": "native-route"
+    },
+    {
+      "id": "sponsor-budget-exhaustion",
+      "route": "transaction:submit_sponsored_intent",
+      "expected": {
+        "terminal": "capacity_exceeded",
+        "retryable": false
+      },
+      "surface": "native-route"
+    },
+    {
+      "id": "offline",
+      "route": "names:root_name_by_normalized_label",
+      "expected": {
+        "terminal": "timeout",
+        "retryable": true
+      },
+      "surface": "native-route"
+    },
+    {
+      "id": "cancelled-submission",
+      "route": "names:commit",
+      "expected": {
+        "terminal": "cancelled",
+        "retryable": false
+      },
+      "surface": "native-route"
+    },
+    {
+      "id": "reconnect",
+      "route": "names:root_name_by_normalized_label",
+      "expected": {
+        "terminal": "success",
+        "finality": "finalized",
+        "new_request_and_consent": true
+      },
+      "surface": "native-route"
+    },
+    {
+      "id": "replay",
+      "route": "names:root_name_by_normalized_label",
+      "expected": {
+        "terminal": "conflict",
+        "retryable": false
+      },
+      "surface": "native-route"
+    },
+    {
+      "id": "version-drift",
+      "route": "attestation:attestation_live_status",
+      "expected": {
+        "terminal": "unsupported_runtime",
+        "retryable": false
+      },
+      "surface": "native-route"
+    },
+    {
+      "id": "revoked-credential-deny",
+      "route": "transaction:submit_sponsored_intent",
+      "expected": {
+        "terminal": "not_authorized",
+        "retryable": false,
+        "event": "attestation_revoked"
+      },
+      "surface": "native-route"
+    },
+    {
+      "id": "revoked-permission-deny",
+      "route": "attestation:attestation_live_status",
+      "expected": {
+        "terminal": "permission_revoked",
+        "retryable": false
+      },
+      "surface": "native-route"
+    },
+    {
+      "id": "unified-identity-subject",
+      "surface": "origin-app",
+      "operation": "app.identity.subjectDerive",
+      "result": "identity_subject",
+      "expected": {
+        "terminal": "success",
+        "retryable": false
+      }
+    },
+    {
+      "id": "identity-entitlement",
+      "surface": "origin-app",
+      "operation": "app.identity.entitlementsRead",
+      "result": "identity_entitlement",
+      "expected": {
+        "terminal": "success",
+        "retryable": false
+      }
+    },
+    {
+      "id": "names-subject-link",
+      "surface": "origin-app",
+      "operation": "app.names.prepareSetSubject",
+      "result": "names_subject_link",
+      "expected": {
+        "terminal": "success",
+        "retryable": false
+      }
+    },
+    {
+      "id": "provider-drive-s3-snapshot",
+      "surface": "origin-app",
+      "operation": "app.cloudStorage.readTogether",
+      "result": "storage_snapshot",
+      "expected": {
+        "terminal": "success",
+        "retryable": false
+      }
+    },
+    {
+      "id": "provider-agreement",
+      "surface": "origin-app",
+      "operation": "app.cloudStorage.prepare.provider",
+      "result": "provider_agreement",
+      "expected": {
+        "terminal": "success",
+        "retryable": false
+      }
+    },
+    {
+      "id": "drive-create",
+      "surface": "origin-app",
+      "operation": "app.cloudStorage.prepare.drive",
+      "result": "drive_create",
+      "expected": {
+        "terminal": "success",
+        "retryable": false
+      }
+    },
+    {
+      "id": "s3-bucket-create",
+      "surface": "origin-app",
+      "operation": "app.cloudStorage.prepare.s3",
+      "result": "s3_bucket_create",
+      "expected": {
+        "terminal": "success",
+        "retryable": false
+      }
+    },
+    {
+      "id": "separate-transaction-signing",
+      "surface": "origin-app",
+      "operation": "app.signing.signTransaction",
+      "result": "separate_signing",
+      "expected": {
+        "terminal": "success",
+        "retryable": false
+      }
+    },
+    {
+      "id": "provider-unavailable",
+      "surface": "origin-app",
+      "operation": "app.cloudStorage.read.provider",
+      "result": "provider_unavailable",
+      "expected": {
+        "terminal": "query_failed",
+        "retryable": true
+      }
+    },
+    {
+      "id": "provider-recovered",
+      "surface": "origin-app",
+      "operation": "app.cloudStorage.read.provider",
+      "result": "provider_recovered",
+      "expected": {
+        "terminal": "success",
+        "retryable": false
+      }
+    },
+    {
+      "id": "stale-object-version",
+      "surface": "origin-app",
+      "operation": "app.cloudStorage.prepare.s3",
+      "result": "stale_object_write",
+      "expected": {
+        "terminal": "version_conflict",
+        "retryable": false
+      }
+    },
+    {
+      "id": "object-version-reread",
+      "surface": "origin-app",
+      "operation": "app.cloudStorage.read.s3",
+      "result": "object_version_reread",
+      "expected": {
+        "terminal": "success",
+        "retryable": false
+      }
+    },
+    {
+      "id": "object-write-recovered",
+      "surface": "origin-app",
+      "operation": "app.cloudStorage.prepare.s3",
+      "result": "object_write_recovered",
+      "expected": {
+        "terminal": "success",
+        "retryable": false
+      }
+    },
+    {
+      "id": "host-offline-app",
+      "surface": "origin-app",
+      "operation": "app.names.rootNameByNormalizedLabel",
+      "result": "host_offline",
+      "expected": {
+        "terminal": "host_unavailable",
+        "retryable": true
+      }
+    },
+    {
+      "id": "host-reconnected-app",
+      "surface": "origin-app",
+      "operation": "app.names.rootNameByNormalizedLabel",
+      "result": "host_reconnected",
+      "expected": {
+        "terminal": "success",
+        "retryable": false
+      }
+    },
+    {
+      "id": "revoked-identity-grant",
+      "surface": "origin-app",
+      "operation": "app.identity.entitlementsRead",
+      "result": "revoked_identity_grant",
+      "expected": {
+        "terminal": "GRANT_REVOKED",
+        "retryable": false
+      }
+    }
+  ],
+  "forbidden": {
+    "raw_scale": false,
+    "abi": false,
+    "pallet_indices": false,
+    "call_indices": false
+  },
+  "deferred": [
+    "live_chain",
+    "production_finality",
+    "slo",
+    "production_mobile_rewrite_non_goal"
+  ],
+  "closure_status": "FEATURE_COMPLETE",
+  "p6_acceptance": true,
+  "next_phase": [
+    "live candidate topology",
+    "production E/Q/C and headroom",
+    "release verification"
+  ]
+}

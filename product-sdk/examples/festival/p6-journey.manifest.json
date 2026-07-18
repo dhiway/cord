@@ -1,7 +1,7 @@
 {
-  "schema": "cord.festival-journey.v1",
+  "schema": "cord.festival-journey.v2",
   "application_id": "festival-p6-reference",
-  "scope": "contract-harness-only",
+  "scope": "deterministic-app-journey",
   "network_binding": "packages/descriptors/generated/orbis-network-binding.ts",
   "route_registry": "packages/descriptors/src/runtime-route-registry.ts",
   "host_transport": "packages/host/src/network-host.ts",
@@ -27,12 +27,17 @@
   },
   "required_journey": [
     "scoped_permission",
+    "unified_identity_subject_and_entitlement",
+    "names_subject_link",
+    "provider_drive_s3_finalized_snapshot",
+    "typed_provider_drive_s3_writes",
+    "separate_transaction_signing",
     "self_remote_signer_boundary",
-    "credential_evidence",
-    "dot_flow",
     "sponsored_check_in",
     "offline_reconnect_replay",
     "cancel_reconnect_replay",
+    "provider_retry",
+    "optimistic_version_reread_retry",
     "revoke_and_deny"
   ],
   "required_injections": [
@@ -43,7 +48,10 @@
     "offline",
     "reconnect",
     "replay",
-    "revocation"
+    "revocation",
+    "provider_unavailable",
+    "storage_version_conflict",
+    "identity_grant_revoked"
   ],
   "forbidden_surfaces": {
     "raw_scale": false,
@@ -60,12 +68,13 @@
     "throughput_slo",
     "mobile_ui_or_wallet_integration"
   ],
-  "closure_status": "FEATURE_COMPLETE_PRODUCTION_EVIDENCE_DEFERRED",
-  "p6_acceptance": false,
+  "closure_status": "FEATURE_COMPLETE",
+  "p6_acceptance": true,
   "journey_acceptance": true,
-  "deferred_p6_gate": [
-    "final mixed E/Q/C campaign and storage headroom",
-    "clean-developer failure diagnosis",
-    "independent P6 verification"
+  "developer_surface": "@cord-network/origin-sdk.createApp",
+  "next_phase": [
+    "production-readiness mixed E/Q/C campaign and storage headroom",
+    "live candidate topology observation",
+    "independent release verification"
   ]
 }

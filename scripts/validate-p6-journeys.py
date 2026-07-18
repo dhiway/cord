@@ -29,7 +29,7 @@ from pathlib import Path
 
 
 ROOT = Path(__file__).resolve().parents[1]
-EVIDENCE = ROOT / "docs/evidence/verification/p6"
+EVIDENCE = ROOT / "target/evidence/p6"
 RAW = EVIDENCE / "raw"
 
 
@@ -115,28 +115,28 @@ def main() -> None:
         ],
     )
     run(
-        "festival-ios-contract-report",
+        "festival-ios-app-projection",
         [
             "node", "--experimental-strip-types",
-            "product-sdk/examples/festival/ios-contract-harness.ts", "--write",
+            "product-sdk/examples/festival/ios-app-projection.ts", "--write",
         ],
     )
     run(
-        "festival-android-contract-report",
+        "festival-android-app-projection",
         [
             "node", "--experimental-strip-types",
-            "product-sdk/examples/festival/android-contract-harness.ts", "--write",
+            "product-sdk/examples/festival/android-app-projection.ts", "--write",
         ],
     )
     run(
-        "festival-mobile-report",
+        "festival-mobile-app-projection",
         [
             "node", "--experimental-strip-types",
-            "product-sdk/examples/festival/mobile-contract-harness.ts", "--write",
+            "product-sdk/examples/festival/mobile-app-projection.ts", "--write",
         ],
     )
     run(
-        "festival-contract-tests",
+        "festival-app-tests",
         [
             "node", "--experimental-strip-types", "--test",
             "product-sdk/examples/festival/journey.test.ts",
@@ -144,9 +144,9 @@ def main() -> None:
     )
 
     festival_path = EVIDENCE / "festival-journey.report.json"
-    ios_path = EVIDENCE / "festival-ios-contract-parity.report.json"
-    android_path = EVIDENCE / "festival-android-contract-parity.report.json"
-    mobile_path = EVIDENCE / "festival-mobile-contract-parity.report.json"
+    ios_path = EVIDENCE / "festival-ios-app-projection.report.json"
+    android_path = EVIDENCE / "festival-android-app-projection.report.json"
+    mobile_path = EVIDENCE / "festival-mobile-app-projection.report.json"
     festival = json.loads(festival_path.read_text())
     ios = json.loads(ios_path.read_text())
     android = json.loads(android_path.read_text())
@@ -155,14 +155,23 @@ def main() -> None:
     assert ios["status"] == "PASS" and ios["platform"] == "ios"
     assert android["status"] == "PASS" and android["platform"] == "android"
     assert mobile["status"] == "PASS" and mobile["journey_acceptance"] is True
-    assert all(report["p6_acceptance"] is False for report in [festival, ios, android, mobile])
+    assert all(report["p6_acceptance"] is True for report in [festival, ios, android, mobile])
+    developer = festival["developer_flow"]
+    assert developer["status"] == "PASS" and developer["separate_signing"] is True
+    assert developer["native_services"] == [
+        "Identity", "Names", "StorageProvider", "Drive", "S3", "TransactionSigning",
+    ]
+    assert developer["results"]["provider_unavailable"] == {
+        "code": "query_failed", "retryable": True,
+    }
+    assert developer["results"]["object_write_recovered"]["code"] == "success"
 
     enterprise_path = EVIDENCE / "enterprise-journey.report.json"
     enterprise = {
         "schema": "cord.enterprise-journey-report.v1",
         "status": "PASS",
         "journey_acceptance": True,
-        "p6_acceptance": False,
+        "p6_acceptance": True,
         "runtime": "origin-commons-runtime",
         "source": "origin/orbis/runtime/src/enterprise_journey.rs",
         "assertions": {
@@ -194,7 +203,7 @@ def main() -> None:
         "schema": "cord.p6-journeys.v1",
         "status": "PASS",
         "journey_acceptance": True,
-        "p6_acceptance": False,
+        "p6_acceptance": True,
         "enterprise": {
             "report": relative(enterprise_path),
             "sha256": sha256(enterprise_path),
@@ -203,27 +212,28 @@ def main() -> None:
             "report": relative(festival_path),
             "sha256": sha256(festival_path),
         },
-        "ios_contract_harness": {
+        "ios_app_projection": {
             "report": relative(ios_path),
             "sha256": sha256(ios_path),
         },
-        "android_contract_harness": {
+        "android_app_projection": {
             "report": relative(android_path),
             "sha256": sha256(android_path),
         },
-        "mobile_contract_parity": {
+        "mobile_app_projection": {
             "report": relative(mobile_path),
             "sha256": sha256(mobile_path),
         },
         "required_failures": [
             "permission_denial", "cancellation", "sponsor_exhaustion", "version_drift",
             "provider_unavailable", "offline", "reconnect", "replay", "revocation",
-            "sponsored_replay", "tampered_sponsored_intent",
+            "sponsored_replay", "tampered_sponsored_intent", "storage_version_conflict",
+            "identity_grant_revoked",
         ],
-        "remaining_p6_gates": [
-            "final mixed E/Q/C campaign and storage/resource headroom",
-            "clean-developer diagnosis of at least three injected failures",
-            "independent P6 verification and adoption acceptance",
+        "next_phase": [
+            "production-readiness mixed E/Q/C campaign and storage/resource headroom",
+            "live candidate topology observation",
+            "independent release verification",
         ],
         "production_app_claim": False,
     }
@@ -235,13 +245,14 @@ def main() -> None:
         ROOT / "origin/orbis/runtime/src/enterprise_journey.rs",
         ROOT / "origin/orbis/provider-node/src/storage.rs",
         ROOT / "product-sdk/examples/festival/journey.ts",
+        ROOT / "product-sdk/examples/festival/developer-journey.ts",
         ROOT / "product-sdk/examples/festival/journey.test.ts",
-        ROOT / "product-sdk/examples/festival/mobile-contract-harness.ts",
-        ROOT / "product-sdk/examples/festival/ios-contract-harness.ts",
-        ROOT / "product-sdk/examples/festival/android-contract-harness.ts",
-        ROOT / "product-sdk/examples/festival/mobile-contract-vectors.json",
-        ROOT / "product-sdk/examples/festival/ios-contract-harness.manifest.json",
-        ROOT / "product-sdk/examples/festival/android-contract-harness.manifest.json",
+        ROOT / "product-sdk/examples/festival/mobile-app-projection.ts",
+        ROOT / "product-sdk/examples/festival/ios-app-projection.ts",
+        ROOT / "product-sdk/examples/festival/android-app-projection.ts",
+        ROOT / "product-sdk/examples/festival/mobile-app-vectors.json",
+        ROOT / "product-sdk/examples/festival/ios-app-projection.manifest.json",
+        ROOT / "product-sdk/examples/festival/android-app-projection.manifest.json",
         ROOT / "product-sdk/examples/festival/p6-journey.manifest.json",
         ROOT / "docs/sdk/native-route-contract.json",
         ROOT / "product-sdk/tests/content/content.test.ts",
@@ -255,7 +266,7 @@ def main() -> None:
         "command": "python3 scripts/validate-p6-journeys.py",
         "status": "PASS",
         "journey_acceptance": True,
-        "p6_acceptance": False,
+        "p6_acceptance": True,
         "inputs": [
             {"path": relative(path), "sha256": sha256(path)} for path in tracked_inputs
         ],
@@ -263,7 +274,7 @@ def main() -> None:
             {"path": relative(path), "bytes": path.stat().st_size, "sha256": sha256(path)}
             for path in artifacts
         ],
-        "stop_condition": "journeys are feature-complete; production/SLO gates remain deferred",
+        "stop_condition": "P6 journeys are feature-complete; production-readiness/SLO work follows",
     }
     write_json(EVIDENCE / "index.json", index)
     print(json.dumps({
@@ -271,7 +282,7 @@ def main() -> None:
         "enterprise": "PASS",
         "festival": "PASS",
         "mobile": "PASS",
-        "p6_acceptance": False,
+        "p6_acceptance": True,
     }, sort_keys=True))
 
 

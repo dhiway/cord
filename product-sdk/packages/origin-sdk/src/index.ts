@@ -55,8 +55,11 @@ import {
 } from "@cord-network/origin-sdk-host";
 import {
   createIdentityV2Client,
+  createTransactionSigningV2Client,
+  IdentityReplayJournalV2,
   type IdentityV2Bridge,
   type IdentityV2Client,
+  type TransactionSigningV2Client,
 } from "@cord-network/origin-sdk-identity";
 import {
   createLocalStorage,
@@ -112,6 +115,8 @@ export interface OriginApp {
   readonly signer: SelectedOriginSigner;
   readonly storage: LocalStorageClient;
   readonly identity: IdentityV2Client;
+  /** Fresh-consent transaction signing is deliberately separate from Identity reads/proofs. */
+  readonly signing: TransactionSigningV2Client;
   readonly attestations: AttestationClient;
   readonly names: NamesClient;
   readonly cloudStorage: CloudStorageClient;
@@ -173,7 +178,13 @@ export async function createApp(
   const runtime = "read" in options.runtime
     ? createOriginAppRuntime(options.runtime)
     : options.runtime;
-  const identity = createIdentityV2Client(options.product.id, options.identityBridge);
+  const identityReplay = new IdentityReplayJournalV2();
+  const identity = createIdentityV2Client(options.product.id, options.identityBridge, identityReplay);
+  const signing = createTransactionSigningV2Client(
+    options.product.id,
+    options.identityBridge,
+    identityReplay,
+  );
   const cloudStorage = createCloudStorageClient(chain, runtime.storage);
   const apps = createOriginAppsClient(chain, runtime.names, createHostOriginAppContentStore(host));
   const deployer = createOriginAppDeployer(
@@ -189,6 +200,7 @@ export async function createApp(
     signer: selected.value,
     storage: createLocalStorage(host, options.storageNamespace ?? "app"),
     identity,
+    signing,
     attestations: createAttestationClient(chain, runtime.attestation),
     names: createNamesClient(chain, runtime.names),
     cloudStorage,
@@ -221,7 +233,7 @@ export const ORIGIN_APP_CONTRACT = {
   hosted: true,
   endpointSelection: "host-only",
   nativeDomains: [
-    "identity", "attestations", "names", "cloudStorage", "assets",
+    "identity", "signing", "attestations", "names", "cloudStorage", "assets",
   ],
   contractsIncluded: false,
   applicationDomains: ["apps"],

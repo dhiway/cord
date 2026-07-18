@@ -18,13 +18,13 @@
 
 import { mkdirSync, writeFileSync } from "node:fs";
 import { dirname, resolve } from "node:path";
-import { validatePlatformContractHarness } from "./mobile-contract-harness.ts";
+import { validatePlatformAppProjection } from "./mobile-app-projection.ts";
 
-const report = await validatePlatformContractHarness("ios");
+const report = await validatePlatformAppProjection("android");
 if (process.argv.includes("--write")) {
   const path = resolve(
     import.meta.dirname,
-    "../../../docs/evidence/verification/p6/festival-ios-contract-parity.report.json",
+    "../../../target/evidence/p6/festival-android-app-projection.report.json",
   );
   mkdirSync(dirname(path), { recursive: true });
   writeFileSync(path, `${JSON.stringify(report, null, 2)}\n`);

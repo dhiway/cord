@@ -594,11 +594,11 @@
         "workspace-config"
       ],
       "cord_authority": "CORD host-mediated failure-aware browser/desktop journey and operator interfaces",
-      "cord_evidence_status": "planned-or-current-non-parity; no implementation claim",
-      "cord_path": "product-sdk/examples; origin/orbis/provider-node; docs/sdk",
-      "cord_transition": "Refactor behavior evidence into one failure-aware CORD journey; do not port production UIs or duplicate contracts.",
+      "cord_evidence_status": "implemented; deterministic P6 createApp journey and mobile projections",
+      "cord_path": "product-sdk/examples/festival; product-sdk/packages/origin-sdk; target/evidence/p6",
+      "cord_transition": "Refactor behavior evidence into one failure-aware CORD journey; do not port production UIs or create a parallel authority.",
       "deletion_targets": [
-        "Bulletin/preimage application fixtures and duplicate contract application routes"
+        "Bulletin/preimage application fixtures and duplicate application authority routes"
       ],
       "dependencies": [
         "WSI-TS-SDK",
@@ -612,7 +612,7 @@
       ],
       "id": "WSI-REFERENCE-FLOWS",
       "invariant": "Reference applications use the same singular storage/identity facade and create no independent authority.",
-      "maturity": "prototype-partial",
+      "maturity": "prototype-implemented",
       "owner": "Origin/Commons storage platform",
       "rationale": "The flows are product evidence, not production mobile/UI source to copy.",
       "selector": {
@@ -622,8 +622,8 @@
         ]
       },
       "title": "PAPI E2E, application UIs, dashboards and shared UI helpers",
-      "upstream_transition": "Demonstrates provider, checkpoint, Drive, S3, photos and contract-driven product journeys.",
-      "vector_or_test": "P6 deterministic three-provider browser/desktop journey run twice"
+      "upstream_transition": "Demonstrates Provider, Drive, S3, Identity, Names, and signing through one CORD-owned application surface.",
+      "vector_or_test": "P6 Festival createApp journey plus iOS/Android consumable projections run deterministically"
     }
   ],
   "schema_version": 1,

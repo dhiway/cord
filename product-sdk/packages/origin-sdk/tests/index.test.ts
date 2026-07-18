@@ -60,8 +60,13 @@ test("createApp validates Commons and wires the hosted developer surface once", 
   if (!created.success) return;
   assert.equal(created.value.signer.account.address, "5Festival");
   assert.deepEqual(ORIGIN_APP_CONTRACT.nativeDomains, [
-    "identity", "attestations", "names", "cloudStorage", "assets",
+    "identity", "signing", "attestations", "names", "cloudStorage", "assets",
   ]);
+  assert.deepEqual(Object.keys(created.value.identity), [
+    "account", "profileRead", "profileDisclose", "humanityStatus", "humanityProve",
+    "subjectDerive", "entitlementsRead",
+  ]);
+  assert.deepEqual(Object.keys(created.value.signing), ["signTransaction"]);
   assert.equal(ORIGIN_APP_CONTRACT.contractsIncluded, false);
   assert.equal((await created.value.storage.set("theme", "dark", utf8Codec)).success, true);
   const theme = await created.value.storage.get("theme", utf8Codec);

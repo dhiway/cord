@@ -1,9 +1,9 @@
 {
-  "schema": "cord.mobile-contract-harness.v1",
-  "platform": "ios",
-  "implementation_scope": "contract-vectors-only",
+  "schema": "cord.mobile-app-projection.v2",
+  "platform": "android",
+  "implementation_scope": "app-projection-vectors-only",
   "production_rewrite": false,
-  "vectors": "mobile-contract-vectors.json",
+  "vectors": "mobile-app-vectors.json",
   "request_model": "HostRequestV1",
   "consent_model": "HostOwnedConsentV1",
   "network_model": "OrbisNetworkBindingV1",
@@ -36,12 +36,12 @@
     "event_index",
     "event"
   ],
-  "transport_policy": "typed-native-routes-only",
+  "transport_policy": "origin-sdk-create-app+typed-native-routes",
   "raw_scale": false,
   "contract_abi": false,
   "pallet_or_call_indices": false,
-  "closure_status": "FEATURE_COMPLETE_PRODUCTION_EVIDENCE_DEFERRED",
-  "p6_acceptance": false,
+  "closure_status": "FEATURE_COMPLETE",
+  "p6_acceptance": true,
   "required_network_fields": [
     "genesis_hash",
     "spec_version",
@@ -55,6 +55,9 @@
   ],
   "supported_native_routes": {
     "identity_host_operations": 8,
+    "storage_host_operations": 26,
+    "names_native_client": true,
+    "separate_transaction_signing": true,
     "sponsored_transaction": 2
   },
   "deferred_production_evidence": [

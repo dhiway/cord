@@ -39,7 +39,7 @@ sha256 = "8bcf8b2a37a30214fc9188f6796c99a1f84e610c909eb989fab64d9fe4b3a9b4"
 
 [[gate.input]]
 path = "docs/specs/web3-storage-capability-ledger-v1.json"
-sha256 = "86406be20d40d4439d3612127687e4943f175902d75e93f62a82dbe32e0fe83d"
+sha256 = "b10c0cf77d34a10f70d60293137e05b3a262172c374d1338d634f3fdcea4a608"
 
 [[gate.input]]
 path = "docs/specs/web3-storage-upstream-sources-v1.toml"
@@ -1101,7 +1101,7 @@ sha256 = "f94f2c046ddcb9792b646c52923136cda0370f294f171fcecdbd379007028e57"
 
 [[gate.input]]
 path = "docs/specs/web3-storage-capability-ledger-v1.json"
-sha256 = "86406be20d40d4439d3612127687e4943f175902d75e93f62a82dbe32e0fe83d"
+sha256 = "b10c0cf77d34a10f70d60293137e05b3a262172c374d1338d634f3fdcea4a608"
 
 [[gate.input]]
 path = "scripts/evidence_common.py"
@@ -1281,8 +1281,8 @@ expected = 0
 [[gate]]
 id = "AC11"
 output = "../.omx/evidence/origin-orbis-web3-storage/ac11.json"
-decidability = "blocked"
-clauses = ["state", "events", "frames", "roots", "errors", "metrics", "idempotency", "recovery"]
+decidability = "mechanical"
+clauses = ["state", "events", "frames", "roots", "errors", "metrics", "provider-input", "idempotency", "recovery"]
 enforce_write_set = true
 write_paths = ["target/evidence/ac11-assertions.json"]
 
@@ -1292,17 +1292,21 @@ sha256 = "149cb782ad6643cab681916d85d6c7402f3333e8984a6eb2d483bf6ae318d0ee"
 
 [[gate.input]]
 path = "scripts/run-origin-orbis-app-journey.py"
+sha256 = "1e8c3c2a8c80e0b5a7c5600fc25225059f6718e84aa80c98573e10c62c407b85"
+
+[[gate.input]]
+path = "target/evidence/p1-provider-typed-outcomes.json"
 sha256 = "record"
 input_class = "generated"
-producer_gate = "AC11-implementation"
-producer_output = "scripts/run-origin-orbis-app-journey.py"
+producer_gate = "P1"
+producer_output = "target/evidence/p1-provider-typed-outcomes.json"
 
 [[gate.command]]
 cwd = "."
-argv = ["python3", "scripts/run-origin-orbis-app-journey.py", "--providers", "3", "--transports", "messageport,desktop-cbor", "--repeat", "2", "--out", "target/evidence/ac11-assertions.json"]
-test_count = 0
+argv = ["python3", "scripts/run-origin-orbis-app-journey.py", "--providers", "3", "--transports", "messageport,desktop-cbor", "--repeat", "2", "--provider-outcomes", "target/evidence/p1-provider-typed-outcomes.json", "--out", "target/evidence/ac11-assertions.json"]
+test_count = 4
 outputs = ["target/evidence/ac11-assertions.json"]
-inputs = ["scripts/run-origin-orbis-app-journey.py"]
+inputs = ["scripts/run-origin-orbis-app-journey.py", "target/evidence/p1-provider-typed-outcomes.json", "@repository_snapshot"]
 allowed_writes = []
 
 [[gate.artifact]]
@@ -1351,6 +1355,13 @@ source = "target/evidence/ac11-assertions.json"
 json_pointer = "/metric_trace_failures"
 operator = "zero"
 expected = 0
+
+[[gate.assertion]]
+clause = "provider-input"
+source = "target/evidence/ac11-assertions.json"
+json_pointer = "/provider_evidence_qualified"
+operator = "eq"
+expected = true
 
 [[gate.assertion]]
 clause = "idempotency"
@@ -1648,7 +1659,7 @@ sha256 = "084135c94753f5de1cf29db561d86738700e30d64eb5fed577e942cd96848faa"
 
 [[gate.input]]
 path = "docs/specs/web3-storage-capability-ledger-v1.json"
-sha256 = "86406be20d40d4439d3612127687e4943f175902d75e93f62a82dbe32e0fe83d"
+sha256 = "b10c0cf77d34a10f70d60293137e05b3a262172c374d1338d634f3fdcea4a608"
 
 [[gate.input]]
 path = "docs/specs/web3-storage-upstream-inventory-v1.json"
@@ -1939,12 +1950,12 @@ path = "origin/orbis/runtime/src/tests.rs"
 sha256 = "00424655eb5f6d4f1a8b1d67e2777abd6b7f785b2e4f785454a01def99b51e91"
 
 [[gate.input]]
-path = "product-sdk/examples/festival/mobile-contract-harness.ts"
-sha256 = "9277475bd3384df6f8e0f68fe4ac31acc923963fbdc31cc774416150c56a9ebd"
+path = "product-sdk/examples/festival/mobile-app-projection.ts"
+sha256 = "3a275895d5f519e987568c77fd975fc9f684163cdec6c77d1d035c8cd5529111"
 
 [[gate.input]]
-path = "product-sdk/examples/festival/mobile-contract-vectors.json"
-sha256 = "2e9ee4aba923383ed47bb0786a69246e800097f895b8309bbd377e7264df512b"
+path = "product-sdk/examples/festival/mobile-app-vectors.json"
+sha256 = "221fe48b69fa4c23b94ee935933a4cea1933d75633ed26f6bbda60db1edda9e5"
 
 [[gate.input]]
 path = "product-sdk/packages/descriptors/generated/commons-papi-manifest.json"
@@ -2060,7 +2071,7 @@ sha256 = "5d28f62a9579a577eb05cabbcddf85ca16bc4cc73b667c992396147dee8c54ad"
 
 [[gate.input]]
 path = "product-sdk/packages/origin-sdk/src/index.ts"
-sha256 = "d3acd66b0ceefb6066f751de33d754cbfba5d045947a276788d97fbb45cfd067"
+sha256 = "8a08105c1fdfc263940edb89d6bfe285103208a93728c15e3bb621e064819dcd"
 
 [[gate.input]]
 path = "product-sdk/packages/origin-sdk/src/runtime.ts"
@@ -2072,7 +2083,7 @@ sha256 = "d89ff97c9d0a3c71d0992028fcb7c7c2cb3ef94a38bf8ea328de95cd1cc32443"
 
 [[gate.input]]
 path = "product-sdk/packages/origin-sdk/tests/index.test.ts"
-sha256 = "dc32296053b5723ea12fccc2ad57a8cf8b787d24e1a6b63e4328b180730e98da"
+sha256 = "f7d6bf7713e3818b5da5e30cb7e9459c49c56548738ac4d0fb9d01cbedcd4ca4"
 
 [[gate.input]]
 path = "product-sdk/packages/origin-sdk/tests/runtime.test.ts"
@@ -2203,7 +2214,7 @@ cwd = "."
 argv = ["python3", "scripts/validate-storage-identity-deletion.py", "--manifest", "docs/specs/storage-identity-deletion-v1.toml", "--ledger", "docs/specs/web3-storage-capability-ledger-v1.json", "--p0-audit", "--out", "target/evidence/p0-deletion-dag.json"]
 test_count = 0
 outputs = ["target/evidence/p0-deletion-dag.json"]
-inputs = ["scripts/validate-storage-identity-deletion.py", "docs/specs/storage-identity-deletion-v1.toml", "docs/specs/web3-storage-capability-ledger-v1.json", "scripts/evidence_common.py", "Cargo.lock", "Cargo.toml", "docs/adr/0020-web3-storage-component-disposition-policy.md", "docs/architecture/domains/identity-personhood-attestation.md", "origin-rs/src/product_sdk/domains/storage_provider.rs", "origin-rs/src/product_sdk/transport.rs", "origin/orbis/pallets/drive/src/lib.rs", "origin/orbis/pallets/s3/src/lib.rs", "origin/orbis/pallets/storage-provider/src/lib.rs", "origin/orbis/provider-node/README.md", "origin/orbis/provider-node/src/api.rs", "origin/orbis/runtime/src/enterprise_journey.rs", "origin/orbis/runtime/src/lib.rs", "origin/orbis/runtime/src/tests.rs", "product-sdk/examples/festival/mobile-contract-harness.ts", "product-sdk/examples/festival/mobile-contract-vectors.json", "product-sdk/package-lock.json", "product-sdk/packages/descriptors/generated/commons-papi-manifest.json", "product-sdk/packages/descriptors/generated/native-route-contract.ts", "product-sdk/packages/descriptors/generated/orbis-descriptor.json", "product-sdk/packages/descriptors/generated/orbis-network-binding.ts", "product-sdk/packages/descriptors/src/identity-host-routes.ts", "product-sdk/packages/origin-sdk-apps/README.md", "product-sdk/packages/origin-sdk-apps/src/index.ts", "product-sdk/packages/origin-sdk-cloud-storage/README.md", "product-sdk/packages/origin-sdk-cloud-storage/src/client.ts", "product-sdk/packages/origin-sdk-contracts/README.md", "product-sdk/packages/origin-sdk-contracts/src/index.ts", "product-sdk/packages/origin-sdk-host/src/index.ts", "product-sdk/packages/origin-sdk-host/src/protocol.ts", "product-sdk/packages/origin-sdk-host/src/testing.ts", "product-sdk/packages/origin-sdk-host/tests/index.test.ts", "product-sdk/packages/origin-sdk-personhood/README.md", "product-sdk/packages/origin-sdk-personhood/package.json", "product-sdk/packages/origin-sdk-personhood/src/index.ts", "product-sdk/packages/origin-sdk-personhood/tests/index.test.ts", "product-sdk/packages/origin-sdk-resources/README.md", "product-sdk/packages/origin-sdk-resources/package.json", "product-sdk/packages/origin-sdk-resources/src/index.ts", "product-sdk/packages/origin-sdk-resources/tests/index.test.ts", "product-sdk/packages/origin-sdk-statement-store/README.md", "product-sdk/packages/origin-sdk-statement-store/package.json", "product-sdk/packages/origin-sdk-statement-store/src/index.ts", "product-sdk/packages/origin-sdk-statement-store/tests/index.test.ts", "product-sdk/packages/origin-sdk/package.json", "product-sdk/packages/origin-sdk/src/index.ts", "product-sdk/packages/origin-sdk/src/runtime.ts", "product-sdk/packages/origin-sdk/src/testing.ts", "product-sdk/packages/origin-sdk/tests/index.test.ts", "product-sdk/packages/origin-sdk/tests/runtime.test.ts", "product-sdk/src/version.ts", "product-sdk/tests/conformance/identity-sponsored-contract.test.ts", "product-sdk/tests/content/content.test.ts", "product-sdk/tools/generate-papi-app-surface.ts", "product-sdk/tools/test-packed-consumer.ts", "product-sdk/tools/validate-sdk-native-coverage.ts", "origin", "origin-rs", "product-sdk", "docs/architecture/domains", "@repository_snapshot"]
+inputs = ["scripts/validate-storage-identity-deletion.py", "docs/specs/storage-identity-deletion-v1.toml", "docs/specs/web3-storage-capability-ledger-v1.json", "scripts/evidence_common.py", "Cargo.lock", "Cargo.toml", "docs/adr/0020-web3-storage-component-disposition-policy.md", "docs/architecture/domains/identity-personhood-attestation.md", "origin-rs/src/product_sdk/domains/storage_provider.rs", "origin-rs/src/product_sdk/transport.rs", "origin/orbis/pallets/drive/src/lib.rs", "origin/orbis/pallets/s3/src/lib.rs", "origin/orbis/pallets/storage-provider/src/lib.rs", "origin/orbis/provider-node/README.md", "origin/orbis/provider-node/src/api.rs", "origin/orbis/runtime/src/enterprise_journey.rs", "origin/orbis/runtime/src/lib.rs", "origin/orbis/runtime/src/tests.rs", "product-sdk/examples/festival/mobile-app-projection.ts", "product-sdk/examples/festival/mobile-app-vectors.json", "product-sdk/package-lock.json", "product-sdk/packages/descriptors/generated/commons-papi-manifest.json", "product-sdk/packages/descriptors/generated/native-route-contract.ts", "product-sdk/packages/descriptors/generated/orbis-descriptor.json", "product-sdk/packages/descriptors/generated/orbis-network-binding.ts", "product-sdk/packages/descriptors/src/identity-host-routes.ts", "product-sdk/packages/origin-sdk-apps/README.md", "product-sdk/packages/origin-sdk-apps/src/index.ts", "product-sdk/packages/origin-sdk-cloud-storage/README.md", "product-sdk/packages/origin-sdk-cloud-storage/src/client.ts", "product-sdk/packages/origin-sdk-contracts/README.md", "product-sdk/packages/origin-sdk-contracts/src/index.ts", "product-sdk/packages/origin-sdk-host/src/index.ts", "product-sdk/packages/origin-sdk-host/src/protocol.ts", "product-sdk/packages/origin-sdk-host/src/testing.ts", "product-sdk/packages/origin-sdk-host/tests/index.test.ts", "product-sdk/packages/origin-sdk-personhood/README.md", "product-sdk/packages/origin-sdk-personhood/package.json", "product-sdk/packages/origin-sdk-personhood/src/index.ts", "product-sdk/packages/origin-sdk-personhood/tests/index.test.ts", "product-sdk/packages/origin-sdk-resources/README.md", "product-sdk/packages/origin-sdk-resources/package.json", "product-sdk/packages/origin-sdk-resources/src/index.ts", "product-sdk/packages/origin-sdk-resources/tests/index.test.ts", "product-sdk/packages/origin-sdk-statement-store/README.md", "product-sdk/packages/origin-sdk-statement-store/package.json", "product-sdk/packages/origin-sdk-statement-store/src/index.ts", "product-sdk/packages/origin-sdk-statement-store/tests/index.test.ts", "product-sdk/packages/origin-sdk/package.json", "product-sdk/packages/origin-sdk/src/index.ts", "product-sdk/packages/origin-sdk/src/runtime.ts", "product-sdk/packages/origin-sdk/src/testing.ts", "product-sdk/packages/origin-sdk/tests/index.test.ts", "product-sdk/packages/origin-sdk/tests/runtime.test.ts", "product-sdk/src/version.ts", "product-sdk/tests/conformance/identity-sponsored-contract.test.ts", "product-sdk/tests/content/content.test.ts", "product-sdk/tools/generate-papi-app-surface.ts", "product-sdk/tools/test-packed-consumer.ts", "product-sdk/tools/validate-sdk-native-coverage.ts", "origin", "origin-rs", "product-sdk", "docs/architecture/domains", "@repository_snapshot"]
 allowed_writes = []
 
 [[gate.command]]
@@ -2220,7 +2231,7 @@ cwd = "."
 argv = ["python3", "scripts/validate-phase-gate.py", "--gate", "P0", "--out", "target/evidence/p0-assertions.json"]
 test_count = 0
 outputs = ["target/evidence/p0-assertions.json"]
-inputs = ["target/evidence/p0-control-tests.json", "scripts/validate-phase-gate.py", "scripts/evidence_common.py", "product-sdk/node_modules/@types", "product-sdk/package.json", "scripts/snapshot-repositories.py", "docs/specs/origin-host-registry-v2.errors.json", "HEADER-GPL3", "docs/specs/storage-bounds-v1.toml", "origin-rs/tests/generated/origin_host_registry_v2.rs", "product-sdk/tools/origin-host-conformance/generated/origin-host-registry-v2.ts", "docs/specs/protocol-executable-v2.vectors.json", "docs/specs/web3-storage-blocked-conflicts-v1.json", "docs/specs/storage-identity-deletion-v1.toml", "docs/specs/s3-v1.md", "docs/adr/0020-web3-storage-component-disposition-policy.md", "../.omx/cache/web3-storage", "docs/specs/identity-recovery-v2.state-machine.json", "scripts/validate-ac-decidability.py", "docs/specs/generated/identity-recovery-v2.md", "docs/specs/drive-s3-v1.vectors.json", "docs/specs/origin-host-registry-v2.vectors.json", "docs/specs/host-provider-protocol-v2.md", "docs/specs/storage-v1.vectors.json", "docs/specs/web3-storage-blocked-conflicts-v1.md", "scripts/run-evidence-gate.py", "product-sdk/tools/origin-host-conformance/generate-origin-host-types.cjs", "product-sdk/package-lock.json", "product-sdk/tools/origin-host-conformance/validate-origin-host-conformance.ts", "docs/specs/origin-host-registry-v2.schema.json", "docs/specs/origin-host-registry-v2.cddl", "docs/specs/provider-protocol-v1.vectors.json", "docs/specs/generated/host-outbox-v1.md", "docs/specs/storage-checkpoints-v2.md", "docs/specs/checkpoint-v2.vectors.json", "docs/specs/storage-encryption-v1.md", "docs/specs/origin-host-registry-v2.operations.json", "docs/specs/reference-repositories.toml", "scripts/build-web3-storage-inventory.py", "docs/specs/identity-v2.md", "docs/specs/host-outbox-v1.state-machine.json", "origin-rs/Cargo.toml", "docs/specs/web3-storage-capability-ledger-v1.json", "Cargo.lock", "scripts/validate-repository-boundary.py", "docs/specs/web3-storage-upstream-inventory-v1.json", "docs/specs/host-outbox-v1.vectors.json", "docs/specs/drive-filesystem-v1.md", "docs/specs/p0-ratification-v1.toml", "docs/specs/provider-organization-sla-v1.md", "Cargo.toml", "scripts/validate-storage-identity-deletion.py", "node", "docs/specs/web3-storage-upstream-sources-v1.toml", "scripts/web3_storage_semantic.py", "docs/specs/p0-open-decisions.toml", "docs/specs/storage-control-v1.md", "docs/specs/origin-host-registry-v2.vectors.cbor", "origin-rs/tests/origin_host_registry_conformance.rs", "docs/specs/provider-protocol-v1.registry.json", "docs/specs/identity-v2.vectors.json", "docs/specs/origin-host-conformance-report-v1.schema.json", "scripts/validate-web3-storage-parity.py", "docs/specs/storage-content-v1.md", "../.omx/evidence/origin-orbis-web3-storage/repos-before.json", "../.omx/evidence/origin-orbis-web3-storage/ac-decidability-v1.json", "target/evidence/ac1-assertions.json", "target/p0-origin-host-rust-conformance.json", "target/p0-origin-host-cross-contract-report.json", "target/evidence/p0-deletion-dag.json", "docs/architecture/domains/identity-personhood-attestation.md", "origin-rs/src/product_sdk/domains/storage_provider.rs", "origin-rs/src/product_sdk/transport.rs", "origin/orbis/pallets/drive/src/lib.rs", "origin/orbis/pallets/s3/src/lib.rs", "origin/orbis/pallets/storage-provider/src/lib.rs", "origin/orbis/provider-node/README.md", "origin/orbis/provider-node/src/api.rs", "origin/orbis/runtime/src/enterprise_journey.rs", "origin/orbis/runtime/src/lib.rs", "origin/orbis/runtime/src/tests.rs", "product-sdk/examples/festival/mobile-contract-harness.ts", "product-sdk/examples/festival/mobile-contract-vectors.json", "product-sdk/packages/descriptors/generated/commons-papi-manifest.json", "product-sdk/packages/descriptors/generated/native-route-contract.ts", "product-sdk/packages/descriptors/generated/orbis-descriptor.json", "product-sdk/packages/descriptors/generated/orbis-network-binding.ts", "product-sdk/packages/descriptors/src/identity-host-routes.ts", "product-sdk/packages/origin-sdk-apps/README.md", "product-sdk/packages/origin-sdk-apps/src/index.ts", "product-sdk/packages/origin-sdk-cloud-storage/README.md", "product-sdk/packages/origin-sdk-cloud-storage/src/client.ts", "product-sdk/packages/origin-sdk-contracts/README.md", "product-sdk/packages/origin-sdk-contracts/src/index.ts", "product-sdk/packages/origin-sdk-host/src/index.ts", "product-sdk/packages/origin-sdk-host/src/protocol.ts", "product-sdk/packages/origin-sdk-host/src/testing.ts", "product-sdk/packages/origin-sdk-host/tests/index.test.ts", "product-sdk/packages/origin-sdk-personhood/README.md", "product-sdk/packages/origin-sdk-personhood/package.json", "product-sdk/packages/origin-sdk-personhood/src/index.ts", "product-sdk/packages/origin-sdk-personhood/tests/index.test.ts", "product-sdk/packages/origin-sdk-resources/README.md", "product-sdk/packages/origin-sdk-resources/package.json", "product-sdk/packages/origin-sdk-resources/src/index.ts", "product-sdk/packages/origin-sdk-resources/tests/index.test.ts", "product-sdk/packages/origin-sdk-statement-store/README.md", "product-sdk/packages/origin-sdk-statement-store/package.json", "product-sdk/packages/origin-sdk-statement-store/src/index.ts", "product-sdk/packages/origin-sdk-statement-store/tests/index.test.ts", "product-sdk/packages/origin-sdk/package.json", "product-sdk/packages/origin-sdk/src/index.ts", "product-sdk/packages/origin-sdk/src/runtime.ts", "product-sdk/packages/origin-sdk/src/testing.ts", "product-sdk/packages/origin-sdk/tests/index.test.ts", "product-sdk/packages/origin-sdk/tests/runtime.test.ts", "product-sdk/src/version.ts", "product-sdk/tests/conformance/identity-sponsored-contract.test.ts", "product-sdk/tests/content/content.test.ts", "product-sdk/tools/generate-papi-app-surface.ts", "product-sdk/tools/test-packed-consumer.ts", "product-sdk/tools/validate-sdk-native-coverage.ts"]
+inputs = ["target/evidence/p0-control-tests.json", "scripts/validate-phase-gate.py", "scripts/evidence_common.py", "product-sdk/node_modules/@types", "product-sdk/package.json", "scripts/snapshot-repositories.py", "docs/specs/origin-host-registry-v2.errors.json", "HEADER-GPL3", "docs/specs/storage-bounds-v1.toml", "origin-rs/tests/generated/origin_host_registry_v2.rs", "product-sdk/tools/origin-host-conformance/generated/origin-host-registry-v2.ts", "docs/specs/protocol-executable-v2.vectors.json", "docs/specs/web3-storage-blocked-conflicts-v1.json", "docs/specs/storage-identity-deletion-v1.toml", "docs/specs/s3-v1.md", "docs/adr/0020-web3-storage-component-disposition-policy.md", "../.omx/cache/web3-storage", "docs/specs/identity-recovery-v2.state-machine.json", "scripts/validate-ac-decidability.py", "docs/specs/generated/identity-recovery-v2.md", "docs/specs/drive-s3-v1.vectors.json", "docs/specs/origin-host-registry-v2.vectors.json", "docs/specs/host-provider-protocol-v2.md", "docs/specs/storage-v1.vectors.json", "docs/specs/web3-storage-blocked-conflicts-v1.md", "scripts/run-evidence-gate.py", "product-sdk/tools/origin-host-conformance/generate-origin-host-types.cjs", "product-sdk/package-lock.json", "product-sdk/tools/origin-host-conformance/validate-origin-host-conformance.ts", "docs/specs/origin-host-registry-v2.schema.json", "docs/specs/origin-host-registry-v2.cddl", "docs/specs/provider-protocol-v1.vectors.json", "docs/specs/generated/host-outbox-v1.md", "docs/specs/storage-checkpoints-v2.md", "docs/specs/checkpoint-v2.vectors.json", "docs/specs/storage-encryption-v1.md", "docs/specs/origin-host-registry-v2.operations.json", "docs/specs/reference-repositories.toml", "scripts/build-web3-storage-inventory.py", "docs/specs/identity-v2.md", "docs/specs/host-outbox-v1.state-machine.json", "origin-rs/Cargo.toml", "docs/specs/web3-storage-capability-ledger-v1.json", "Cargo.lock", "scripts/validate-repository-boundary.py", "docs/specs/web3-storage-upstream-inventory-v1.json", "docs/specs/host-outbox-v1.vectors.json", "docs/specs/drive-filesystem-v1.md", "docs/specs/p0-ratification-v1.toml", "docs/specs/provider-organization-sla-v1.md", "Cargo.toml", "scripts/validate-storage-identity-deletion.py", "node", "docs/specs/web3-storage-upstream-sources-v1.toml", "scripts/web3_storage_semantic.py", "docs/specs/p0-open-decisions.toml", "docs/specs/storage-control-v1.md", "docs/specs/origin-host-registry-v2.vectors.cbor", "origin-rs/tests/origin_host_registry_conformance.rs", "docs/specs/provider-protocol-v1.registry.json", "docs/specs/identity-v2.vectors.json", "docs/specs/origin-host-conformance-report-v1.schema.json", "scripts/validate-web3-storage-parity.py", "docs/specs/storage-content-v1.md", "../.omx/evidence/origin-orbis-web3-storage/repos-before.json", "../.omx/evidence/origin-orbis-web3-storage/ac-decidability-v1.json", "target/evidence/ac1-assertions.json", "target/p0-origin-host-rust-conformance.json", "target/p0-origin-host-cross-contract-report.json", "target/evidence/p0-deletion-dag.json", "docs/architecture/domains/identity-personhood-attestation.md", "origin-rs/src/product_sdk/domains/storage_provider.rs", "origin-rs/src/product_sdk/transport.rs", "origin/orbis/pallets/drive/src/lib.rs", "origin/orbis/pallets/s3/src/lib.rs", "origin/orbis/pallets/storage-provider/src/lib.rs", "origin/orbis/provider-node/README.md", "origin/orbis/provider-node/src/api.rs", "origin/orbis/runtime/src/enterprise_journey.rs", "origin/orbis/runtime/src/lib.rs", "origin/orbis/runtime/src/tests.rs", "product-sdk/examples/festival/mobile-app-projection.ts", "product-sdk/examples/festival/mobile-app-vectors.json", "product-sdk/packages/descriptors/generated/commons-papi-manifest.json", "product-sdk/packages/descriptors/generated/native-route-contract.ts", "product-sdk/packages/descriptors/generated/orbis-descriptor.json", "product-sdk/packages/descriptors/generated/orbis-network-binding.ts", "product-sdk/packages/descriptors/src/identity-host-routes.ts", "product-sdk/packages/origin-sdk-apps/README.md", "product-sdk/packages/origin-sdk-apps/src/index.ts", "product-sdk/packages/origin-sdk-cloud-storage/README.md", "product-sdk/packages/origin-sdk-cloud-storage/src/client.ts", "product-sdk/packages/origin-sdk-contracts/README.md", "product-sdk/packages/origin-sdk-contracts/src/index.ts", "product-sdk/packages/origin-sdk-host/src/index.ts", "product-sdk/packages/origin-sdk-host/src/protocol.ts", "product-sdk/packages/origin-sdk-host/src/testing.ts", "product-sdk/packages/origin-sdk-host/tests/index.test.ts", "product-sdk/packages/origin-sdk-personhood/README.md", "product-sdk/packages/origin-sdk-personhood/package.json", "product-sdk/packages/origin-sdk-personhood/src/index.ts", "product-sdk/packages/origin-sdk-personhood/tests/index.test.ts", "product-sdk/packages/origin-sdk-resources/README.md", "product-sdk/packages/origin-sdk-resources/package.json", "product-sdk/packages/origin-sdk-resources/src/index.ts", "product-sdk/packages/origin-sdk-resources/tests/index.test.ts", "product-sdk/packages/origin-sdk-statement-store/README.md", "product-sdk/packages/origin-sdk-statement-store/package.json", "product-sdk/packages/origin-sdk-statement-store/src/index.ts", "product-sdk/packages/origin-sdk-statement-store/tests/index.test.ts", "product-sdk/packages/origin-sdk/package.json", "product-sdk/packages/origin-sdk/src/index.ts", "product-sdk/packages/origin-sdk/src/runtime.ts", "product-sdk/packages/origin-sdk/src/testing.ts", "product-sdk/packages/origin-sdk/tests/index.test.ts", "product-sdk/packages/origin-sdk/tests/runtime.test.ts", "product-sdk/src/version.ts", "product-sdk/tests/conformance/identity-sponsored-contract.test.ts", "product-sdk/tests/content/content.test.ts", "product-sdk/tools/generate-papi-app-surface.ts", "product-sdk/tools/test-packed-consumer.ts", "product-sdk/tools/validate-sdk-native-coverage.ts"]
 allowed_writes = []
 
 [[gate.artifact]]
@@ -2561,7 +2572,7 @@ sha256 = "149cb782ad6643cab681916d85d6c7402f3333e8984a6eb2d483bf6ae318d0ee"
 
 [[gate.input]]
 path = "docs/specs/web3-storage-capability-ledger-v1.json"
-sha256 = "86406be20d40d4439d3612127687e4943f175902d75e93f62a82dbe32e0fe83d"
+sha256 = "b10c0cf77d34a10f70d60293137e05b3a262172c374d1338d634f3fdcea4a608"
 
 [[gate.input]]
 path = "docs/specs/web3-storage-phase-ownership-amendment-v2.json"
@@ -2871,7 +2882,7 @@ clause = "frozen-ledger"
 source = "target/evidence/p1-storage-phase-ownership-assertions.json"
 json_pointer = "/frozen_ledger_sha256"
 operator = "sha256_eq"
-expected = "86406be20d40d4439d3612127687e4943f175902d75e93f62a82dbe32e0fe83d"
+expected = "b10c0cf77d34a10f70d60293137e05b3a262172c374d1338d634f3fdcea4a608"
 
 [[gate.assertion]]
 clause = "phase-amendment"
