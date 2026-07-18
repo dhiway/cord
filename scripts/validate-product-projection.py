@@ -58,6 +58,36 @@ SHIM_PATTERNS = (
     re.compile(r"(?i)(?:metadata|descriptor).{0,40}(?:filter|replace).{0,80}people[-_ ]?lite"),
 )
 
+RECOVERY_MARKERS = (
+    "RecoveryInstallV2",
+    "RecoveryReceiptV2",
+    "IDENTITY_RECOVERY_ENTROPY_FAILED",
+    "IDENTITY_RECOVERY_INSTALL_FAILED",
+    "IDENTITY_RETIRED_SET_FULL",
+    "16_384",
+    "fn unproven_recovery_is_fresh_idempotent_and_restart_safe_without_grant_inheritance()",
+    "fn entropy_failure_persists_a_fail_closed_recovery_barrier_and_retry_can_finish()",
+    "fn recovery_retries_collisions_and_install_failure_never_commits_partial_material()",
+    "fn lost_success_after_atomic_rename_replays_the_committed_receipt()",
+)
+DURABLE_REPLAY_MARKERS = (
+    "challenges: BTreeSet<[u8; 32]>",
+    "state.challenges.contains(&challenge)",
+    "state.challenges.insert(challenge);",
+    "if let Err(error) = self.persist(&next)",
+    "IdentityAuthorityErrorV2::ChallengeReplay",
+    "fn signing_lost_success_and_identity_consent_replay_survive_restart()",
+    "assert_eq!(recovered.events, replayed.events);",
+)
+NON_LIVE_RECOVERY_MARKERS = (
+    "state.epoch = 0;",
+    "state.continuity = false;",
+    "fn unproven_recovery_is_fresh_idempotent_and_restart_safe_without_grant_inheritance()",
+    "assert_eq!(store.root_material().unwrap(), ([0x91; 32], [0x92; 32], 0, false));",
+    "fn entropy_failure_persists_a_fail_closed_recovery_barrier_and_retry_can_finish()",
+    "assert_eq!(reopened.root_material().unwrap(), ([0x61; 32], [0x62; 32], 0, false));",
+)
+
 
 def atomic_json(path: Path, value: dict[str, Any]) -> None:
     path.parent.mkdir(parents=True, exist_ok=True)
@@ -162,6 +192,19 @@ def metadata_shims(root: Path) -> list[dict[str, Any]]:
                     "value": match.group(0),
                 })
     return findings
+
+
+def identity_authority_evidence(authority: str) -> dict[str, int]:
+    """Count missing durable replay and non-live recovery proof markers."""
+    return {
+        "recovery_failures": sum(marker not in authority for marker in RECOVERY_MARKERS),
+        "same_store_replay_failures": sum(
+            marker not in authority for marker in DURABLE_REPLAY_MARKERS
+        ),
+        "non_live_continuity_true": sum(
+            marker not in authority for marker in NON_LIVE_RECOVERY_MARKERS
+        ),
+    }
 
 
 def validate_disposition(root: Path, ledger_path: Path) -> tuple[list[str], dict[str, Any]]:
@@ -289,17 +332,10 @@ def identity_report(root: Path) -> dict[str, Any]:
     )
 
     authority = text(root / "origin-rs/src/product_sdk/host_v2/identity_authority.rs")
-    recovery_markers = (
-        "RecoveryInstallV2", "RecoveryReceiptV2", "IDENTITY_RECOVERY_ENTROPY_FAILED",
-        "IDENTITY_RECOVERY_INSTALL_FAILED", "IDENTITY_RETIRED_SET_FULL", "16_384",
-    )
-    recovery_failures = sum(marker not in authority for marker in recovery_markers)
-    same_store_replay_failures = 0 if all(
-        marker in authority for marker in ("consumed_challenges", "persist", "IDENTITY_CHALLENGE_REPLAY")
-    ) else 1
-    non_live_continuity_true = 0 if (
-        "continuity: false" in authority and "epoch: 0" in authority
-    ) else 1
+    authority_evidence = identity_authority_evidence(authority)
+    recovery_failures = authority_evidence["recovery_failures"]
+    same_store_replay_failures = authority_evidence["same_store_replay_failures"]
+    non_live_continuity_true = authority_evidence["non_live_continuity_true"]
 
     leakage_findings = 0
     provider_files = source_files(root, ("origin/orbis/provider-node/src",))

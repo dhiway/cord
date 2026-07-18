@@ -36,6 +36,50 @@ SPEC.loader.exec_module(VALIDATOR)
 
 
 class ProductProjectionTests(unittest.TestCase):
+    def test_identity_authority_evidence_binds_durable_replay_state_and_restart_test(self) -> None:
+        authority = (
+            CORD / "origin-rs/src/product_sdk/host_v2/identity_authority.rs"
+        ).read_text()
+        self.assertEqual(
+            VALIDATOR.identity_authority_evidence(authority)["same_store_replay_failures"], 0
+        )
+        for marker in (
+            "challenges: BTreeSet<[u8; 32]>",
+            "state.challenges.insert(challenge);",
+            "if let Err(error) = self.persist(&next)",
+            "fn signing_lost_success_and_identity_consent_replay_survive_restart()",
+        ):
+            with self.subTest(marker=marker):
+                tampered = authority.replace(marker, "REMOVED_MARKER", 1)
+                self.assertGreater(
+                    VALIDATOR.identity_authority_evidence(tampered)[
+                        "same_store_replay_failures"
+                    ],
+                    0,
+                )
+
+    def test_identity_authority_evidence_binds_non_live_recovery_assignments_and_tests(self) -> None:
+        authority = (
+            CORD / "origin-rs/src/product_sdk/host_v2/identity_authority.rs"
+        ).read_text()
+        evidence = VALIDATOR.identity_authority_evidence(authority)
+        self.assertEqual(evidence["recovery_failures"], 0)
+        self.assertEqual(evidence["non_live_continuity_true"], 0)
+        for marker in (
+            "state.epoch = 0;",
+            "state.continuity = false;",
+            "fn unproven_recovery_is_fresh_idempotent_and_restart_safe_without_grant_inheritance()",
+            "fn entropy_failure_persists_a_fail_closed_recovery_barrier_and_retry_can_finish()",
+        ):
+            with self.subTest(marker=marker):
+                tampered = authority.replace(marker, "REMOVED_MARKER", 1)
+                tampered_evidence = VALIDATOR.identity_authority_evidence(tampered)
+                self.assertGreater(
+                    tampered_evidence["recovery_failures"]
+                    + tampered_evidence["non_live_continuity_true"],
+                    0,
+                )
+
     def test_ratified_internal_disposition_has_no_public_projection(self) -> None:
         report = VALIDATOR.disposition_report(
             CORD, CORD / "docs/specs/web3-storage-disposition-v1.toml"
