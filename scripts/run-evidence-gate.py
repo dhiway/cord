@@ -163,6 +163,29 @@ def hash_path(path: Path) -> str:
     return sha256_bytes(canonical_bytes(records))
 
 
+def canonical_release_hash(root: Path, declared: dict[str, Any]) -> str:
+    """Validate a release member against its adjacent canonical SHA256SUMS.
+
+    Canonical release outputs are intentionally generated outside the Git tree.
+    Their immutable commitment is SHA256SUMS, while the consumer also verifies
+    semantic provenance (source, lockfile, pinned srtool and two clean runs).
+    """
+    path = root / declared["path"]
+    attestation = declared.get("attestation")
+    if not isinstance(attestation, str):
+        raise ValueError("canonical release input has no SHA256SUMS attestation")
+    checksum_path = root / attestation
+    entries: dict[str, str] = {}
+    for line in checksum_path.read_text(encoding="utf-8").splitlines():
+        fields = line.split(maxsplit=1)
+        if len(fields) == 2:
+            entries[fields[1].lstrip(" *")] = fields[0]
+    actual = sha256_file(path)
+    if entries.get(path.name) != actual:
+        raise ValueError(f"canonical release attestation does not bind {declared['path']}")
+    return actual
+
+
 def workspace_state(
     root: Path, external_roots: list[str], output_paths: list[Path]
 ) -> dict[str, list[int | str]]:
@@ -504,9 +527,18 @@ def main() -> int:
         try:
             actual_hash = hash_path(path)
             input_hashes[declared["path"]] = actual_hash
-            if declared["sha256"] == "record" and declared.get("input_class") != "generated":
+            input_class = declared.get("input_class")
+            if input_class == "canonical_release":
+                actual_hash = canonical_release_hash(root, declared)
+                input_hashes[declared["path"]] = actual_hash
+                input_ancestry[declared["path"]] = {
+                    "input_class": input_class,
+                    "attestation": declared["attestation"],
+                    "artifact_sha256": actual_hash,
+                }
+            elif declared["sha256"] == "record" and input_class != "generated":
                 blockers.append(f"unfrozen input is not an approved generated input: {declared['path']}")
-            elif declared.get("input_class") == "generated":
+            elif input_class == "generated":
                 producer_id = declared.get("producer_gate")
                 producer_output = declared.get("producer_output")
                 producer_gates = [row for row in registry.get("gate", []) if row.get("id") == producer_id]

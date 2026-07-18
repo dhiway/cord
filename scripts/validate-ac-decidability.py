@@ -181,6 +181,13 @@ def validate_gate(
                 if output != item.get("path") or output not in produced or output not in artifacts:
                     failures.append(f"generated input producer relation is invalid: {item.get('path')}")
             continue
+        if expected == "record" and item.get("input_class") == "canonical_release":
+            attestation = item.get("attestation")
+            if not isinstance(attestation, str) or not attestation:
+                failures.append(f"canonical release input lacks SHA256SUMS attestation: {item.get('path')}")
+            elif not (root / attestation).is_file():
+                failures.append(f"canonical release attestation is missing: {attestation}")
+            continue
         if re.fullmatch(r"[0-9a-f]{64}", expected) is None:
             failures.append(f"input hash is not frozen: {item.get('path')}")
         elif not path.exists() or hash_path(path) != expected:

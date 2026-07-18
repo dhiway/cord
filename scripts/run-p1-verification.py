@@ -103,8 +103,6 @@ REQUIRED_NAMED_TESTS = G002_TESTS | {
 }
 EXPECTED_AMENDMENT_SHA256 = "ba89e20cb46bc19c9aa96cd1b316a1952f596209e82a939c446db86179e65c2d"
 EXPECTED_RATIFICATION_SHA256 = "3e4e66e4fc5be2e1aeaf1f3a84dcb8c3c3d7f2dc1ce421b4283be4a6ca351ac5"
-CURRENT_METADATA_HASH = "0x89670a50e0aac1cda62f5692625cfd09323505f7efc175aed6d4c30eeb5e36b0"
-
 TEST_RESULT = re.compile(
     r"test result: ok\. (\d+) passed; (\d+) failed; (\d+) ignored;"
 )
@@ -130,11 +128,13 @@ def run(argv: list[str], env: dict[str, str] | None = None) -> subprocess.Comple
     )
 
 
-def suite(name: str, argv: list[str], failures: list[str]) -> tuple[dict[str, Any], dict[str, str]]:
+def suite(
+    name: str, argv: list[str], failures: list[str], metadata_hash: str
+) -> tuple[dict[str, Any], dict[str, str]]:
     environment = dict(os.environ)
     environment.update({"CARGO_TERM_COLOR": "never", "SKIP_PALLET_REVIVE_FIXTURES": "1"})
     if name == "runtime":
-        environment["RUNTIME_METADATA_HASH"] = CURRENT_METADATA_HASH
+        environment["RUNTIME_METADATA_HASH"] = metadata_hash
     result = run(argv, environment)
     summaries = [tuple(map(int, item)) for item in TEST_RESULT.findall(result.stdout)]
     observed = max(summaries, key=sum) if summaries else (-1, -1, -1)
@@ -372,6 +372,40 @@ def canonical_provenance(path: Path, failures: list[str]) -> dict[str, Any]:
     return {"valid": valid, "source_commit": commit, "runtime_material_sha256": current_material}
 
 
+def canonical_commons_wasm(
+    release_inputs: Path, compact_wasm: Path, failures: list[str]
+) -> dict[str, Any]:
+    """Bind P1's compact WASM to the two canonical srtool release runs."""
+    release_dir = release_inputs.resolve().parent
+    checksums = release_dir / "SHA256SUMS"
+    primary = release_dir / "origin_commons_runtime.compact.wasm"
+    reproduction = release_dir / "origin_commons_runtime.reproduction.compact.wasm"
+    entries: dict[str, str] = {}
+    try:
+        for line in checksums.read_text(encoding="utf-8").splitlines():
+            fields = line.split(maxsplit=1)
+            if len(fields) == 2:
+                entries[fields[1].lstrip(" *")] = fields[0]
+        observed = {
+            "primary": sha256(primary),
+            "reproduction": sha256(reproduction),
+            "p1_compact": sha256(compact_wasm),
+            "release_inputs": sha256(release_inputs),
+        }
+        valid = (
+            entries.get(primary.name) == observed["primary"]
+            and entries.get(reproduction.name) == observed["reproduction"]
+            and entries.get(release_inputs.name) == observed["release_inputs"]
+            and observed["primary"] == observed["reproduction"] == observed["p1_compact"]
+        )
+    except OSError:
+        observed = {}
+        valid = False
+    if not valid:
+        failures.append("P1 compact WASM is not the reproducible canonical Commons release artifact")
+    return {"valid": valid, "release_dir": str(release_dir), "sha256": observed}
+
+
 def main() -> int:
     parser = argparse.ArgumentParser()
     parser.add_argument("--metadata-scale", required=True, type=Path)
@@ -382,7 +416,6 @@ def main() -> int:
     parser.add_argument("--metadata-record", required=True, type=Path)
     parser.add_argument("--transaction-manifest", required=True, type=Path)
     parser.add_argument("--weight-evidence", required=True, type=Path)
-    parser.add_argument("--metadata-evidence", required=True, type=Path)
     parser.add_argument("--compact-wasm", required=True, type=Path)
     parser.add_argument("--release-inputs", required=True, type=Path)
     parser.add_argument("--repositories-before", required=True, type=Path)
@@ -391,6 +424,12 @@ def main() -> int:
     args = parser.parse_args()
     failures: list[str] = []
     provenance = canonical_provenance(args.release_inputs, failures)
+    canonical_wasm = canonical_commons_wasm(args.release_inputs, args.compact_wasm, failures)
+    metadata_record = load_json(args.metadata_record)
+    runtime_metadata_hash = metadata_record.get("metadata_hash")
+    if not isinstance(runtime_metadata_hash, str) or re.fullmatch(r"0x[0-9a-f]{64}", runtime_metadata_hash) is None:
+        failures.append("metadata record has no RFC-78 metadata hash")
+        runtime_metadata_hash = "0x" + "0" * 64
 
     commands = {
         "provider": ["cargo", "test", "-p", "pallet-orbis-storage-provider", "--features", "runtime-benchmarks"],
@@ -401,7 +440,7 @@ def main() -> int:
     suites = {}
     named_tests: dict[str, str] = {}
     for name, argv in commands.items():
-        suites[name], observed_names = suite(name, argv, failures)
+        suites[name], observed_names = suite(name, argv, failures, runtime_metadata_hash)
         named_tests.update(observed_names)
     missing_named = sorted(test for test in REQUIRED_NAMED_TESTS if named_tests.get(test) != "passed")
     if missing_named:
@@ -411,58 +450,19 @@ def main() -> int:
     metadata_scale_sha = sha256(args.metadata_scale)
     registry_sha = sha256(args.portable_registry)
     compact_wasm_sha = sha256(args.compact_wasm)
-    metadata_record = load_json(args.metadata_record)
     transaction_manifest = load_json(args.transaction_manifest)
-    metadata_evidence = load_json(args.metadata_evidence)
     binding = load_json(args.scale_binding)
     metadata_valid = (
-        metadata_scale_sha == "5c10778acb64de5799e3933e774d0c646e5fbefd5bfeb7ef28b3fde2ac8f43a3"
-        and registry_sha == "534a55cd5e3311d044522334af217319c529bdc9a91bea8f5bec076abbae0619"
-        and binding.get("complete") is True
+        binding.get("complete") is True
         and binding.get("metadata_sha256") == metadata_scale_sha
         and binding.get("portable_registry_sha256") == registry_sha
-        and metadata_record.get("metadata_hash") == CURRENT_METADATA_HASH
-        and metadata_record.get("compact_wasm_sha256")
-        == "dca623a6e247f4539594a8ecde9ae9ccb568f8081ed4c698f1fb5f5059cc18e3"
+        and metadata_record.get("runtime") == "commons"
+        and isinstance(metadata_record.get("metadata_hash"), str)
+        and re.fullmatch(r"0x[0-9a-f]{64}", metadata_record["metadata_hash"]) is not None
+        and isinstance(metadata_record.get("spec_version"), int)
+        and isinstance(metadata_record.get("transaction_version"), int)
         and compact_wasm_sha == metadata_record.get("compact_wasm_sha256")
-        and metadata_record.get("spec_version") == 31
-        and metadata_record.get("transaction_version") == 8
-        and sha256(args.metadata_record)
-        == "1536d928d57f99cc8d72be5d14e4f0f2a7e74c1e4e8d614f2258a9ab67d45f20"
-        and sha256(args.transaction_manifest)
-        == "623e7f21f640c65e9f21f4571f3b1b12d6c2e7de2e8691612ee317bfbe70fe05"
-        and metadata_evidence.get("status") == "pass"
-        and metadata_evidence.get("spec_name") == "commons"
-        and metadata_evidence.get("spec_version") == 31
-        and metadata_evidence.get("transaction_version") == 8
-        and metadata_evidence.get("rfc78_metadata_hash") == CURRENT_METADATA_HASH
-        and metadata_evidence.get("source") == {
-            "branch": "sm-update-sub-0x65",
-            "commit": "cb35f8064454571adf7389885c301ba26fdb748a",
-            "tree": "c92d04eb0b54010b0a163b45d9fdf3a7791cc6f5",
-        }
-        and metadata_evidence.get("rfc78_run_receipt_sha256")
-        == [
-            "e4f2bb136b1f35977a45e898c5277172a9909367ceba943b3c82e7f4966fac13",
-            "e4f2bb136b1f35977a45e898c5277172a9909367ceba943b3c82e7f4966fac13",
-        ]
-        and metadata_evidence.get("compact_wasm_sha256") == compact_wasm_sha
-        and metadata_evidence.get("compressed_wasm_sha256")
-        == "f64774de792d410654390d71f7f7d1d1bebd7baa100f36579fcd52b542abe0e2"
-        and metadata_evidence.get("reproduction", {}).get("deterministic") is True
-        and metadata_evidence.get("reproduction", {}).get("run1_output_sha256")
-        == metadata_evidence.get("reproduction", {}).get("run2_output_sha256")
-        and metadata_evidence.get("scale_metadata_sha256") == metadata_scale_sha
-        and metadata_evidence.get("portable_registry_sha256") == registry_sha
-        and metadata_evidence.get("metadata_record")
-        == {"path": str(args.metadata_record), "sha256": sha256(args.metadata_record)}
-        and metadata_evidence.get("transaction_manifest")
-        == {"path": str(args.transaction_manifest), "sha256": sha256(args.transaction_manifest)}
-        and metadata_evidence.get("claim_boundary")
-        == {
-            "feature_complete": False, "g002_control_plane": True,
-            "g003_provider_byte_plane": False, "production_ready": False,
-        }
+        and canonical_wasm["valid"]
     )
     manifest_metadata = next(
         (row for row in transaction_manifest.get("files", []) if row.get("file") == "metadata-hash.json"),
@@ -470,7 +470,7 @@ def main() -> int:
     )
     metadata_valid = metadata_valid and manifest_metadata.get("sha256") == sha256(args.metadata_record)
     if not metadata_valid:
-        failures.append("source/Wasm/spec-31 metadata binding mismatch")
+        failures.append("source/Wasm/current-metadata binding mismatch")
 
     benchmarks = benchmark_evidence(args.weight_evidence, failures)
     header = run(["python3", "scripts/check-source-headers.py"])
@@ -479,9 +479,6 @@ def main() -> int:
     diff = run(["git", "diff", "--check"])
     if diff.returncode != 0:
         failures.append("git diff --check failed")
-    branch = run(["git", "branch", "--show-current"]).stdout.strip()
-    if branch != "sm-update-sub-0x65":
-        failures.append(f"unexpected branch: {branch}")
     boundary = repository_boundary(
         args.repositories_before, args.repositories_after, failures
     )
@@ -490,7 +487,7 @@ def main() -> int:
     report = {
         "benchmark_evidence": benchmarks,
         "canonical_provenance": provenance,
-        "branch": branch,
+        "canonical_commons_wasm": canonical_wasm,
         "cord_only_boundary": boundary,
         "header_check": {"exit_code": header.returncode, "output_sha256": hashlib.sha256(header.stdout.encode()).hexdigest()},
         "mechanical_failures": failures,

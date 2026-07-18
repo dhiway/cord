@@ -1813,7 +1813,7 @@ sha256 = "58ee013c5639e42ce284873cb19ab0bb8261114647707f2ac4203f41dfd533ef"
 
 [[gate.input]]
 path = "scripts/run-evidence-gate.py"
-sha256 = "568815bdb96f589f23ef68995530c4aa7fa06f1c89ad19dc16a355e95127ef80"
+sha256 = "995f18062ebefb11eb2c57575ea6e33bd9fc61d47aba1bdc5630a878019e1545"
 
 [[gate.input]]
 path = "scripts/evidence_common.py"
@@ -1829,7 +1829,7 @@ sha256 = "6715c8c6bae7d8d4fc99e44fcd0d4e1da28cf2edfe0749acf97d78a83f38e9f6"
 
 [[gate.input]]
 path = "scripts/validate-ac-decidability.py"
-sha256 = "521831c68e52e5696b65145c08c1d53a54bffcebc0f7190b5a3aa23fce7d9e9c"
+sha256 = "f32ba5e2b5254ab57638bd6999df507920fb1ea28dcfa638233f1477dd0bac92"
 
 [[gate.input]]
 path = "scripts/build-web3-storage-inventory.py"
@@ -2480,33 +2480,44 @@ sha256 = "0e8a046a6f8913921a655e6fc4994f3c006683a74bba7dda2bfaa52b2f47f387"
 
 [[gate.input]]
 path = "scripts/export-origin-commons-metadata.py"
-sha256 = "6d3c4c24e62a59db509a74a48526ba72de9da6bf8019f7334d2caf4850bd5b84"
+sha256 = "4e3fc3f58b138e29fe8a66c39e0096ddd16080e9bdeb134c4b7d6441a646c43c"
+
+[[gate.input]]
+path = "release-artifacts/origin-orbis/release-inputs.json"
+sha256 = "record"
+input_class = "canonical_release"
+attestation = "release-artifacts/origin-orbis/SHA256SUMS"
+
+[[gate.input]]
+path = "release-artifacts/origin-orbis/origin_commons_runtime.compact.wasm"
+sha256 = "record"
+input_class = "canonical_release"
+attestation = "release-artifacts/origin-orbis/SHA256SUMS"
+
+[[gate.input]]
+path = "release-artifacts/origin-orbis/origin_commons_runtime.reproduction.compact.wasm"
+sha256 = "record"
+input_class = "canonical_release"
+attestation = "release-artifacts/origin-orbis/SHA256SUMS"
 
 [[gate.command]]
 cwd = "."
-argv = ["python3", "scripts/export-origin-commons-metadata.py", "--metadata-scale", "target/evidence/origin-commons-runtime.metadata.scale", "--portable-registry", "target/evidence/origin-commons-runtime.portable-registry.json", "--compact-wasm", "target/evidence/origin-commons-runtime.compact.wasm", "--receipt", "target/evidence/origin-commons-runtime.receipt.json"]
+argv = ["python3", "scripts/export-origin-commons-metadata.py", "--metadata-scale", "target/evidence/origin-commons-runtime.metadata.scale", "--portable-registry", "target/evidence/origin-commons-runtime.portable-registry.json", "--compact-wasm", "target/evidence/origin-commons-runtime.compact.wasm", "--receipt", "target/evidence/origin-commons-runtime.receipt.json", "--canonical-compact-wasm", "release-artifacts/origin-orbis/origin_commons_runtime.compact.wasm", "--release-inputs", "release-artifacts/origin-orbis/release-inputs.json"]
 test_count = 0
 outputs = ["target/evidence/origin-commons-runtime.metadata.scale", "target/evidence/origin-commons-runtime.portable-registry.json", "target/evidence/origin-commons-runtime.compact.wasm", "target/evidence/origin-commons-runtime.receipt.json"]
-inputs = ["scripts/export-origin-commons-metadata.py", "Cargo.toml", "Cargo.lock", "origin"]
-allowed_reads = ["target/debug/**", "target/release/**", "target/.rustc_info.json"]
+inputs = ["scripts/export-origin-commons-metadata.py", "Cargo.toml", "Cargo.lock", "origin", "release-artifacts/origin-orbis/origin_commons_runtime.compact.wasm", "release-artifacts/origin-orbis/release-inputs.json"]
+allowed_reads = ["target/debug/**", "target/release/**", "target/.rustc_info.json", "release-artifacts/origin-orbis/SHA256SUMS", "release-artifacts/origin-orbis/origin_commons_runtime.reproduction.compact.wasm"]
 allowed_writes = ["target/debug/**", "target/release/**", "target/.rustc_info.json"]
 
 [[gate.artifact]]
 path = "target/evidence/origin-commons-runtime.metadata.scale"
-sha256 = "5c10778acb64de5799e3933e774d0c646e5fbefd5bfeb7ef28b3fde2ac8f43a3"
+sha256 = "record"
 schema = "scale-metadata-v15"
 
 [[gate.artifact]]
 path = "target/evidence/origin-commons-runtime.portable-registry.json"
-sha256 = "534a55cd5e3311d044522334af217319c529bdc9a91bea8f5bec076abbae0619"
+sha256 = "record"
 schema = "portable-registry-v1"
-
-[[gate.assertion]]
-clause = "metadata-export"
-source = "target/evidence/origin-commons-runtime.portable-registry.json"
-json_pointer = "/metadata_sha256"
-operator = "sha256_eq"
-expected = "5c10778acb64de5799e3933e774d0c646e5fbefd5bfeb7ef28b3fde2ac8f43a3"
 
 [[gate]]
 id = "P1"
@@ -2542,7 +2553,7 @@ sha256 = "3efa6856658a04ea73da27450ce2aae88ec31c1dd41bf225dac8235067cdd2b8"
 
 [[gate.input]]
 path = "scripts/run-p1-verification.py"
-sha256 = "488ab37b12b2d022cdcf9998d971d87347413b97214fc3c2654f7ba131f7c012"
+sha256 = "299b55c8f4f8c27c253af927f4a34f38f0c07f3a88691e38f5bc4c66f239e3a9"
 
 [[gate.input]]
 path = "scripts/validate-storage-phase-ownership.py"
@@ -2633,6 +2644,12 @@ path = "docs/specs/scale-metadata-binding-v1.schema.json"
 sha256 = "7437edd379fa0e2e1df309959427196dcc59e74d5ce55d9e10793c238360c698"
 
 [[gate.input]]
+path = "release-artifacts/origin-orbis/release-inputs.json"
+sha256 = "record"
+input_class = "canonical_release"
+attestation = "release-artifacts/origin-orbis/SHA256SUMS"
+
+[[gate.input]]
 path = "target/evidence/origin-commons-runtime.metadata.scale"
 sha256 = "record"
 input_class = "generated"
@@ -2673,11 +2690,11 @@ allowed_writes = []
 
 [[gate.command]]
 cwd = "."
-argv = ["python3", "scripts/run-p1-verification.py", "--metadata-scale", "target/evidence/origin-commons-runtime.metadata.scale", "--portable-registry", "target/evidence/origin-commons-runtime.portable-registry.json", "--scale-binding", "target/evidence/p1-scale-metadata-binding.json", "--amendment", "docs/specs/web3-storage-phase-ownership-amendment-v2.json", "--ratification", "docs/specs/p0-storage-control-ratification-v2.toml", "--metadata-record", "origin/orbis/runtime/vectors/transaction-policy-v8/metadata-hash.json", "--transaction-manifest", "origin/orbis/runtime/vectors/transaction-policy-v8/manifest.json", "--weight-evidence", "docs/evidence/p1/g002-control-plane-v1/storage-weight-evidence-v1.json", "--metadata-evidence", "docs/evidence/p1/g002-control-plane-v1/commons-metadata-evidence-v1.json", "--compact-wasm", "target/evidence/origin-commons-runtime.compact.wasm", "--repositories-before", "../.omx/evidence/origin-orbis-web3-storage/repos-before.json", "--repositories-after", "target/evidence/p1-repositories-after.json", "--out", "target/evidence/p1-verification.json"]
+argv = ["python3", "scripts/run-p1-verification.py", "--metadata-scale", "target/evidence/origin-commons-runtime.metadata.scale", "--portable-registry", "target/evidence/origin-commons-runtime.portable-registry.json", "--scale-binding", "target/evidence/p1-scale-metadata-binding.json", "--amendment", "docs/specs/web3-storage-phase-ownership-amendment-v2.json", "--ratification", "docs/specs/p0-storage-control-ratification-v2.toml", "--metadata-record", "origin/orbis/runtime/vectors/transaction-policy-v8/metadata-hash.json", "--transaction-manifest", "origin/orbis/runtime/vectors/transaction-policy-v8/manifest.json", "--weight-evidence", "docs/evidence/p1/g002-control-plane-v1/storage-weight-evidence-v1.json", "--compact-wasm", "target/evidence/origin-commons-runtime.compact.wasm", "--release-inputs", "release-artifacts/origin-orbis/release-inputs.json", "--repositories-before", "../.omx/evidence/origin-orbis-web3-storage/repos-before.json", "--repositories-after", "target/evidence/p1-repositories-after.json", "--out", "target/evidence/p1-verification.json"]
 test_count = 198
 outputs = ["target/evidence/p1-verification.json"]
-inputs = ["scripts/run-p1-verification.py", "scripts/check-source-headers.py", "HEADER-GPL3", "Cargo.toml", "Cargo.lock", "origin", "docs/evidence/p1/g002-control-plane-v1", "docs/evidence/p1/g002-control-plane-v1/storage-weight-evidence-v1.json", "docs/evidence/p1/g002-control-plane-v1/commons-metadata-evidence-v1.json", "docs/specs/web3-storage-phase-ownership-amendment-v2.json", "docs/specs/p0-storage-control-ratification-v2.toml", "docs/specs/reviews/p1-storage-control-architect-v2.json", "docs/specs/reviews/p1-storage-control-critic-v2.json", "docs/specs/checkpoint-v2.vectors.json", "docs/specs/drive-s3-v1.vectors.json", "docs/specs/provider-protocol-v1.vectors.json", "origin/orbis/runtime/vectors/transaction-policy-v8/metadata-hash.json", "origin/orbis/runtime/vectors/transaction-policy-v8/manifest.json", "target/evidence/origin-commons-runtime.metadata.scale", "target/evidence/origin-commons-runtime.portable-registry.json", "target/evidence/p1-scale-metadata-binding.json", "target/evidence/origin-commons-runtime.compact.wasm", "../.omx/evidence/origin-orbis-web3-storage/repos-before.json", "target/evidence/p1-repositories-after.json", "@repository_snapshot"]
-allowed_reads = ["target/debug/**", "target/release/**", "target/.rustc_info.json", ".git/**"]
+inputs = ["scripts/run-p1-verification.py", "scripts/check-source-headers.py", "HEADER-GPL3", "Cargo.toml", "Cargo.lock", "origin", "docs/evidence/p1/g002-control-plane-v1", "docs/evidence/p1/g002-control-plane-v1/storage-weight-evidence-v1.json", "docs/specs/web3-storage-phase-ownership-amendment-v2.json", "docs/specs/p0-storage-control-ratification-v2.toml", "docs/specs/reviews/p1-storage-control-architect-v2.json", "docs/specs/reviews/p1-storage-control-critic-v2.json", "docs/specs/checkpoint-v2.vectors.json", "docs/specs/drive-s3-v1.vectors.json", "docs/specs/provider-protocol-v1.vectors.json", "origin/orbis/runtime/vectors/transaction-policy-v8/metadata-hash.json", "origin/orbis/runtime/vectors/transaction-policy-v8/manifest.json", "target/evidence/origin-commons-runtime.metadata.scale", "target/evidence/origin-commons-runtime.portable-registry.json", "target/evidence/p1-scale-metadata-binding.json", "target/evidence/origin-commons-runtime.compact.wasm", "release-artifacts/origin-orbis/release-inputs.json", "../.omx/evidence/origin-orbis-web3-storage/repos-before.json", "target/evidence/p1-repositories-after.json", "@repository_snapshot"]
+allowed_reads = ["target/debug/**", "target/release/**", "target/.rustc_info.json", ".git/**", "release-artifacts/origin-orbis/SHA256SUMS", "release-artifacts/origin-orbis/origin_commons_runtime.compact.wasm", "release-artifacts/origin-orbis/origin_commons_runtime.reproduction.compact.wasm"]
 allowed_writes = ["target/debug/**", "target/release/**", "target/.rustc_info.json"]
 
 [[gate.command]]
