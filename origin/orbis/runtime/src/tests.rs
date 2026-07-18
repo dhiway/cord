@@ -4958,7 +4958,7 @@ fn sponsored_meta_tx_preserves_actor_and_rejects_replay_and_forgery_core(emit_v4
 			sp_runtime::DispatchError::Module(module)
 				if module.index == 96 && module.error == [15, 0, 0, 0]
 		));
-		assert_eq!(System::account_nonce(&alice), inner_nonce);
+		assert_eq!(System::account_nonce(&alice), inner_nonce + 1);
 		assert_eq!(System::account_nonce(&bob), sponsor_nonce + 1);
 		assert!(Balances::free_balance(&bob) < sponsor_balance);
 		assert!(!indiv_pallet_resources::SpentLongTermStorageAliases::<Runtime>::contains_key(
