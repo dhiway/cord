@@ -1417,7 +1417,7 @@ sha256 = "4b95be2dae422b815b7a623a3cf9ca0468f9bc735f01373c583c4183b4e9c4a7"
 
 [[gate.input]]
 path = "scripts/validate-repository-boundary.py"
-sha256 = "19d313c9980e80575b728cde61ceca64439e027dd1789c40114676632428c897"
+sha256 = "f757223cb452c40a32352580ac69685b4f8fcc626cac1809e101d83238684a46"
 
 [[gate.command]]
 cwd = "."
@@ -1825,7 +1825,7 @@ sha256 = "4b95be2dae422b815b7a623a3cf9ca0468f9bc735f01373c583c4183b4e9c4a7"
 
 [[gate.input]]
 path = "scripts/validate-repository-boundary.py"
-sha256 = "19d313c9980e80575b728cde61ceca64439e027dd1789c40114676632428c897"
+sha256 = "f757223cb452c40a32352580ac69685b4f8fcc626cac1809e101d83238684a46"
 
 [[gate.input]]
 path = "scripts/validate-ac-decidability.py"

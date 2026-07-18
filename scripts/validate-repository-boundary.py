@@ -24,6 +24,7 @@ from __future__ import annotations
 import argparse
 import fnmatch
 import json
+import subprocess
 import sys
 try:
     import tomllib
@@ -46,7 +47,6 @@ CORD_CHANGE_KEYS = {
 	"path",
 	"branch",
 	"detached",
-	"index_tree",
     "head",
     "head_tree",
     "index_sha256",
@@ -113,6 +113,40 @@ def allowed_contract(path: Path) -> tuple[list[str], set[str]]:
     return globs, commits
 
 
+def validate_cord_history(
+    baseline: dict[str, Any], current: dict[str, Any], allowed_globs: list[str], allowed_commits: set[str]
+) -> list[dict[str, Any]]:
+    """Require a declared, Satish-authored, path-scoped descendant history."""
+    old_head, new_head = baseline.get("head"), current.get("head")
+    checkout = current.get("path")
+    if not all(isinstance(value, str) and value for value in (old_head, new_head, checkout)):
+        return [{"kind": "cord-history-unavailable"}]
+    ancestor = subprocess.run(["git", "-C", checkout, "merge-base", "--is-ancestor", old_head, new_head], check=False)
+    if ancestor.returncode != 0:
+        return [{"kind": "cord-history-non-ancestral", "before": old_head, "after": new_head}]
+    log = subprocess.run(
+        ["git", "-C", checkout, "log", "--format=%H%x00%an%x00%ae", f"{old_head}..{new_head}"],
+        check=True, stdout=subprocess.PIPE, text=True,
+    ).stdout.splitlines()
+    violations: list[dict[str, Any]] = []
+    commits = []
+    for line in log:
+        commit, author, email = line.split("\0")
+        commits.append(commit)
+        if (author, email) != ("Satish Mohan", "satish@dhiway.com"):
+            violations.append({"kind": "cord-history-author", "commit": commit, "author": author, "email": email})
+        paths = subprocess.run(
+            ["git", "-C", checkout, "diff-tree", "--no-commit-id", "--name-only", "-r", commit],
+            check=True, stdout=subprocess.PIPE, text=True,
+        ).stdout.splitlines()
+        undeclared = [path for path in paths if not any(fnmatch.fnmatchcase(path, pattern) for pattern in allowed_globs)]
+        if undeclared:
+            violations.append({"kind": "cord-history-paths", "commit": commit, "paths": undeclared})
+    if new_head != old_head and allowed_commits and not any(anchor in commits for anchor in allowed_commits):
+        violations.append({"kind": "cord-history-anchor-missing", "after": new_head})
+    return violations
+
+
 def main() -> int:
     parser = argparse.ArgumentParser()
     parser.add_argument("--baseline", required=True, type=Path)
@@ -154,14 +188,8 @@ def main() -> int:
         for changed in sorted(changed_paths(old, new), key=lambda value: value.encode("utf-8")):
             if not any(fnmatch.fnmatchcase(changed, pattern) for pattern in allowed_globs):
                 cord_undeclared_paths.append(changed)
-        if old.get("head") != new.get("head") and new.get("head") not in allowed_commits:
-            violations.append(
-                {
-                    "kind": "cord-commit-not-declared",
-                    "before": old.get("head"),
-                    "after": new.get("head"),
-                }
-            )
+        if old.get("head") != new.get("head"):
+            violations.extend(validate_cord_history(old, new, allowed_globs, allowed_commits))
 
     if cord_undeclared_paths:
         violations.append({"kind": "cord-undeclared-paths", "paths": cord_undeclared_paths})
