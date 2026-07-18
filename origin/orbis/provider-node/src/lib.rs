@@ -94,8 +94,8 @@ pub use recovery_status::{
 	ProviderRecoveryStatus,
 };
 pub use storage::{
-	BeginStreaming, CheckpointDutyWatermark, ChunkProof, ContentRecord, DiskStore, IngressPermit,
-	IntegritySummary, NodeProfile, ProgressAck, ProviderStats, StoreError, StreamingDescriptor,
+	BeginStreaming, CheckpointDutyWatermark, DiskStore, IngressPermit, IntegritySummary, NodeProfile,
+	ProgressAck, StoreError, StreamingDescriptor,
 	StreamingFault, StreamingReceipt,
 };
 #[cfg(feature = "test-seams")]
