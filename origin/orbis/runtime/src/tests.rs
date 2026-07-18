@@ -2387,6 +2387,13 @@ fn people_identity_is_self_claimed_and_sudo_attested() {
 	});
 }
 
+fn full_core_task(task: u32) -> Schedule {
+	Schedule::truncate_from(vec![ScheduleItem {
+		mask: CoreMask::complete(),
+		assignment: CoreAssignment::Task(task),
+	}])
+}
+
 #[test]
 fn orbis_sudo_can_reserve_multiple_full_cores_for_one_parachain() {
 	sp_io::TestExternalities::new_empty().execute_with(|| {
