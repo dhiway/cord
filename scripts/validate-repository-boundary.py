@@ -39,6 +39,14 @@ from evidence_common import atomic_write_json, canonical_bytes, sha256_bytes
 
 VOLATILE_SNAPSHOT_KEYS = {"captured_at", "snapshot_sha256", "manifest_path", "manifest_sha256"}
 CORD_CHANGE_KEYS = {
+	# CORD may be executed from an isolated detached worktree while the immutable
+	# baseline is captured from the protected branch checkout. These describe
+	# checkout topology, not CORD content; content remains bound below by the
+	# changed-file contract and declared commit set.
+	"path",
+	"branch",
+	"detached",
+	"index_tree",
     "head",
     "head_tree",
     "index_sha256",

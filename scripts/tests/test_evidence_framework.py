@@ -21,6 +21,7 @@
 from __future__ import annotations
 
 import json
+import hashlib
 import importlib.util
 import shutil
 import subprocess
@@ -91,6 +92,49 @@ class CanonicalJsonTests(unittest.TestCase):
 
 
 class RepositoryBoundaryTests(unittest.TestCase):
+    def test_cord_topology_change_keeps_content_scope_and_external_equality_strict(self) -> None:
+        with tempfile.TemporaryDirectory() as directory:
+            base = Path(directory)
+            cord = base / "cord"
+            reference = base / "reference"
+            init_repo(cord, "allowed.txt")
+            init_repo(reference, "reference.txt")
+            manifest = base / "repos.toml"
+            manifest.write_text(
+                "schema_version=1\n"
+                f'[[repository]]\nname="cord"\nrole="cord"\npath="{cord}"\ncache_artifact_globs=[]\n'
+                f'[[repository]]\nname="reference"\nrole="reference"\npath="{reference}"\ncache_artifact_globs=[]\n',
+                encoding="utf-8",
+            )
+            before = base / "before.json"
+            after = base / "after.json"
+            assertion = base / "assertion.json"
+            run("python3", str(SCRIPTS / "snapshot-repositories.py"), "--manifest", str(manifest), "--out", str(before))
+            (cord / "allowed.txt").write_text("allowed change\n", encoding="utf-8")
+            run("git", "add", "allowed.txt", cwd=cord)
+            run("git", "commit", "-qm", "allowed", cwd=cord)
+            commit = run("git", "rev-parse", "HEAD", cwd=cord).stdout.decode("ascii").strip()
+            run("python3", str(SCRIPTS / "snapshot-repositories.py"), "--manifest", str(manifest), "--out", str(after))
+            # Model a compose-style detached execution checkout without weakening
+            # content comparison or the external repository baseline.
+            value = json.loads(after.read_text())
+            cord_row = next(row for row in value["repositories"] if row["role"] == "cord")
+            cord_row.update({"path": "/isolated/cord", "branch": None, "detached": True, "index_tree": "topology-only"})
+            unsigned = dict(value)
+            unsigned.pop("snapshot_sha256", None)
+            value["snapshot_sha256"] = hashlib.sha256(json.dumps(unsigned, sort_keys=True, separators=(",", ":")).encode()).hexdigest()
+            after.write_text(json.dumps(value), encoding="utf-8")
+            slices = base / "slices.toml"
+            slices.write_text(
+                'schema_version=1\n[[slice]]\nid="test"\nenabled=true\n'
+                f'path_globs=["allowed.txt"]\ncommit_shas=["{commit}"]\n',
+                encoding="utf-8",
+            )
+            run("python3", str(SCRIPTS / "validate-repository-boundary.py"), "--baseline", str(before), "--current", str(after), "--allow-cord", str(slices), "--out", str(assertion))
+            report = json.loads(assertion.read_text())
+            self.assertEqual(report["status"], "pass", report)
+            self.assertEqual(report["external_content_deltas"], 0)
+
     def test_dirty_reference_content_change_is_detected_without_repo_mutation(self) -> None:
         with tempfile.TemporaryDirectory() as directory:
             base = Path(directory)
