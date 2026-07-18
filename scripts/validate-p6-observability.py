@@ -279,10 +279,13 @@ def evidence_claim_failures(root: Path, registry: dict[str, Any]) -> list[str]:
     if not (blocked_truthful or mechanical_truthful):
         failures.append("AC11 producer/decidability claim is inconsistent")
     legacy = (root / "scripts/validate-p6-journeys.py").read_text(encoding="utf-8")
-    if '"p6_acceptance": False' not in legacy or any(
-        any("validate-p6-journeys.py" in argument for argument in command.get("argv", []))
+    legacy_promoted = any(
+        "validate-p6-journeys.py" in str(value)
         for command in commands
-    ):
+        for field in ("argv", "inputs", "outputs")
+        for value in command.get(field, [])
+    )
+    if '"legacy_state": False' not in legacy or legacy_promoted:
         failures.append("legacy docs-evidence generator was promoted as AC11 acceptance")
     return failures
 

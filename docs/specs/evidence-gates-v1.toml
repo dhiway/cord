@@ -3345,7 +3345,7 @@ sha256 = "b64e1974b760f0020df8d9283f5a8778759319d561f90c8612573615bfe6aea3"
 
 [[gate.input]]
 path = "scripts/validate-p6-observability.py"
-sha256 = "f859e95230c0ce7c7912d495f5fdf6ab0348df3abddbf2498f7834af4e078002"
+sha256 = "847c4265b51d6fd03663924824ca7c4e86521eb7de81ff1121dcf90e4a1e84a5"
 
 [[gate.input]]
 path = "docs/operations/origin-orbis-p6-observability.json"
@@ -3365,11 +3365,11 @@ sha256 = "9013cba387667eb652c25804dd57f80eea4c58abce4e6cafcb29ee5d65380052"
 
 [[gate.input]]
 path = "origin/orbis/provider-node"
-sha256 = "41e60c0de1c4504d7fa805250c4d4c305c99f58f6b7981ca5cd6612bc613e874"
+sha256 = "b9d72a0ac5d45f131186a68908b985c0059b6fab460261412801d65083fd7299"
 
 [[gate.input]]
 path = "scripts/validate-p6-journeys.py"
-sha256 = "15f6cfc5c2aa666d38067a0fcb2f2305abdfdb0f24687cb8e64aae72ebb99474"
+sha256 = "54cd6de963d0fc0d7df0d7f2caa00397c3365ec6faf02d74bf63a198db677ee4"
 
 [[gate.input]]
 path = "target/evidence/p1-provider-typed-outcomes.json"

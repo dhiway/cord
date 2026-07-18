@@ -118,6 +118,18 @@ class P6ObservabilityTests(unittest.TestCase):
         registry = tomllib.loads((CORD / "docs/specs/evidence-gates-v1.toml").read_text())
         self.assertEqual(VALIDATOR.evidence_claim_failures(CORD, registry), [])
 
+    def test_ac11_rejects_legacy_generator_in_any_command_surface(self) -> None:
+        try:
+            import tomllib
+        except ModuleNotFoundError:
+            import tomli as tomllib
+        registry = tomllib.loads((CORD / "docs/specs/evidence-gates-v1.toml").read_text())
+        for field in ("argv", "inputs", "outputs"):
+            promoted = copy.deepcopy(registry)
+            ac11 = next(gate for gate in promoted["gate"] if gate["id"] == "AC11")
+            ac11["command"][0][field].append("scripts/validate-p6-journeys.py")
+            self.assertTrue(VALIDATOR.evidence_claim_failures(CORD, promoted), field)
+
 
 if __name__ == "__main__":
     unittest.main()
