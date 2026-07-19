@@ -453,7 +453,7 @@ sha256 = "0cef144f366abca9cc9ea1b0b34484869ba2b6f2ac2b60e2416426c16c9b8ddc"
 
 [[gate.input]]
 path = "scripts/validate-three-provider-recovery.py"
-sha256 = "22a6a9121cd48f6d629ce5a1acef9b06414f64d669eefbdd694bd6ab9b55d6d9"
+sha256 = "3f3e4d750fac55f30a28a78c13596278217dba3d906a477e3e0fbde4ba2bd914"
 
 [[gate.command]]
 cwd = "."
