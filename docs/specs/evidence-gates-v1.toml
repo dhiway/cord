@@ -2569,7 +2569,7 @@ sha256 = "fe70c0f10c35ec5590c9024279d26e5113b847db50d09c421e784440d7c45b4e"
 
 [[gate.input]]
 path = "scripts/validate-storage-phase-ownership.py"
-sha256 = "67bebaae1dadb3c91403b61a0eea9638dcf4ec60afd1ecdc002072dad74e388e"
+sha256 = "1a651b0f40da5cc1f41a2067f7fe82c958858c52a03cc8768fbe9f6a79818cd1"
 
 [[gate.input]]
 path = "scripts/check-source-headers.py"
