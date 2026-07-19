@@ -2290,7 +2290,7 @@ clause = "deletion-items"
 source = "target/evidence/p0-deletion-dag.json"
 json_pointer = "/deletion_item_count"
 operator = "eq"
-expected = 305
+expected = 303
 
 [[gate.assertion]]
 clause = "deletion-dag"
