@@ -74,9 +74,9 @@ test("permission expiry, cancellation, and host loss are typed failures", async 
   assert.equal(!unavailable.success && unavailable.error.code, "host_unavailable");
 });
 
-test("local storage and chain remain product and permission scoped", async () => {
+test("local storage, preimages, chain, and resources remain product and permission scoped", async () => {
   const fake = createFakeHost();
-  for (const capability of ["local-storage", "chain"] as const) {
+  for (const capability of ["local-storage", "preimages", "chain", "resources"] as const) {
     fake.grant(product.id, capability);
   }
   fake.grant("other.app", "local-storage");
@@ -89,10 +89,22 @@ test("local storage and chain remain product and permission scoped", async () =>
   assert.equal((await host.deleteLocal("key")).success, true);
   assert.equal((await host.getLocal("key")).success && (await host.getLocal("key")).value, undefined);
 
+  const stored = await host.putPreimage(new Uint8Array([1, 2, 3]), "application/octet-stream");
+  assert.equal(stored.success, true);
+  if (!stored.success) return;
+  assert.deepEqual(
+    (await host.getPreimage(stored.value.contentHash)).success
+      && (await host.getPreimage(stored.value.contentHash)).value,
+    new Uint8Array([1, 2, 3]),
+  );
   assert.equal((await host.finalizedBlock()).success, true);
   const provider = createHostChainProvider(host);
   assert.deepEqual(await provider.finalizedBlock(), { hash: `0x${"1".repeat(64)}`, number: 1n });
   assert.equal((await provider.runtimeIdentity((await provider.finalizedBlock()).hash)).spec_version, 1);
+  const resource = await host.allocateResources({
+    kind: "statement-allowance", account: "5Test", bytes: 1024n,
+  });
+  assert.equal(resource.success, true);
 });
 
 test("statement subscriptions are permission-gated and dispose on abort", async () => {

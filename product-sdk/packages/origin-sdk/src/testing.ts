@@ -21,7 +21,6 @@ import { COMMONS_NETWORK_BINDING } from "@cord-network/origin-sdk-descriptors";
 import { OriginSdkError } from "@cord-network/origin-sdk-errors";
 import type { HostAccount, ProductIdentity } from "@cord-network/origin-sdk-host";
 import { createFakeHost, type FakeHost } from "@cord-network/origin-sdk-host/testing";
-import type { IdentityV2Bridge } from "@cord-network/origin-sdk-identity";
 import { fakeTransaction } from "@cord-network/origin-sdk-tx/testing";
 import {
   createApp,
@@ -33,6 +32,7 @@ import {
 export * from "@cord-network/origin-sdk-host/testing";
 export * from "@cord-network/origin-sdk-local-storage/testing";
 export * from "@cord-network/origin-sdk-signer/testing";
+export * from "@cord-network/origin-sdk-statement-store/testing";
 export * from "@cord-network/origin-sdk-tx/testing";
 
 export interface FakePreparedRuntimeCall {
@@ -45,9 +45,12 @@ export interface FakePreparedRuntimeCall {
 export type FakeAppOverrides = Partial<Pick<
   OriginApp,
   | "identity"
+  | "personhood"
+  | "resources"
   | "attestations"
   | "names"
   | "cloudStorage"
+  | "statements"
   | "assets"
   | "apps"
 >>;
@@ -56,7 +59,6 @@ export interface CreateFakeAppOptions {
   readonly product?: ProductIdentity;
   readonly account?: HostAccount;
   readonly runtime?: OriginAppRuntime | CommonsRuntimeExecutor;
-  readonly identityBridge?: IdentityV2Bridge;
   readonly overrides?: FakeAppOverrides;
   readonly storageNamespace?: string;
 }
@@ -89,19 +91,9 @@ export async function createFakeApp(
   const account = options.account ?? { address: "5FakeOrigin", name: "Fake Origin" };
   const host = createFakeHost({ accounts: [account], runtimeIdentity });
   for (const capability of [
-    "accounts", "chain", "signing", "local-storage",
+    "accounts", "chain", "signing", "local-storage", "preimages", "resources", "statements",
   ] as const) host.grant(product.id, capability);
 
-  const nativeProvider = {
-    content: {
-      async put(): Promise<never> { throw new Error("fake native provider is not configured"); },
-      async get(): Promise<never> { throw new Error("fake native provider is not configured"); },
-    },
-    blocks: {
-      async has(): Promise<never> { throw new Error("fake native provider is not configured"); },
-      async put(): Promise<never> { throw new Error("fake native provider is not configured"); },
-    },
-  };
   const prepared: FakePreparedRuntimeCall[] = [];
   const runtime = options.runtime ?? {
     async read(_at, target) {
@@ -127,18 +119,7 @@ export async function createFakeApp(
   const created = await createApp({
     product,
     bridge: host.bridge,
-    identityBridge: options.identityBridge ?? {
-      async request() {
-        throw new OriginSdkError({
-          source: "fake-app",
-          domain: "identity",
-          code: "unconfigured_identity_request",
-          message: "Fake app Identity Host-v2 request is not configured; supply identityBridge or override identity",
-        });
-      },
-    },
     runtime,
-    ...nativeProvider,
     account: account.address,
     ...(options.storageNamespace === undefined ? {} : { storageNamespace: options.storageNamespace }),
   });

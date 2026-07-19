@@ -1091,76 +1091,6 @@ pub(super) fn validate_recovery_state(state: &super::JournalState) -> Result<(),
 }
 
 impl StreamingStore {
-	/// Resolve the immutable generation-zero PUT request and capability selected by one exact
-	/// successor token. The returned bytes are cloned while the durable journal is locked so an
-	/// external finalized-authority lookup never holds the storage guard.
-	pub(crate) fn object_put_root(
-		&self,
-		token_bytes: &[u8],
-	) -> Result<Option<(Vec<u8>, Vec<u8>)>, RecoveryError> {
-		let token = ResumeTokenV1::decode(token_bytes)?;
-		let descriptor = StreamingDescriptor {
-			operation_id: OperationId::from_bytes(token.operation_id),
-			bucket_id: BucketId::from_bytes(token.bucket_id),
-			expected_cid: token.cid.as_str().into(),
-			object_len: token.object_len,
-		};
-		let (request, authority) = {
-			let state = self.read_state()?;
-			let host_key_id = hex::encode(token.host_key_id);
-			let mut roots = state.recovery.values().filter(|record| {
-				record.effect == RecoveryEffect::Accepted
-					&& record.descriptor == descriptor
-					&& record.host_key_id == host_key_id
-			});
-			let Some(root) = roots.next() else { return Ok(None) };
-			if roots.next().is_some() {
-				return Err(ContentError::IntegrityFailed.into());
-			}
-			(
-				hex::decode(&root.request).map_err(|_| ContentError::IntegrityFailed)?,
-				hex::decode(&root.authority).map_err(|_| ContentError::IntegrityFailed)?,
-			)
-		};
-		let request_dto = ObjectPutRequestV2::decode(&request)?;
-		let capability = ProviderCapabilityV1::decode(&authority)?;
-		if request_dto.operation_id != token.operation_id
-			|| request_dto.bucket_id != token.bucket_id
-			|| request_dto.cid != token.cid
-			|| request_dto.object_len != token.object_len
-			|| capability.issuer_key_id != token.host_key_id
-		{
-			return Err(ContentError::IntegrityFailed.into());
-		}
-		Ok(Some((request, authority)))
-	}
-
-	/// Derive the only canonical cancellation frame which may consume this exact successor. This
-	/// is deliberately read-only so the private host can reject a substituted request id or event
-	/// sequence before the durable cancellation transition is applied.
-	pub(crate) fn object_put_cancel_request(
-		&self,
-		request_bytes: &[u8],
-		token_bytes: &[u8],
-	) -> Result<Vec<u8>, RecoveryError> {
-		let request = ObjectPutRequestV2::decode(request_bytes)?;
-		let token = ResumeTokenV1::decode(token_bytes)?;
-		if token.operation_id != request.operation_id
-			|| token.bucket_id != request.bucket_id
-			|| token.cid != request.cid
-			|| token.object_len != request.object_len
-		{
-			return Err(RecoveryError::ResumeAudienceInvalid);
-		}
-		let state = self.read_state()?;
-		let prior = predecessor(&state, token_bytes)?;
-		let sequence = prior
-			.response_sequence
-			.checked_add(1)
-			.ok_or(ContentError::IntegrityFailed)?;
-		Ok(cancelled_response(request.request_id, sequence))
-	}
-
 	pub(crate) fn accept_object_put(
 		&self,
 		request_bytes: &[u8],
@@ -1986,27 +1916,6 @@ impl StreamingStore {
 		Ok(())
 	}
 
-	/// Resolve the unique host journal owning this exact PUT response acknowledgement.
-	pub(crate) fn object_put_ack_host(
-		&self,
-		ack_bytes: &[u8],
-	) -> Result<Option<[u8; 32]>, RecoveryError> {
-		let ack = ResponseAckV1::decode(ack_bytes)?;
-		let state = self.read_state()?;
-		let mut matches = state.recovery.values().filter(|record| {
-			record.request_id == hex::encode(ack.request_id)
-				&& record.operation_id == hex::encode(ack.operation_id)
-				&& record.generation == ack.generation
-				&& record.response_hash == hex::encode(ack.response_hash)
-		});
-		let Some(record) = matches.next() else { return Ok(None) };
-		let host = decode_hex(&record.host_key_id)?;
-		if matches.next().is_some() {
-			return Err(ContentError::IntegrityFailed.into());
-		}
-		Ok(Some(host))
-	}
-
 	/// Durably acknowledge one exact PUT response for the host authenticated by the caller.
 	pub(crate) fn acknowledge_response(
 		&self,
@@ -2593,10 +2502,6 @@ fn decode_hex<const N: usize>(value: &str) -> Result<[u8; N], ContentError> {
 #[cfg(test)]
 mod tests {
 	use super::*;
-	use super::super::local_put_session::{
-		LocalObjectPutSession, LocalPutSessionError, ProviderTransferChunkV1,
-	};
-	use blake2::{digest::consts::U32, Blake2b};
 	use crate::CHUNK_BYTES;
 	use orbis_storage_runtime_api::{
 		AgreementInfo, AgreementStatus, BucketGrantInfo, BucketRole, ControlBucketInfo,
@@ -2749,141 +2654,6 @@ mod tests {
 			)
 			.unwrap();
 		(store, request_bytes, snapshot, service, progress.successor_token.unwrap())
-	}
-
-	fn transfer(operation_id: [u8; 16], index: u32, bytes: &[u8]) -> Vec<u8> {
-		ProviderTransferChunkV1 {
-			operation_id,
-			index,
-			bytes: bytes.to_vec(),
-			hash: Blake2b::<U32>::digest(bytes).into(),
-		}
-		.canonical_bytes()
-	}
-
-	#[test]
-	fn local_put_session_uses_durable_resume_terminal_cancel_and_ack_transitions() {
-		let temp = TempDir::new().unwrap();
-		let (request, capability, snapshot, service) = fixture();
-		let request_bytes = request.canonical_bytes();
-		let store = StreamingStore::open(temp.path()).unwrap();
-		let (mut session, accepted) = LocalObjectPutSession::accept(
-			&store,
-			&request_bytes,
-			&capability.canonical_bytes(),
-			snapshot.clone(),
-			service.public().0,
-			&service,
-			[10; 16],
-		)
-		.unwrap();
-		let accepted_token = accepted.successor_token.clone().unwrap();
-		assert_eq!(
-			store.object_put_root(&accepted_token).unwrap(),
-			Some((request_bytes.clone(), capability.canonical_bytes()))
-		);
-		let progress = session.push_chunk(&transfer(request.operation_id, 0, b"first"), [11; 16]).unwrap();
-		let progress_token = progress.successor_token.clone().unwrap();
-		drop(session);
-		let mut forged = ResumeTokenV1::decode(&progress_token).unwrap();
-		forged.signature[0] ^= 1;
-		assert!(matches!(
-			LocalObjectPutSession::resume(
-				&store,
-				&request_bytes,
-				&forged.canonical_bytes(),
-				snapshot.clone(),
-				service.public().0,
-				&service,
-			),
-			Err(LocalPutSessionError::Recovery(RecoveryError::ResumeSignatureInvalid))
-		));
-		let mut expired = snapshot.clone();
-		expired.finalized_number = 128;
-		assert!(matches!(
-			LocalObjectPutSession::resume(
-				&store,
-				&request_bytes,
-				&progress_token,
-				expired,
-				service.public().0,
-				&service,
-			),
-			Err(LocalPutSessionError::Recovery(RecoveryError::ResumeExpired))
-		));
-		assert!(matches!(
-			LocalObjectPutSession::resume(
-				&store,
-				&request_bytes,
-				&progress_token,
-				snapshot.clone(),
-				[99; 32],
-				&service,
-			),
-			Err(LocalPutSessionError::Recovery(RecoveryError::ResumeRevoked))
-		));
-
-		let mut resumed = LocalObjectPutSession::resume(
-			&store,
-			&request_bytes,
-			&progress_token,
-			snapshot.clone(),
-			service.public().0,
-			&service,
-		)
-		.unwrap();
-		let installed = resumed.finalize().unwrap();
-		assert_eq!(
-			resumed.push_chunk(&transfer(request.operation_id, 1, b"later"), [12; 16]),
-			Err(LocalPutSessionError::Terminal)
-		);
-		for (generation, response) in [
-			(0, &accepted),
-			(1, &progress),
-			(2, &installed),
-		] {
-			let ack = ResponseAckV1 {
-				request_id: request.request_id,
-				operation_id: request.operation_id,
-				generation,
-				response_hash: response.response_hash,
-			}
-			.canonical_bytes();
-			resumed.acknowledge(capability.issuer_key_id, &ack).unwrap();
-		}
-
-		let mut replay = LocalObjectPutSession::resume(
-			&store,
-			&request_bytes,
-			&accepted_token,
-			snapshot.clone(),
-			service.public().0,
-			&service,
-		)
-		.unwrap();
-		assert_eq!(
-			replay.push_chunk(&transfer(request.operation_id, 0, b"other"), [13; 16]),
-			Err(LocalPutSessionError::Recovery(RecoveryError::ResumeReplay))
-		);
-
-		let cancel_root = temp.path().join("cancel");
-		fs::create_dir(&cancel_root).unwrap();
-		let cancel_store = StreamingStore::open(&cancel_root).unwrap();
-		let (mut cancelled, _) = LocalObjectPutSession::accept(
-			&cancel_store,
-			&request_bytes,
-			&capability.canonical_bytes(),
-			snapshot,
-			service.public().0,
-			&service,
-			[20; 16],
-		)
-		.unwrap();
-		cancelled.cancel().unwrap();
-		assert_eq!(
-			cancelled.push_chunk(&transfer(request.operation_id, 0, b"first"), [21; 16]),
-			Err(LocalPutSessionError::Cancelled)
-		);
 	}
 
 	#[test]

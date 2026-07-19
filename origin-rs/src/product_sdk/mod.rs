@@ -25,22 +25,16 @@
 pub mod attestation_events;
 pub mod contract;
 pub mod domains;
+pub mod names_events;
 pub mod eqc;
 pub mod host;
-pub mod names_events;
-// Internal host authority; applications use the public Identity V2 domain facade.
-#[allow(dead_code)]
-pub(crate) mod host_v2;
-// Durable host outbox implementation; not a developer-facing domain.
+// P2 compiles this private kernel before P3 binds real browser/desktop adapters.
 #[allow(dead_code)]
 pub(crate) mod host_outbox;
-// Internal storage authority; applications use the public storage domain facades.
 pub mod orbis_reads;
 pub mod route_registry;
 pub mod sponsored_intent;
 pub mod storage_events;
-#[allow(dead_code)]
-pub(crate) mod storage_v2;
 pub mod transport;
 pub mod version;
 
@@ -52,9 +46,9 @@ pub use contract::{
 	NativeHostMethod, NativeLifecycle, NativeLifecycleState, NetworkAccessMode,
 	NetworkActivationState, NetworkIdentity,
 };
+pub use names_events::OrbisNamesEventSubscription;
 pub use eqc::{validate_eqc_result, validate_slo_manifest, EqcClass, EqcResult, SloManifest};
 pub use host::{FakeHost, HostSigner, HostTransport, SignedRequest, TerminalObserver};
-pub use names_events::OrbisNamesEventSubscription;
 pub use orbis_reads::OrbisFinalizedReadBinding;
 pub use route_registry::{instantiate_native_route, NativeRouteBinding};
 pub use sponsored_intent::{
@@ -63,7 +57,8 @@ pub use sponsored_intent::{
 };
 pub use storage_events::OrbisStorageEventSubscription;
 pub use transport::{
-	prepare_attestation_command, prepare_drive_command, prepare_names_command, prepare_s3_command,
+	prepare_attestation_command, prepare_names_command, prepare_drive_command,
+	prepare_identity_personhood_command, prepare_s3_command, prepare_storage_command,
 	prepare_storage_provider_command, FinalizedReadBinding, GovernedSudoBinding,
 	MissingFinalizedReadBinding, MissingGovernedSudoBinding, NativeDomainTransport,
 	OrbisDomainTransport, OrbisNativeClient, OrbisTxPipeline,

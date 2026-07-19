@@ -17,7 +17,8 @@
 // along with CORD. If not, see <https://www.gnu.org/licenses/>.
 
 use crate::{
-	AccountId, AllPalletsWithSystem, Balances, Broker, CollatorSelection, ParachainInfo, ParachainSystem, PolkadotXcm, Runtime, RuntimeCall, RuntimeEvent, RuntimeOrigin,
+	AccountId, AllPalletsWithSystem, Balances, Broker, OrbisStorageCallInspector, CollatorSelection,
+	ParachainInfo, ParachainSystem, PolkadotXcm, Runtime, RuntimeCall, RuntimeEvent, RuntimeOrigin,
 	TransactionByteFee, WeightToFee, XcmpQueue, MICRO,
 };
 use frame_support::{
@@ -215,10 +216,8 @@ pub struct OrbisXcmSafeCallFilter;
 
 impl Contains<RuntimeCall> for OrbisXcmSafeCallFilter {
 	fn contains(call: &RuntimeCall) -> bool {
-		if matches!(call, RuntimeCall::Multisig(pallet_multisig::Call::approve_as_multi { .. })) {
-			return false;
-		}
-		matches!(
+		!OrbisStorageCallInspector::contains(call)
+			&& matches!(
 				crate::meta_v6::inspect_paid_meta::<
 					crate::meta_v6::ProductionMetadataImplicitResolver,
 				>(call, 0),

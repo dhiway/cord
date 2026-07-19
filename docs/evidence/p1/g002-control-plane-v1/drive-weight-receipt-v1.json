@@ -1,10 +1,10 @@
 {
   "schema_version": 1,
   "status": "pass",
-  "scope": "P1 Commons storage weights: compiled-Wasm 50x20 measurement",
+  "scope": "G002 Drive control-plane weights: clean compiled-Wasm 50x20 rerun",
   "measurement_source": {
-    "commit": "2f33901e7567099bb5d2d3751e85df346ea1f038",
-    "tree": "3f221fe89258a87d93c2e72dc8adcac87b9df056",
+    "commit": "048309a9e45abb315a25d25c06039936872e938f",
+    "tree": "c9455774c63decfb62b35eb250524c121fcca6eb",
     "branch": "sm-update-sub-0x65",
     "isolated_worktree": true
   },
@@ -37,9 +37,9 @@
       "remove_node"
     ],
     "raw_json_path": "docs/evidence/p1/g002-control-plane-v1/benchmarks/pallet_orbis_drive.json",
-    "raw_json_sha256": "964952282dc62ebac8fa009da51d28dacdd0b0c19b6073d2ba888a6955c555ab",
+    "raw_json_sha256": "633e9d86a1ecb295b0ef13988f91254a50d8f2cca5678979a8c3f7eaadb21283",
     "generated_weight_path": "origin/orbis/pallets/drive/src/weights.rs",
-    "generated_weight_sha256": "25af195852af0c66e265bfd82ded1ddd878c4527b672d08d04401221eab25615"
+    "generated_weight_sha256": "ba4c5a6c2dcb0d43ef14b4356d20e5c42d947268e2b3a74a73290be0516ec70e"
   },
   "checks": {
     "generated_coverage": {
@@ -93,6 +93,5 @@
     "g002_control_plane": true,
     "g003_provider_byte_plane": false,
     "production_ready": false
-  },
-  "finished_at": "2026-07-19T01:13:07.413932Z"
+  }
 }

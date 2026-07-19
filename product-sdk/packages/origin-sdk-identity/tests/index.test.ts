@@ -18,29 +18,78 @@
 
 import assert from "node:assert/strict";
 import test from "node:test";
+import { createCommonsChainClient } from "@cord-network/origin-sdk-chain-client";
+import { COMMONS_NETWORK_BINDING } from "@cord-network/origin-sdk-descriptors";
+import type { PreparedTransaction } from "@cord-network/origin-sdk-tx";
 import {
-  IDENTITY_V2_OPERATION_CODES,
   accountId,
+  createIdentityClient,
   hash32,
+  IDENTITY_ADMIN_EXCLUSIONS,
+  type IdentityInfo,
+  type IdentityRuntimeAdapter,
 } from "../src/index.ts";
 
-test("root exports only the unified seven-operation Identity projection plus signing", () => {
-  const operations = Object.keys(IDENTITY_V2_OPERATION_CODES);
-  assert.deepEqual(operations.filter((operation) => operation.startsWith("identity.")), [
-    "identity.account",
-    "identity.profile.read",
-    "identity.profile.disclose",
-    "identity.humanity.status",
-    "identity.humanity.prove",
-    "identity.subject.derive",
-    "identity.entitlements.read",
-  ]);
-  assert.equal(operations.filter((operation) => operation === "transaction.sign").length, 1);
+const blockHash = `0x${"11".repeat(32)}` as const;
+const transaction: PreparedTransaction = { async *signSubmitAndWatch() {} };
+const runtimeIdentity = {
+  genesis_hash: COMMONS_NETWORK_BINDING.genesis_hash,
+  spec_version: COMMONS_NETWORK_BINDING.spec_version,
+  transaction_version: COMMONS_NETWORK_BINDING.transaction_version,
+  metadata_hash: COMMONS_NETWORK_BINDING.metadata_hash,
+  descriptor_contract_sha256: COMMONS_NETWORK_BINDING.descriptor_contract_sha256,
+  chain_spec_source_sha256: COMMONS_NETWORK_BINDING.chain_spec_source_sha256,
+};
+const info: IdentityInfo = {
+  display: { kind: "raw", value: "Foundation" },
+  legal: { kind: "none" },
+  web: { kind: "none" },
+  email: { kind: "none" },
+  image: { kind: "blake2_256", hash: hash32(`0x${"22".repeat(32)}`) },
+  additional: [],
+};
+
+function fixture() {
+  let finalizedCalls = 0;
+  const seen: string[] = [];
+  const chain = createCommonsChainClient({
+    async finalizedBlock() { finalizedCalls++; return { hash: blockHash, number: 7n }; },
+    async runtimeIdentity() { return runtimeIdentity; },
+    async disconnect() {},
+  });
+  const adapter: IdentityRuntimeAdapter = {
+    async identityStatus(at) { seen.push(at); return { version: 1, value: { registered: true, judgement_count: 0, requested: 0, reasonable: 0, known_good: 0, out_of_date: 0, low_quality: 0, erroneous: 0 } }; },
+    async setIdentity(at) { seen.push(at); return transaction; },
+    async clearIdentity(at) { seen.push(at); return transaction; },
+    async requestJudgement(at) { seen.push(at); return transaction; },
+    async cancelJudgementRequest(at) { seen.push(at); return transaction; },
+    async provideJudgement(at) { seen.push(at); return transaction; },
+  };
+  return { client: createIdentityClient(chain, adapter), seen, finalizedCalls: () => finalizedCalls };
+}
+
+test("identity reads and transactions bind to a verified finalized hash", async () => {
+  const { client, seen } = fixture();
+  const status = await client.status(accountId("5Foundation"));
+  const prepared = await client.prepareSetIdentity(info);
+  assert.equal(status.success, true);
+  assert.equal(prepared.success, true);
+  assert.deepEqual(seen, [blockHash, blockHash]);
 });
 
-test("shared account and hash primitives remain closed and reusable", () => {
-  assert.equal(accountId("5Identity"), "5Identity");
-  assert.throws(() => accountId(""), TypeError);
-  assert.equal(hash32(`0x${"11".repeat(32)}`), `0x${"11".repeat(32)}`);
-  assert.throws(() => hash32(`0x${"AA".repeat(32)}`), TypeError);
+test("identity validation fails before querying a finalized block", async () => {
+  const { client, finalizedCalls } = fixture();
+  const invalid = await client.prepareSetIdentity({ ...info, display: { kind: "raw", value: "x".repeat(33) } });
+  assert.equal(invalid.success, false);
+  assert.equal(finalizedCalls(), 0);
+});
+
+test("identity package explicitly excludes administrative People calls", () => {
+  assert.deepEqual(IDENTITY_ADMIN_EXCLUSIONS.map(({ target }) => target), [
+    "People.add_registrar",
+    "People.kill_identity",
+    "People.add_username_authority",
+    "People.remove_username_authority",
+    "People.remove_registrar",
+  ]);
 });

@@ -23,6 +23,9 @@ import type {
   HostAccount,
   HostCapability,
   HostFinalizedBlock,
+  HostPreimageReference,
+  HostResourceGrant,
+  HostResourceRequest,
   HostRuntimeIdentity,
   HostSignRequest,
   HostStatementDraft,
@@ -46,6 +49,13 @@ export interface OriginHostClient {
   getLocal(key: string, signal?: AbortSignal): Promise<SdkResult<Uint8Array | undefined>>;
   setLocal(key: string, value: Uint8Array, signal?: AbortSignal): Promise<SdkResult<void>>;
   deleteLocal(key: string, signal?: AbortSignal): Promise<SdkResult<void>>;
+  putPreimage(
+    bytes: Uint8Array,
+    contentType?: string,
+    signal?: AbortSignal,
+  ): Promise<SdkResult<HostPreimageReference>>;
+  getPreimage(contentHash: `0x${string}`, signal?: AbortSignal): Promise<SdkResult<Uint8Array>>;
+  allocateResources(request: HostResourceRequest, signal?: AbortSignal): Promise<SdkResult<HostResourceGrant>>;
   submitStatement(draft: HostStatementDraft, signal?: AbortSignal): Promise<SdkResult<HostStatementRecord>>;
   queryStatements(query: HostStatementQuery, signal?: AbortSignal): Promise<SdkResult<readonly HostStatementRecord[]>>;
   subscribeStatements(
@@ -196,6 +206,30 @@ export function createHostClient(
         "local-storage", () => bridge.request(product, "local-storage.delete", { key }, signal), signal,
       );
     },
+    async putPreimage(bytes, contentType, signal) {
+      if (!(bytes instanceof Uint8Array) || bytes.length === 0) {
+        return hostError("preimages", "invalid_content", "Preimage content must not be empty");
+      }
+      return granted(
+        "preimages",
+        () => bridge.request(product, "preimages.put", {
+          bytes: bytes.slice(), ...(contentType === undefined ? {} : { contentType }),
+        }, signal),
+        signal,
+      );
+    },
+    async getPreimage(contentHash, signal) {
+      if (!/^0x[0-9a-fA-F]{64}$/.test(contentHash)) {
+        return hostError("preimages", "invalid_content_hash", "Preimage content hash must be 32 bytes");
+      }
+      const result = await granted(
+        "preimages", () => bridge.request(product, "preimages.get", { contentHash }, signal), signal,
+      );
+      return result.success ? { success: true, value: result.value.slice() } : result;
+    },
+    allocateResources: (request, signal) => granted(
+      "resources", () => bridge.request(product, "resources.allocate", request, signal), signal,
+    ),
     async submitStatement(draft, signal) {
       const result = await granted(
         "statements",

@@ -32,16 +32,7 @@
       "spec_version": 29,
       "transaction_version": 8,
       "metadata_hash": "0x50c8958f0171889a4b01093a5dd5272faf8802018f24a4ac22b231d37b2adc45",
-      "metadata_inventory_source": "docs/sdk/metadata/commons-v29.json",
       "metadata_source": "origin/orbis/runtime/vectors/transaction-policy-v8/metadata-hash.json",
-      "current_source_runtime": {
-        "runtime_source": "origin/orbis/runtime/src/lib.rs",
-        "spec_version": 33,
-        "transaction_version": 8,
-        "metadata_hash": "0x824731ed7cab6037cdfa3f88e40f78556f77f016136fd563acd6c7a414c29f8e",
-        "metadata_source": "origin/orbis/runtime/vectors/transaction-policy-v8/metadata-hash.json",
-        "metadata_bound_native_sdk": false
-      },
       "supported_clients": [
         "origin-rs",
         "product-sdk"
@@ -49,7 +40,7 @@
       "candidate_genesis_header_hash": "0x2584c9d420dc8160b85deaf958d776886366d5beecc2ee7b1236293d20ac70fc",
       "candidate_genesis_state_root": "0xe778ef91e9e1419f77a17a687245fc903335ecdb8dd3cf450df86637d529a53c",
       "candidate_genesis_identity_source": "docs/genesis/orbis-candidate-genesis-identity.json",
-      "candidate_genesis_identity_sha256": "e0cfdc509e90b58c7c36a9cc522eab9013f281c076c100ec3f09fc9e24c074de",
+      "candidate_genesis_identity_sha256": "bfac0f6c85fac491cc9aa6fb0ff03ab1581db78c7901d094c8a9843e898c9e0d",
       "compact_wasm_sha256": "19662465cef9ea3cde0c7c10865cc9e68cf3afb723e6184de8a0029de82b1f2e",
       "activation_state": "candidate-pending",
       "production_activation_ready": false
@@ -68,6 +59,10 @@
     }
   },
   "native_runtime_apis": {
+    "identity_personhood": {
+      "version": 1,
+      "source": "origin/orbis/runtime-api/identity-personhood/src/lib.rs"
+    },
     "attestation": {
       "version": 1,
       "source": "origin/orbis/pallets/attestation/runtime-api/src/lib.rs"
@@ -77,7 +72,7 @@
       "source": "origin/orbis/pallets/names/runtime-api/src/lib.rs"
     },
     "storage_provider": {
-      "version": 11,
+      "version": 10,
       "source": "origin/orbis/runtime-api/storage/src/lib.rs"
     },
     "drive": {
@@ -99,7 +94,7 @@
       "source": "origin/orbis/pallets/names/src/lib.rs"
     },
     "storage_provider": {
-      "version": 2,
+      "version": 5,
       "source": "origin/orbis/pallets/storage-provider/src/lib.rs"
     },
     "drive": {
@@ -107,8 +102,12 @@
       "source": "origin/orbis/pallets/drive/src/lib.rs"
     },
     "s3": {
-      "version": 2,
+      "version": 1,
       "source": "origin/orbis/pallets/s3/src/lib.rs"
+    },
+    "transaction_storage": {
+      "version": 8,
+      "source": "origin/orbis/pallets/transaction-storage/src/lib.rs"
     },
     "resources": {
       "version": 1,
@@ -121,7 +120,7 @@
       "source": "docs/sdk/vectors/names-v1.json"
     },
     "storage_provider": {
-      "version": 6,
+      "version": 4,
       "source": "origin/orbis/provider-node/src/lib.rs"
     }
   },

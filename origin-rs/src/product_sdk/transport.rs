@@ -45,8 +45,16 @@ use crate::{
 			},
 			common::{AccountId, DomainResult, Hash32, SubmitAndFinalize, Validate},
 			drive::{DriveCommand, DriveRead, DriveResponse},
+			identity_personhood::{
+				IdentityData, IdentityInfo, IdentityPersonhoodCommand, IdentityPersonhoodRead,
+				IdentityPersonhoodResponse, Judgement,
+			},
 			names::{NamesCommand, NamesRead, NamesResponse},
 			s3::{S3Command, S3Read, S3Response},
+			storage::{
+				CidConfig, HashingAlgorithm as StorageHashingAlgorithm, StorageCommand,
+				StorageRead, StorageResponse, TransactionRef,
+			},
 			storage_provider::{
 				ProviderStatus, StorageProviderCommand, StorageProviderRead,
 				StorageProviderResponse,
@@ -63,6 +71,10 @@ use crate::{
 /// runtime-API response, preserve that same hash in its result, and reject version drift.
 #[async_trait]
 pub trait FinalizedReadBinding: Send + Sync {
+	async fn identity_personhood(
+		&self,
+		query: &IdentityPersonhoodRead,
+	) -> DomainResult<IdentityPersonhoodResponse>;
 	async fn attestation(&self, query: &AttestationRead) -> DomainResult<AttestationResponse>;
 	async fn names(&self, query: &NamesRead) -> DomainResult<NamesResponse>;
 	async fn storage_provider(
@@ -71,8 +83,8 @@ pub trait FinalizedReadBinding: Send + Sync {
 	) -> DomainResult<StorageProviderResponse>;
 	async fn drive(&self, query: &DriveRead) -> DomainResult<DriveResponse>;
 	async fn s3(&self, query: &S3Read) -> DomainResult<S3Response>;
+	async fn orbis_storage(&self, query: &StorageRead) -> DomainResult<StorageResponse>;
 }
-
 
 /// Fail-closed reader used when an exact pinned-hash runtime-API binding was not installed.
 #[derive(Clone, Copy, Debug, Default)]
@@ -80,6 +92,13 @@ pub struct MissingFinalizedReadBinding;
 
 #[async_trait]
 impl FinalizedReadBinding for MissingFinalizedReadBinding {
+	async fn identity_personhood(
+		&self,
+		_query: &IdentityPersonhoodRead,
+	) -> DomainResult<IdentityPersonhoodResponse> {
+		Err(read_binding_required())
+	}
+
 	async fn attestation(&self, _query: &AttestationRead) -> DomainResult<AttestationResponse> {
 		Err(read_binding_required())
 	}
@@ -102,8 +121,11 @@ impl FinalizedReadBinding for MissingFinalizedReadBinding {
 	async fn s3(&self, _query: &S3Read) -> DomainResult<S3Response> {
 		Err(read_binding_required())
 	}
-}
 
+	async fn orbis_storage(&self, _query: &StorageRead) -> DomainResult<StorageResponse> {
+		Err(read_binding_required())
+	}
+}
 
 /// Native domain adapter over the existing Origin client, signer, tx queue and finality watcher.
 pub struct NativeDomainTransport<R = MissingFinalizedReadBinding> {
@@ -133,6 +155,14 @@ impl<R> NativeDomainTransport<R> {
 }
 
 impl<R: FinalizedReadBinding> NativeDomainTransport<R> {
+	pub async fn read_identity_personhood(
+		&self,
+		query: &IdentityPersonhoodRead,
+	) -> DomainResult<IdentityPersonhoodResponse> {
+		query.validate()?;
+		self.reads.identity_personhood(query).await
+	}
+
 	pub async fn read_attestation(
 		&self,
 		query: &AttestationRead,
@@ -163,6 +193,12 @@ impl<R: FinalizedReadBinding> NativeDomainTransport<R> {
 		query.validate()?;
 		self.reads.s3(query).await
 	}
+
+	pub async fn read_storage(&self, query: &StorageRead) -> DomainResult<StorageResponse> {
+		query.validate()?;
+		self.reads.orbis_storage(query).await
+	}
+
 	pub async fn submit_attestation(
 		&self,
 		intent: &SubmitAndFinalize<AttestationCommand>,
@@ -170,6 +206,12 @@ impl<R: FinalizedReadBinding> NativeDomainTransport<R> {
 		self.submit(intent, prepare_attestation_command(&intent.command)?).await
 	}
 
+	pub async fn submit_identity_personhood(
+		&self,
+		intent: &SubmitAndFinalize<IdentityPersonhoodCommand>,
+	) -> DomainResult<NativeLifecycle> {
+		self.submit(intent, prepare_identity_personhood_command(&intent.command)?).await
+	}
 
 	pub async fn submit_names(
 		&self,
@@ -198,6 +240,14 @@ impl<R: FinalizedReadBinding> NativeDomainTransport<R> {
 	) -> DomainResult<NativeLifecycle> {
 		self.submit(intent, prepare_s3_command(&intent.command)?).await
 	}
+
+	pub async fn submit_storage(
+		&self,
+		intent: &SubmitAndFinalize<StorageCommand>,
+	) -> DomainResult<NativeLifecycle> {
+		self.submit(intent, prepare_storage_command(&intent.command)?).await
+	}
+
 	async fn submit<C: Validate>(
 		&self,
 		intent: &SubmitAndFinalize<C>,
@@ -228,7 +278,6 @@ impl<R: FinalizedReadBinding> NativeDomainTransport<R> {
 		Ok(lifecycle)
 	}
 }
-
 
 /// Orbis-native client and transaction lane.
 ///
@@ -442,6 +491,14 @@ impl<R, G> OrbisDomainTransport<R, G> {
 }
 
 impl<R: FinalizedReadBinding, G: GovernedSudoBinding> OrbisDomainTransport<R, G> {
+	pub async fn read_identity_personhood(
+		&self,
+		query: &IdentityPersonhoodRead,
+	) -> DomainResult<IdentityPersonhoodResponse> {
+		query.validate()?;
+		self.reads.identity_personhood(query).await
+	}
+
 	pub async fn read_attestation(
 		&self,
 		query: &AttestationRead,
@@ -472,6 +529,12 @@ impl<R: FinalizedReadBinding, G: GovernedSudoBinding> OrbisDomainTransport<R, G>
 		query.validate()?;
 		self.reads.s3(query).await
 	}
+
+	pub async fn read_storage(&self, query: &StorageRead) -> DomainResult<StorageResponse> {
+		query.validate()?;
+		self.reads.orbis_storage(query).await
+	}
+
 	pub async fn submit_attestation(
 		&self,
 		intent: &SubmitAndFinalize<AttestationCommand>,
@@ -481,6 +544,13 @@ impl<R: FinalizedReadBinding, G: GovernedSudoBinding> OrbisDomainTransport<R, G>
 			.await
 	}
 
+	pub async fn submit_identity_personhood(
+		&self,
+		intent: &SubmitAndFinalize<IdentityPersonhoodCommand>,
+	) -> DomainResult<NativeLifecycle> {
+		self.submit(intent, prepare_identity_personhood_command(&intent.command)?, false)
+			.await
+	}
 
 	pub async fn submit_names(
 		&self,
@@ -512,6 +582,14 @@ impl<R: FinalizedReadBinding, G: GovernedSudoBinding> OrbisDomainTransport<R, G>
 	) -> DomainResult<NativeLifecycle> {
 		self.submit(intent, prepare_s3_command(&intent.command)?, false).await
 	}
+
+	pub async fn submit_storage(
+		&self,
+		intent: &SubmitAndFinalize<StorageCommand>,
+	) -> DomainResult<NativeLifecycle> {
+		self.submit(intent, prepare_storage_command(&intent.command)?, false).await
+	}
+
 	async fn submit<C: Validate>(
 		&self,
 		intent: &SubmitAndFinalize<C>,
@@ -529,7 +607,6 @@ impl<R: FinalizedReadBinding, G: GovernedSudoBinding> OrbisDomainTransport<R, G>
 		}
 	}
 }
-
 
 fn is_privileged_attestation(command: &AttestationCommand) -> bool {
 	matches!(
@@ -594,6 +671,115 @@ fn is_privileged_storage_provider(command: &StorageProviderCommand) -> bool {
 			| StorageProviderCommand::RemoveProvider { .. }
 			| StorageProviderCommand::IssueChallenge { .. }
 	)
+}
+
+/// Exact metadata source for each native identity/personhood write.
+///
+/// `CancelJudgement` intentionally binds to the pallet's `cancel_request` call; the product name
+/// describes the user outcome while the source name remains metadata-exact.
+pub const fn identity_personhood_command_source(
+	command: &IdentityPersonhoodCommand,
+) -> (&'static str, &'static str) {
+	match command {
+		IdentityPersonhoodCommand::SetIdentity { .. } => ("People", "set_identity"),
+		IdentityPersonhoodCommand::ClearIdentity => ("People", "clear_identity"),
+		IdentityPersonhoodCommand::RequestJudgement { .. } => ("People", "request_judgement"),
+		IdentityPersonhoodCommand::CancelJudgement { .. } => ("People", "cancel_request"),
+		IdentityPersonhoodCommand::ProvideJudgement { .. } => ("People", "provide_judgement"),
+		IdentityPersonhoodCommand::AttestLitePerson { .. } => ("PeopleLite", "attest"),
+	}
+}
+
+/// Prepare one of the six native People/PeopleLite writes using live metadata encoding.
+pub fn prepare_identity_personhood_command(
+	command: &IdentityPersonhoodCommand,
+) -> DomainResult<DynamicPayload> {
+	command.validate()?;
+	let (pallet, call) = identity_personhood_command_source(command);
+	let args = match command {
+		IdentityPersonhoodCommand::SetIdentity { info } => vec![identity_info_value(info)?],
+		IdentityPersonhoodCommand::ClearIdentity => vec![],
+		IdentityPersonhoodCommand::RequestJudgement { registrar }
+		| IdentityPersonhoodCommand::CancelJudgement { registrar } => vec![account_value(registrar)?],
+		IdentityPersonhoodCommand::ProvideJudgement { target, judgement, identity_hash } => vec![
+			lookup_account_value(target)?,
+			judgement_value(*judgement),
+			hash_value(identity_hash)?,
+		],
+		IdentityPersonhoodCommand::AttestLitePerson {
+			candidate,
+			candidate_signature,
+			ring_vrf_key,
+			proof_of_ownership,
+		} => vec![
+			account_value(candidate)?,
+			signature_value(candidate_signature)?,
+			hash_value(ring_vrf_key)?,
+			Value::from_bytes(proof_of_ownership.raw_bytes()?),
+			option_value(None),
+		],
+	};
+	Ok(subxt::dynamic::tx(pallet, call, args))
+}
+
+fn identity_info_value(identity: &IdentityInfo) -> DomainResult<Value> {
+	identity.validate()?;
+	let additional = identity
+		.additional
+		.iter()
+		.map(|field| {
+			Ok(Value::unnamed_composite(vec![
+				identity_data_value(&field.key)?,
+				identity_data_value(&field.value)?,
+			]))
+		})
+		.collect::<DomainResult<Vec<_>>>()?;
+	Ok(Value::named_composite(vec![
+		("additional", Value::from(additional)),
+		("display", identity_data_value(&identity.display)?),
+		("legal", identity_data_value(&identity.legal)?),
+		("web", identity_data_value(&identity.web)?),
+		("email", identity_data_value(&identity.email)?),
+		("image", identity_data_value(&identity.image)?),
+	]))
+}
+
+fn identity_data_value(data: &IdentityData) -> DomainResult<Value> {
+	data.validate()?;
+	Ok(match data {
+		IdentityData::None => Value::variant("None", Composite::unnamed(vec![])),
+		IdentityData::Raw { value } => Value::variant(
+			format!("Raw{}", value.len()),
+			Composite::unnamed(vec![Value::from_bytes(value.as_bytes())]),
+		),
+		IdentityData::BlakeTwo256 { hash } => {
+			Value::variant("BlakeTwo256", Composite::unnamed(vec![hash_value(hash)?]))
+		},
+		IdentityData::Sha256 { hash } => {
+			Value::variant("Sha256", Composite::unnamed(vec![hash_value(hash)?]))
+		},
+		IdentityData::Keccak256 { hash } => {
+			Value::variant("Keccak256", Composite::unnamed(vec![hash_value(hash)?]))
+		},
+		IdentityData::ShaThree256 { hash } => {
+			Value::variant("ShaThree256", Composite::unnamed(vec![hash_value(hash)?]))
+		},
+	})
+}
+
+fn judgement_value(judgement: Judgement) -> Value {
+	let variant = match judgement {
+		Judgement::Reasonable => "Reasonable",
+		Judgement::KnownGood => "KnownGood",
+		Judgement::OutOfDate => "OutOfDate",
+		Judgement::LowQuality => "LowQuality",
+		Judgement::Erroneous => "Erroneous",
+	};
+	Value::variant(variant, Composite::unnamed(vec![]))
+}
+
+fn lookup_account_value(account: &AccountId) -> DomainResult<Value> {
+	Ok(Value::variant("Id", Composite::unnamed(vec![account_value(account)?])))
 }
 
 /// Prepare an attestation call for metadata-derived encoding without submitting it.
@@ -738,20 +924,11 @@ pub fn prepare_names_command(command: &NamesCommand) -> DomainResult<DynamicPayl
 				option_hash(attestation.as_ref().map(|id| id.as_hash()))?,
 			],
 		),
-		NamesCommand::PublishContent {
-			name,
-			content,
-			expected_revision,
-			operation_deadline,
-			operation_id,
-		} => (
-			"publish_content",
+		NamesCommand::SetContent { name, content } => (
+			"set_content",
 			vec![
 				hash_value(name.as_hash())?,
 				option_hash(content.as_ref().map(|id| id.as_hash()))?,
-				option_value(Some(Value::u128(*expected_revision as u128))),
-				Value::u128(*operation_deadline as u128),
-				Value::from_bytes(operation_id.as_bytes()?),
 			],
 		),
 		NamesCommand::SetText { name, key, value } => (
@@ -797,7 +974,7 @@ pub fn prepare_names_command(command: &NamesCommand) -> DomainResult<DynamicPayl
 	Ok(subxt::dynamic::tx("Names", call, args))
 }
 
-/// Prepare a canonical StorageProvider call without submitting it.
+/// Prepare a provider or TransactionStorage attachment call without submitting it.
 pub fn prepare_storage_provider_command(
 	command: &StorageProviderCommand,
 ) -> DomainResult<DynamicPayload> {
@@ -912,9 +1089,65 @@ pub fn prepare_storage_provider_command(
 				Value::from_bytes(signature),
 			],
 		),
+		StorageProviderCommand::AttachProvider { reservation_id, provider_ref } => (
+			"TransactionStorage",
+			"attach_provider",
+			vec![
+				Value::u128(reservation_id.as_u64()? as u128),
+				hash_value(provider_ref.as_hash())?,
+			],
+		),
 	};
 	Ok(subxt::dynamic::tx(pallet, call, args))
 }
+
+/// Prepare a Orbis Storage TransactionStorage call using live metadata.
+pub fn prepare_storage_command(command: &StorageCommand) -> DomainResult<DynamicPayload> {
+	command.validate()?;
+	let (call, args) = match command {
+		StorageCommand::Store { content_base64 } => {
+			("store", vec![Value::from_bytes(content_base64.decode()?)])
+		},
+		StorageCommand::StoreWithCidConfig { cid_config, content_base64 } => (
+			"store_with_cid_config",
+			vec![cid_config_value(cid_config)?, Value::from_bytes(content_base64.decode()?)],
+		),
+		StorageCommand::StoreReserved { reservation_id, cid_config, content_base64 } => (
+			"store_reserved",
+			vec![
+				Value::u128(reservation_id.as_u64()? as u128),
+				cid_config_value(cid_config)?,
+				Value::from_bytes(content_base64.decode()?),
+			],
+		),
+		StorageCommand::RenewReserved { reservation_id, content_hash } => (
+			"renew_reserved",
+			vec![
+				Value::u128(reservation_id.as_u64()? as u128),
+				hash_value(content_hash.as_hash())?,
+			],
+		),
+		StorageCommand::AttachProvider { reservation_id, provider_ref } => (
+			"attach_provider",
+			vec![
+				Value::u128(reservation_id.as_u64()? as u128),
+				hash_value(provider_ref.as_hash())?,
+			],
+		),
+		StorageCommand::Renew { entry } => ("renew", vec![transaction_ref_value(entry)?]),
+		StorageCommand::ForceRenew { entry } => {
+			("force_renew", vec![transaction_ref_value(entry)?])
+		},
+		StorageCommand::EnableAutoRenew { content_hash } => {
+			("enable_auto_renew", vec![hash_value(content_hash.as_hash())?])
+		},
+		StorageCommand::DisableAutoRenew { content_hash } => {
+			("disable_auto_renew", vec![hash_value(content_hash.as_hash())?])
+		},
+	};
+	Ok(subxt::dynamic::tx("TransactionStorage", call, args))
+}
+
 /// Prepare a Drive call for metadata-derived encoding without submitting it.
 pub fn prepare_drive_command(command: &DriveCommand) -> DomainResult<DynamicPayload> {
 	let (call, args) = match command {
@@ -1104,6 +1337,36 @@ fn provider_status(status: ProviderStatus) -> Value {
 	};
 	Value::variant(variant, Composite::unnamed(vec![]))
 }
+
+fn cid_config_value(config: &CidConfig) -> DomainResult<Value> {
+	let hashing = match config.hashing {
+		StorageHashingAlgorithm::Blake2b256 => "Blake2b256",
+		StorageHashingAlgorithm::Sha2_256 => "Sha2_256",
+		StorageHashingAlgorithm::Keccak256 => "Keccak256",
+	};
+	Ok(Value::named_composite(vec![
+		("codec", Value::u128(config.codec.as_u64()? as u128)),
+		("hashing", Value::variant(hashing, Composite::unnamed(vec![]))),
+	]))
+}
+
+fn transaction_ref_value(reference: &TransactionRef) -> DomainResult<Value> {
+	reference.validate()?;
+	Ok(match reference {
+		TransactionRef::Position { block, index } => Value::variant(
+			"Position",
+			Composite::named(vec![
+				("block", Value::u128(*block as u128)),
+				("index", Value::u128(*index as u128)),
+			]),
+		),
+		TransactionRef::ContentHash { content_hash } => Value::variant(
+			"ContentHash",
+			Composite::unnamed(vec![hash_value(content_hash.as_hash())?]),
+		),
+	})
+}
+
 fn option_hash(value: Option<&Hash32>) -> DomainResult<Value> {
 	match value {
 		Some(value) => Ok(option_value(Some(hash_value(value)?))),

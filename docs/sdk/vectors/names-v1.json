@@ -55,7 +55,6 @@
     "subject_set",
     "attestation_set",
     "content_set",
-    "content_operation_receipt_pruned",
     "text_set",
     "primary_name_set",
     "name_reserved",

@@ -12,11 +12,6 @@
     "runtime_rfc78_hash": "0x50c8958f0171889a4b01093a5dd5272faf8802018f24a4ac22b231d37b2adc45"
   },
   "entry": "commons",
-  "availability": {
-    "runtime_metadata_current": false,
-    "sdk_admission": false,
-    "reason": "checked-in PAPI metadata predates the current Commons runtime"
-  },
   "output": [
     {
       "path": "dist/common-types.d.ts",

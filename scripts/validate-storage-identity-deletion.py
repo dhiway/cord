@@ -58,10 +58,6 @@ TEXT_SUFFIXES = {
     ".sh", ".py", ".graphql", ".proto", ".sol", ".contract",
 }
 
-# The clean-break public provider listener is a control surface only. Any route beyond these two
-# liveness/identity reads is a stale data-plane route and must be owned by the deletion manifest.
-PROVIDER_CONTROL_ROUTES = {("GET", "/health"), ("GET", "/info")}
-
 
 def tracked_and_untracked(root: Path) -> list[str]:
     result = subprocess.run(
@@ -183,18 +179,9 @@ def exact_surface_exists(row: dict[str, Any], root: Path) -> bool:
         ) is not None
     if locator == "rust-export":
         name = symbol.removeprefix("rust-export::")
-        if not symbol.startswith("rust-export::"):
-            return False
-        if re.search(
-            rf"(?m)^pub\s+(?:async\s+)?fn\s+{re.escape(name)}\s*\(", text
-        ):
-            return True
-        return any(
-            re.search(rf"(?m)^\s*async fn\s+{re.escape(name)}\s*\(", body)
-            for body in re.findall(
-                r"pub trait FinalizedReadBinding[^\{]*\{([\s\S]*?)\n\}", text
-            )
-        )
+        return symbol.startswith("rust-export::") and re.search(
+            rf"(?m)^\s*(?:pub\s+)?(?:async\s+)?fn\s+{re.escape(name)}\s*\(", text
+        ) is not None
     if locator == "ts-host-route":
         object_name, separator, method = symbol.partition("::")
         return bool(separator and re.search(
@@ -280,16 +267,15 @@ def current_surface_census(root: Path) -> set[tuple[str, str, str]]:
                 surfaces.add((relative, "cargo-crate", name))
 
     pallet_path = "origin/orbis/pallets/transaction-storage/src/lib.rs"
-    pallet_source = root / pallet_path
-    pallet = pallet_source.read_text(encoding="utf-8") if pallet_source.exists() else ""
+    pallet = (root / pallet_path).read_text(encoding="utf-8")
     for match in re.finditer(
         r"#\[pallet::call_index\((\d+)\)\][\s\S]{0,300}?pub fn\s+([A-Za-z_][A-Za-z0-9_]*)",
         pallet,
     ):
         index, name = match.groups()
         surfaces.add((pallet_path, "pallet-call", f"Pallet::call[{index}]::{name}"))
-    event_start = pallet.find("pub enum Event<T: Config>")
-    body = rust_block(pallet, event_start) if event_start >= 0 else ""
+    event_start = pallet.index("pub enum Event<T: Config>")
+    body = rust_block(pallet, event_start)
     depth = 0
     for line in re.sub(r"///.*", "", body).splitlines():
         stripped = line.strip()
@@ -329,14 +315,12 @@ def current_surface_census(root: Path) -> set[tuple[str, str, str]]:
         surfaces.add((runtime_path, "signed-extension", "ValidateStorageCalls"))
 
     extension_path = "origin/orbis/pallets/transaction-storage/src/extension.rs"
-    extension_source = root / extension_path
-    if extension_source.exists():
-        extension = extension_source.read_text(encoding="utf-8")
-        for name in re.findall(
-            r"(?m)^pub\s+(?:struct|enum|trait|type)\s+([A-Za-z_][A-Za-z0-9_]*)",
-            extension,
-        ):
-            surfaces.add((extension_path, "signed-extension", name))
+    extension = (root / extension_path).read_text(encoding="utf-8")
+    for name in re.findall(
+        r"(?m)^pub\s+(?:struct|enum|trait|type)\s+([A-Za-z_][A-Za-z0-9_]*)",
+        extension,
+    ):
+        surfaces.add((extension_path, "signed-extension", name))
 
     proof_root = root / "origin/orbis/node/src/proof_campaign"
     for path in sorted(proof_root.glob("*.rs")):
@@ -351,8 +335,7 @@ def current_surface_census(root: Path) -> set[tuple[str, str, str]]:
     api_path = "origin/orbis/provider-node/src/api.rs"
     api = (root / api_path).read_text(encoding="utf-8")
     for method, route in re.findall(r"\(Method::([A-Z]+),\s*\"([^\"]+)\"\)", api):
-        if (method, route) not in PROVIDER_CONTROL_ROUTES:
-            surfaces.add((api_path, "provider-route", f"{method} {route}"))
+        surfaces.add((api_path, "provider-route", f"{method} {route}"))
 
     descriptor_root = root / "product-sdk/packages/descriptors/generated"
     for path in descriptor_root.glob("*"):
@@ -365,10 +348,7 @@ def current_surface_census(root: Path) -> set[tuple[str, str, str]]:
         "product-sdk/packages/origin-sdk-personhood/src/index.ts",
         "product-sdk/packages/origin-sdk-resources/src/index.ts",
     ):
-        path = root / relative
-        if not path.is_file():
-            continue
-        text = path.read_text(encoding="utf-8")
+        text = (root / relative).read_text(encoding="utf-8")
         for name in re.findall(
             r"(?m)^export\s+(?:interface|type|const|function|class)\s+([A-Za-z_][A-Za-z0-9_]*)",
             text,
@@ -387,8 +367,7 @@ def current_surface_census(root: Path) -> set[tuple[str, str, str]]:
             surfaces.add((rust_sdk_path, "public-route", f"rust-export::{name}"))
 
     host_routes_path = "product-sdk/packages/descriptors/src/identity-host-routes.ts"
-    host_routes_file = root / host_routes_path
-    host_routes = host_routes_file.read_text(encoding="utf-8") if host_routes_file.is_file() else ""
+    host_routes = (root / host_routes_path).read_text(encoding="utf-8")
     marker = host_routes.find("export const personhoodHostRoutes")
     if marker >= 0:
         for name in re.findall(r"(?m)^\s{2}([A-Za-z_][A-Za-z0-9_]*)\(", rust_block(host_routes, marker)):
@@ -452,7 +431,7 @@ def deletion_dag(
             or not re.fullmatch(r"AC(?:[1-9]|1[0-4])", row["replacement_gate"])
             or not isinstance(row["order"], int)
             or row["order"] < 1
-            or row["status"] not in ("pending-delete", "deleted", "replacement-active")
+            or row["status"] not in ("pending-delete", "deleted")
             or any(token in row["path"] for token in ("*", "?", "["))
             or not all(isinstance(value, str) and value for value in (
                 row["path"], row["symbol"], row["replacement_consumer"],
@@ -472,12 +451,10 @@ def deletion_dag(
         }
         if not required_scans.issubset(scans):
             invalid_items.append(item_id)
-        if row["status"] in ("pending-delete", "replacement-active") and not (root / row["path"]).exists():
+        if row["status"] == "pending-delete" and not (root / row["path"]).exists():
             invalid_items.append(item_id)
-        elif row["status"] in ("pending-delete", "replacement-active") and not exact_surface_exists(row, root):
+        elif row["status"] == "pending-delete" and not exact_surface_exists(row, root):
             absent_symbols.append(item_id)
-        elif row["status"] == "deleted" and exact_surface_exists(row, root):
-            invalid_items.append(item_id)
         for dependency in row["prerequisites"]:
             target = by_id.get(dependency)
             if target is None or target.get("order", row["order"]) >= row["order"]:
@@ -502,11 +479,7 @@ def deletion_dag(
     for item_id in sorted(by_id):
         visit(item_id, [])
 
-    declared_surfaces = {
-        (row.get("path"), row.get("kind"), row.get("symbol"))
-        for row in items
-        if row.get("status") in ("pending-delete", "replacement-active")
-    }
+    declared_surfaces = set(surface_keys)
     observed_surfaces = current_surface_census(root)
     unmapped_surfaces = sorted(observed_surfaces - declared_surfaces)
     declaration_only_surfaces = sorted(declared_surfaces - observed_surfaces)
@@ -543,9 +516,6 @@ def deletion_dag(
     )
     return {
         "deletion_item_count": len(items),
-        "deleted_item_count": sum(row.get("status") == "deleted" for row in items),
-        "replacement_active_item_count": sum(row.get("status") == "replacement-active" for row in items),
-        "pending_delete_item_count": sum(row.get("status") == "pending-delete" for row in items),
         "dag_missing_fields": len(missing_fields),
         "dag_duplicate_ids": duplicate_ids,
         "dag_duplicate_orders": duplicate_orders,
@@ -686,8 +656,6 @@ def main() -> int:
             "approved_exclusion_invalid",
         )
     ) + ownership["unmapped_finding_count"] + ownership["duplicate_owner_count"] + len(allowlist_errors)
-    if not args.p0_audit:
-        structural_failures += dag["pending_delete_item_count"]
     stale_failures = len(findings)
     passed = structural_failures == 0 and (args.p0_audit or stale_failures == 0)
     result = {

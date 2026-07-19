@@ -145,13 +145,11 @@ fn enterprise_identity_attestation_name_and_storage_lifecycle_is_native_and_fail
 			name,
 			Some(app_attestation),
 		));
-		assert_ok!(Names::publish_content(
+		assert_ok!(Names::set_content(
 			RuntimeOrigin::signed(owner.clone()),
 			name,
 			Some(manifest),
-			None,
-			System::block_number().saturating_add(10),
-			[7; 16]));
+		));
 
 		let drive_name: pallet_orbis_drive::DriveNameOf<Runtime> =
 			b"enterprise-festival".to_vec().try_into().unwrap();

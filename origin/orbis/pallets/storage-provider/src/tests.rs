@@ -79,128 +79,8 @@ fn setup_bucket() -> H256 {
 		H256::repeat_byte(10),
 		1,
 		replicas,
-		System::block_number().saturating_add(10),
-		[11; 16]
 	));
 	BucketIds::<Test>::get()[0]
-}
-
-/// Remove idempotency receipts from bulk-admission setup so this fixture tests
-/// the duty bound rather than the independent per-owner receipt bound.
-fn clear_bucket_operation_receipts(owner: u64) {
-	for operation_id in crate::BucketOperationReceiptIds::<Test>::take(owner) {
-		crate::BucketOperationReceipts::<Test>::remove(owner, operation_id);
-	}
-}
-
-#[test]
-fn bucket_creation_operation_id_replays_once_and_rejects_rebinding() {
-	new_test_ext().execute_with(|| {
-		for id in 1..=4 {
-			register(id, 10_000);
-		}
-		let replicas: ReplicasOf<Test> = vec![2, 3].try_into().unwrap();
-		let operation_id = [0x90; 16];
-		assert_ok!(StorageProvider::create_bucket(
-			RuntimeOrigin::signed(OWNER),
-			H256::repeat_byte(10),
-			1,
-			replicas.clone(),
-			System::block_number().saturating_add(10),
-			operation_id
-		));
-		let bucket = BucketIds::<Test>::get()[0];
-		Buckets::<Test>::mutate(bucket, |record| {
-			let record = record.as_mut().expect("created bucket");
-			record.primary = 4;
-			record.replicas = vec![1, 4].try_into().unwrap();
-			record.version = 9;
-		});
-		assert_ok!(StorageProvider::create_bucket(
-			RuntimeOrigin::signed(OWNER),
-			H256::repeat_byte(10),
-			1,
-			replicas.clone(),
-			System::block_number().saturating_add(10),
-			operation_id
-		));
-		assert_eq!(BucketIds::<Test>::get().as_slice(), &[bucket]);
-		assert_eq!(crate::BucketNonce::<Test>::get(OWNER), 1);
-		assert!(matches!(
-			System::events().last().map(|record| &record.event),
-			Some(RuntimeEvent::StorageProvider(Event::BucketCreated {
-				bucket_id, primary, replicas: replayed_replicas, version,
-				operation_id: observed, replayed: true, ..
-			})) if *bucket_id == bucket && *primary == 1
-				&& replayed_replicas.as_slice() == [2, 3] && *version == 1
-				&& observed == &operation_id
-		));
-		assert_noop!(
-			StorageProvider::create_bucket(
-				RuntimeOrigin::signed(OWNER),
-				H256::repeat_byte(11),
-				1,
-				replicas.clone(),
-				System::block_number().saturating_add(10),
-				operation_id
-			),
-			Error::<Test>::OperationIdConflict
-		);
-		assert_noop!(
-			StorageProvider::create_bucket(
-				RuntimeOrigin::signed(OWNER),
-				H256::repeat_byte(10),
-				1,
-				replicas.clone(),
-				System::block_number().saturating_add(11),
-				operation_id,
-			),
-			Error::<Test>::OperationIdConflict
-		);
-		assert_ok!(StorageProvider::create_bucket(
-			RuntimeOrigin::signed(OWNER),
-			H256::repeat_byte(12),
-			1,
-			replicas.clone(),
-			10,
-			[0x10; 16],
-		));
-		assert_noop!(
-			StorageProvider::create_bucket(
-				RuntimeOrigin::signed(OWNER),
-				H256::repeat_byte(13),
-				1,
-				replicas.clone(),
-				10,
-				[0x80; 16],
-			),
-			Error::<Test>::BucketOperationReceiptCapacityReached
-		);
-		assert_eq!(crate::BucketNonce::<Test>::get(OWNER), 2);
-		System::set_block_number(11);
-		assert_noop!(
-			StorageProvider::create_bucket(
-				RuntimeOrigin::signed(OWNER),
-				H256::repeat_byte(10),
-				1,
-				replicas.clone(),
-				11,
-				operation_id,
-			),
-			Error::<Test>::OperationDeadlineExpired
-		);
-		assert_eq!(crate::BucketNonce::<Test>::get(OWNER), 2);
-		assert_ok!(StorageProvider::create_bucket(
-			RuntimeOrigin::signed(OWNER),
-			H256::repeat_byte(13),
-			1,
-			replicas,
-			20,
-			[0x80; 16],
-		));
-		assert_eq!(crate::BucketNonce::<Test>::get(OWNER), 3);
-		assert_eq!(crate::BucketOperationReceiptIds::<Test>::get(OWNER).as_slice(), &[[0x80; 16]]);
-	});
 }
 
 fn product(value: &[u8]) -> CapabilityProductIdOf<Test> {
@@ -376,40 +256,6 @@ fn organization_admission_rejects_every_invalid_authority_case_without_state() {
 			assert!(System::events().is_empty());
 		});
 	}
-}
-
-#[test]
-fn provider_organization_contract_rejects_atomically_and_emits_ordered_rotation() {
-	new_test_ext().execute_with(|| {
-		register(1, 100);
-		let before = Providers::<Test>::get(1).expect("registered provider");
-		let events_before = System::events().len();
-		let mut invalid = organization(&before.service_key.active);
-		invalid.entity_id = b"replacement-enterprise".to_vec().try_into().unwrap();
-		assert_noop!(
-			StorageProvider::rotate_provider_organization(RuntimeOrigin::root(), 1, invalid),
-			Error::<Test>::ProviderAttestationInvalid
-		);
-		assert_eq!(Providers::<Test>::get(1).expect("provider remains"), before);
-		assert_eq!(System::events().len(), events_before);
-
-		let predecessor = <Test as frame_system::Config>::Hashing::hash_of(&before.organization);
-		let mut replacement = organization(&before.service_key.active);
-		replacement.entity_id = b"replacement-enterprise".to_vec().try_into().unwrap();
-		replacement.rotation_predecessor = Some(predecessor);
-		assert_ok!(StorageProvider::rotate_provider_organization(
-			RuntimeOrigin::root(),
-			1,
-			replacement.clone(),
-		));
-		assert_eq!(Providers::<Test>::get(1).expect("rotated provider").organization, replacement);
-		assert_eq!(System::events().len(), events_before + 1);
-		assert!(matches!(
-			System::events().last().map(|record| &record.event),
-			Some(RuntimeEvent::StorageProvider(Event::ProviderOrganizationRotated { provider, predecessor: observed }))
-				if *provider == 1 && *observed == predecessor
-		));
-	});
 }
 
 #[test]
@@ -803,9 +649,7 @@ fn provider_conflict_resolution_matrix_covers_eleven_distinct_conflicts() {
 				RuntimeOrigin::signed(OWNER),
 				H256::repeat_byte(1),
 				1,
-				vec![1, 2].try_into().unwrap(),
-				System::block_number().saturating_add(10),
-				[176; 16]
+				vec![1, 2].try_into().unwrap()
 			),
 			Error::<Test>::DuplicateProviderAssignment
 		); // 3
@@ -814,9 +658,7 @@ fn provider_conflict_resolution_matrix_covers_eleven_distinct_conflicts() {
 				RuntimeOrigin::signed(OWNER),
 				H256::repeat_byte(1),
 				1,
-				vec![2, 2].try_into().unwrap(),
-				System::block_number().saturating_add(10),
-				[141; 16]
+				vec![2, 2].try_into().unwrap()
 			),
 			Error::<Test>::DuplicateProviderAssignment
 		); // 4
@@ -825,9 +667,7 @@ fn provider_conflict_resolution_matrix_covers_eleven_distinct_conflicts() {
 				RuntimeOrigin::signed(OWNER),
 				H256::repeat_byte(1),
 				1,
-				vec![2].try_into().unwrap(),
-				System::block_number().saturating_add(10),
-				[106; 16]
+				vec![2].try_into().unwrap()
 			),
 			Error::<Test>::InvalidReplicaCount
 		); // 5
@@ -841,9 +681,7 @@ fn provider_conflict_resolution_matrix_covers_eleven_distinct_conflicts() {
 				RuntimeOrigin::signed(OWNER),
 				H256::repeat_byte(1),
 				1,
-				vec![2, 3].try_into().unwrap(),
-				System::block_number().saturating_add(10),
-				[178; 16]
+				vec![2, 3].try_into().unwrap()
 			),
 			Error::<Test>::ProviderIneligible
 		); // 6
@@ -856,9 +694,7 @@ fn provider_conflict_resolution_matrix_covers_eleven_distinct_conflicts() {
 			RuntimeOrigin::signed(OWNER),
 			H256::repeat_byte(1),
 			1,
-			vec![2, 3].try_into().unwrap(),
-			System::block_number().saturating_add(10),
-			[243; 16]
+			vec![2, 3].try_into().unwrap()
 		));
 		let bucket = BucketIds::<Test>::get()[0];
 		assert_noop!(
@@ -1364,8 +1200,7 @@ fn canonical_manifest_lifecycle_is_pending_publishable_then_tombstoned() {
 			record.service_key.previous = Some(pair(1).public());
 			record.service_key.active = pair(8).public();
 		});
-		let tombstoned_at =
-			CanonicalManifests::<Test>::get(manifest).unwrap().tombstoned_at.unwrap();
+		let tombstoned_at = CanonicalManifests::<Test>::get(manifest).unwrap().tombstoned_at.unwrap();
 		let old_evidence = H256::repeat_byte(1);
 		let old_digest = sp_runtime::traits::BlakeTwo256::hash_of(&(
 			b"cord/storage/deletion-ack/v1",
@@ -1785,8 +1620,6 @@ fn checkpoint_duties_are_initially_scheduled_and_frozen_until_next_finalized_sna
 			H256::repeat_byte(10),
 			1,
 			vec![2, 3].try_into().unwrap(),
-			System::block_number().saturating_add(10),
-			[194; 16]
 		));
 		let bucket = BucketIds::<Test>::get()[0];
 		assert!(CheckpointDutyCurrent::<Test>::get(bucket).is_none());
@@ -1838,10 +1671,7 @@ fn checkpoint_duty_admission_is_exactly_bounded_per_block() {
 				H256::repeat_byte(index),
 				1,
 				replicas.clone(),
-				System::block_number().saturating_add(10),
-				(index as u128).to_le_bytes()
 			));
-			clear_bucket_operation_receipts(OWNER);
 		}
 		assert_eq!(DutyAdmissionCount::<Test>::get(), 8);
 		assert_eq!(CheckpointDutyPending::<Test>::iter().count(), 8);
@@ -1851,8 +1681,6 @@ fn checkpoint_duty_admission_is_exactly_bounded_per_block() {
 				H256::repeat_byte(9),
 				1,
 				replicas,
-				System::block_number().saturating_add(10),
-				[38; 16]
 			),
 			Error::<Test>::CheckpointDutyLimit
 		);
@@ -1863,8 +1691,6 @@ fn checkpoint_duty_admission_is_exactly_bounded_per_block() {
 			H256::repeat_byte(10),
 			1,
 			vec![2, 3].try_into().unwrap(),
-			System::block_number().saturating_add(10),
-			[43; 16]
 		));
 		assert_eq!(DutyAdmissionCount::<Test>::get(), 1);
 		assert_eq!(CheckpointDutyPending::<Test>::iter().count(), 9);
@@ -1875,7 +1701,6 @@ fn checkpoint_duty_admission_is_exactly_bounded_per_block() {
 fn checkpoint_and_challenge_admissions_share_one_exact_bound() {
 	new_test_ext().execute_with(|| {
 		let bucket = setup_bucket();
-		clear_bucket_operation_receipts(OWNER);
 		BucketSnapshots::<Test>::insert(
 			bucket,
 			crate::BucketSnapshot {
@@ -1896,10 +1721,7 @@ fn checkpoint_and_challenge_admissions_share_one_exact_bound() {
 				H256::from_low_u64_be(index),
 				1,
 				vec![2, 3].try_into().unwrap(),
-				System::block_number().saturating_add(10),
-				(index as u128).to_le_bytes()
 			));
-			clear_bucket_operation_receipts(OWNER);
 		}
 		for index in 0..4 {
 			assert_ok!(StorageProvider::issue_challenge(
@@ -1930,8 +1752,6 @@ fn checkpoint_and_challenge_admissions_share_one_exact_bound() {
 				H256::from_low_u64_be(9),
 				1,
 				vec![2, 3].try_into().unwrap(),
-				System::block_number().saturating_add(10),
-				[83; 16]
 			),
 			Error::<Test>::CheckpointDutyLimit
 		);
@@ -2467,8 +2287,6 @@ fn authority_only_fallback_promotion_rolls_back_every_surface_on_hostile_invaria
 				H256::repeat_byte(10),
 				1,
 				vec![2, 3, 4].try_into().unwrap(),
-				System::block_number().saturating_add(10),
-				[216; 16]
 			));
 			let bucket = BucketIds::<Test>::get()[0];
 			assert_ok!(StorageProvider::propose_agreement(
@@ -2579,8 +2397,6 @@ fn grace_fallback_atomically_promotes_with_two_eligible_post_promotion_confirmer
 			H256::repeat_byte(10),
 			1,
 			replicas,
-			System::block_number().saturating_add(10),
-			[48; 16]
 		));
 		let bucket = BucketIds::<Test>::get()[0];
 		assert_ok!(StorageProvider::propose_agreement(
@@ -2692,8 +2508,6 @@ fn grace_fallback_rolls_back_every_surface_on_hostile_invariants() {
 				H256::repeat_byte(10),
 				1,
 				replicas,
-				System::block_number().saturating_add(10),
-				[21; 16]
 			));
 			let bucket = BucketIds::<Test>::get()[0];
 			assert_ok!(StorageProvider::propose_agreement(
@@ -2846,8 +2660,6 @@ fn second_unfinalized_duty_update_fails_closed_without_overwriting_first() {
 			H256::repeat_byte(10),
 			1,
 			vec![2, 3].try_into().unwrap(),
-			System::block_number().saturating_add(10),
-			[146; 16]
 		));
 		let bucket = BucketIds::<Test>::get()[0];
 		let pending = CheckpointDutyPending::<Test>::get(bucket).unwrap();
@@ -2925,8 +2737,6 @@ fn checkpoint_dispatch_weights_cover_atomic_fallback_at_configured_bounds() {
 			H256::repeat_byte(10),
 			1,
 			replicas,
-			System::block_number().saturating_add(10),
-			[227; 16]
 		));
 		let bucket = BucketIds::<Test>::get()[0];
 		let agreement_ids: frame_support::BoundedVec<H256, MaxAgreements> = (0..max_agreements)
@@ -3167,8 +2977,6 @@ fn host_delegation_scope_lifetime_active_bound_and_nonce_are_fail_closed() {
 				H256::repeat_byte(11),
 				1,
 				replicas,
-				System::block_number().saturating_add(10),
-				[10; 16]
 			));
 			BucketIds::<Test>::get()[1]
 		};

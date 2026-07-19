@@ -32,14 +32,6 @@
     "python": "3.9.6",
     "rustc": "rustc 1.93.0 (254b59607 2026-01-19)"
   },
-  "g005_storage_pruning_notice": {
-    "reason": "G005 pruned the native legacy retention/hop runtime plane for the clean-break Origin/Orbis network; final P7 genesis identity must be regenerated from fresh compact Wasm before production qualification.",
-    "removed_prefix_categories": [
-      "legacy-retention-runtime-pallet",
-      "legacy-hop-promotion-pallet"
-    ],
-    "status": "legacy-retention-prefixes-removed-from-current-candidate-inventory"
-  },
   "genesis": {
     "header_hash": "0x2584c9d420dc8160b85deaf958d776886366d5beecc2ee7b1236293d20ac70fc",
     "raw_chain_spec_sha256": "2c00b527388fb0cc633ae6d99967600b6766bf7b385247f56a5cdbef53c4a902",
@@ -94,6 +86,7 @@
       "ForeignAssets": 1,
       "ForeignAssetsFreezer": 1,
       "Honour": 1,
+      "HopPromotion": 1,
       "Indices": 1,
       "Members": 1,
       "MembersNotifier": 1,
@@ -127,6 +120,7 @@
       "Timestamp": 1,
       "Token": 2,
       "TransactionPayment": 3,
+      "TransactionStorage": 4,
       "TxPause": 1,
       "Uniques": 1,
       "Utility": 1,
@@ -206,6 +200,9 @@
         ":__STORAGE_VERSION__:": 1
       },
       "Honour": {
+        ":__STORAGE_VERSION__:": 1
+      },
+      "HopPromotion": {
         ":__STORAGE_VERSION__:": 1
       },
       "Indices": {
@@ -332,6 +329,12 @@
         "NextFeeMultiplier": 1,
         "StorageVersion": 1
       },
+      "TransactionStorage": {
+        ":__STORAGE_VERSION__:": 1,
+        "ByteFee": 1,
+        "EntryFee": 1,
+        "RetentionPeriod": 1
+      },
       "TxPause": {
         ":__STORAGE_VERSION__:": 1
       },
@@ -450,6 +453,28 @@
         "decoded_default_configuration": {},
         "keys": [
           "0x6b04285766f7bf3ee383be9dd97627324e7b9012096b41c4eb3aaf947f6ea429"
+        ],
+        "unexpected_domain_records": []
+      },
+      "TransactionStorage": {
+        "declared_absent_storage": {
+          "AllowedAuthorizers": true,
+          "Authorizations": true,
+          "ReservationProviderRef": true,
+          "ResourceReservationLinks": true,
+          "ResourceReservationTombstones": true,
+          "ResourceReservations": true
+        },
+        "decoded_default_configuration": {
+          "ByteFee": 10,
+          "EntryFee": 1000,
+          "RetentionPeriod": 201600
+        },
+        "keys": [
+          "0x0e7b504e5df47062be129a8958a7a1271689c014e0a5b9a8ca8aafdff753c41c",
+          "0x0e7b504e5df47062be129a8958a7a1274e7b9012096b41c4eb3aaf947f6ea429",
+          "0x0e7b504e5df47062be129a8958a7a1278d69b77f53c8c31f3b84d472fdb7de2b",
+          "0x0e7b504e5df47062be129a8958a7a127fb88d072992a4a52ce055d9181748f1f"
         ],
         "unexpected_domain_records": []
       }

@@ -6,30 +6,19 @@ Hosted Commons application bootstrap. `createApp` verifies the exact Commons gen
 const result = await createApp({
   product: { id: "festival.app", name: "Festival" },
   bridge: originHostBridge,
-  identityBridge: originIdentityHostV2Bridge,
   runtime: commonsRuntimeExecutor,
 });
 if (!result.success) throw result.error;
 const app = result.value;
-const subject = await app.identity.subjectDerive(identityGrant, subjectRequest, finalizedInvocation);
-const signed = await app.signing.signTransaction(signingGrant, signingRequest, freshConsentInvocation);
-const storage = await app.cloudStorage.readTogether([provider, drive, bucket]);
 await app.storage.set("theme", "dark", utf8Codec);
 const accounts = await app.signer.accounts();
 await app.close();
 ```
 
 Application tests import `createFakeApp` from `@cord-network/origin-sdk/testing`. Host storage,
-signing, and prepared native writes are observable in memory. Native reads
+signing, statement transport, and prepared native writes are observable in memory. Native reads
 fail with `unconfigured_chain_read` unless the test supplies a domain override or runtime adapter;
 the fake never invents an RPC endpoint.
 
 `app.apps` stores and resolves `OriginAppManifestV1` through the host content transport and native
-Commons Names. It does not load an alternate application facade or a second application registry.
-
-`app.identity` contains only the seven independently granted Identity operations. Fresh-consent
-`transaction.sign` is exposed as `app.signing`, never folded into an Identity response. Provider,
-Drive, and S3 reads are available through `app.cloudStorage`; use `readTogether` when a decision
-must bind all three values to one verified finalized block. Retry a provider outage only when the
-returned error is retryable. For an optimistic-version conflict, re-read the affected Drive/S3
-record at a new finalized snapshot, rebuild the typed request, then request signing again.
+Commons Names. It does not load a contract facade or a second application registry.

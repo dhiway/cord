@@ -1,8 +1,8 @@
 # Origin Orbis native provider
 
 `origin-orbis-provider` is the CORD-owned off-chain byte/proof service for the native Orbis
-`StorageProvider`, `Drive`, and `S3` composition. Commons runtime state remains authoritative; the
-service does not implement a second retention ledger or compatibility path. The process refuses commits unless `StorageProviderApi` confirms at
+`StorageProvider`, `Drive`, `S3`, and Orbis Storage `TransactionStorage` composition. Commons runtime
+state remains authoritative. The process refuses commits unless `StorageProviderApi` confirms at
 one exact finalized hash that:
 
 - the configured provider is active;
@@ -27,25 +27,36 @@ block/extrinsic receipt before treating an idempotency key as complete. Checkpoi
 separate canonical outbox/worker and is not accepted by this manifest consumer. Neither process
 embeds a pallet/call index, signed extension, nonce, governance key, or raw SCALE payload.
 
-The process reads only the registered service-key and provider-account secrets from
-`ORBIS_PROVIDER_SERVICE_SURI` and `ORBIS_PROVIDER_ACCOUNT_SURI`; neither is persisted. There is no
-shared bearer credential and no public content, proof, replica, mutation, or generic checkpoint
-HTTP route.
+Required secrets are read from environment variables (defaults:
+`ORBIS_PROVIDER_BEARER_TOKEN` and `ORBIS_PROVIDER_SERVICE_SURI`) and are not persisted. The bearer
+token must contain at least 32 bytes. Mutating, content-read, proof, and replica endpoints require
+the bearer token. TLS and external client identity are expected at the deployment proxy.
 
-## HTTP surface
+## HTTP surfaces
 
-The public listener exposes only `GET /health` and `GET /info` for liveness and registered-provider
-identification. Content access and mutation use the separately authenticated private host-v2 IPC;
-replication uses the dedicated service-key-authenticated peer listener. Canonical deletion
+The bounded v6 routes are:
+
+- operations: `GET /health`, `GET /info`, `GET /stats`, `GET /node`, `PUT /node`;
+- content: `POST /exists`, `GET /read`, `GET /commitment`; the authenticated route identities
+  `POST /commit` and `POST /delete` are reserved for the P4 atomic object-completion cutover and
+  return `503 Service Unavailable` before parsing a body or mutating the store;
+- proofs: `GET /mmr_proof`, `GET /chunk_proof`, `GET /mmr_peaks`, `GET /mmr_subtree`,
+  `POST /fetch_nodes`;
+- replicas: `GET /buckets`, `GET /replica/sync_status`.
+
+Both reserved object-mutation routes are fail-closed before authorization, body parsing, byte
+mutation, or pending-journal creation. The store retains its pending-root and pending-deletion
+types only as a private P4 atomic-cutover bearer. No production route or worker drains those
+journals, and they are not public SDK requests or Commons runtime calls. Canonical deletion
 completion is driven independently from finalized manifest-deletion duties and
 `acknowledge_manifest_deletion`.
 
 ## Persistence and workers
 
-Private streaming data and control journals use bounded, crash-safe persistence. The provider
-control journal retains only canonical checkpoint and manifest-deletion duty progress; object bytes,
-proof state, and replication state are owned by the private streaming and checkpoint stacks. Replica
-node fetches are bounded to 1024, bucket names to 255 bytes, and object keys to 1024 bytes.
+Blob and index writes use same-directory temporary files, file/directory fsync, and atomic rename.
+The deferred P4 DiskStore model retains append-only proof leaves and private pending journals, but
+production does not create or replay generic object-completion records. Replica node fetches are
+bounded to 1024, bucket names to 255 bytes, and object keys to 1024 bytes.
 
 The process runs only canonical runtime and private-data-plane coordinators:
 

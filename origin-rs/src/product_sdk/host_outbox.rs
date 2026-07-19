@@ -48,15 +48,10 @@ const MAX_TOTAL_ENCRYPTED_BYTES: u64 = 268_435_456;
 const MAX_ENCRYPTED_RECORD_BYTES: usize = 4_456_448;
 const MAX_REQUEST_BYTES: usize = 4 * 1024 * 1024;
 const MAX_AUTHORITY_BYTES: usize = 4_096;
-const MAX_TRANSFER_CHUNK_BYTES: usize = 262_144;
-const MAX_TRANSFER_PAYLOAD_BYTES: usize = MAX_TRANSFER_CHUNK_BYTES + 128;
 const ROOT: &str = "host-outbox-v1";
 const QUARANTINE: &str = "quarantine";
 const EXTENSION: &str = ".outbox";
 const RECORD_DOMAIN: &[u8] = b"cord/host-outbox/private-record/v1";
-const UPLOAD_MANIFEST_DOMAIN: &[u8] = b"cord/host-outbox/upload-manifest/v1";
-const UPLOAD_CHUNK_DOMAIN: &[u8] = b"cord/host-outbox/upload-chunk/v1";
-const UPLOAD_NONCE_DOMAIN: &[u8] = b"cord/host-outbox/upload-nonce/v1";
 
 /// Stable host outbox failures from the normative registry.
 #[derive(Clone, Copy, Debug, Eq, PartialEq, thiserror::Error)]
@@ -267,25 +262,26 @@ impl HostOutboxEntryV1 {
 			.checked_add(MAX_RECOVERY_BLOCKS)
 			.ok_or(HostOutboxError::Corrupt)?;
 		let authority_valid = match self.state {
-			HostOutboxStateV1::Prepared |
-			HostOutboxStateV1::Sent |
-			HostOutboxStateV1::ResponseInstalled =>
-				!self.exact_authority_bytes.is_empty() &&
-					self.request_fingerprint ==
-						request_fingerprint(
+			HostOutboxStateV1::Prepared
+			| HostOutboxStateV1::Sent
+			| HostOutboxStateV1::ResponseInstalled => {
+				!self.exact_authority_bytes.is_empty()
+					&& self.request_fingerprint
+						== request_fingerprint(
 							&self.exact_request_bytes,
 							&self.exact_authority_bytes,
-						),
+						)
+			},
 			HostOutboxStateV1::AckConfirmed => self.exact_authority_bytes.is_empty(),
 			HostOutboxStateV1::Expired | HostOutboxStateV1::Quarantined => false,
 		};
-		if self.exact_request_bytes.len() > MAX_REQUEST_BYTES ||
-			self.exact_authority_bytes.len() > MAX_AUTHORITY_BYTES ||
-			self.authority_expires_at < self.created_at ||
-			self.authority_expires_at > max_authority_expiry ||
-			self.recover_until < min_recovery ||
-			self.recover_until > max_recovery ||
-			!authority_valid
+		if self.exact_request_bytes.len() > MAX_REQUEST_BYTES
+			|| self.exact_authority_bytes.len() > MAX_AUTHORITY_BYTES
+			|| self.authority_expires_at < self.created_at
+			|| self.authority_expires_at > max_authority_expiry
+			|| self.recover_until < min_recovery
+			|| self.recover_until > max_recovery
+			|| !authority_valid
 		{
 			return Err(HostOutboxError::Corrupt);
 		}
@@ -334,7 +330,6 @@ pub(crate) struct PrepareHostOutboxV1 {
 	pub(crate) outbox_id: [u8; 16],
 	pub(crate) exact_request_bytes: Vec<u8>,
 	pub(crate) exact_authority_bytes: Vec<u8>,
-	pub(crate) exact_payload_bytes: Option<Vec<u8>>,
 	pub(crate) request_id: [u8; 16],
 	pub(crate) operation_id: [u8; 16],
 	pub(crate) generation: u64,
@@ -352,7 +347,6 @@ pub(crate) struct PrepareHostOutboxV1 {
 pub(crate) struct HostOutboxRetryV1 {
 	pub(crate) request: Vec<u8>,
 	pub(crate) authority: Vec<u8>,
-	pub(crate) payload: Option<Vec<u8>>,
 	pub(crate) fingerprint: [u8; 32],
 }
 
@@ -376,24 +370,9 @@ pub(crate) struct HostOutboxResponseAckV1 {
 	pub(crate) response_hash: [u8; 32],
 }
 
-#[derive(Clone, Debug, Eq, PartialEq)]
-pub(crate) struct HostOutboxBindingV1 {
-	pub(crate) registry_hash: [u8; 32],
-	pub(crate) genesis_hash: [u8; 32],
-	pub(crate) negotiated_tuple: [u8; 32],
-	pub(crate) provider_id: [u8; 32],
-	pub(crate) provider_endpoint_hash: [u8; 32],
-	pub(crate) request_id: [u8; 16],
-	pub(crate) operation_id: [u8; 16],
-	pub(crate) expected_response_kind: u16,
-	pub(crate) intended_cursor: u32,
-	pub(crate) generation: u64,
-}
-
 #[derive(Clone, Debug, Decode, Encode, Eq, PartialEq)]
 struct LiveRecordV1 {
 	entry_cbor: Vec<u8>,
-	exact_payload_bytes: Option<Vec<u8>>,
 	response: Option<Vec<u8>>,
 	response_ack: Option<Vec<u8>>,
 	successor_authority: Option<Vec<u8>>,
@@ -406,7 +385,6 @@ struct LiveRecordV1 {
 #[derive(Clone, Debug, Decode, Encode, Eq, PartialEq)]
 struct TombstoneV1 {
 	outbox_id: [u8; 16],
-	operation_id: Option<[u8; 16]>,
 	state: HostOutboxStateV1,
 	request_fingerprint: [u8; 32],
 	prior_response_hash: Option<[u8; 32]>,
@@ -415,36 +393,9 @@ struct TombstoneV1 {
 }
 
 #[derive(Clone, Debug, Decode, Encode, Eq, PartialEq)]
-struct UploadManifestV1 {
-	operation_id: [u8; 16],
-	exact_request_bytes: Vec<u8>,
-	request_hash: [u8; 32],
-	cid: Vec<u8>,
-	object_len: u64,
-	chunk_count: u32,
-	chunk_ids: Vec<[u8; 16]>,
-	chunk_commitment: [u8; 32],
-	created_at: u64,
-	recover_until: u64,
-	key_version: u32,
-}
-
-#[derive(Clone, Debug, Decode, Encode, Eq, PartialEq)]
-struct UploadChunkV1 {
-	operation_id: [u8; 16],
-	request_hash: [u8; 32],
-	index: u32,
-	exact_payload_bytes: Vec<u8>,
-	payload_hash: [u8; 32],
-	key_version: u32,
-}
-
-#[derive(Clone, Debug, Decode, Encode, Eq, PartialEq)]
 enum DurableRecordV1 {
 	Live(LiveRecordV1),
 	Tombstone(TombstoneV1),
-	UploadManifest(UploadManifestV1),
-	UploadChunk(UploadChunkV1),
 }
 
 #[derive(Clone, Debug)]
@@ -456,7 +407,6 @@ struct LoadedRecordV1 {
 /// Deterministic atomic-write seams used by recovery tests.
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
 pub(crate) enum HostOutboxFault {
-	BeforeUploadErase,
 	BeforeTempFsync,
 	AfterTempFsync,
 	AfterRename,
@@ -478,31 +428,6 @@ pub(crate) struct HostOutboxStoreV1 {
 }
 
 impl HostOutboxStoreV1 {
-	pub(crate) fn context_binding(&self) -> ([u8; 32], [u8; 32]) {
-		(self.context.registry_hash, self.context.genesis_hash)
-	}
-
-	pub(crate) fn binding(
-		&self,
-		outbox_id: [u8; 16],
-	) -> Result<HostOutboxBindingV1, HostOutboxError> {
-		let records = self.records.read().map_err(|_| HostOutboxError::Unavailable)?;
-		let live = live(records.get(&outbox_id).ok_or(HostOutboxError::StateInvalid)?)?;
-		let entry = decode_entry(live)?;
-		Ok(HostOutboxBindingV1 {
-			registry_hash: entry.registry_hash,
-			genesis_hash: entry.genesis_hash,
-			negotiated_tuple: entry.negotiated_tuple,
-			provider_id: entry.provider_id,
-			provider_endpoint_hash: entry.provider_endpoint_hash,
-			request_id: entry.request_id,
-			operation_id: entry.operation_id,
-			expected_response_kind: entry.expected_response_kind,
-			intended_cursor: entry.intended_cursor,
-			generation: entry.generation,
-		})
-	}
-
 	/// Open and authenticate every durable entry. One corrupt entry is quarantined and fails open.
 	pub(crate) fn open(
 		root: impl AsRef<Path>,
@@ -512,17 +437,17 @@ impl HostOutboxStoreV1 {
 		Self::open_with_limits(root, context, keys, MAX_RECORDS, MAX_TOTAL_ENCRYPTED_BYTES)
 	}
 
-	pub(crate) fn open_with_limits(
+	fn open_with_limits(
 		root: impl AsRef<Path>,
 		context: HostOutboxContextV1,
 		keys: HostOutboxKeyRingV1,
 		record_limit: usize,
 		byte_limit: u64,
 	) -> Result<Self, HostOutboxError> {
-		if record_limit == 0 ||
-			record_limit > MAX_RECORDS ||
-			byte_limit == 0 ||
-			byte_limit > MAX_TOTAL_ENCRYPTED_BYTES
+		if record_limit == 0
+			|| record_limit > MAX_RECORDS
+			|| byte_limit == 0
+			|| byte_limit > MAX_TOTAL_ENCRYPTED_BYTES
 		{
 			return Err(HostOutboxError::Unavailable);
 		}
@@ -598,9 +523,6 @@ impl HostOutboxStoreV1 {
 		if removed_temporary {
 			sync_dir(&root)?;
 		}
-		if reconcile_upload_spools(&root, &mut records)? {
-			sync_dir(&root)?;
-		}
 		validate_unique_live_operation_generations(&records)?;
 		if records.len() > record_limit || total_bytes(&records)? > byte_limit {
 			return Err(HostOutboxError::Corrupt);
@@ -632,14 +554,6 @@ impl HostOutboxStoreV1 {
 			.ok_or(HostOutboxError::Corrupt)?;
 		let fingerprint =
 			request_fingerprint(&input.exact_request_bytes, &input.exact_authority_bytes);
-		validate_exact_payload(
-			&input.exact_request_bytes,
-			input.operation_id,
-			input.generation,
-			input.intended_cursor,
-			input.exact_payload_bytes.as_deref(),
-		)?;
-		let exact_payload_bytes = input.exact_payload_bytes;
 		let entry = HostOutboxEntryV1 {
 			outbox_id: input.outbox_id,
 			state: HostOutboxStateV1::Prepared,
@@ -663,16 +577,7 @@ impl HostOutboxStoreV1 {
 			key_version,
 		};
 		entry.validate()?;
-		let record = live_record(
-			entry.clone(),
-			exact_payload_bytes.clone(),
-			None,
-			None,
-			None,
-			None,
-			false,
-			false,
-		);
+		let record = live_record(entry.clone(), None, None, None, None, false, false);
 		let mut records = self.records.write().map_err(|_| HostOutboxError::Unavailable)?;
 		if records.contains_key(&entry.outbox_id) {
 			return Err(HostOutboxError::StateInvalid);
@@ -687,239 +592,15 @@ impl HostOutboxStoreV1 {
 		records.insert(
 			entry.outbox_id,
 			LoadedRecordV1 {
-				record: live_record(
-					entry.clone(),
-					exact_payload_bytes.clone(),
-					None,
-					None,
-					None,
-					None,
-					false,
-					false,
-				),
+				record: live_record(entry.clone(), None, None, None, None, false, false),
 				encrypted_bytes: bytes,
 			},
 		);
 		Ok(HostOutboxRetryV1 {
 			request: entry.exact_request_bytes,
 			authority: entry.exact_authority_bytes,
-			payload: exact_payload_bytes,
 			fingerprint,
 		})
-	}
-
-	/// Commit every canonical PUT chunk under the same encrypted record and byte ceilings before
-	/// the initial provider request can be sent. The manifest is the last durable commit marker.
-	pub(crate) fn stage_upload(
-		&self,
-		exact_request_bytes: &[u8],
-		operation_id: [u8; 16],
-		exact_chunks: Vec<Vec<u8>>,
-		created_at: u64,
-		authority_expires_at: u64,
-		nonce: [u8; 24],
-	) -> Result<(), HostOutboxError> {
-		let binding = put_request_binding(exact_request_bytes, operation_id)?;
-		let recover_until = authority_expires_at
-			.checked_add(RECOVERY_BLOCKS)
-			.ok_or(HostOutboxError::Corrupt)?;
-		if authority_expires_at < created_at ||
-			authority_expires_at >
-				created_at.checked_add(AUTHORITY_BLOCKS).ok_or(HostOutboxError::Corrupt)?
-		{
-			return Err(HostOutboxError::Corrupt);
-		}
-		if exact_chunks.len() != binding.chunk_count as usize {
-			return Err(HostOutboxError::Corrupt);
-		}
-		let request_hash: [u8; 32] = Sha256::digest(exact_request_bytes).into();
-		let key_version = self.keys.active()?.0;
-		let mut chunks = Vec::with_capacity(exact_chunks.len());
-		let mut commitment = Sha256::new();
-		for (position, exact_payload_bytes) in exact_chunks.into_iter().enumerate() {
-			let index: u32 = position.try_into().map_err(|_| HostOutboxError::Full)?;
-			let payload = parse_transfer_chunk(&exact_payload_bytes)?;
-			let expected_len =
-				expected_upload_chunk_len(binding.object_len, index, binding.chunk_count)?;
-			if payload.operation_id != operation_id ||
-				payload.index != index ||
-				payload.bytes_len != expected_len
-			{
-				return Err(HostOutboxError::Corrupt);
-			}
-			let payload_hash: [u8; 32] = Sha256::digest(&exact_payload_bytes).into();
-			commitment.update(payload_hash);
-			chunks.push(UploadChunkV1 {
-				operation_id,
-				request_hash,
-				index,
-				exact_payload_bytes,
-				payload_hash,
-				key_version,
-			});
-		}
-		let chunk_ids = (0..binding.chunk_count)
-			.map(|index| upload_chunk_id(operation_id, index))
-			.collect::<Vec<_>>();
-		let manifest = UploadManifestV1 {
-			operation_id,
-			exact_request_bytes: exact_request_bytes.to_vec(),
-			request_hash,
-			cid: binding.cid,
-			object_len: binding.object_len,
-			chunk_count: binding.chunk_count,
-			chunk_ids: chunk_ids.clone(),
-			chunk_commitment: commitment.finalize().into(),
-			created_at,
-			recover_until,
-			key_version,
-		};
-		let manifest_id = upload_manifest_id(operation_id);
-		let mut records = self.records.write().map_err(|_| HostOutboxError::Unavailable)?;
-		if let Some(existing) = records.get(&manifest_id) {
-			let DurableRecordV1::UploadManifest(existing_manifest) = &existing.record else {
-				return Err(HostOutboxError::StateInvalid);
-			};
-			if existing_manifest != &manifest {
-				return Err(HostOutboxError::StateInvalid);
-			}
-			for (id, expected) in chunk_ids.iter().zip(&chunks) {
-				let Some(loaded) = records.get(id) else { return Err(HostOutboxError::Corrupt) };
-				if loaded.record != DurableRecordV1::UploadChunk(expected.clone()) {
-					return Err(HostOutboxError::StateInvalid);
-				}
-			}
-			return Ok(());
-		}
-		if records.contains_key(&manifest_id) || chunk_ids.iter().any(|id| records.contains_key(id))
-		{
-			return Err(HostOutboxError::StateInvalid);
-		}
-		let mut pending = Vec::with_capacity(chunks.len() + 1);
-		for chunk in chunks {
-			let index = chunk.index;
-			let id = upload_chunk_id(operation_id, index);
-			let record = DurableRecordV1::UploadChunk(chunk);
-			let bytes = encrypt_record(
-				&record,
-				id,
-				&self.context,
-				&self.keys,
-				upload_nonce(nonce, Some(index)),
-			)?;
-			pending.push((id, record, bytes));
-		}
-		let manifest_record = DurableRecordV1::UploadManifest(manifest);
-		let manifest_bytes = encrypt_record(
-			&manifest_record,
-			manifest_id,
-			&self.context,
-			&self.keys,
-			upload_nonce(nonce, None),
-		)?;
-		pending.push((manifest_id, manifest_record, manifest_bytes));
-		let new_bytes = pending.iter().try_fold(0u64, |total, (_, _, bytes)| {
-			total.checked_add(bytes.len() as u64).ok_or(HostOutboxError::Full)
-		})?;
-		if records.len().checked_add(pending.len()).ok_or(HostOutboxError::Full)? >
-			self.record_limit ||
-			total_bytes(&records)?.checked_add(new_bytes).ok_or(HostOutboxError::Full)? >
-				self.byte_limit
-		{
-			return Err(HostOutboxError::Full);
-		}
-		let mut written = Vec::new();
-		for (id, record, bytes) in pending {
-			if let Err(error) = self.persist_bytes(id, &bytes, true) {
-				let durable = self.path(id).exists();
-				if durable {
-					records.insert(id, LoadedRecordV1 { record, encrypted_bytes: bytes.len() });
-					written.push(id);
-				}
-				let temporary =
-					self.root.join(format!("{}.tmp-{}", hex::encode(id), std::process::id()));
-				if temporary.exists() {
-					fs::remove_file(temporary).map_err(|_| HostOutboxError::Unavailable)?;
-				}
-				if id == manifest_id && durable {
-					return Err(error);
-				}
-				for written_id in written {
-					if self.path(written_id).exists() {
-						fs::remove_file(self.path(written_id))
-							.map_err(|_| HostOutboxError::Unavailable)?;
-					}
-					records.remove(&written_id);
-				}
-				sync_dir(&self.root)?;
-				return Err(error);
-			}
-			records.insert(id, LoadedRecordV1 { record, encrypted_bytes: bytes.len() });
-			written.push(id);
-		}
-		Ok(())
-	}
-
-	/// Resolve the exact committed PUT payload for one continuation cursor. The finalize cursor
-	/// returns no payload; no caller can substitute bytes after initial admission.
-	pub(crate) fn staged_upload_payload(
-		&self,
-		exact_request_bytes: &[u8],
-		operation_id: [u8; 16],
-		cursor: u32,
-	) -> Result<Option<Vec<u8>>, HostOutboxError> {
-		let records = self.records.read().map_err(|_| HostOutboxError::Unavailable)?;
-		if !has_retryable_upload_operation(&records, operation_id)? {
-			return Err(HostOutboxError::StateInvalid);
-		}
-		let manifest_id = upload_manifest_id(operation_id);
-		let loaded = records.get(&manifest_id).ok_or(HostOutboxError::StateInvalid)?;
-		let DurableRecordV1::UploadManifest(manifest) = &loaded.record else {
-			return Err(HostOutboxError::Corrupt);
-		};
-		if manifest.exact_request_bytes != exact_request_bytes || cursor > manifest.chunk_count {
-			return Err(HostOutboxError::StateInvalid);
-		}
-		if cursor == manifest.chunk_count {
-			return Ok(None);
-		}
-		let id = manifest.chunk_ids.get(cursor as usize).ok_or(HostOutboxError::Corrupt)?;
-		let loaded = records.get(id).ok_or(HostOutboxError::Corrupt)?;
-		let DurableRecordV1::UploadChunk(chunk) = &loaded.record else {
-			return Err(HostOutboxError::Corrupt);
-		};
-		Ok(Some(chunk.exact_payload_bytes.clone()))
-	}
-
-	/// Erase a committed upload and all authenticated chunk records. The manifest commit marker is
-	/// removed first, so a crash can only leave uncommitted chunks that open-time recovery deletes.
-	pub(crate) fn erase_upload(&self, operation_id: [u8; 16]) -> Result<(), HostOutboxError> {
-		self.trip(HostOutboxFault::BeforeUploadErase)?;
-		let mut records = self.records.write().map_err(|_| HostOutboxError::Unavailable)?;
-		let manifest_id = upload_manifest_id(operation_id);
-		let chunk_ids = match records.get(&manifest_id) {
-			Some(LoadedRecordV1 { record: DurableRecordV1::UploadManifest(manifest), .. }) =>
-				manifest.chunk_ids.clone(),
-			Some(_) => return Err(HostOutboxError::Corrupt),
-			None => records
-				.iter()
-				.filter_map(|(id, loaded)| match &loaded.record {
-					DurableRecordV1::UploadChunk(chunk) if chunk.operation_id == operation_id =>
-						Some(*id),
-					_ => None,
-				})
-				.collect(),
-		};
-		if records.contains_key(&manifest_id) {
-			fs::remove_file(self.path(manifest_id)).map_err(|_| HostOutboxError::Unavailable)?;
-			records.remove(&manifest_id);
-			sync_dir(&self.root)?;
-		}
-		for id in chunk_ids {
-			fs::remove_file(self.path(id)).map_err(|_| HostOutboxError::Unavailable)?;
-			records.remove(&id);
-		}
-		sync_dir(&self.root)
 	}
 
 	/// Return only the exact durable Prepared bytes and never regenerate authority.
@@ -940,7 +621,6 @@ impl HostOutboxStoreV1 {
 		Ok(HostOutboxRetryV1 {
 			request: entry.exact_request_bytes,
 			authority: entry.exact_authority_bytes,
-			payload: live.exact_payload_bytes.clone(),
 			fingerprint: entry.request_fingerprint,
 		})
 	}
@@ -951,54 +631,12 @@ impl HostOutboxStoreV1 {
 		outbox_id: [u8; 16],
 		nonce: [u8; 24],
 	) -> Result<(), HostOutboxError> {
-		self.rewrite_live(outbox_id, nonce, |entry, payload, _, _, _, _, _, _| {
+		self.rewrite_live(outbox_id, nonce, |entry, _, _, _, _, _, _| {
 			if entry.state != HostOutboxStateV1::Prepared {
 				return Err(HostOutboxError::StateInvalid);
 			}
 			entry.state = HostOutboxStateV1::Sent;
-			Ok((payload, None, None, None, None, false, false))
-		})
-	}
-
-	/// Replace a live request with its byte-exact terminal cancel before the cancel may be sent.
-	pub(crate) fn prepare_cancel(
-		&self,
-		outbox_id: [u8; 16],
-		exact_cancel_bytes: Vec<u8>,
-		next_sequence: u32,
-		nonce: [u8; 24],
-	) -> Result<HostOutboxRetryV1, HostOutboxError> {
-		if exact_cancel_bytes.is_empty() || exact_cancel_bytes.len() > MAX_REQUEST_BYTES {
-			return Err(HostOutboxError::Corrupt);
-		}
-		let cancel = exact_cancel_bytes.clone();
-		self.rewrite_live(
-			outbox_id,
-			nonce,
-			move |entry, _, response, ack, successor, cursor, attempted, terminal| {
-				if !matches!(entry.state, HostOutboxStateV1::Prepared | HostOutboxStateV1::Sent) ||
-					response.is_some() ||
-					ack.is_some() || terminal
-				{
-					return Err(HostOutboxError::StateInvalid);
-				}
-				entry.exact_request_bytes = cancel;
-				entry.request_fingerprint =
-					request_fingerprint(&entry.exact_request_bytes, &entry.exact_authority_bytes);
-				entry.intended_cursor = next_sequence;
-				entry.expected_response_kind = 4;
-				entry.state = HostOutboxStateV1::Prepared;
-				Ok((None, None, None, successor, cursor, attempted, false))
-			},
-		)?;
-		let records = self.records.read().map_err(|_| HostOutboxError::Unavailable)?;
-		let live = live(records.get(&outbox_id).ok_or(HostOutboxError::StateInvalid)?)?;
-		let entry = decode_entry(live)?;
-		Ok(HostOutboxRetryV1 {
-			request: entry.exact_request_bytes,
-			authority: entry.exact_authority_bytes,
-			payload: None,
-			fingerprint: entry.request_fingerprint,
+			Ok((None, None, None, None, false, false))
 		})
 	}
 
@@ -1020,18 +658,18 @@ impl HostOutboxStoreV1 {
 			return Err(HostOutboxError::StateInvalid);
 		}
 		if let Ok(installed) = self.installed_response(outbox_id) {
-			return if installed.response == response &&
-				installed.successor_authority == successor_authority &&
-				installed.successor_cursor == successor_cursor &&
-				installed.terminal == terminal_block.is_some() &&
-				terminal_recover_until.is_none_or(|until| installed.recover_until == until)
+			return if installed.response == response
+				&& installed.successor_authority == successor_authority
+				&& installed.successor_cursor == successor_cursor
+				&& installed.terminal == terminal_block.is_some()
+				&& terminal_recover_until.is_none_or(|until| installed.recover_until == until)
 			{
 				Ok(response_hash)
 			} else {
 				Err(HostOutboxError::ResponseMismatch)
 			};
 		}
-		self.rewrite_live(outbox_id, nonce, move |entry, payload, _, _, _, _, _, _| {
+		self.rewrite_live(outbox_id, nonce, move |entry, _, _, _, _, _, _| {
 			if !matches!(entry.state, HostOutboxStateV1::Prepared | HostOutboxStateV1::Sent) {
 				return Err(HostOutboxError::StateInvalid);
 			}
@@ -1061,7 +699,6 @@ impl HostOutboxStoreV1 {
 				entry.recover_until = until;
 			}
 			Ok((
-				payload,
 				Some(response),
 				Some(response_ack),
 				successor_authority,
@@ -1093,8 +730,8 @@ impl HostOutboxStoreV1 {
 			return Err(HostOutboxError::Corrupt);
 		}
 		let response_ack = live.response_ack.clone().ok_or(HostOutboxError::Corrupt)?;
-		if response_ack !=
-			response_ack_bytes(
+		if response_ack
+			!= response_ack_bytes(
 				entry.request_id,
 				entry.operation_id,
 				entry.generation,
@@ -1125,23 +762,6 @@ impl HostOutboxStoreV1 {
 		})
 	}
 
-	/// Report whether this exact response already has a durable provider confirmation. This lets
-	/// restart cleanup continue without replaying `mark_ack_sent`, whose transition is
-	/// intentionally restricted to `ResponseInstalled`.
-	pub(crate) fn is_ack_confirmed(
-		&self,
-		outbox_id: [u8; 16],
-		response_hash: [u8; 32],
-	) -> Result<bool, HostOutboxError> {
-		let records = self.records.read().map_err(|_| HostOutboxError::Unavailable)?;
-		let live = live(records.get(&outbox_id).ok_or(HostOutboxError::StateInvalid)?)?;
-		let entry = decode_entry(live)?;
-		if entry.prior_response_hash != Some(response_hash) {
-			return Err(HostOutboxError::ResponseMismatch);
-		}
-		Ok(entry.state == HostOutboxStateV1::AckConfirmed)
-	}
-
 	/// Persist the advisory acknowledgement-send attempt without changing its durable bytes.
 	pub(crate) fn mark_ack_sent(
 		&self,
@@ -1151,11 +771,11 @@ impl HostOutboxStoreV1 {
 		self.rewrite_live(
 			outbox_id,
 			nonce,
-			|entry, payload, response, ack, successor, cursor, _, terminal| {
+			|entry, response, ack, successor, cursor, _, terminal| {
 				if entry.state != HostOutboxStateV1::ResponseInstalled {
 					return Err(HostOutboxError::StateInvalid);
 				}
-				Ok((payload, response, ack, successor, cursor, true, terminal))
+				Ok((response, ack, successor, cursor, true, terminal))
 			},
 		)
 	}
@@ -1170,8 +790,8 @@ impl HostOutboxStoreV1 {
 		let mut records = self.records.write().map_err(|_| HostOutboxError::Unavailable)?;
 		let loaded = records.get(&outbox_id).cloned().ok_or(HostOutboxError::StateInvalid)?;
 		if let DurableRecordV1::Tombstone(tombstone) = &loaded.record {
-			return if tombstone.state == HostOutboxStateV1::AckConfirmed &&
-				tombstone.prior_response_hash == Some(response_hash)
+			return if tombstone.state == HostOutboxStateV1::AckConfirmed
+				&& tombstone.prior_response_hash == Some(response_hash)
 			{
 				Ok(())
 			} else {
@@ -1180,13 +800,13 @@ impl HostOutboxStoreV1 {
 		}
 		let existing = live(&loaded)?.clone();
 		let mut entry = decode_entry(&existing)?;
-		if entry.state == HostOutboxStateV1::AckConfirmed &&
-			entry.prior_response_hash == Some(response_hash)
+		if entry.state == HostOutboxStateV1::AckConfirmed
+			&& entry.prior_response_hash == Some(response_hash)
 		{
 			return Ok(());
 		}
-		if entry.state != HostOutboxStateV1::ResponseInstalled ||
-			entry.prior_response_hash != Some(response_hash)
+		if entry.state != HostOutboxStateV1::ResponseInstalled
+			|| entry.prior_response_hash != Some(response_hash)
 		{
 			return Err(HostOutboxError::ResponseMismatch);
 		}
@@ -1197,7 +817,6 @@ impl HostOutboxStoreV1 {
 		entry.validate()?;
 		let record = live_record(
 			entry,
-			None,
 			existing.response,
 			existing.response_ack,
 			existing.successor_authority,
@@ -1233,14 +852,14 @@ impl HostOutboxStoreV1 {
 			.generation
 			.checked_add(1)
 			.ok_or(HostOutboxError::StateInvalid)?;
-		if input.exact_authority_bytes != *successor_authority ||
-			input.operation_id != predecessor_entry.operation_id ||
-			input.generation != successor_generation ||
-			input.intended_cursor != successor_cursor ||
-			input.negotiated_tuple != predecessor_entry.negotiated_tuple ||
-			input.provider_id != predecessor_entry.provider_id ||
-			input.provider_endpoint_hash != predecessor_entry.provider_endpoint_hash ||
-			input.expected_response_kind != predecessor_entry.expected_response_kind
+		if input.exact_authority_bytes != *successor_authority
+			|| input.operation_id != predecessor_entry.operation_id
+			|| input.generation != successor_generation
+			|| input.intended_cursor != successor_cursor
+			|| input.negotiated_tuple != predecessor_entry.negotiated_tuple
+			|| input.provider_id != predecessor_entry.provider_id
+			|| input.provider_endpoint_hash != predecessor_entry.provider_endpoint_hash
+			|| input.expected_response_kind != predecessor_entry.expected_response_kind
 		{
 			return Err(HostOutboxError::StateInvalid);
 		}
@@ -1250,40 +869,31 @@ impl HostOutboxStoreV1 {
 			.ok_or(HostOutboxError::Corrupt)?;
 		let fingerprint =
 			request_fingerprint(&input.exact_request_bytes, &input.exact_authority_bytes);
-		validate_exact_payload(
-			&input.exact_request_bytes,
-			input.operation_id,
-			input.generation,
-			input.intended_cursor,
-			input.exact_payload_bytes.as_deref(),
-		)?;
 		if let Some(existing) = records.get(&input.outbox_id) {
 			let existing = live(existing)?;
 			let entry = decode_entry(existing)?;
-			if entry.state == HostOutboxStateV1::Prepared &&
-				entry.exact_request_bytes == input.exact_request_bytes &&
-				entry.exact_authority_bytes == input.exact_authority_bytes &&
-				existing.exact_payload_bytes == input.exact_payload_bytes &&
-				entry.request_fingerprint == fingerprint &&
-				entry.request_id == input.request_id &&
-				entry.operation_id == input.operation_id &&
-				entry.generation == input.generation &&
-				entry.intended_cursor == input.intended_cursor &&
-				entry.registry_hash == self.context.registry_hash &&
-				entry.genesis_hash == self.context.genesis_hash &&
-				entry.negotiated_tuple == input.negotiated_tuple &&
-				entry.provider_id == input.provider_id &&
-				entry.provider_endpoint_hash == input.provider_endpoint_hash &&
-				entry.expected_response_kind == input.expected_response_kind &&
-				entry.prior_response_hash == predecessor_entry.prior_response_hash &&
-				entry.created_at == input.created_at &&
-				entry.authority_expires_at == input.authority_expires_at &&
-				entry.recover_until == recover_until
+			if entry.state == HostOutboxStateV1::Prepared
+				&& entry.exact_request_bytes == input.exact_request_bytes
+				&& entry.exact_authority_bytes == input.exact_authority_bytes
+				&& entry.request_fingerprint == fingerprint
+				&& entry.request_id == input.request_id
+				&& entry.operation_id == input.operation_id
+				&& entry.generation == input.generation
+				&& entry.intended_cursor == input.intended_cursor
+				&& entry.registry_hash == self.context.registry_hash
+				&& entry.genesis_hash == self.context.genesis_hash
+				&& entry.negotiated_tuple == input.negotiated_tuple
+				&& entry.provider_id == input.provider_id
+				&& entry.provider_endpoint_hash == input.provider_endpoint_hash
+				&& entry.expected_response_kind == input.expected_response_kind
+				&& entry.prior_response_hash == predecessor_entry.prior_response_hash
+				&& entry.created_at == input.created_at
+				&& entry.authority_expires_at == input.authority_expires_at
+				&& entry.recover_until == recover_until
 			{
 				return Ok(HostOutboxRetryV1 {
 					request: entry.exact_request_bytes,
 					authority: entry.exact_authority_bytes,
-					payload: existing.exact_payload_bytes.clone(),
 					fingerprint: entry.request_fingerprint,
 				});
 			}
@@ -1313,17 +923,7 @@ impl HostOutboxStoreV1 {
 			key_version,
 		};
 		entry.validate()?;
-		let exact_payload_bytes = input.exact_payload_bytes;
-		let record = live_record(
-			entry.clone(),
-			exact_payload_bytes.clone(),
-			None,
-			None,
-			None,
-			None,
-			false,
-			false,
-		);
+		let record = live_record(entry.clone(), None, None, None, None, false, false);
 		self.persist_new(&records, entry.outbox_id, record.clone(), nonce)?;
 		let encrypted_bytes = fs::metadata(self.path(entry.outbox_id))
 			.map_err(|_| HostOutboxError::Unavailable)?
@@ -1334,7 +934,6 @@ impl HostOutboxStoreV1 {
 		Ok(HostOutboxRetryV1 {
 			request: entry.exact_request_bytes,
 			authority: entry.exact_authority_bytes,
-			payload: exact_payload_bytes,
 			fingerprint,
 		})
 	}
@@ -1360,7 +959,6 @@ impl HostOutboxStoreV1 {
 		}
 		let record = DurableRecordV1::Tombstone(TombstoneV1 {
 			outbox_id,
-			operation_id: Some(entry.operation_id),
 			state: HostOutboxStateV1::AckConfirmed,
 			request_fingerprint: entry.request_fingerprint,
 			prior_response_hash: entry.prior_response_hash,
@@ -1383,13 +981,11 @@ impl HostOutboxStoreV1 {
 		let loaded = records.get(&outbox_id).cloned().ok_or(HostOutboxError::StateInvalid)?;
 		let live = live(&loaded)?;
 		let entry = decode_entry(live)?;
-		let operation_id = entry.operation_id;
 		if finalized < entry.recover_until {
 			return Err(HostOutboxError::StateInvalid);
 		}
 		let tombstone = TombstoneV1 {
 			outbox_id,
-			operation_id: Some(entry.operation_id),
 			state: HostOutboxStateV1::Expired,
 			request_fingerprint: entry.request_fingerprint,
 			prior_response_hash: entry.prior_response_hash,
@@ -1399,8 +995,7 @@ impl HostOutboxStoreV1 {
 		let record = DurableRecordV1::Tombstone(tombstone);
 		let encrypted_bytes = self.persist_replace(&records, outbox_id, record.clone(), nonce)?;
 		records.insert(outbox_id, LoadedRecordV1 { record, encrypted_bytes });
-		drop(records);
-		self.erase_upload(operation_id)
+		Ok(())
 	}
 
 	/// Remove only terminal/expired records whose full recovery window has closed.
@@ -1408,33 +1003,17 @@ impl HostOutboxStoreV1 {
 		let mut records = self.records.write().map_err(|_| HostOutboxError::Unavailable)?;
 		let mut selected = Vec::new();
 		for (id, loaded) in records.iter() {
-			let DurableRecordV1::UploadManifest(manifest) = &loaded.record else { continue };
-			let group_len =
-				manifest.chunk_ids.len().checked_add(1).ok_or(HostOutboxError::Corrupt)?;
-			if finalized >= manifest.recover_until &&
-				!has_live_operation(&records, manifest.operation_id)? &&
-				selected.len().checked_add(group_len).is_some_and(|next| next <= limit)
-			{
-				selected.push(*id);
-				selected.extend(manifest.chunk_ids.iter().copied());
-			}
-		}
-		for (id, loaded) in records.iter() {
 			if selected.len() >= limit {
 				break;
-			}
-			if selected.contains(id) {
-				continue;
 			}
 			let eligible = match &loaded.record {
 				DurableRecordV1::Tombstone(tombstone) => finalized >= tombstone.recover_until,
 				DurableRecordV1::Live(record) => {
 					let entry = decode_entry(record)?;
-					record.terminal &&
-						entry.state == HostOutboxStateV1::AckConfirmed &&
-						finalized >= entry.recover_until
+					record.terminal
+						&& entry.state == HostOutboxStateV1::AckConfirmed
+						&& finalized >= entry.recover_until
 				},
-				DurableRecordV1::UploadManifest(_) | DurableRecordV1::UploadChunk(_) => false,
 			};
 			if eligible {
 				selected.push(*id);
@@ -1473,20 +1052,11 @@ impl HostOutboxStoreV1 {
 			Option<Vec<u8>>,
 			Option<Vec<u8>>,
 			Option<Vec<u8>>,
-			Option<Vec<u8>>,
 			Option<u32>,
 			bool,
 			bool,
 		) -> Result<
-			(
-				Option<Vec<u8>>,
-				Option<Vec<u8>>,
-				Option<Vec<u8>>,
-				Option<Vec<u8>>,
-				Option<u32>,
-				bool,
-				bool,
-			),
+			(Option<Vec<u8>>, Option<Vec<u8>>, Option<Vec<u8>>, Option<u32>, bool, bool),
 			HostOutboxError,
 		>,
 	{
@@ -1495,29 +1065,20 @@ impl HostOutboxStoreV1 {
 		let existing = live(&loaded)?.clone();
 		let mut entry = decode_entry(&existing)?;
 		entry.key_version = self.keys.active()?.0;
-		let (
-			exact_payload_bytes,
-			response,
-			response_ack,
-			successor,
-			successor_cursor,
-			ack_send_attempted,
-			terminal,
-		) = transition(
-			&mut entry,
-			existing.exact_payload_bytes,
-			existing.response,
-			existing.response_ack,
-			existing.successor_authority,
-			existing.successor_cursor,
-			existing.ack_send_attempted,
-			existing.terminal,
-		)?;
+		let (response, response_ack, successor, successor_cursor, ack_send_attempted, terminal) =
+			transition(
+				&mut entry,
+				existing.response,
+				existing.response_ack,
+				existing.successor_authority,
+				existing.successor_cursor,
+				existing.ack_send_attempted,
+				existing.terminal,
+			)?;
 		entry.validate()?;
 		let key_version = entry.key_version;
 		let record = live_record(
 			entry,
-			exact_payload_bytes,
 			response,
 			response_ack,
 			successor,
@@ -1615,7 +1176,6 @@ impl HostOutboxStoreV1 {
 
 fn live_record(
 	entry: HostOutboxEntryV1,
-	exact_payload_bytes: Option<Vec<u8>>,
 	response: Option<Vec<u8>>,
 	response_ack: Option<Vec<u8>>,
 	successor_authority: Option<Vec<u8>>,
@@ -1625,7 +1185,6 @@ fn live_record(
 ) -> DurableRecordV1 {
 	let mut live = LiveRecordV1 {
 		entry_cbor: entry.canonical_bytes(),
-		exact_payload_bytes,
 		response,
 		response_ack,
 		successor_authority,
@@ -1642,8 +1201,6 @@ fn live(loaded: &LoadedRecordV1) -> Result<&LiveRecordV1, HostOutboxError> {
 	match &loaded.record {
 		DurableRecordV1::Live(record) => Ok(record),
 		DurableRecordV1::Tombstone(_) => Err(HostOutboxError::Expired),
-		DurableRecordV1::UploadManifest(_) | DurableRecordV1::UploadChunk(_) =>
-			Err(HostOutboxError::StateInvalid),
 	}
 }
 
@@ -1653,38 +1210,25 @@ fn decode_entry(record: &LiveRecordV1) -> Result<HostOutboxEntryV1, HostOutboxEr
 	}
 	let entry =
 		HostOutboxEntryV1::decode(&record.entry_cbor).map_err(|_| HostOutboxError::Corrupt)?;
-	if entry.state == HostOutboxStateV1::AckConfirmed {
-		if record.exact_payload_bytes.is_some() {
-			return Err(HostOutboxError::Corrupt);
-		}
-	} else {
-		validate_exact_payload(
-			&entry.exact_request_bytes,
-			entry.operation_id,
-			entry.generation,
-			entry.intended_cursor,
-			record.exact_payload_bytes.as_deref(),
-		)?;
-	}
 	match (entry.state, record.response.as_ref(), record.response_ack.as_ref()) {
 		(HostOutboxStateV1::Prepared | HostOutboxStateV1::Sent, None, None)
-			if record.successor_authority.is_none() &&
-				record.successor_cursor.is_none() &&
-				!record.ack_send_attempted &&
-				!record.terminal => {},
+			if record.successor_authority.is_none()
+				&& record.successor_cursor.is_none()
+				&& !record.ack_send_attempted
+				&& !record.terminal => {},
 		(
 			HostOutboxStateV1::ResponseInstalled | HostOutboxStateV1::AckConfirmed,
 			Some(response),
 			Some(response_ack),
-		) if entry.prior_response_hash == Some(Sha256::digest(response).into()) &&
-			*response_ack ==
-				response_ack_bytes(
+		) if entry.prior_response_hash == Some(Sha256::digest(response).into())
+			&& *response_ack
+				== response_ack_bytes(
 					entry.request_id,
 					entry.operation_id,
 					entry.generation,
 					entry.prior_response_hash.expect("matched response hash"),
-				) && record.successor_authority.is_some() == record.successor_cursor.is_some() &&
-			!(record.terminal && record.successor_authority.is_some()) => {},
+				) && record.successor_authority.is_some() == record.successor_cursor.is_some()
+			&& !(record.terminal && record.successor_authority.is_some()) => {},
 		_ => return Err(HostOutboxError::Corrupt),
 	}
 	Ok(entry)
@@ -1696,7 +1240,6 @@ fn record_hash(record: &LiveRecordV1) -> [u8; 32] {
 	hash.update((record.entry_cbor.len() as u64).to_be_bytes());
 	hash.update(&record.entry_cbor);
 	for bytes in [
-		record.exact_payload_bytes.as_ref(),
 		record.response.as_ref(),
 		record.response_ack.as_ref(),
 		record.successor_authority.as_ref(),
@@ -1771,18 +1314,18 @@ fn validate_durable_record(
 				.ok_or(HostOutboxError::Corrupt)?;
 			let recovery_valid = if record.terminal {
 				entry.recover_until.checked_sub(RECOVERY_BLOCKS).is_some_and(|terminal_block| {
-					terminal_block >= entry.created_at &&
-						terminal_block <= entry.authority_expires_at
+					terminal_block >= entry.created_at
+						&& terminal_block <= entry.authority_expires_at
 				})
 			} else {
 				entry.recover_until == initial_recovery
 			};
-			if entry.outbox_id != id ||
-				entry.registry_hash != context.registry_hash ||
-				entry.genesis_hash != context.genesis_hash ||
-				entry.key_version != key_version ||
-				!recovery_valid ||
-				record
+			if entry.outbox_id != id
+				|| entry.registry_hash != context.registry_hash
+				|| entry.genesis_hash != context.genesis_hash
+				|| entry.key_version != key_version
+				|| !recovery_valid
+				|| record
 					.successor_authority
 					.as_ref()
 					.is_some_and(|bytes| bytes.is_empty() || bytes.len() > MAX_AUTHORITY_BYTES)
@@ -1791,8 +1334,8 @@ fn validate_durable_record(
 			}
 		},
 		DurableRecordV1::Tombstone(tombstone) => {
-			if tombstone.outbox_id != id ||
-				!matches!(
+			if tombstone.outbox_id != id
+				|| !matches!(
 					tombstone.state,
 					HostOutboxStateV1::AckConfirmed | HostOutboxStateV1::Expired
 				) || tombstone.key_version != key_version
@@ -1800,17 +1343,11 @@ fn validate_durable_record(
 				return Err(HostOutboxError::Corrupt);
 			}
 		},
-		DurableRecordV1::UploadManifest(manifest) => {
-			validate_upload_manifest(manifest, id, key_version)?;
-		},
-		DurableRecordV1::UploadChunk(chunk) => {
-			validate_upload_chunk(chunk, id, key_version)?;
-		},
 	}
 	Ok(())
 }
 
-pub(crate) fn encrypt(
+fn encrypt(
 	plaintext: &[u8],
 	key: &[u8; 32],
 	nonce: [u8; 24],
@@ -1831,11 +1368,7 @@ pub(crate) fn encrypt(
 	Ok(envelope)
 }
 
-pub(crate) fn decrypt(
-	bytes: &[u8],
-	key: &[u8; 32],
-	aad: &[u8],
-) -> Result<Vec<u8>, HostOutboxError> {
+fn decrypt(bytes: &[u8], key: &[u8; 32], aad: &[u8]) -> Result<Vec<u8>, HostOutboxError> {
 	if bytes.len() < 1 + 24 + 16 || bytes[0] != ENVELOPE_VERSION {
 		return Err(HostOutboxError::Corrupt);
 	}
@@ -1844,402 +1377,6 @@ pub(crate) fn decrypt(
 	cipher
 		.decrypt(XNonce::from_slice(&bytes[1..25]), Payload { msg: &bytes[25..], aad })
 		.map_err(|_| HostOutboxError::Corrupt)
-}
-
-fn validate_exact_payload(
-	request: &[u8],
-	operation_id: [u8; 16],
-	generation: u64,
-	intended_cursor: u32,
-	payload: Option<&[u8]>,
-) -> Result<(), HostOutboxError> {
-	let operation = request_operation(request)?;
-	if operation != 1010 {
-		return if payload.is_none() { Ok(()) } else { Err(HostOutboxError::Corrupt) };
-	}
-	let object_len = put_object_len(request)?;
-	let chunks = put_chunk_count(request)?;
-	if generation == 0 {
-		return if payload.is_none() { Ok(()) } else { Err(HostOutboxError::Corrupt) };
-	}
-	if intended_cursor > chunks || payload.is_some() != (intended_cursor < chunks) {
-		return Err(HostOutboxError::Corrupt);
-	}
-	let Some(payload) = payload else { return Ok(()) };
-	if payload.len() > MAX_TRANSFER_PAYLOAD_BYTES {
-		return Err(HostOutboxError::Corrupt);
-	}
-	let value: Value = ciborium::de::from_reader(payload).map_err(|_| HostOutboxError::Corrupt)?;
-	let Value::Map(entries) = value else { return Err(HostOutboxError::Corrupt) };
-	let mut fields: [Option<Value>; 5] = array::from_fn(|_| None);
-	for (key, value) in entries {
-		let key: usize = value_u64(key)?.try_into().map_err(|_| HostOutboxError::Corrupt)?;
-		if key > 4 || fields[key].replace(value).is_some() {
-			return Err(HostOutboxError::Corrupt);
-		}
-	}
-	if fields.iter().any(Option::is_none) || value_u64(take(&mut fields, 0)?)? != 1 {
-		return Err(HostOutboxError::Corrupt);
-	}
-	let payload_operation: [u8; 16] = fixed_bytes(take(&mut fields, 1)?)?;
-	let index: u32 = value_u64(take(&mut fields, 2)?)?
-		.try_into()
-		.map_err(|_| HostOutboxError::Corrupt)?;
-	let bytes = bounded_bytes(take(&mut fields, 3)?, 0, MAX_TRANSFER_CHUNK_BYTES)?;
-	let digest: [u8; 32] = fixed_bytes(take(&mut fields, 4)?)?;
-	if payload_operation != operation_id ||
-		index != intended_cursor ||
-		index >= 256 ||
-		bytes.len() != expected_upload_chunk_len(object_len, index, chunks)? ||
-		digest != sp_crypto_hashing::blake2_256(&bytes)
-	{
-		return Err(HostOutboxError::Corrupt);
-	}
-	let canonical = map(vec![
-		(0, uint(1)),
-		(1, bstr(&payload_operation)),
-		(2, uint(u64::from(index))),
-		(3, bstr(&bytes)),
-		(4, bstr(&digest)),
-	]);
-	if canonical != payload {
-		return Err(HostOutboxError::WireNonCanonical);
-	}
-	Ok(())
-}
-
-struct PutRequestBindingV1 {
-	cid: Vec<u8>,
-	object_len: u64,
-	chunk_count: u32,
-}
-
-struct ParsedTransferChunkV1 {
-	operation_id: [u8; 16],
-	index: u32,
-	bytes_len: usize,
-}
-
-fn put_request_binding(
-	request: &[u8],
-	operation_id: [u8; 16],
-) -> Result<PutRequestBindingV1, HostOutboxError> {
-	let value: Value = ciborium::de::from_reader(request).map_err(|_| HostOutboxError::Corrupt)?;
-	let Value::Map(entries) = value else { return Err(HostOutboxError::Corrupt) };
-	let mut operation = None;
-	let mut envelope_operation_id = None;
-	let mut body = None;
-	for (key, value) in entries {
-		match value_u64(key)? {
-			3 => operation = Some(value_u64(value)?),
-			5 => envelope_operation_id = Some(fixed_bytes::<16>(value)?),
-			8 => body = Some(value),
-			_ => {},
-		}
-	}
-	if operation != Some(1010) || envelope_operation_id != Some(operation_id) {
-		return Err(HostOutboxError::Corrupt);
-	}
-	let Value::Map(entries) = body.ok_or(HostOutboxError::Corrupt)? else {
-		return Err(HostOutboxError::Corrupt);
-	};
-	let mut cid = None;
-	let mut object_len = None;
-	let mut body_operation_id = None;
-	for (key, value) in entries {
-		match value_u64(key)? {
-			1 => {
-				let Value::Text(value) = value else { return Err(HostOutboxError::Corrupt) };
-				if value.is_empty() || value.len() > 128 {
-					return Err(HostOutboxError::Corrupt);
-				}
-				cid = Some(value.into_bytes());
-			},
-			2 => object_len = Some(value_u64(value)?),
-			4 => body_operation_id = Some(fixed_bytes::<16>(value)?),
-			_ => {},
-		}
-	}
-	if body_operation_id != Some(operation_id) {
-		return Err(HostOutboxError::Corrupt);
-	}
-	let object_len = object_len.ok_or(HostOutboxError::Corrupt)?;
-	let chunk_count = object_len
-		.checked_add(MAX_TRANSFER_CHUNK_BYTES as u64 - 1)
-		.ok_or(HostOutboxError::Corrupt)? /
-		MAX_TRANSFER_CHUNK_BYTES as u64;
-	let chunk_count: u32 = chunk_count.try_into().map_err(|_| HostOutboxError::Corrupt)?;
-	if chunk_count > 256 {
-		return Err(HostOutboxError::Full);
-	}
-	Ok(PutRequestBindingV1 { cid: cid.ok_or(HostOutboxError::Corrupt)?, object_len, chunk_count })
-}
-
-fn parse_transfer_chunk(payload: &[u8]) -> Result<ParsedTransferChunkV1, HostOutboxError> {
-	if payload.len() > MAX_TRANSFER_PAYLOAD_BYTES {
-		return Err(HostOutboxError::Corrupt);
-	}
-	let value: Value = ciborium::de::from_reader(payload).map_err(|_| HostOutboxError::Corrupt)?;
-	let Value::Map(entries) = value else { return Err(HostOutboxError::Corrupt) };
-	let mut fields: [Option<Value>; 5] = array::from_fn(|_| None);
-	for (key, value) in entries {
-		let key: usize = value_u64(key)?.try_into().map_err(|_| HostOutboxError::Corrupt)?;
-		if key > 4 || fields[key].replace(value).is_some() {
-			return Err(HostOutboxError::Corrupt);
-		}
-	}
-	if fields.iter().any(Option::is_none) || value_u64(take(&mut fields, 0)?)? != 1 {
-		return Err(HostOutboxError::Corrupt);
-	}
-	let operation_id: [u8; 16] = fixed_bytes(take(&mut fields, 1)?)?;
-	let index: u32 = value_u64(take(&mut fields, 2)?)?
-		.try_into()
-		.map_err(|_| HostOutboxError::Corrupt)?;
-	let bytes = bounded_bytes(take(&mut fields, 3)?, 0, MAX_TRANSFER_CHUNK_BYTES)?;
-	let digest: [u8; 32] = fixed_bytes(take(&mut fields, 4)?)?;
-	if index >= 256 || digest != sp_crypto_hashing::blake2_256(&bytes) {
-		return Err(HostOutboxError::Corrupt);
-	}
-	let canonical = map(vec![
-		(0, uint(1)),
-		(1, bstr(&operation_id)),
-		(2, uint(u64::from(index))),
-		(3, bstr(&bytes)),
-		(4, bstr(&digest)),
-	]);
-	if canonical != payload {
-		return Err(HostOutboxError::WireNonCanonical);
-	}
-	Ok(ParsedTransferChunkV1 { operation_id, index, bytes_len: bytes.len() })
-}
-
-fn expected_upload_chunk_len(
-	object_len: u64,
-	index: u32,
-	chunk_count: u32,
-) -> Result<usize, HostOutboxError> {
-	if index >= chunk_count || chunk_count > 256 {
-		return Err(HostOutboxError::Corrupt);
-	}
-	let offset = u64::from(index)
-		.checked_mul(MAX_TRANSFER_CHUNK_BYTES as u64)
-		.ok_or(HostOutboxError::Corrupt)?;
-	let remaining = object_len.checked_sub(offset).ok_or(HostOutboxError::Corrupt)?;
-	usize::try_from(remaining.min(MAX_TRANSFER_CHUNK_BYTES as u64))
-		.map_err(|_| HostOutboxError::Corrupt)
-}
-
-fn upload_manifest_id(operation_id: [u8; 16]) -> [u8; 16] {
-	upload_record_id(UPLOAD_MANIFEST_DOMAIN, operation_id, None)
-}
-
-fn upload_chunk_id(operation_id: [u8; 16], index: u32) -> [u8; 16] {
-	upload_record_id(UPLOAD_CHUNK_DOMAIN, operation_id, Some(index))
-}
-
-fn upload_record_id(domain: &[u8], operation_id: [u8; 16], index: Option<u32>) -> [u8; 16] {
-	let mut digest = Sha256::new();
-	digest.update(domain);
-	digest.update(operation_id);
-	if let Some(index) = index {
-		digest.update(index.to_be_bytes());
-	}
-	let digest = digest.finalize();
-	let mut id = [0; 16];
-	id.copy_from_slice(&digest[..16]);
-	id
-}
-
-fn upload_nonce(base: [u8; 24], index: Option<u32>) -> [u8; 24] {
-	let mut digest = Sha256::new();
-	digest.update(UPLOAD_NONCE_DOMAIN);
-	digest.update(base);
-	match index {
-		Some(index) => {
-			digest.update([1]);
-			digest.update(index.to_be_bytes());
-		},
-		None => digest.update([0]),
-	}
-	let digest = digest.finalize();
-	let mut nonce = [0; 24];
-	nonce.copy_from_slice(&digest[..24]);
-	nonce
-}
-
-fn validate_upload_manifest(
-	manifest: &UploadManifestV1,
-	id: [u8; 16],
-	key_version: u32,
-) -> Result<(), HostOutboxError> {
-	let binding = put_request_binding(&manifest.exact_request_bytes, manifest.operation_id)?;
-	let request_hash: [u8; 32] = Sha256::digest(&manifest.exact_request_bytes).into();
-	let min_recovery = manifest
-		.created_at
-		.checked_add(RECOVERY_BLOCKS)
-		.ok_or(HostOutboxError::Corrupt)?;
-	let max_recovery = manifest
-		.created_at
-		.checked_add(MAX_RECOVERY_BLOCKS)
-		.ok_or(HostOutboxError::Corrupt)?;
-	if id != upload_manifest_id(manifest.operation_id) ||
-		manifest.request_hash != request_hash ||
-		manifest.cid != binding.cid ||
-		manifest.object_len != binding.object_len ||
-		manifest.chunk_count != binding.chunk_count ||
-		manifest.chunk_ids.len() != manifest.chunk_count as usize ||
-		manifest.recover_until < min_recovery ||
-		manifest.recover_until > max_recovery ||
-		manifest.key_version != key_version
-	{
-		return Err(HostOutboxError::Corrupt);
-	}
-	for (index, id) in manifest.chunk_ids.iter().enumerate() {
-		if *id != upload_chunk_id(manifest.operation_id, index as u32) {
-			return Err(HostOutboxError::Corrupt);
-		}
-	}
-	Ok(())
-}
-
-fn validate_upload_chunk(
-	chunk: &UploadChunkV1,
-	id: [u8; 16],
-	key_version: u32,
-) -> Result<(), HostOutboxError> {
-	let payload = parse_transfer_chunk(&chunk.exact_payload_bytes)?;
-	let payload_hash: [u8; 32] = Sha256::digest(&chunk.exact_payload_bytes).into();
-	if id != upload_chunk_id(chunk.operation_id, chunk.index) ||
-		chunk.payload_hash != payload_hash ||
-		payload.operation_id != chunk.operation_id ||
-		payload.index != chunk.index ||
-		chunk.key_version != key_version
-	{
-		return Err(HostOutboxError::Corrupt);
-	}
-	Ok(())
-}
-
-fn reconcile_upload_spools(
-	root: &Path,
-	records: &mut BTreeMap<[u8; 16], LoadedRecordV1>,
-) -> Result<bool, HostOutboxError> {
-	let manifests = records
-		.iter()
-		.filter_map(|(id, loaded)| match &loaded.record {
-			DurableRecordV1::UploadManifest(manifest) => Some((*id, manifest.clone())),
-			_ => None,
-		})
-		.collect::<Vec<_>>();
-	let mut committed_chunks = BTreeSet::new();
-	for (_, manifest) in &manifests {
-		let mut commitment = Sha256::new();
-		for (index, id) in manifest.chunk_ids.iter().enumerate() {
-			let Some(loaded) = records.get(id) else { return Err(HostOutboxError::Corrupt) };
-			let DurableRecordV1::UploadChunk(chunk) = &loaded.record else {
-				return Err(HostOutboxError::Corrupt);
-			};
-			if chunk.operation_id != manifest.operation_id ||
-				chunk.request_hash != manifest.request_hash ||
-				chunk.index != index as u32 ||
-				parse_transfer_chunk(&chunk.exact_payload_bytes)?.bytes_len !=
-					expected_upload_chunk_len(
-						manifest.object_len,
-						chunk.index,
-						manifest.chunk_count,
-					)? {
-				return Err(HostOutboxError::Corrupt);
-			}
-			commitment.update(chunk.payload_hash);
-			if !committed_chunks.insert(*id) {
-				return Err(HostOutboxError::Corrupt);
-			}
-		}
-		if <[u8; 32]>::from(commitment.finalize()) != manifest.chunk_commitment {
-			return Err(HostOutboxError::Corrupt);
-		}
-	}
-	let mut retired_operations = BTreeSet::new();
-	for loaded in records.values() {
-		match &loaded.record {
-			DurableRecordV1::Tombstone(tombstone)
-				if matches!(
-					tombstone.state,
-					HostOutboxStateV1::Expired | HostOutboxStateV1::AckConfirmed
-				) =>
-				if let Some(operation_id) = tombstone.operation_id {
-					retired_operations.insert(operation_id);
-				},
-			DurableRecordV1::Live(record) if record.terminal => {
-				let entry = decode_entry(record)?;
-				if entry.state == HostOutboxStateV1::AckConfirmed {
-					retired_operations.insert(entry.operation_id);
-				}
-			},
-			_ => {},
-		}
-	}
-	let retired_manifests = manifests
-		.iter()
-		.filter(|(_, manifest)| retired_operations.contains(&manifest.operation_id))
-		.collect::<Vec<_>>();
-	let mut removals = retired_manifests.iter().map(|(id, _)| *id).collect::<Vec<_>>();
-	removals.extend(
-		retired_manifests
-			.iter()
-			.flat_map(|(_, manifest)| manifest.chunk_ids.iter().copied()),
-	);
-	removals.extend(records.iter().filter_map(|(id, loaded)| {
-		matches!(loaded.record, DurableRecordV1::UploadChunk(_))
-			.then_some(*id)
-			.filter(|id| !committed_chunks.contains(id))
-	}));
-	let mut unique = BTreeSet::new();
-	removals.retain(|id| unique.insert(*id));
-	for id in &removals {
-		fs::remove_file(root.join(format!("{}{}", hex::encode(id), EXTENSION)))
-			.map_err(|_| HostOutboxError::Unavailable)?;
-		records.remove(id);
-	}
-	Ok(!removals.is_empty())
-}
-
-fn request_operation(request: &[u8]) -> Result<u16, HostOutboxError> {
-	let value: Value = ciborium::de::from_reader(request).map_err(|_| HostOutboxError::Corrupt)?;
-	let Value::Map(entries) = value else { return Err(HostOutboxError::Corrupt) };
-	let operation = entries
-		.into_iter()
-		.find_map(|(key, value)| (value_u64(key).ok() == Some(3)).then_some(value));
-	value_u64(operation.ok_or(HostOutboxError::Corrupt)?)?
-		.try_into()
-		.map_err(|_| HostOutboxError::Corrupt)
-}
-
-fn put_chunk_count(request: &[u8]) -> Result<u32, HostOutboxError> {
-	let object_len = put_object_len(request)?;
-	let chunks = object_len
-		.checked_add(MAX_TRANSFER_CHUNK_BYTES as u64 - 1)
-		.ok_or(HostOutboxError::Corrupt)? /
-		MAX_TRANSFER_CHUNK_BYTES as u64;
-	if chunks > 256 {
-		return Err(HostOutboxError::Corrupt);
-	}
-	chunks.try_into().map_err(|_| HostOutboxError::Corrupt)
-}
-
-fn put_object_len(request: &[u8]) -> Result<u64, HostOutboxError> {
-	let value: Value = ciborium::de::from_reader(request).map_err(|_| HostOutboxError::Corrupt)?;
-	let Value::Map(entries) = value else { return Err(HostOutboxError::Corrupt) };
-	let body = entries
-		.into_iter()
-		.find_map(|(key, value)| (value_u64(key).ok() == Some(8)).then_some(value));
-	let Value::Map(entries) = body.ok_or(HostOutboxError::Corrupt)? else {
-		return Err(HostOutboxError::Corrupt);
-	};
-	let object_len = entries
-		.into_iter()
-		.find_map(|(key, value)| (value_u64(key).ok() == Some(2)).then_some(value));
-	value_u64(object_len.ok_or(HostOutboxError::Corrupt)?)
 }
 
 fn aad(context: &HostOutboxContextV1, id: [u8; 16], key_version: u32) -> Vec<u8> {
@@ -2288,42 +1425,6 @@ fn ensure_live_operation_generation_available(
 	Ok(())
 }
 
-fn has_live_operation(
-	records: &BTreeMap<[u8; 16], LoadedRecordV1>,
-	operation_id: [u8; 16],
-) -> Result<bool, HostOutboxError> {
-	for loaded in records.values() {
-		let DurableRecordV1::Live(record) = &loaded.record else { continue };
-		if decode_entry(record)?.operation_id == operation_id {
-			return Ok(true);
-		}
-	}
-	Ok(false)
-}
-
-fn has_retryable_upload_operation(
-	records: &BTreeMap<[u8; 16], LoadedRecordV1>,
-	operation_id: [u8; 16],
-) -> Result<bool, HostOutboxError> {
-	for loaded in records.values() {
-		let DurableRecordV1::Live(record) = &loaded.record else { continue };
-		let entry = decode_entry(record)?;
-		if entry.operation_id == operation_id &&
-			(matches!(
-				entry.state,
-				HostOutboxStateV1::Prepared |
-					HostOutboxStateV1::Sent |
-					HostOutboxStateV1::ResponseInstalled
-			) || (entry.state == HostOutboxStateV1::AckConfirmed &&
-				!record.terminal &&
-				record.successor_authority.is_some()))
-		{
-			return Ok(true);
-		}
-	}
-	Ok(false)
-}
-
 fn validate_unique_live_operation_generations(
 	records: &BTreeMap<[u8; 16], LoadedRecordV1>,
 ) -> Result<(), HostOutboxError> {
@@ -2349,18 +1450,18 @@ fn has_durable_successor(
 	for loaded in records.values() {
 		let DurableRecordV1::Live(candidate) = &loaded.record else { continue };
 		let entry = decode_entry(candidate)?;
-		if matches!(entry.state, HostOutboxStateV1::Prepared | HostOutboxStateV1::Sent) &&
-			entry.operation_id == predecessor.operation_id &&
-			entry.generation == generation &&
-			entry.intended_cursor == cursor &&
-			entry.registry_hash == predecessor.registry_hash &&
-			entry.genesis_hash == predecessor.genesis_hash &&
-			entry.negotiated_tuple == predecessor.negotiated_tuple &&
-			entry.provider_id == predecessor.provider_id &&
-			entry.provider_endpoint_hash == predecessor.provider_endpoint_hash &&
-			entry.expected_response_kind == predecessor.expected_response_kind &&
-			entry.exact_authority_bytes == *authority &&
-			entry.prior_response_hash == predecessor.prior_response_hash
+		if matches!(entry.state, HostOutboxStateV1::Prepared | HostOutboxStateV1::Sent)
+			&& entry.operation_id == predecessor.operation_id
+			&& entry.generation == generation
+			&& entry.intended_cursor == cursor
+			&& entry.registry_hash == predecessor.registry_hash
+			&& entry.genesis_hash == predecessor.genesis_hash
+			&& entry.negotiated_tuple == predecessor.negotiated_tuple
+			&& entry.provider_id == predecessor.provider_id
+			&& entry.provider_endpoint_hash == predecessor.provider_endpoint_hash
+			&& entry.expected_response_kind == predecessor.expected_response_kind
+			&& entry.exact_authority_bytes == *authority
+			&& entry.prior_response_hash == predecessor.prior_response_hash
 		{
 			return Ok(true);
 		}
@@ -2401,7 +1502,7 @@ fn decode_id(value: &str) -> Result<[u8; 16], HostOutboxError> {
 	bytes.try_into().map_err(|_| HostOutboxError::Corrupt)
 }
 
-pub(crate) fn sync_dir(path: &Path) -> Result<(), HostOutboxError> {
+fn sync_dir(path: &Path) -> Result<(), HostOutboxError> {
 	File::open(path)
 		.and_then(|directory| directory.sync_all())
 		.map_err(|_| HostOutboxError::Unavailable)
@@ -2437,10 +1538,7 @@ fn bstr(value: &[u8]) -> Value {
 	Value::Bytes(value.to_vec())
 }
 
-fn take<const N: usize>(
-	fields: &mut [Option<Value>; N],
-	index: usize,
-) -> Result<Value, HostOutboxError> {
+fn take(fields: &mut [Option<Value>; 21], index: usize) -> Result<Value, HostOutboxError> {
 	fields[index].take().ok_or(HostOutboxError::Corrupt)
 }
 
@@ -2498,7 +1596,6 @@ mod tests {
 			outbox_id: entry.outbox_id,
 			exact_request_bytes: entry.exact_request_bytes,
 			exact_authority_bytes: entry.exact_authority_bytes,
-			exact_payload_bytes: None,
 			request_id: entry.request_id,
 			operation_id: entry.operation_id,
 			generation: entry.generation,
@@ -2515,35 +1612,13 @@ mod tests {
 	fn successor(authority: Vec<u8>, cursor: u32) -> PrepareHostOutboxV1 {
 		let mut input = prepared();
 		input.outbox_id = [0x45; 16];
+		input.exact_request_bytes = b"generation-one-request".to_vec();
 		input.exact_authority_bytes = authority;
 		input.generation = 1;
 		input.intended_cursor = cursor;
 		input.created_at = 201;
 		input.authority_expires_at = 300;
 		input
-	}
-
-	fn put_request_with_length(request: &[u8], object_len: u64) -> Vec<u8> {
-		let mut value: Value = ciborium::de::from_reader(request).unwrap();
-		let Value::Map(fields) = &mut value else { unreachable!() };
-		let Value::Map(body) = &mut fields.iter_mut().find(|(key, _)| *key == uint(8)).unwrap().1
-		else {
-			unreachable!()
-		};
-		body.iter_mut().find(|(key, _)| *key == uint(2)).unwrap().1 = uint(object_len);
-		let mut exact = Vec::new();
-		ciborium::ser::into_writer(&value, &mut exact).unwrap();
-		exact
-	}
-
-	fn transfer_payload(operation_id: [u8; 16], index: u32, bytes: Vec<u8>) -> Vec<u8> {
-		map(vec![
-			(0, uint(1)),
-			(1, bstr(&operation_id)),
-			(2, uint(u64::from(index))),
-			(3, bstr(&bytes)),
-			(4, bstr(&sp_crypto_hashing::blake2_256(&bytes))),
-		])
 	}
 
 	fn durable_side(fault: HostOutboxFault) -> bool {
@@ -2592,385 +1667,6 @@ mod tests {
 			hex::encode(response_ack_bytes([0x55; 16], [0x44; 16], 0, response_hash)),
 			ack["canonical_cbor_hex"]
 		);
-	}
-
-	#[test]
-	fn encrypted_payload_attachment_is_closed_bound_and_finalize_aware() {
-		let input = prepared();
-		let request = put_request_with_length(&input.exact_request_bytes, 15);
-		let payload = transfer_payload(input.operation_id, 0, b"CORD byte plane".to_vec());
-		assert_eq!(
-			validate_exact_payload(&request, input.operation_id, 1, 0, Some(&payload)),
-			Ok(())
-		);
-		assert_eq!(
-			validate_exact_payload(&request, input.operation_id, 1, 0, None),
-			Err(HostOutboxError::Corrupt)
-		);
-		assert_eq!(validate_exact_payload(&request, input.operation_id, 2, 1, None), Ok(()));
-		assert_eq!(
-			validate_exact_payload(&request, input.operation_id, 2, 1, Some(&payload)),
-			Err(HostOutboxError::Corrupt)
-		);
-		assert_eq!(
-			validate_exact_payload(&request, input.operation_id, 0, 0, Some(&payload)),
-			Err(HostOutboxError::Corrupt)
-		);
-
-		let mut wrong_operation = payload.clone();
-		let mut value: Value = ciborium::de::from_reader(wrong_operation.as_slice()).unwrap();
-		let Value::Map(fields) = &mut value else { unreachable!() };
-		fields.iter_mut().find(|(key, _)| *key == uint(1)).unwrap().1 = bstr(&[9; 16]);
-		wrong_operation.clear();
-		ciborium::ser::into_writer(&value, &mut wrong_operation).unwrap();
-		assert_eq!(
-			validate_exact_payload(&request, input.operation_id, 1, 0, Some(&wrong_operation)),
-			Err(HostOutboxError::Corrupt)
-		);
-
-		let wrong_index = transfer_payload(input.operation_id, 1, b"CORD byte plane".to_vec());
-		assert_eq!(
-			validate_exact_payload(&request, input.operation_id, 1, 0, Some(&wrong_index)),
-			Err(HostOutboxError::Corrupt)
-		);
-		let over_index_request = put_request_with_length(
-			&input.exact_request_bytes,
-			257 * MAX_TRANSFER_CHUNK_BYTES as u64,
-		);
-		let over_index = transfer_payload(input.operation_id, 256, vec![0]);
-		assert_eq!(
-			validate_exact_payload(
-				&over_index_request,
-				input.operation_id,
-				257,
-				256,
-				Some(&over_index),
-			),
-			Err(HostOutboxError::Corrupt)
-		);
-		let mut wrong_digest = payload.clone();
-		*wrong_digest.last_mut().unwrap() ^= 1;
-		assert_eq!(
-			validate_exact_payload(&request, input.operation_id, 1, 0, Some(&wrong_digest)),
-			Err(HostOutboxError::Corrupt)
-		);
-		let mut noncanonical: Value = ciborium::de::from_reader(payload.as_slice()).unwrap();
-		let Value::Map(fields) = &mut noncanonical else { unreachable!() };
-		fields.reverse();
-		let mut noncanonical_bytes = Vec::new();
-		ciborium::ser::into_writer(&noncanonical, &mut noncanonical_bytes).unwrap();
-		assert_eq!(
-			validate_exact_payload(&request, input.operation_id, 1, 0, Some(&noncanonical_bytes),),
-			Err(HostOutboxError::WireNonCanonical)
-		);
-		assert_eq!(
-			validate_exact_payload(
-				&request,
-				input.operation_id,
-				1,
-				0,
-				Some(&vec![0; MAX_TRANSFER_PAYLOAD_BYTES + 1]),
-			),
-			Err(HostOutboxError::Corrupt)
-		);
-
-		for operation in [1011, 1012, 1014] {
-			let mut query: Value = ciborium::de::from_reader(request.as_slice()).unwrap();
-			let Value::Map(fields) = &mut query else { unreachable!() };
-			fields.iter_mut().find(|(key, _)| *key == uint(3)).unwrap().1 = uint(operation);
-			let mut query_bytes = Vec::new();
-			ciborium::ser::into_writer(&query, &mut query_bytes).unwrap();
-			assert!(validate_exact_payload(&query_bytes, input.operation_id, 1, 0, None).is_ok());
-			assert_eq!(
-				validate_exact_payload(&query_bytes, input.operation_id, 1, 0, Some(&payload)),
-				Err(HostOutboxError::Corrupt)
-			);
-		}
-	}
-
-	#[test]
-	fn put_payload_lengths_are_exact_and_capped_at_256_chunks() {
-		let input = prepared();
-		let check = |object_len: u64, index: u32, bytes: Vec<u8>| {
-			let request = put_request_with_length(&input.exact_request_bytes, object_len);
-			let payload = transfer_payload(input.operation_id, index, bytes);
-			validate_exact_payload(
-				&request,
-				input.operation_id,
-				u64::from(index) + 1,
-				index,
-				Some(&payload),
-			)
-		};
-		let empty = put_request_with_length(&input.exact_request_bytes, 0);
-		assert_eq!(validate_exact_payload(&empty, input.operation_id, 0, 0, None), Ok(()));
-		assert_eq!(validate_exact_payload(&empty, input.operation_id, 1, 0, None), Ok(()));
-
-		assert_eq!(check(1, 0, vec![1]), Ok(()));
-		assert_eq!(check(1, 0, vec![]), Err(HostOutboxError::Corrupt));
-		assert_eq!(check(262_143, 0, vec![1; 262_143]), Ok(()));
-		assert_eq!(check(262_144, 0, vec![1; 262_144]), Ok(()));
-		assert_eq!(check(262_145, 0, vec![1; 262_144]), Ok(()));
-		assert_eq!(check(262_145, 1, vec![1]), Ok(()));
-		assert_eq!(check(262_145, 1, vec![]), Err(HostOutboxError::Corrupt));
-		assert_eq!(check(262_145, 1, vec![1, 2]), Err(HostOutboxError::Corrupt));
-
-		let max_len = 256 * MAX_TRANSFER_CHUNK_BYTES as u64;
-		let max = put_request_with_length(&input.exact_request_bytes, max_len);
-		assert_eq!(validate_exact_payload(&max, input.operation_id, 0, 0, None), Ok(()));
-		assert_eq!(check(max_len, 255, vec![1; MAX_TRANSFER_CHUNK_BYTES]), Ok(()));
-		let over = put_request_with_length(&input.exact_request_bytes, max_len + 1);
-		assert_eq!(
-			validate_exact_payload(&over, input.operation_id, 0, 0, None),
-			Err(HostOutboxError::Corrupt)
-		);
-	}
-
-	#[test]
-	fn upload_spool_survives_preprepare_failure_and_terminal_ack_erases_without_revival() {
-		let root = tempfile::tempdir().unwrap();
-		let store = HostOutboxStoreV1::open(root.path(), context(), keyring()).unwrap();
-		let mut input = prepared();
-		input.exact_request_bytes = put_request_with_length(&input.exact_request_bytes, 15);
-		let payload = transfer_payload(input.operation_id, 0, b"CORD byte plane".to_vec());
-		store
-			.stage_upload(
-				&input.exact_request_bytes,
-				input.operation_id,
-				vec![payload.clone()],
-				input.created_at,
-				input.authority_expires_at,
-				[41; 24],
-			)
-			.unwrap();
-		assert_eq!(
-			store.staged_upload_payload(&input.exact_request_bytes, input.operation_id, 0),
-			Err(HostOutboxError::StateInvalid)
-		);
-		store.inject_fault_once(HostOutboxFault::BeforeTempFsync).unwrap();
-		assert_eq!(store.prepare(input.clone(), [42; 24]), Err(HostOutboxError::Unavailable));
-		drop(store);
-
-		let store = HostOutboxStoreV1::open(root.path(), context(), keyring()).unwrap();
-		assert_eq!(
-			store.staged_upload_payload(&input.exact_request_bytes, input.operation_id, 0),
-			Err(HostOutboxError::StateInvalid)
-		);
-		let recover_until = input.authority_expires_at + RECOVERY_BLOCKS;
-		assert_eq!(store.gc(recover_until - 1, MAX_RECORDS).unwrap(), 0);
-		assert_eq!(store.gc(recover_until, MAX_RECORDS).unwrap(), 2);
-		assert_eq!(
-			store.staged_upload_payload(&input.exact_request_bytes, input.operation_id, 0),
-			Err(HostOutboxError::StateInvalid)
-		);
-		store
-			.stage_upload(
-				&input.exact_request_bytes,
-				input.operation_id,
-				vec![payload.clone()],
-				input.created_at,
-				input.authority_expires_at,
-				[48; 24],
-			)
-			.unwrap();
-		store.prepare(input.clone(), [43; 24]).unwrap();
-		assert_eq!(
-			store.staged_upload_payload(&input.exact_request_bytes, input.operation_id, 0),
-			Ok(Some(payload.clone()))
-		);
-		assert_eq!(store.gc(recover_until, MAX_RECORDS).unwrap(), 0);
-		store.mark_sent(input.outbox_id, [44; 24]).unwrap();
-		let response_hash = store
-			.install_response(
-				input.outbox_id,
-				b"authenticated terminal".to_vec(),
-				None,
-				None,
-				Some(input.created_at),
-				[45; 24],
-			)
-			.unwrap();
-		store.confirm_ack(input.outbox_id, response_hash, [46; 24]).unwrap();
-		store.erase_upload(input.operation_id).unwrap();
-		store.compact_acknowledged(input.outbox_id, [47; 24]).unwrap();
-		{
-			let records = store.records.read().unwrap();
-			let DurableRecordV1::Tombstone(tombstone) = &records[&input.outbox_id].record else {
-				panic!("terminal acknowledgement did not retain a tombstone")
-			};
-			assert_eq!(tombstone.state, HostOutboxStateV1::AckConfirmed);
-			assert_eq!(tombstone.prior_response_hash, Some(response_hash));
-		}
-		drop(store);
-
-		let reopened = HostOutboxStoreV1::open(root.path(), context(), keyring()).unwrap();
-		assert_eq!(
-			reopened.staged_upload_payload(&input.exact_request_bytes, input.operation_id, 0),
-			Err(HostOutboxError::StateInvalid)
-		);
-		let records = reopened.records.read().unwrap();
-		let DurableRecordV1::Tombstone(tombstone) = &records[&input.outbox_id].record else {
-			panic!("terminal tombstone revived as live state")
-		};
-		assert_eq!(tombstone.prior_response_hash, Some(response_hash));
-	}
-
-	#[test]
-	fn partial_upload_stage_is_cleaned_and_durable_manifest_is_exactly_retryable() {
-		let root = tempfile::tempdir().unwrap();
-		let store = HostOutboxStoreV1::open(root.path(), context(), keyring()).unwrap();
-		let mut input = prepared();
-		input.exact_request_bytes = put_request_with_length(&input.exact_request_bytes, 15);
-		let payload = transfer_payload(input.operation_id, 0, b"CORD byte plane".to_vec());
-		store.inject_fault_once(HostOutboxFault::AfterDirectoryFsync).unwrap();
-		assert_eq!(
-			store.stage_upload(
-				&input.exact_request_bytes,
-				input.operation_id,
-				vec![payload],
-				input.created_at,
-				input.authority_expires_at,
-				[51; 24],
-			),
-			Err(HostOutboxError::Unavailable)
-		);
-		assert_eq!(
-			store.staged_upload_payload(&input.exact_request_bytes, input.operation_id, 0),
-			Err(HostOutboxError::StateInvalid)
-		);
-		drop(store);
-		let store = HostOutboxStoreV1::open(root.path(), context(), keyring()).unwrap();
-		assert_eq!(
-			store.staged_upload_payload(&input.exact_request_bytes, input.operation_id, 0),
-			Err(HostOutboxError::StateInvalid)
-		);
-
-		let empty = prepared();
-		store.inject_fault_once(HostOutboxFault::AfterDirectoryFsync).unwrap();
-		assert_eq!(
-			store.stage_upload(
-				&empty.exact_request_bytes,
-				empty.operation_id,
-				Vec::new(),
-				empty.created_at,
-				empty.authority_expires_at,
-				[52; 24],
-			),
-			Err(HostOutboxError::Unavailable)
-		);
-		assert_eq!(
-			store.staged_upload_payload(&empty.exact_request_bytes, empty.operation_id, 0),
-			Err(HostOutboxError::StateInvalid)
-		);
-		store
-			.stage_upload(
-				&empty.exact_request_bytes,
-				empty.operation_id,
-				Vec::new(),
-				empty.created_at,
-				empty.authority_expires_at,
-				[53; 24],
-			)
-			.unwrap();
-		store.prepare(empty.clone(), [54; 24]).unwrap();
-		assert_eq!(
-			store.staged_upload_payload(&empty.exact_request_bytes, empty.operation_id, 0),
-			Ok(None)
-		);
-		drop(store);
-		let reopened = HostOutboxStoreV1::open(root.path(), context(), keyring()).unwrap();
-		assert_eq!(
-			reopened.staged_upload_payload(&empty.exact_request_bytes, empty.operation_id, 0),
-			Ok(None)
-		);
-	}
-
-	#[test]
-	fn reopen_reconciles_uploads_after_expiry_or_terminal_ack_commit_crash() {
-		let expiry_root = tempfile::tempdir().unwrap();
-		let store = HostOutboxStoreV1::open(expiry_root.path(), context(), keyring()).unwrap();
-		let input = prepared();
-		store
-			.stage_upload(
-				&input.exact_request_bytes,
-				input.operation_id,
-				Vec::new(),
-				input.created_at,
-				input.authority_expires_at,
-				[61; 24],
-			)
-			.unwrap();
-		store.prepare(input.clone(), [62; 24]).unwrap();
-		store.inject_fault_once(HostOutboxFault::AfterDirectoryFsync).unwrap();
-		assert_eq!(
-			store.expire(input.outbox_id, input.authority_expires_at + RECOVERY_BLOCKS, [63; 24],),
-			Err(HostOutboxError::Unavailable)
-		);
-		drop(store);
-		let reopened = HostOutboxStoreV1::open(expiry_root.path(), context(), keyring()).unwrap();
-		assert_eq!(
-			reopened.staged_upload_payload(&input.exact_request_bytes, input.operation_id, 0),
-			Err(HostOutboxError::StateInvalid)
-		);
-		assert_eq!(
-			reopened.expire(
-				input.outbox_id,
-				input.authority_expires_at + RECOVERY_BLOCKS,
-				[64; 24],
-			),
-			Err(HostOutboxError::Expired)
-		);
-		assert!(!reopened.records.read().unwrap().values().any(|record| matches!(
-			&record.record,
-			DurableRecordV1::UploadManifest(_) | DurableRecordV1::UploadChunk(_)
-		)));
-
-		let terminal_root = tempfile::tempdir().unwrap();
-		let store = HostOutboxStoreV1::open(terminal_root.path(), context(), keyring()).unwrap();
-		let input = prepared();
-		store
-			.stage_upload(
-				&input.exact_request_bytes,
-				input.operation_id,
-				Vec::new(),
-				input.created_at,
-				input.authority_expires_at,
-				[65; 24],
-			)
-			.unwrap();
-		store.prepare(input.clone(), [66; 24]).unwrap();
-		store.mark_sent(input.outbox_id, [67; 24]).unwrap();
-		let response_hash = store
-			.install_response(
-				input.outbox_id,
-				b"terminal".to_vec(),
-				None,
-				None,
-				Some(input.created_at),
-				[68; 24],
-			)
-			.unwrap();
-		store.inject_fault_once(HostOutboxFault::AfterDirectoryFsync).unwrap();
-		assert_eq!(
-			store.confirm_ack(input.outbox_id, response_hash, [69; 24]),
-			Err(HostOutboxError::Unavailable)
-		);
-		drop(store);
-		let reopened = HostOutboxStoreV1::open(terminal_root.path(), context(), keyring()).unwrap();
-		assert_eq!(
-			reopened.staged_upload_payload(&input.exact_request_bytes, input.operation_id, 0),
-			Err(HostOutboxError::StateInvalid)
-		);
-		let records = reopened.records.read().unwrap();
-		let live = live(&records[&input.outbox_id]).unwrap();
-		let entry = decode_entry(live).unwrap();
-		assert!(live.terminal);
-		assert_eq!(entry.state, HostOutboxStateV1::AckConfirmed);
-		assert_eq!(entry.prior_response_hash, Some(response_hash));
-		assert!(!records.values().any(|record| matches!(
-			&record.record,
-			DurableRecordV1::UploadManifest(_) | DurableRecordV1::UploadChunk(_)
-		)));
 	}
 
 	#[test]
@@ -3037,7 +1733,7 @@ mod tests {
 		let id = input.outbox_id;
 		store.prepare(input, [1; 24]).unwrap();
 		let successor_token = b"signed-successor".to_vec();
-		let cursor = 0;
+		let cursor = 7;
 		let hash = store
 			.install_response(
 				id,
@@ -3075,33 +1771,13 @@ mod tests {
 		let store = HostOutboxStoreV1::open(temp.path(), context(), keyring()).unwrap();
 		let input = prepared();
 		let id = input.outbox_id;
-		let operation_id = input.operation_id;
-		let exact_request = input.exact_request_bytes.clone();
-		store
-			.stage_upload(
-				&exact_request,
-				operation_id,
-				Vec::new(),
-				input.created_at,
-				input.authority_expires_at,
-				[9; 24],
-			)
-			.unwrap();
 		store.prepare(input, [1; 24]).unwrap();
 		assert_eq!(store.retry_request(id, 484), Err(HostOutboxError::Expired));
 		store.expire(id, 484, [2; 24]).unwrap();
 		assert_eq!(store.retry_request(id, 484), Err(HostOutboxError::Expired));
-		assert_eq!(
-			store.staged_upload_payload(&exact_request, operation_id, 0),
-			Err(HostOutboxError::StateInvalid)
-		);
 		drop(store);
 
 		let store = HostOutboxStoreV1::open(temp.path(), context(), keyring()).unwrap();
-		assert_eq!(
-			store.staged_upload_payload(&exact_request, operation_id, 0),
-			Err(HostOutboxError::StateInvalid)
-		);
 		assert_eq!(store.gc(484, 1).unwrap(), 1);
 		drop(store);
 
@@ -3155,7 +1831,6 @@ mod tests {
 			let expected = HostOutboxRetryV1 {
 				request: input.exact_request_bytes.clone(),
 				authority: input.exact_authority_bytes.clone(),
-				payload: input.exact_payload_bytes.clone(),
 				fingerprint: request_fingerprint(
 					&input.exact_request_bytes,
 					&input.exact_authority_bytes,
@@ -3195,7 +1870,7 @@ mod tests {
 					id,
 					response,
 					Some(b"next-authority".to_vec()),
-					Some(0),
+					Some(4),
 					None,
 					[2; 24],
 				),
@@ -3253,7 +1928,7 @@ mod tests {
 					id,
 					b"progress".to_vec(),
 					Some(b"next-authority".to_vec()),
-					Some(0),
+					Some(4),
 					None,
 					[2; 24],
 				)
@@ -3284,13 +1959,13 @@ mod tests {
 					id,
 					b"progress".to_vec(),
 					Some(token.clone()),
-					Some(0),
+					Some(4),
 					None,
 					[2; 24],
 				)
 				.unwrap();
 			store.confirm_ack(id, hash, [3; 24]).unwrap();
-			let next = successor(token, 0);
+			let next = successor(token, 4);
 			let next_id = next.outbox_id;
 			store.inject_fault_once(fault).unwrap();
 			assert_eq!(
@@ -3440,7 +2115,7 @@ mod tests {
 			HostOutboxEntryV1::decode(&hex_field(base, "canonical_cbor_hex")).unwrap();
 		non_normative.recover_until = non_normative.created_at + RECOVERY_BLOCKS + 1;
 		let non_normative_id = non_normative.outbox_id;
-		let record = live_record(non_normative, None, None, None, None, None, false, false);
+		let record = live_record(non_normative, None, None, None, None, false, false);
 		assert_eq!(
 			validate_durable_record(&record, non_normative_id, &context(), 1),
 			Err(HostOutboxError::Corrupt)
@@ -3493,7 +2168,7 @@ mod tests {
 		store.prepare(second, [3; 24]).unwrap();
 
 		let authority = b"shared-successor-authority".to_vec();
-		let cursor = 0;
+		let cursor = 9;
 		for (id, nonce) in [(first_id, [4; 24]), (second_id, [5; 24])] {
 			let hash = store
 				.install_response(

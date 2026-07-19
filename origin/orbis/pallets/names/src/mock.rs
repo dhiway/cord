@@ -68,7 +68,6 @@ parameter_types! {
 	pub const MaxCommitmentAge: u64 = 10;
 	pub const RegistrationPeriod: u64 = 100;
 	pub const MaxRenewalPeriod: u64 = 100;
-	pub const MaxContentOperationReceiptLifetime: u64 = 20;
 }
 
 impl pallet_orbis_names::Config for Test {
@@ -93,8 +92,6 @@ impl pallet_orbis_names::Config for Test {
 	type MaxRootNames = ConstU32<32>;
 	type MaxNameDepth = ConstU32<4>;
 	type MaxCommitmentsPerAccount = ConstU32<8>;
-	type MaxContentOperationReceipts = ConstU32<2>;
-	type MaxContentOperationReceiptLifetime = MaxContentOperationReceiptLifetime;
 	type MinCommitmentAge = MinCommitmentAge;
 	type MaxCommitmentAge = MaxCommitmentAge;
 	type RegistrationPeriod = RegistrationPeriod;

@@ -111,17 +111,6 @@ pub struct Reservation<AccountId, BlockNumber> {
 	pub expires_at: Option<BlockNumber>,
 }
 
-#[derive(
-	Clone, Debug, Decode, DecodeWithMemTracking, Encode, Eq, MaxEncodedLen, PartialEq, TypeInfo,
-)]
-pub struct ContentOperationReceipt<Hash, ContentCommitment, BlockNumber> {
-	pub request_hash: Hash,
-	pub name: Hash,
-	pub content: Option<ContentCommitment>,
-	pub revision: u64,
-	pub expires_at: BlockNumber,
-}
-
 #[frame_support::pallet]
 pub mod pallet {
 	use super::*;
@@ -194,12 +183,6 @@ pub mod pallet {
 		type MaxNameDepth: Get<u32>;
 		#[pallet::constant]
 		type MaxCommitmentsPerAccount: Get<u32>;
-		/// Retained idempotency receipts per publisher. Live receipts are never evicted.
-		#[pallet::constant]
-		type MaxContentOperationReceipts: Get<u32>;
-		/// Maximum finalized-block recovery window for a content publication operation.
-		#[pallet::constant]
-		type MaxContentOperationReceiptLifetime: Get<BlockNumberFor<Self>>;
 		#[pallet::constant]
 		type MinCommitmentAge: Get<BlockNumberFor<Self>>;
 		#[pallet::constant]
@@ -235,31 +218,6 @@ pub mod pallet {
 	#[pallet::getter(fn name_record)]
 	pub type Names<T: Config> =
 		StorageMap<_, Blake2_128Concat, T::Hash, NameRecordOf<T>, OptionQuery>;
-
-	#[pallet::storage]
-	pub type ContentRevisions<T: Config> =
-		StorageMap<_, Blake2_128Concat, T::Hash, u64, ValueQuery>;
-
-	#[pallet::storage]
-	pub type ContentOperationReceipts<T: Config> = StorageDoubleMap<
-		_,
-		Blake2_128Concat,
-		T::AccountId,
-		Blake2_128Concat,
-		[u8; 16],
-		ContentOperationReceipt<T::Hash, T::ContentCommitment, BlockNumberFor<T>>,
-		OptionQuery,
-	>;
-
-	/// Oldest-first bounded replay window for content publication operation identifiers.
-	#[pallet::storage]
-	pub type ContentOperationReceiptIds<T: Config> = StorageMap<
-		_,
-		Blake2_128Concat,
-		T::AccountId,
-		BoundedVec<[u8; 16], T::MaxContentOperationReceipts>,
-		ValueQuery,
-	>;
 
 	#[pallet::storage]
 	#[pallet::getter(fn controllers)]
@@ -457,13 +415,6 @@ pub mod pallet {
 		ContentSet {
 			name: T::Hash,
 			present: bool,
-			revision: u64,
-			operation_id: [u8; 16],
-			replayed: bool,
-		},
-		ContentOperationReceiptPruned {
-			owner: T::AccountId,
-			operation_id: [u8; 16],
 		},
 		TextSet {
 			name: T::Hash,
@@ -531,12 +482,6 @@ pub mod pallet {
 		InvalidSubjectReference,
 		InvalidAttestationReference,
 		InvalidContentReference,
-		ContentRevisionConflict,
-		OperationIdConflict,
-		OperationDeadlineExpired,
-		OperationDeadlineTooFar,
-		ContentOperationReceiptCapacityReached,
-		ContentOperationReceiptLimitDisabled,
 		TooManyTextRecords,
 		PrimaryNameInvalid,
 		InvalidSalt,
@@ -891,102 +836,23 @@ pub mod pallet {
 		}
 
 		#[pallet::call_index(11)]
-		#[pallet::weight(T::WeightInfo::publish_content(T::MaxContentOperationReceipts::get()))]
-		#[transactional]
-		pub fn publish_content(
+		#[pallet::weight(T::WeightInfo::resolver_write())]
+		pub fn set_content(
 			origin: OriginFor<T>,
 			name: T::Hash,
 			content: Option<T::ContentCommitment>,
-			expected_revision: Option<u64>,
-			operation_deadline: BlockNumberFor<T>,
-			operation_id: [u8; 16],
 		) -> DispatchResult {
 			let who = ensure_signed(origin)?;
 			Self::ensure_running()?;
-			let now = frame_system::Pallet::<T>::block_number();
-			ensure!(operation_deadline > now, Error::<T>::OperationDeadlineExpired);
-			ensure!(
-				operation_deadline
-					<= now.saturating_add(T::MaxContentOperationReceiptLifetime::get()),
-				Error::<T>::OperationDeadlineTooFar
-			);
-			let request_hash =
-				T::Hashing::hash_of(&(name, &content, expected_revision, operation_deadline));
-			if let Some(receipt) = ContentOperationReceipts::<T>::get(&who, operation_id) {
-				ensure!(receipt.request_hash == request_hash, Error::<T>::OperationIdConflict);
-				Self::deposit_event(Event::ContentSet {
-					name: receipt.name,
-					present: receipt.content.is_some(),
-					revision: receipt.revision,
-					operation_id,
-					replayed: true,
-				});
-				return Ok(());
-			}
-			ContentOperationReceiptIds::<T>::try_mutate(&who, |ids| -> DispatchResult {
-				ensure!(
-					T::MaxContentOperationReceipts::get() > 0,
-					Error::<T>::ContentOperationReceiptLimitDisabled
-				);
-				let mut retained =
-					BoundedVec::<[u8; 16], T::MaxContentOperationReceipts>::default();
-				for retained_id in ids.iter().copied() {
-					let expired = ContentOperationReceipts::<T>::get(&who, retained_id)
-						.is_none_or(|receipt| receipt.expires_at <= now);
-					if expired {
-						ContentOperationReceipts::<T>::remove(&who, retained_id);
-						Self::deposit_event(Event::ContentOperationReceiptPruned {
-							owner: who.clone(),
-							operation_id: retained_id,
-						});
-					} else {
-						retained
-							.try_push(retained_id)
-							.map_err(|_| Error::<T>::ContentOperationReceiptCapacityReached)?;
-					}
-				}
-				ensure!(
-					(retained.len() as u32) < T::MaxContentOperationReceipts::get(),
-					Error::<T>::ContentOperationReceiptCapacityReached
-				);
-				retained
-					.try_push(operation_id)
-					.map_err(|_| Error::<T>::ContentOperationReceiptCapacityReached)?;
-				*ids = retained;
-				Ok(())
-			})?;
 			if let Some(reference) = content.as_ref() {
 				ensure!(
 					T::ContentReferenceValidator::contains(reference),
 					Error::<T>::InvalidContentReference
 				);
 			}
-			let current = ContentRevisions::<T>::get(name);
-			if let Some(expected) = expected_revision {
-				ensure!(expected == current, Error::<T>::ContentRevisionConflict);
-			}
-			let revision = current.checked_add(1).ok_or(Error::<T>::ContentRevisionConflict)?;
 			let present = content.is_some();
-			Self::mutate_authorized_record(&who, name, |record| record.content = content.clone())?;
-			ContentRevisions::<T>::insert(name, revision);
-			ContentOperationReceipts::<T>::insert(
-				&who,
-				operation_id,
-				ContentOperationReceipt {
-					request_hash,
-					name,
-					content,
-					revision,
-					expires_at: operation_deadline,
-				},
-			);
-			Self::deposit_event(Event::ContentSet {
-				name,
-				present,
-				revision,
-				operation_id,
-				replayed: false,
-			});
+			Self::mutate_authorized_record(&who, name, |record| record.content = content)?;
+			Self::deposit_event(Event::ContentSet { name, present });
 			Ok(())
 		}
 
@@ -1377,7 +1243,6 @@ pub mod pallet {
 			}
 			Controllers::<T>::remove(name);
 			Children::<T>::remove(name);
-			ContentRevisions::<T>::remove(name);
 			Names::<T>::remove(name);
 			Ok(())
 		}

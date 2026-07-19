@@ -9,7 +9,7 @@
     },
     "route_contract": {
       "path": "docs/sdk/native-route-contract.json",
-      "sha256": "37c993d3e5f91904bffa15f21fffa9cc8a5944604c2eaf0e1804b6f38dea7a6c"
+      "sha256": "dfc03fe7109fe400386f7b91cd05f183ee34227570cab018453314373df1a9b8"
     },
     "approval_manifest": {
       "path": "docs/evidence/p0-contract-native/architect-semantic-disposition-approval.json",
@@ -146,7 +146,7 @@
         "typescript": "names content/text query"
       },
       "routes": [
-        "names:resolve_content_publication"
+        "names:resolve_content"
       ],
       "exercised_by": {
         "rust": {
@@ -250,7 +250,7 @@
         "typescript": "names content/text query"
       },
       "routes": [
-        "names:resolve_content_publication"
+        "names:resolve_content"
       ],
       "exercised_by": {
         "rust": {
@@ -380,7 +380,7 @@
         },
         "vectors": {
           "path": "docs/sdk/vectors/names-v1.json",
-          "sha256": "267ec97ace7eae519729a7efb8083308e3ad660219e393afa5f80db995bd13d1"
+          "sha256": "1a543ac96e7212854fb6e2105e8b0d1c947a19a65fe3f0d50f91fbe0b77bd700"
         },
         "cases": {
           "rust": {
@@ -433,7 +433,7 @@
         },
         "vectors": {
           "path": "docs/sdk/vectors/names-v1.json",
-          "sha256": "267ec97ace7eae519729a7efb8083308e3ad660219e393afa5f80db995bd13d1"
+          "sha256": "1a543ac96e7212854fb6e2105e8b0d1c947a19a65fe3f0d50f91fbe0b77bd700"
         },
         "cases": {
           "rust": {

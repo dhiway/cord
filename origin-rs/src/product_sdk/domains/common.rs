@@ -106,38 +106,6 @@ hash_type!(DriveId);
 hash_type!(BucketId);
 hash_type!(ObjectId);
 
-#[derive(Clone, Debug, Deserialize, Eq, Hash, PartialEq, Serialize)]
-#[serde(transparent)]
-pub struct OperationId(String);
-
-impl OperationId {
-	pub fn new(value: impl Into<String>) -> DomainResult<Self> {
-		let value = value.into().to_lowercase();
-		let bytes = value.strip_prefix("0x").ok_or_else(|| invalid("invalid operation id"))?;
-		if bytes.len() != 32 || !bytes.bytes().all(|byte| byte.is_ascii_hexdigit()) {
-			return Err(invalid("operation id must be a 16-byte 0x-prefixed value"));
-		}
-		Ok(Self(value))
-	}
-
-	pub fn from_bytes(value: [u8; 16]) -> Self {
-		Self(format!("0x{}", hex::encode(value)))
-	}
-
-	pub fn as_bytes(&self) -> DomainResult<[u8; 16]> {
-		hex::decode(&self.0[2..])
-			.map_err(|_| invalid("invalid operation id"))?
-			.try_into()
-			.map_err(|_| invalid("invalid operation id"))
-	}
-}
-
-impl Validate for OperationId {
-	fn validate(&self) -> DomainResult<()> {
-		Self::new(self.0.clone()).map(|_| ())
-	}
-}
-
 /// Canonical native Entity identifier referenced by Orbis Names.
 #[derive(Clone, Debug, Deserialize, Eq, Hash, PartialEq, Serialize)]
 #[serde(transparent)]
@@ -162,7 +130,7 @@ impl Validate for SubjectId {
 	}
 }
 
-/// Commons resource storage-reservation identifier.
+/// Orbis Storage transaction-storage reservation identifier.
 ///
 /// The runtime type is `u64`, but the SDK JSON contract uses a canonical decimal string so IDs
 /// above JavaScript's safe-integer range cannot be rounded by mobile or web hosts.

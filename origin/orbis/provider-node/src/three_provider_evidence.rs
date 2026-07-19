@@ -44,7 +44,7 @@ use pallet_orbis_storage_provider::{
 	CheckpointFallbackPromotionV1, CommitmentPayloadV2, ReplicaSignature,
 };
 use scale_info::{meta_type, TypeInfo};
-use serde::{Serialize, Serializer};
+use serde::Serialize;
 use sp_core::{crypto::AccountId32, ed25519, Pair as _, H256};
 use sp_crypto_hashing::blake2_256;
 
@@ -69,6 +69,7 @@ use crate::{
 	checkpoint_transport::{
 		CheckpointConfirmationEndpoint, CheckpointConfirmationTransport, CheckpointTransportError,
 	},
+	content::MAX_STORED_BYTES,
 	peer::PeerMmrCommitmentV1,
 	peer_responder::PeerResponder,
 	peer_transport::{PeerTransport, PeerTransportError},
@@ -80,8 +81,7 @@ use crate::{
 	workers::ManifestDeletionSubmitter,
 	AgreementAuthorization, BucketId, CanonicalCid, ChainAuthority, ChallengeBatch,
 	CheckpointDutyBatch, CheckpointDutyPageRequest, ContentError, DiskStore, NodeProfile,
-	OperationId, ProviderRecoveryAction, ProviderRecoveryOutcome, ProviderRecoveryStatus,
-	ProviderService, StreamingDescriptor, StreamingStore, CHUNK_BYTES,
+	OperationId, ProviderService, StreamingDescriptor, StreamingStore, CHUNK_BYTES,
 };
 
 const BUCKET: [u8; 32] = [3; 32];
@@ -150,51 +150,6 @@ pub struct PromotionObservation {
 
 #[allow(missing_docs)]
 #[derive(Clone, Debug, Eq, PartialEq, Serialize)]
-pub struct RecoveryOutcomeObservation {
-	pub phase: String,
-	pub provider: String,
-	#[serde(serialize_with = "serialize_recovery_state")]
-	pub state: ProviderRecoveryOutcome,
-	pub action: ProviderRecoveryAction,
-	pub retryable: bool,
-	pub byte_plane_ready: bool,
-	pub redacted_counts: RecoveryRedactedCounts,
-}
-
-fn serialize_recovery_state<S>(
-	state: &ProviderRecoveryOutcome,
-	serializer: S,
-) -> Result<S::Ok, S::Error>
-where
-	S: Serializer,
-{
-	serializer.serialize_str(match state {
-		ProviderRecoveryOutcome::LocalStateUnavailable => "LOCAL_STATE_UNAVAILABLE",
-		ProviderRecoveryOutcome::ControlSnapshotUnavailable => "CONTROL_SNAPSHOT_UNAVAILABLE",
-		ProviderRecoveryOutcome::RepairRequired => "REPAIR_REQUIRED",
-		ProviderRecoveryOutcome::FailoverReady => "FAILOVER_READY",
-		ProviderRecoveryOutcome::FailoverPending => "FAILOVER_PENDING",
-		ProviderRecoveryOutcome::PromotionPending => "PROMOTION_PENDING",
-		ProviderRecoveryOutcome::Blocked => "BLOCKED",
-		ProviderRecoveryOutcome::Ready => "READY",
-	})
-}
-
-#[allow(missing_docs)]
-#[derive(Clone, Debug, Eq, PartialEq, Serialize)]
-pub struct RecoveryRedactedCounts {
-	pub installed_objects: u64,
-	pub ready_objects: u64,
-	pub quarantined_objects: u64,
-	pub duties: u32,
-	pub initiator_duties: u32,
-	pub failover_duties: u32,
-	pub promotion_pending_duties: u32,
-	pub blocked_duties: u32,
-}
-
-#[allow(missing_docs)]
-#[derive(Clone, Debug, Eq, PartialEq, Serialize)]
 pub struct ThreeProviderRecoveryEvidence {
 	pub schema_version: u16,
 	pub test: String,
@@ -208,7 +163,6 @@ pub struct ThreeProviderRecoveryEvidence {
 	pub runtime_duty_reads: usize,
 	pub checkpoints: Vec<CheckpointObservation>,
 	pub promotion: PromotionObservation,
-	pub typed_outcomes: Vec<RecoveryOutcomeObservation>,
 	pub repaired_read_lengths: Vec<usize>,
 	pub replication_network_requests: usize,
 }
@@ -629,39 +583,9 @@ pub async fn run_three_provider_recovery_evidence(
 		1,
 		[false, true, true],
 	);
-	let mut fallback_services = Vec::new();
-	for index in 0..3 {
-		fallback_services.push(
-			install_duty(
-				&roots[index],
-				providers[index],
-				keys[index].clone(),
-				fallback_duty.clone(),
-				fallback_topology.clone(),
-				FAILURE_DUTY_FINALIZED,
-			)
-			.await?,
-		);
-	}
-	let fallback_outcomes = recovery_outcomes("fallback", &fallback_services);
-	let fallback_initiators = fallback_outcomes
-		.iter()
-		.map(|outcome| outcome.redacted_counts.initiator_duties)
-		.sum::<u32>();
-	if fallback_outcomes[0].state != ProviderRecoveryOutcome::RepairRequired ||
-		fallback_outcomes[1].state != ProviderRecoveryOutcome::FailoverReady ||
-		fallback_outcomes[1].action != ProviderRecoveryAction::InitiateFallback ||
-		fallback_outcomes[2].state != ProviderRecoveryOutcome::FailoverPending ||
-		fallback_initiators != 1
-	{
-		return Err(ContentError::IntegrityFailed);
-	}
-	let promotion = run_promotion(&fallback_services[1], PROVIDER_B, keys[1].clone()).await?;
-	let promotion_reads: usize = fallback_services
-		.iter()
-		.map(|service| service.authority().duty_reads.load(Ordering::SeqCst))
-		.sum();
-	drop(fallback_services);
+	let (promotion, promotion_reads) =
+		run_promotion(&roots[1], PROVIDER_B, keys[1].clone(), fallback_duty, fallback_topology)
+			.await?;
 
 	let promoted_providers = [PROVIDER_B, PROVIDER_A, PROVIDER_C];
 	let promoted_keys = [keys[1].clone(), keys[0].clone(), keys[2].clone()];
@@ -741,13 +665,6 @@ pub async fn run_three_provider_recovery_evidence(
 
 	let runtime_duty_reads =
 		initial_checkpoint.runtime_reads + promotion_reads + promoted_checkpoint.runtime_reads;
-	let typed_outcomes = initial_checkpoint
-		.recovery_outcomes
-		.iter()
-		.chain(&fallback_outcomes)
-		.chain(&promoted_checkpoint.recovery_outcomes)
-		.cloned()
-		.collect();
 	Ok(ThreeProviderRecoveryEvidence {
 		schema_version: 2,
 		test: "deterministic_failover".into(),
@@ -789,7 +706,6 @@ pub async fn run_three_provider_recovery_evidence(
 		runtime_duty_reads,
 		checkpoints: vec![initial_checkpoint.observation, promoted_checkpoint.observation],
 		promotion,
-		typed_outcomes,
 		repaired_read_lengths,
 		replication_network_requests,
 	})
@@ -798,7 +714,6 @@ pub async fn run_three_provider_recovery_evidence(
 struct CheckpointRun {
 	observation: CheckpointObservation,
 	runtime_reads: usize,
-	recovery_outcomes: Vec<RecoveryOutcomeObservation>,
 }
 
 #[allow(clippy::too_many_arguments)]
@@ -826,30 +741,6 @@ async fn run_checkpoint(
 			)
 			.await?,
 		);
-	}
-	let recovery_outcomes = recovery_outcomes(phase, &services);
-	let writers = recovery_outcomes
-		.iter()
-		.filter(|outcome| {
-			matches!(
-				outcome.action,
-				ProviderRecoveryAction::InitiateFallback |
-					ProviderRecoveryAction::CompletePromotedCheckpoint
-			)
-		})
-		.count();
-	if (phase == "initial" &&
-		(recovery_outcomes
-			.iter()
-			.any(|outcome| outcome.state != ProviderRecoveryOutcome::Ready) ||
-			writers != 0)) ||
-		(phase == "promoted" &&
-			(recovery_outcomes
-				.iter()
-				.any(|outcome| outcome.state != ProviderRecoveryOutcome::PromotionPending) ||
-				writers != 1))
-	{
-		return Err(ContentError::IntegrityFailed);
 	}
 	let responders = [1usize, 2]
 		.into_iter()
@@ -901,27 +792,13 @@ async fn run_checkpoint(
 	let before = serde_json::to_vec(&submission).map_err(io_error)?;
 	let before_hash = hex::encode(blake2_256(&before));
 	let authority = services[0].authority().clone();
-	let before_recovery = services[0].recovery_status();
 	let runtime_reads = services
 		.iter()
 		.map(|service| service.authority().duty_reads.load(Ordering::SeqCst))
 		.sum();
 	drop(services);
 
-	let reopened_store = Arc::new(
-		DiskStore::open(&roots[0], provider_profile(providers[0], &keys[0])?)
-			.map_err(|error| ContentError::Io(error.to_string()))?,
-	);
-	let reopened_service = ProviderService::new_preopened(
-		reopened_store,
-		authority.clone(),
-		keys[0].clone(),
-		Arc::new(NoopOutbox),
-	)?;
-	if reopened_service.recovery_status() != before_recovery {
-		return Err(ContentError::IntegrityFailed);
-	}
-	let reopened = reopened_service.checkpoint_stack().clone();
+	let reopened = Arc::new(CheckpointStack::open(&roots[0])?);
 	let reopened_submission = reopened
 		.submission_heads()?
 		.into_iter()
@@ -976,16 +853,19 @@ async fn run_checkpoint(
 			replay_publication_count: replay.published.len(),
 		},
 		runtime_reads,
-		recovery_outcomes,
 	})
 }
 
 async fn run_promotion(
-	service: &ProviderService<ScriptedCommonsAuthority>,
+	root: &Path,
 	provider: [u8; 32],
 	key: ed25519::Pair,
-) -> Result<PromotionObservation, ContentError> {
-	let scheduler = PromotionDiscoveryScheduler::open(service.store().root())?;
+	duty: CheckpointDutyInfo<AccountId32, H256, u32>,
+	topology: ReplicationTopologySnapshot,
+) -> Result<(PromotionObservation, usize), ContentError> {
+	let service =
+		install_duty(root, provider, key.clone(), duty, topology, FAILURE_DUTY_FINALIZED).await?;
+	let scheduler = PromotionDiscoveryScheduler::open(root)?;
 	let lane = ScriptedPromotionLane {
 		metadata: metadata()?,
 		provider,
@@ -1024,12 +904,15 @@ async fn run_promotion(
 	if lane.calls.load(Ordering::SeqCst) != 1 || receipt.finalized_number != PROMOTION_FINALIZED {
 		return Err(ContentError::IntegrityFailed);
 	}
-	Ok(PromotionObservation {
-		intent_id: receipt.intent_id,
-		provider: receipt.provider,
-		finalized_number: receipt.finalized_number,
-		finality_calls: lane.calls.load(Ordering::SeqCst),
-	})
+	Ok((
+		PromotionObservation {
+			intent_id: receipt.intent_id,
+			provider: receipt.provider,
+			finalized_number: receipt.finalized_number,
+			finality_calls: lane.calls.load(Ordering::SeqCst),
+		},
+		service.authority().duty_reads.load(Ordering::SeqCst),
+	))
 }
 
 async fn install_duty(
@@ -1040,9 +923,15 @@ async fn install_duty(
 	topology: ReplicationTopologySnapshot,
 	finalized_number: u32,
 ) -> Result<ProviderService<ScriptedCommonsAuthority>, ContentError> {
-	let profile = provider_profile(provider, &key)?;
+	let profile = NodeProfile {
+		provider: hex::encode(provider),
+		endpoint: String::from_utf8(endpoint(provider))
+			.map_err(|_| ContentError::IntegrityFailed)?,
+		service_key: hex::encode(key.public().0),
+		region: None,
+	};
 	let store = Arc::new(
-		DiskStore::open(root, profile.clone())
+		DiskStore::open(root, profile.clone(), MAX_STORED_BYTES)
 			.map_err(|error| ContentError::Io(error.to_string()))?,
 	);
 	let public = validate_checkpoint_duty(
@@ -1069,61 +958,6 @@ async fn install_duty(
 		return Err(ContentError::IntegrityFailed);
 	}
 	Ok(service)
-}
-
-fn provider_profile(provider: [u8; 32], key: &ed25519::Pair) -> Result<NodeProfile, ContentError> {
-	Ok(NodeProfile {
-		provider: hex::encode(provider),
-		endpoint: String::from_utf8(endpoint(provider))
-			.map_err(|_| ContentError::IntegrityFailed)?,
-		service_key: hex::encode(key.public().0),
-		region: None,
-	})
-}
-
-fn recovery_outcomes(
-	phase: &str,
-	services: &[ProviderService<ScriptedCommonsAuthority>],
-) -> Vec<RecoveryOutcomeObservation> {
-	services
-		.iter()
-		.map(|service| {
-			let provider = service.store().profile().expect("validated provider profile").provider;
-			let provider = redacted_provider_alias(&provider).into();
-			let status: ProviderRecoveryStatus = service.recovery_status();
-			let control = status.control.expect("complete duty snapshot installed");
-			RecoveryOutcomeObservation {
-				phase: phase.into(),
-				provider,
-				state: status.outcome,
-				action: status.action,
-				retryable: status.retryable,
-				byte_plane_ready: status.byte_plane_ready,
-				redacted_counts: RecoveryRedactedCounts {
-					installed_objects: status.installed_objects.unwrap_or(0),
-					ready_objects: status.ready_objects.unwrap_or(0),
-					quarantined_objects: status.quarantined_objects.unwrap_or(0),
-					duties: control.duties,
-					initiator_duties: control.initiator_duties,
-					failover_duties: control.failover_duties,
-					promotion_pending_duties: control.promotion_pending_duties,
-					blocked_duties: control.blocked_duties,
-				},
-			}
-		})
-		.collect()
-}
-
-fn redacted_provider_alias(provider: &str) -> &'static str {
-	if provider == hex::encode(PROVIDER_A) {
-		"provider-1"
-	} else if provider == hex::encode(PROVIDER_B) {
-		"provider-2"
-	} else if provider == hex::encode(PROVIDER_C) {
-		"provider-3"
-	} else {
-		panic!("recovery evidence provider is outside the fixed three-provider scenario")
-	}
 }
 
 fn runtime_duty(

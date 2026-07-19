@@ -1,0 +1,18 @@
+schema_version = 1
+package = "@cord-network/origin-sdk-contracts"
+production_ready = false
+optional_leaf = true
+umbrella_dependency = false
+runtime_api = "ReviveApi.call"
+pallet = "Revive"
+raw_pallet_indices_accepted = false
+application_endpoints_accepted = false
+
+[policy]
+allowed = "application-owned business logic with independent lifecycle"
+native_authority_allowed = false
+forbidden_domains = ["names", "identity", "personhood", "attestation", "storage", "provider", "drive", "s3", "assets", "payments", "sponsorship", "resources", "statement-store"]
+
+[testing]
+export = "@cord-network/origin-sdk-contracts/testing"
+features = ["query", "call", "instantiate", "revert-injection", "status-stream"]

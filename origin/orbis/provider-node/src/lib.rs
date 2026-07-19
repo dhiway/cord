@@ -30,7 +30,7 @@ compile_error!("origin-orbis-provider requires Unix no-follow directory-handle s
 
 mod api;
 mod bounded_io;
-// Private capability parser retained for authenticated host-v2 IPC only.
+// Deliberately private until the P4 route cutover removes the shared bearer atomically.
 #[allow(dead_code)]
 mod capability;
 mod chain;
@@ -45,7 +45,6 @@ mod checkpoint_stack;
 mod checkpoint_transport;
 mod content;
 mod merkle;
-mod observability;
 mod peer;
 // Private HTTP/1 listener for the service-key-authenticated replication wire protocol.
 mod peer_http;
@@ -55,13 +54,10 @@ mod peer_reply;
 mod peer_responder;
 // Private outbound transport pinned to one exact finalized replication session.
 mod peer_transport;
-// Private local IPC; it is deliberately absent from the crate's public provider surface.
-mod private_host_ipc;
 mod replication;
 // Private bounded target reconciler driven by the dedicated replication worker.
 mod replication_reconciler;
 mod replication_worker;
-mod recovery_status;
 // Private deterministic bridge from finalized topology evidence into authenticated peer context.
 mod replication_session;
 mod storage;
@@ -87,15 +83,9 @@ pub use content::{
 	INGRESS_WINDOW_BYTES, INGRESS_WINDOW_CHUNKS, MAX_CHUNKS, MAX_RANGE_BYTES, MAX_STORED_BYTES,
 	MAX_STREAMING_OPERATIONS, RAW_CODEC,
 };
-#[doc(hidden)]
-pub use private_host_ipc::serve_private_host_ipc;
-pub use recovery_status::{
-	ProviderControlRecoveryStatus, ProviderRecoveryAction, ProviderRecoveryOutcome,
-	ProviderRecoveryStatus,
-};
 pub use storage::{
-	BeginStreaming, CheckpointDutyWatermark, DiskStore, IngressPermit, IntegritySummary, NodeProfile,
-	ProgressAck, StoreError, StreamingDescriptor,
+	BeginStreaming, CheckpointDutyWatermark, ChunkProof, ContentRecord, DiskStore, IngressPermit,
+	IntegritySummary, NodeProfile, ProgressAck, ProviderStats, StoreError, StreamingDescriptor,
 	StreamingFault, StreamingReceipt,
 };
 #[cfg(feature = "test-seams")]
@@ -105,7 +95,7 @@ pub use storage::StreamingStore;
 #[doc(hidden)]
 pub use three_provider_evidence::{
 	run_three_provider_recovery_evidence, CorruptReadObservation, EligibleSourceObservation,
-	RecoveryOutcomeObservation, RecoveryRedactedCounts, ThreeProviderRecoveryEvidence,
+	ThreeProviderRecoveryEvidence,
 };
 pub(crate) use workers::{JsonlManifestDeletionOutbox, ManifestDeletionSubmitter};
 #[cfg(any(test, feature = "evidence"))]

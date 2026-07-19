@@ -31,9 +31,6 @@ const metadata = resolve(sdkRoot, "packages/descriptors/.papi/metadata/commons.s
 const metadataIdentity = JSON.parse(
   readFileSync(resolve(repoRoot, "docs/sdk/metadata/commons-v29.json"), "utf8"),
 );
-const currentRuntime = JSON.parse(
-  readFileSync(resolve(repoRoot, "origin/orbis/runtime/vectors/transaction-policy-v8/metadata-hash.json"), "utf8"),
-);
 const output = resolve(sdkRoot, "packages/descriptors/generated/commons-papi-manifest.json");
 const sourceHeader = readFileSync(resolve(repoRoot, "HEADER-GPL3"), "utf8");
 const sha256 = (bytes: Uint8Array | string) => createHash("sha256").update(bytes).digest("hex");
@@ -88,13 +85,6 @@ const manifest = {
     runtime_rfc78_hash: metadataIdentity.runtime_rfc78_hash,
   },
   entry: "commons",
-  availability: {
-    runtime_metadata_current: metadataIdentity.spec_version === currentRuntime.spec_version,
-    sdk_admission: metadataIdentity.spec_version === currentRuntime.spec_version,
-    reason: metadataIdentity.spec_version === currentRuntime.spec_version
-      ? null
-      : "checked-in PAPI metadata predates the current Commons runtime",
-  },
   output: distributable,
 };
 const serialized = `${JSON.stringify(manifest, null, 2)}\n`;

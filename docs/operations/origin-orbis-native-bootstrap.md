@@ -13,8 +13,8 @@ for every step.
    approved, and Origin/Orbis WASM, chain specs and SDK descriptors match that bundle.
 2. Fetch the finalized Origin and Orbis heads. Fail closed unless Origin reports spec 9901 and
    Orbis reports spec 29, transaction 8, para 1006, and the generated Product SDK network binding.
-3. Confirm the key ceremony assigned distinct runtime, registrar, issuer, provider-governance, provider-service and
-   provider-account keys. Secrets remain in an HSM/secret store, never JSON,
+3. Confirm the key ceremony assigned distinct runtime, registrar, issuer, storage-authority,
+   provider-service and provider-account keys. Secrets remain in an HSM/secret store, never JSON,
    shell history, logs or repository files.
 4. Confirm every alert in `origin-orbis-monitoring.json` is loaded and links to an exercised
    incident action before admitting application traffic.
@@ -23,7 +23,8 @@ for every step.
 
 Execute the manifest steps in order and wait for finality after each write. Orbis Names registrars use
 `names.set_registrar`; attestation issuers create an approved schema through
-`attestation.create_schema`; provider governance uses `storage.register_provider`. Read the result back at the exact finalizing block. Never substitute
+`attestation.create_schema`; storage authority uses `TransactionStorage.authorize_account` and
+`storage.register_provider`. Read the result back at the exact finalizing block. Never substitute
 raw SCALE, a pallet/call index, a Revive call or a remembered deployment address.
 
 The registration record includes actor and payer, scope, expiry, proposal/quorum, input hash,

@@ -38,8 +38,6 @@ use crate::{
 };
 
 #[allow(dead_code)]
-pub(crate) mod local_put_session;
-#[allow(dead_code)]
 pub(crate) mod private_query;
 #[allow(dead_code)]
 pub(crate) mod recovery;

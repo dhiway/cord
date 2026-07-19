@@ -28,8 +28,1282 @@ export const NATIVE_ROUTE_CONTRACT = {
     "activation_state": "candidate-pending",
     "production_activation_ready": false
   },
-  "route_count": 111,
+  "route_count": 136,
   "routes": [
+    {
+      "id": "identity:identity_status",
+      "capability": "identity",
+      "method": "identity_status",
+      "finality": "finalized",
+      "parameters": [
+        {
+          "name": "account",
+          "schema": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 128
+          }
+        }
+      ],
+      "sample_payload": {
+        "account": "0x1111111111111111111111111111111111111111111111111111111111111111"
+      },
+      "rust": {
+        "declaration": "IdentityPersonhoodQuery",
+        "variant": "IdentityStatus",
+        "result": "IdentityPersonhoodResponse"
+      },
+      "typescript": {
+        "object": "identity",
+        "callable": "identityStatus"
+      },
+      "runtime": {
+        "kind": "runtime-api",
+        "source": "origin/orbis/runtime-api/identity-personhood/src/lib.rs",
+        "target": "identity_status",
+        "pallet": "People",
+        "pallet_index": 90,
+        "runtime_api_version": 1,
+        "implementation_source": "origin/orbis/runtime/src/lib.rs"
+      },
+      "metadata_binding": {
+        "metadata_hash": "0x50c8958f0171889a4b01093a5dd5272faf8802018f24a4ac22b231d37b2adc45",
+        "inventory": "runtime-source-item-index-and-canonical-sdk-typed-factory;decoded-metadata-blob-unavailable"
+      },
+      "canonical_arguments": [
+        "0x1111111111111111111111111111111111111111111111111111111111111111"
+      ]
+    },
+    {
+      "id": "identity:personhood_status",
+      "capability": "identity",
+      "method": "personhood_status",
+      "finality": "finalized",
+      "parameters": [
+        {
+          "name": "account",
+          "schema": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 128
+          }
+        }
+      ],
+      "sample_payload": {
+        "account": "0x1111111111111111111111111111111111111111111111111111111111111111"
+      },
+      "rust": {
+        "declaration": "IdentityPersonhoodQuery",
+        "variant": "PersonhoodStatus",
+        "result": "IdentityPersonhoodResponse"
+      },
+      "typescript": {
+        "object": "identity",
+        "callable": "personhoodStatus"
+      },
+      "runtime": {
+        "kind": "runtime-api",
+        "source": "origin/orbis/runtime-api/identity-personhood/src/lib.rs",
+        "target": "personhood_status",
+        "pallet": "Personhood",
+        "pallet_index": 95,
+        "related_pallets": [
+          {
+            "pallet": "PeopleLite",
+            "pallet_index": 94
+          }
+        ],
+        "runtime_api_version": 1,
+        "implementation_source": "origin/orbis/runtime/src/lib.rs"
+      },
+      "metadata_binding": {
+        "metadata_hash": "0x50c8958f0171889a4b01093a5dd5272faf8802018f24a4ac22b231d37b2adc45",
+        "inventory": "runtime-source-item-index-and-canonical-sdk-typed-factory;decoded-metadata-blob-unavailable"
+      },
+      "canonical_arguments": [
+        "0x1111111111111111111111111111111111111111111111111111111111111111"
+      ]
+    },
+    {
+      "id": "identity:attestation_allowance",
+      "capability": "identity",
+      "method": "attestation_allowance",
+      "finality": "finalized",
+      "parameters": [
+        {
+          "name": "account",
+          "schema": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 128
+          }
+        }
+      ],
+      "sample_payload": {
+        "account": "0x1111111111111111111111111111111111111111111111111111111111111111"
+      },
+      "rust": {
+        "declaration": "IdentityPersonhoodQuery",
+        "variant": "AttestationAllowance",
+        "result": "IdentityPersonhoodResponse"
+      },
+      "typescript": {
+        "object": "identity",
+        "callable": "attestationAllowance"
+      },
+      "runtime": {
+        "kind": "runtime-api",
+        "source": "origin/orbis/runtime-api/identity-personhood/src/lib.rs",
+        "target": "attestation_allowance",
+        "pallet": "PeopleLite",
+        "pallet_index": 94,
+        "runtime_api_version": 1,
+        "implementation_source": "origin/orbis/runtime/src/lib.rs"
+      },
+      "metadata_binding": {
+        "metadata_hash": "0x50c8958f0171889a4b01093a5dd5272faf8802018f24a4ac22b231d37b2adc45",
+        "inventory": "runtime-source-item-index-and-canonical-sdk-typed-factory;decoded-metadata-blob-unavailable"
+      },
+      "canonical_arguments": [
+        "0x1111111111111111111111111111111111111111111111111111111111111111"
+      ]
+    },
+    {
+      "id": "identity:set_identity",
+      "capability": "identity",
+      "method": "set_identity",
+      "finality": "submit-and-finalize",
+      "parameters": [
+        {
+          "name": "info",
+          "schema": {
+            "type": "object",
+            "additionalProperties": false,
+            "required": [
+              "display",
+              "legal",
+              "web",
+              "email",
+              "image",
+              "additional"
+            ],
+            "properties": {
+              "display": {
+                "oneOf": [
+                  {
+                    "type": "object",
+                    "additionalProperties": false,
+                    "required": [
+                      "kind"
+                    ],
+                    "properties": {
+                      "kind": {
+                        "const": "none"
+                      }
+                    }
+                  },
+                  {
+                    "type": "object",
+                    "additionalProperties": false,
+                    "required": [
+                      "kind",
+                      "value"
+                    ],
+                    "properties": {
+                      "kind": {
+                        "const": "raw"
+                      },
+                      "value": {
+                        "type": "string",
+                        "minLength": 1,
+                        "maxUtf8Bytes": 32
+                      }
+                    }
+                  },
+                  {
+                    "type": "object",
+                    "additionalProperties": false,
+                    "required": [
+                      "kind",
+                      "hash"
+                    ],
+                    "properties": {
+                      "kind": {
+                        "const": "blake2_256"
+                      },
+                      "hash": {
+                        "type": "string",
+                        "pattern": "^0x[0-9a-f]{64}$"
+                      }
+                    }
+                  },
+                  {
+                    "type": "object",
+                    "additionalProperties": false,
+                    "required": [
+                      "kind",
+                      "hash"
+                    ],
+                    "properties": {
+                      "kind": {
+                        "const": "sha2_256"
+                      },
+                      "hash": {
+                        "type": "string",
+                        "pattern": "^0x[0-9a-f]{64}$"
+                      }
+                    }
+                  },
+                  {
+                    "type": "object",
+                    "additionalProperties": false,
+                    "required": [
+                      "kind",
+                      "hash"
+                    ],
+                    "properties": {
+                      "kind": {
+                        "const": "keccak_256"
+                      },
+                      "hash": {
+                        "type": "string",
+                        "pattern": "^0x[0-9a-f]{64}$"
+                      }
+                    }
+                  },
+                  {
+                    "type": "object",
+                    "additionalProperties": false,
+                    "required": [
+                      "kind",
+                      "hash"
+                    ],
+                    "properties": {
+                      "kind": {
+                        "const": "sha3_256"
+                      },
+                      "hash": {
+                        "type": "string",
+                        "pattern": "^0x[0-9a-f]{64}$"
+                      }
+                    }
+                  }
+                ]
+              },
+              "legal": {
+                "oneOf": [
+                  {
+                    "type": "object",
+                    "additionalProperties": false,
+                    "required": [
+                      "kind"
+                    ],
+                    "properties": {
+                      "kind": {
+                        "const": "none"
+                      }
+                    }
+                  },
+                  {
+                    "type": "object",
+                    "additionalProperties": false,
+                    "required": [
+                      "kind",
+                      "value"
+                    ],
+                    "properties": {
+                      "kind": {
+                        "const": "raw"
+                      },
+                      "value": {
+                        "type": "string",
+                        "minLength": 1,
+                        "maxUtf8Bytes": 32
+                      }
+                    }
+                  },
+                  {
+                    "type": "object",
+                    "additionalProperties": false,
+                    "required": [
+                      "kind",
+                      "hash"
+                    ],
+                    "properties": {
+                      "kind": {
+                        "const": "blake2_256"
+                      },
+                      "hash": {
+                        "type": "string",
+                        "pattern": "^0x[0-9a-f]{64}$"
+                      }
+                    }
+                  },
+                  {
+                    "type": "object",
+                    "additionalProperties": false,
+                    "required": [
+                      "kind",
+                      "hash"
+                    ],
+                    "properties": {
+                      "kind": {
+                        "const": "sha2_256"
+                      },
+                      "hash": {
+                        "type": "string",
+                        "pattern": "^0x[0-9a-f]{64}$"
+                      }
+                    }
+                  },
+                  {
+                    "type": "object",
+                    "additionalProperties": false,
+                    "required": [
+                      "kind",
+                      "hash"
+                    ],
+                    "properties": {
+                      "kind": {
+                        "const": "keccak_256"
+                      },
+                      "hash": {
+                        "type": "string",
+                        "pattern": "^0x[0-9a-f]{64}$"
+                      }
+                    }
+                  },
+                  {
+                    "type": "object",
+                    "additionalProperties": false,
+                    "required": [
+                      "kind",
+                      "hash"
+                    ],
+                    "properties": {
+                      "kind": {
+                        "const": "sha3_256"
+                      },
+                      "hash": {
+                        "type": "string",
+                        "pattern": "^0x[0-9a-f]{64}$"
+                      }
+                    }
+                  }
+                ]
+              },
+              "web": {
+                "oneOf": [
+                  {
+                    "type": "object",
+                    "additionalProperties": false,
+                    "required": [
+                      "kind"
+                    ],
+                    "properties": {
+                      "kind": {
+                        "const": "none"
+                      }
+                    }
+                  },
+                  {
+                    "type": "object",
+                    "additionalProperties": false,
+                    "required": [
+                      "kind",
+                      "value"
+                    ],
+                    "properties": {
+                      "kind": {
+                        "const": "raw"
+                      },
+                      "value": {
+                        "type": "string",
+                        "minLength": 1,
+                        "maxUtf8Bytes": 32
+                      }
+                    }
+                  },
+                  {
+                    "type": "object",
+                    "additionalProperties": false,
+                    "required": [
+                      "kind",
+                      "hash"
+                    ],
+                    "properties": {
+                      "kind": {
+                        "const": "blake2_256"
+                      },
+                      "hash": {
+                        "type": "string",
+                        "pattern": "^0x[0-9a-f]{64}$"
+                      }
+                    }
+                  },
+                  {
+                    "type": "object",
+                    "additionalProperties": false,
+                    "required": [
+                      "kind",
+                      "hash"
+                    ],
+                    "properties": {
+                      "kind": {
+                        "const": "sha2_256"
+                      },
+                      "hash": {
+                        "type": "string",
+                        "pattern": "^0x[0-9a-f]{64}$"
+                      }
+                    }
+                  },
+                  {
+                    "type": "object",
+                    "additionalProperties": false,
+                    "required": [
+                      "kind",
+                      "hash"
+                    ],
+                    "properties": {
+                      "kind": {
+                        "const": "keccak_256"
+                      },
+                      "hash": {
+                        "type": "string",
+                        "pattern": "^0x[0-9a-f]{64}$"
+                      }
+                    }
+                  },
+                  {
+                    "type": "object",
+                    "additionalProperties": false,
+                    "required": [
+                      "kind",
+                      "hash"
+                    ],
+                    "properties": {
+                      "kind": {
+                        "const": "sha3_256"
+                      },
+                      "hash": {
+                        "type": "string",
+                        "pattern": "^0x[0-9a-f]{64}$"
+                      }
+                    }
+                  }
+                ]
+              },
+              "email": {
+                "oneOf": [
+                  {
+                    "type": "object",
+                    "additionalProperties": false,
+                    "required": [
+                      "kind"
+                    ],
+                    "properties": {
+                      "kind": {
+                        "const": "none"
+                      }
+                    }
+                  },
+                  {
+                    "type": "object",
+                    "additionalProperties": false,
+                    "required": [
+                      "kind",
+                      "value"
+                    ],
+                    "properties": {
+                      "kind": {
+                        "const": "raw"
+                      },
+                      "value": {
+                        "type": "string",
+                        "minLength": 1,
+                        "maxUtf8Bytes": 32
+                      }
+                    }
+                  },
+                  {
+                    "type": "object",
+                    "additionalProperties": false,
+                    "required": [
+                      "kind",
+                      "hash"
+                    ],
+                    "properties": {
+                      "kind": {
+                        "const": "blake2_256"
+                      },
+                      "hash": {
+                        "type": "string",
+                        "pattern": "^0x[0-9a-f]{64}$"
+                      }
+                    }
+                  },
+                  {
+                    "type": "object",
+                    "additionalProperties": false,
+                    "required": [
+                      "kind",
+                      "hash"
+                    ],
+                    "properties": {
+                      "kind": {
+                        "const": "sha2_256"
+                      },
+                      "hash": {
+                        "type": "string",
+                        "pattern": "^0x[0-9a-f]{64}$"
+                      }
+                    }
+                  },
+                  {
+                    "type": "object",
+                    "additionalProperties": false,
+                    "required": [
+                      "kind",
+                      "hash"
+                    ],
+                    "properties": {
+                      "kind": {
+                        "const": "keccak_256"
+                      },
+                      "hash": {
+                        "type": "string",
+                        "pattern": "^0x[0-9a-f]{64}$"
+                      }
+                    }
+                  },
+                  {
+                    "type": "object",
+                    "additionalProperties": false,
+                    "required": [
+                      "kind",
+                      "hash"
+                    ],
+                    "properties": {
+                      "kind": {
+                        "const": "sha3_256"
+                      },
+                      "hash": {
+                        "type": "string",
+                        "pattern": "^0x[0-9a-f]{64}$"
+                      }
+                    }
+                  }
+                ]
+              },
+              "image": {
+                "oneOf": [
+                  {
+                    "type": "object",
+                    "additionalProperties": false,
+                    "required": [
+                      "kind"
+                    ],
+                    "properties": {
+                      "kind": {
+                        "const": "none"
+                      }
+                    }
+                  },
+                  {
+                    "type": "object",
+                    "additionalProperties": false,
+                    "required": [
+                      "kind",
+                      "value"
+                    ],
+                    "properties": {
+                      "kind": {
+                        "const": "raw"
+                      },
+                      "value": {
+                        "type": "string",
+                        "minLength": 1,
+                        "maxUtf8Bytes": 32
+                      }
+                    }
+                  },
+                  {
+                    "type": "object",
+                    "additionalProperties": false,
+                    "required": [
+                      "kind",
+                      "hash"
+                    ],
+                    "properties": {
+                      "kind": {
+                        "const": "blake2_256"
+                      },
+                      "hash": {
+                        "type": "string",
+                        "pattern": "^0x[0-9a-f]{64}$"
+                      }
+                    }
+                  },
+                  {
+                    "type": "object",
+                    "additionalProperties": false,
+                    "required": [
+                      "kind",
+                      "hash"
+                    ],
+                    "properties": {
+                      "kind": {
+                        "const": "sha2_256"
+                      },
+                      "hash": {
+                        "type": "string",
+                        "pattern": "^0x[0-9a-f]{64}$"
+                      }
+                    }
+                  },
+                  {
+                    "type": "object",
+                    "additionalProperties": false,
+                    "required": [
+                      "kind",
+                      "hash"
+                    ],
+                    "properties": {
+                      "kind": {
+                        "const": "keccak_256"
+                      },
+                      "hash": {
+                        "type": "string",
+                        "pattern": "^0x[0-9a-f]{64}$"
+                      }
+                    }
+                  },
+                  {
+                    "type": "object",
+                    "additionalProperties": false,
+                    "required": [
+                      "kind",
+                      "hash"
+                    ],
+                    "properties": {
+                      "kind": {
+                        "const": "sha3_256"
+                      },
+                      "hash": {
+                        "type": "string",
+                        "pattern": "^0x[0-9a-f]{64}$"
+                      }
+                    }
+                  }
+                ]
+              },
+              "additional": {
+                "type": "array",
+                "items": {
+                  "type": "object",
+                  "additionalProperties": false,
+                  "required": [
+                    "key",
+                    "value"
+                  ],
+                  "properties": {
+                    "key": {
+                      "oneOf": [
+                        {
+                          "type": "object",
+                          "additionalProperties": false,
+                          "required": [
+                            "kind"
+                          ],
+                          "properties": {
+                            "kind": {
+                              "const": "none"
+                            }
+                          }
+                        },
+                        {
+                          "type": "object",
+                          "additionalProperties": false,
+                          "required": [
+                            "kind",
+                            "value"
+                          ],
+                          "properties": {
+                            "kind": {
+                              "const": "raw"
+                            },
+                            "value": {
+                              "type": "string",
+                              "minLength": 1,
+                              "maxUtf8Bytes": 32
+                            }
+                          }
+                        },
+                        {
+                          "type": "object",
+                          "additionalProperties": false,
+                          "required": [
+                            "kind",
+                            "hash"
+                          ],
+                          "properties": {
+                            "kind": {
+                              "const": "blake2_256"
+                            },
+                            "hash": {
+                              "type": "string",
+                              "pattern": "^0x[0-9a-f]{64}$"
+                            }
+                          }
+                        },
+                        {
+                          "type": "object",
+                          "additionalProperties": false,
+                          "required": [
+                            "kind",
+                            "hash"
+                          ],
+                          "properties": {
+                            "kind": {
+                              "const": "sha2_256"
+                            },
+                            "hash": {
+                              "type": "string",
+                              "pattern": "^0x[0-9a-f]{64}$"
+                            }
+                          }
+                        },
+                        {
+                          "type": "object",
+                          "additionalProperties": false,
+                          "required": [
+                            "kind",
+                            "hash"
+                          ],
+                          "properties": {
+                            "kind": {
+                              "const": "keccak_256"
+                            },
+                            "hash": {
+                              "type": "string",
+                              "pattern": "^0x[0-9a-f]{64}$"
+                            }
+                          }
+                        },
+                        {
+                          "type": "object",
+                          "additionalProperties": false,
+                          "required": [
+                            "kind",
+                            "hash"
+                          ],
+                          "properties": {
+                            "kind": {
+                              "const": "sha3_256"
+                            },
+                            "hash": {
+                              "type": "string",
+                              "pattern": "^0x[0-9a-f]{64}$"
+                            }
+                          }
+                        }
+                      ]
+                    },
+                    "value": {
+                      "oneOf": [
+                        {
+                          "type": "object",
+                          "additionalProperties": false,
+                          "required": [
+                            "kind"
+                          ],
+                          "properties": {
+                            "kind": {
+                              "const": "none"
+                            }
+                          }
+                        },
+                        {
+                          "type": "object",
+                          "additionalProperties": false,
+                          "required": [
+                            "kind",
+                            "value"
+                          ],
+                          "properties": {
+                            "kind": {
+                              "const": "raw"
+                            },
+                            "value": {
+                              "type": "string",
+                              "minLength": 1,
+                              "maxUtf8Bytes": 32
+                            }
+                          }
+                        },
+                        {
+                          "type": "object",
+                          "additionalProperties": false,
+                          "required": [
+                            "kind",
+                            "hash"
+                          ],
+                          "properties": {
+                            "kind": {
+                              "const": "blake2_256"
+                            },
+                            "hash": {
+                              "type": "string",
+                              "pattern": "^0x[0-9a-f]{64}$"
+                            }
+                          }
+                        },
+                        {
+                          "type": "object",
+                          "additionalProperties": false,
+                          "required": [
+                            "kind",
+                            "hash"
+                          ],
+                          "properties": {
+                            "kind": {
+                              "const": "sha2_256"
+                            },
+                            "hash": {
+                              "type": "string",
+                              "pattern": "^0x[0-9a-f]{64}$"
+                            }
+                          }
+                        },
+                        {
+                          "type": "object",
+                          "additionalProperties": false,
+                          "required": [
+                            "kind",
+                            "hash"
+                          ],
+                          "properties": {
+                            "kind": {
+                              "const": "keccak_256"
+                            },
+                            "hash": {
+                              "type": "string",
+                              "pattern": "^0x[0-9a-f]{64}$"
+                            }
+                          }
+                        },
+                        {
+                          "type": "object",
+                          "additionalProperties": false,
+                          "required": [
+                            "kind",
+                            "hash"
+                          ],
+                          "properties": {
+                            "kind": {
+                              "const": "sha3_256"
+                            },
+                            "hash": {
+                              "type": "string",
+                              "pattern": "^0x[0-9a-f]{64}$"
+                            }
+                          }
+                        }
+                      ]
+                    }
+                  }
+                },
+                "minItems": 0,
+                "maxItems": 32
+              }
+            }
+          }
+        }
+      ],
+      "sample_payload": {
+        "info": {
+          "display": {
+            "kind": "none"
+          },
+          "legal": {
+            "kind": "none"
+          },
+          "web": {
+            "kind": "none"
+          },
+          "email": {
+            "kind": "none"
+          },
+          "image": {
+            "kind": "none"
+          },
+          "additional": []
+        }
+      },
+      "rust": {
+        "declaration": "IdentityPersonhoodCommand",
+        "variant": "SetIdentity",
+        "result": "FinalizedNativeExtrinsic"
+      },
+      "typescript": {
+        "object": "identity",
+        "callable": "setIdentity"
+      },
+      "runtime": {
+        "kind": "pallet-call",
+        "source": "origin/orbis/pallets/people/src/lib.rs",
+        "target": "set_identity",
+        "pallet": "People",
+        "pallet_index": 90,
+        "call_index": 1
+      },
+      "metadata_binding": {
+        "metadata_hash": "0x50c8958f0171889a4b01093a5dd5272faf8802018f24a4ac22b231d37b2adc45",
+        "inventory": "runtime-source-item-index-and-canonical-sdk-typed-factory;decoded-metadata-blob-unavailable"
+      },
+      "canonical_arguments": [
+        {
+          "display": {
+            "kind": "none"
+          },
+          "legal": {
+            "kind": "none"
+          },
+          "web": {
+            "kind": "none"
+          },
+          "email": {
+            "kind": "none"
+          },
+          "image": {
+            "kind": "none"
+          },
+          "additional": []
+        }
+      ]
+    },
+    {
+      "id": "identity:clear_identity",
+      "capability": "identity",
+      "method": "clear_identity",
+      "finality": "submit-and-finalize",
+      "parameters": [],
+      "sample_payload": {},
+      "rust": {
+        "declaration": "IdentityPersonhoodCommand",
+        "variant": "ClearIdentity",
+        "result": "FinalizedNativeExtrinsic"
+      },
+      "typescript": {
+        "object": "identity",
+        "callable": "clearIdentity"
+      },
+      "runtime": {
+        "kind": "pallet-call",
+        "source": "origin/orbis/pallets/people/src/lib.rs",
+        "target": "clear_identity",
+        "pallet": "People",
+        "pallet_index": 90,
+        "call_index": 3
+      },
+      "metadata_binding": {
+        "metadata_hash": "0x50c8958f0171889a4b01093a5dd5272faf8802018f24a4ac22b231d37b2adc45",
+        "inventory": "runtime-source-item-index-and-canonical-sdk-typed-factory;decoded-metadata-blob-unavailable"
+      },
+      "canonical_arguments": []
+    },
+    {
+      "id": "identity:request_judgement",
+      "capability": "identity",
+      "method": "request_judgement",
+      "finality": "submit-and-finalize",
+      "parameters": [
+        {
+          "name": "registrar",
+          "schema": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 128
+          }
+        }
+      ],
+      "sample_payload": {
+        "registrar": "0x1111111111111111111111111111111111111111111111111111111111111111"
+      },
+      "rust": {
+        "declaration": "IdentityPersonhoodCommand",
+        "variant": "RequestJudgement",
+        "result": "FinalizedNativeExtrinsic"
+      },
+      "typescript": {
+        "object": "identity",
+        "callable": "requestJudgement"
+      },
+      "runtime": {
+        "kind": "pallet-call",
+        "source": "origin/orbis/pallets/people/src/lib.rs",
+        "target": "request_judgement",
+        "pallet": "People",
+        "pallet_index": 90,
+        "call_index": 4
+      },
+      "metadata_binding": {
+        "metadata_hash": "0x50c8958f0171889a4b01093a5dd5272faf8802018f24a4ac22b231d37b2adc45",
+        "inventory": "runtime-source-item-index-and-canonical-sdk-typed-factory;decoded-metadata-blob-unavailable"
+      },
+      "canonical_arguments": [
+        "0x1111111111111111111111111111111111111111111111111111111111111111"
+      ]
+    },
+    {
+      "id": "identity:cancel_judgement_request",
+      "capability": "identity",
+      "method": "cancel_judgement_request",
+      "finality": "submit-and-finalize",
+      "parameters": [
+        {
+          "name": "registrar",
+          "schema": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 128
+          }
+        }
+      ],
+      "sample_payload": {
+        "registrar": "0x1111111111111111111111111111111111111111111111111111111111111111"
+      },
+      "rust": {
+        "declaration": "IdentityPersonhoodCommand",
+        "variant": "CancelJudgement",
+        "result": "FinalizedNativeExtrinsic"
+      },
+      "typescript": {
+        "object": "identity",
+        "callable": "cancelJudgementRequest"
+      },
+      "runtime": {
+        "kind": "pallet-call",
+        "source": "origin/orbis/pallets/people/src/lib.rs",
+        "target": "cancel_request",
+        "pallet": "People",
+        "pallet_index": 90,
+        "call_index": 5
+      },
+      "metadata_binding": {
+        "metadata_hash": "0x50c8958f0171889a4b01093a5dd5272faf8802018f24a4ac22b231d37b2adc45",
+        "inventory": "runtime-source-item-index-and-canonical-sdk-typed-factory;decoded-metadata-blob-unavailable"
+      },
+      "canonical_arguments": [
+        "0x1111111111111111111111111111111111111111111111111111111111111111"
+      ]
+    },
+    {
+      "id": "identity:provide_judgement",
+      "capability": "identity",
+      "method": "provide_judgement",
+      "finality": "submit-and-finalize",
+      "parameters": [
+        {
+          "name": "target",
+          "schema": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 128
+          }
+        },
+        {
+          "name": "judgement",
+          "schema": {
+            "oneOf": [
+              {
+                "const": "reasonable"
+              },
+              {
+                "const": "known_good"
+              },
+              {
+                "const": "out_of_date"
+              },
+              {
+                "const": "low_quality"
+              },
+              {
+                "const": "erroneous"
+              }
+            ]
+          }
+        },
+        {
+          "name": "identity_hash",
+          "schema": {
+            "type": "string",
+            "pattern": "^0x[0-9a-f]{64}$"
+          }
+        }
+      ],
+      "sample_payload": {
+        "target": "0x1111111111111111111111111111111111111111111111111111111111111111",
+        "judgement": "reasonable",
+        "identity_hash": "0x1111111111111111111111111111111111111111111111111111111111111111"
+      },
+      "rust": {
+        "declaration": "IdentityPersonhoodCommand",
+        "variant": "ProvideJudgement",
+        "result": "FinalizedNativeExtrinsic"
+      },
+      "typescript": {
+        "object": "identity",
+        "callable": "provideJudgement"
+      },
+      "runtime": {
+        "kind": "pallet-call",
+        "source": "origin/orbis/pallets/people/src/lib.rs",
+        "target": "provide_judgement",
+        "pallet": "People",
+        "pallet_index": 90,
+        "call_index": 8
+      },
+      "metadata_binding": {
+        "metadata_hash": "0x50c8958f0171889a4b01093a5dd5272faf8802018f24a4ac22b231d37b2adc45",
+        "inventory": "runtime-source-item-index-and-canonical-sdk-typed-factory;decoded-metadata-blob-unavailable"
+      },
+      "canonical_arguments": [
+        "0x1111111111111111111111111111111111111111111111111111111111111111",
+        "reasonable",
+        "0x1111111111111111111111111111111111111111111111111111111111111111"
+      ]
+    },
+    {
+      "id": "identity:attest_lite_person",
+      "capability": "identity",
+      "method": "attest_lite_person",
+      "finality": "submit-and-finalize",
+      "parameters": [
+        {
+          "name": "candidate",
+          "schema": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 128
+          }
+        },
+        {
+          "name": "candidate_signature",
+          "schema": {
+            "oneOf": [
+              {
+                "type": "object",
+                "additionalProperties": false,
+                "required": [
+                  "scheme",
+                  "bytes"
+                ],
+                "properties": {
+                  "scheme": {
+                    "const": "sr25519"
+                  },
+                  "bytes": {
+                    "type": "string",
+                    "pattern": "^0x[0-9a-f]{128}$"
+                  }
+                }
+              },
+              {
+                "type": "object",
+                "additionalProperties": false,
+                "required": [
+                  "scheme",
+                  "bytes"
+                ],
+                "properties": {
+                  "scheme": {
+                    "const": "ed25519"
+                  },
+                  "bytes": {
+                    "type": "string",
+                    "pattern": "^0x[0-9a-f]{128}$"
+                  }
+                }
+              },
+              {
+                "type": "object",
+                "additionalProperties": false,
+                "required": [
+                  "scheme",
+                  "bytes"
+                ],
+                "properties": {
+                  "scheme": {
+                    "const": "ecdsa"
+                  },
+                  "bytes": {
+                    "type": "string",
+                    "pattern": "^0x[0-9a-f]{130}$"
+                  }
+                }
+              }
+            ]
+          }
+        },
+        {
+          "name": "ring_vrf_key",
+          "schema": {
+            "type": "string",
+            "pattern": "^0x[0-9a-f]{64}$"
+          }
+        },
+        {
+          "name": "proof_of_ownership",
+          "schema": {
+            "type": "string",
+            "pattern": "^0x[0-9a-f]{128}$"
+          }
+        }
+      ],
+      "sample_payload": {
+        "candidate": "0x1111111111111111111111111111111111111111111111111111111111111111",
+        "candidate_signature": {
+          "scheme": "sr25519",
+          "bytes": "0x11111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111"
+        },
+        "ring_vrf_key": "0x1111111111111111111111111111111111111111111111111111111111111111",
+        "proof_of_ownership": "0x11111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111"
+      },
+      "rust": {
+        "declaration": "IdentityPersonhoodCommand",
+        "variant": "AttestLitePerson",
+        "result": "FinalizedNativeExtrinsic"
+      },
+      "typescript": {
+        "object": "identity",
+        "callable": "attestLitePerson"
+      },
+      "runtime": {
+        "kind": "pallet-call",
+        "source": "origin/orbis/pallets/people-lite/src/lib.rs",
+        "target": "attest",
+        "pallet": "PeopleLite",
+        "pallet_index": 94,
+        "call_index": 2
+      },
+      "metadata_binding": {
+        "metadata_hash": "0x50c8958f0171889a4b01093a5dd5272faf8802018f24a4ac22b231d37b2adc45",
+        "inventory": "runtime-source-item-index-and-canonical-sdk-typed-factory;decoded-metadata-blob-unavailable"
+      },
+      "canonical_arguments": [
+        {
+          "candidate": "0x1111111111111111111111111111111111111111111111111111111111111111",
+          "candidate_signature": {
+            "scheme": "sr25519",
+            "bytes": "0x11111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111"
+          },
+          "ring_vrf_key": "0x1111111111111111111111111111111111111111111111111111111111111111",
+          "proof_of_ownership": "0x11111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111"
+        }
+      ]
+    },
     {
       "id": "attestation:schema_by_id",
       "capability": "attestation",
@@ -2343,9 +3617,9 @@ export const NATIVE_ROUTE_CONTRACT = {
       ]
     },
     {
-      "id": "names:resolve_content_publication",
+      "id": "names:resolve_content",
       "capability": "names",
-      "method": "resolve_content_publication",
+      "method": "resolve_content",
       "finality": "finalized",
       "parameters": [
         {
@@ -2361,17 +3635,17 @@ export const NATIVE_ROUTE_CONTRACT = {
       },
       "rust": {
         "declaration": "NamesQuery",
-        "variant": "ResolveContentPublication",
+        "variant": "ResolveContent",
         "result": "NamesResponse"
       },
       "typescript": {
         "object": "names",
-        "callable": "resolveContentPublication"
+        "callable": "resolveContent"
       },
       "runtime": {
         "kind": "runtime-api",
         "source": "origin/orbis/pallets/names/runtime-api/src/lib.rs",
-        "target": "resolve_content_publication",
+        "target": "resolve_content",
         "pallet": "Names",
         "pallet_index": 116,
         "runtime_api_version": 1,
@@ -3116,9 +4390,9 @@ export const NATIVE_ROUTE_CONTRACT = {
       ]
     },
     {
-      "id": "names:publish_content",
+      "id": "names:set_content",
       "capability": "names",
-      "method": "publish_content",
+      "method": "set_content",
       "finality": "submit-and-finalize",
       "parameters": [
         {
@@ -3141,49 +4415,25 @@ export const NATIVE_ROUTE_CONTRACT = {
               }
             ]
           }
-        },
-        {
-          "name": "expected_revision",
-          "schema": {
-            "type": "string",
-            "pattern": "^(0|[1-9][0-9]{0,19})$"
-          }
-        },
-        {
-          "name": "operation_deadline",
-          "schema": {
-            "type": "string",
-            "pattern": "^(0|[1-9][0-9]{0,19})$"
-          }
-        },
-        {
-          "name": "operation_id",
-          "schema": {
-            "type": "string",
-            "pattern": "^0x[0-9a-f]{32}$"
-          }
         }
       ],
       "sample_payload": {
         "name": "0x1111111111111111111111111111111111111111111111111111111111111111",
-        "content": null,
-        "expected_revision": "0",
-        "operation_deadline": "10",
-        "operation_id": "0x11111111111111111111111111111111"
+        "content": null
       },
       "rust": {
         "declaration": "NamesCommand",
-        "variant": "PublishContent",
+        "variant": "SetContent",
         "result": "FinalizedNativeExtrinsic"
       },
       "typescript": {
         "object": "names",
-        "callable": "publishContent"
+        "callable": "setContent"
       },
       "runtime": {
         "kind": "pallet-call",
         "source": "origin/orbis/pallets/names/src/lib.rs",
-        "target": "publish_content",
+        "target": "set_content",
         "pallet": "Names",
         "pallet_index": 116,
         "call_index": 11
@@ -3194,10 +4444,7 @@ export const NATIVE_ROUTE_CONTRACT = {
       },
       "canonical_arguments": [
         "0x1111111111111111111111111111111111111111111111111111111111111111",
-        null,
-        "0",
-        "10",
-        "0x11111111111111111111111111111111"
+        null
       ]
     },
     {
@@ -3773,6 +5020,987 @@ export const NATIVE_ROUTE_CONTRACT = {
       "canonical_arguments": [
         "0x1111111111111111111111111111111111111111111111111111111111111111",
         true
+      ]
+    },
+    {
+      "id": "storage:account_authorization",
+      "capability": "storage",
+      "method": "account_authorization",
+      "finality": "finalized",
+      "parameters": [
+        {
+          "name": "account",
+          "schema": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 128
+          }
+        }
+      ],
+      "sample_payload": {
+        "account": "0x1111111111111111111111111111111111111111111111111111111111111111"
+      },
+      "rust": {
+        "declaration": "StorageQuery",
+        "variant": "AccountAuthorization",
+        "result": "StorageResponse"
+      },
+      "typescript": {
+        "object": "storage",
+        "callable": "accountAuthorization"
+      },
+      "runtime": {
+        "kind": "runtime-api",
+        "source": "origin/orbis/pallets/transaction-storage/runtime-api/src/lib.rs",
+        "target": "account_authorization",
+        "pallet": "TransactionStorage",
+        "pallet_index": 110,
+        "runtime_api_version": 1,
+        "implementation_source": "origin/orbis/runtime/src/lib.rs"
+      },
+      "metadata_binding": {
+        "metadata_hash": "0x50c8958f0171889a4b01093a5dd5272faf8802018f24a4ac22b231d37b2adc45",
+        "inventory": "runtime-source-item-index-and-canonical-sdk-typed-factory;decoded-metadata-blob-unavailable"
+      },
+      "canonical_arguments": [
+        "0x1111111111111111111111111111111111111111111111111111111111111111"
+      ]
+    },
+    {
+      "id": "storage:can_store",
+      "capability": "storage",
+      "method": "can_store",
+      "finality": "finalized",
+      "parameters": [
+        {
+          "name": "account",
+          "schema": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 128
+          }
+        },
+        {
+          "name": "data_len",
+          "schema": {
+            "type": "integer",
+            "minimum": 0,
+            "maximum": 4294967295
+          }
+        }
+      ],
+      "sample_payload": {
+        "account": "0x1111111111111111111111111111111111111111111111111111111111111111",
+        "data_len": 1
+      },
+      "rust": {
+        "declaration": "StorageQuery",
+        "variant": "CanStore",
+        "result": "StorageResponse"
+      },
+      "typescript": {
+        "object": "storage",
+        "callable": "canStore"
+      },
+      "runtime": {
+        "kind": "runtime-api",
+        "source": "origin/orbis/pallets/transaction-storage/runtime-api/src/lib.rs",
+        "target": "can_store",
+        "pallet": "TransactionStorage",
+        "pallet_index": 110,
+        "runtime_api_version": 1,
+        "implementation_source": "origin/orbis/runtime/src/lib.rs"
+      },
+      "metadata_binding": {
+        "metadata_hash": "0x50c8958f0171889a4b01093a5dd5272faf8802018f24a4ac22b231d37b2adc45",
+        "inventory": "runtime-source-item-index-and-canonical-sdk-typed-factory;decoded-metadata-blob-unavailable"
+      },
+      "canonical_arguments": [
+        "0x1111111111111111111111111111111111111111111111111111111111111111",
+        1
+      ]
+    },
+    {
+      "id": "storage:can_renew",
+      "capability": "storage",
+      "method": "can_renew",
+      "finality": "finalized",
+      "parameters": [
+        {
+          "name": "account",
+          "schema": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 128
+          }
+        },
+        {
+          "name": "entry",
+          "schema": {
+            "oneOf": [
+              {
+                "type": "object",
+                "additionalProperties": false,
+                "required": [
+                  "kind",
+                  "block",
+                  "index"
+                ],
+                "properties": {
+                  "kind": {
+                    "const": "position"
+                  },
+                  "block": {
+                    "type": "string",
+                    "pattern": "^(0|[1-9][0-9]{0,19})$"
+                  },
+                  "index": {
+                    "type": "integer",
+                    "minimum": 0,
+                    "maximum": 4294967295
+                  }
+                }
+              },
+              {
+                "type": "object",
+                "additionalProperties": false,
+                "required": [
+                  "kind",
+                  "content_hash"
+                ],
+                "properties": {
+                  "kind": {
+                    "const": "content_hash"
+                  },
+                  "content_hash": {
+                    "type": "string",
+                    "pattern": "^0x[0-9a-f]{64}$"
+                  }
+                }
+              }
+            ]
+          }
+        }
+      ],
+      "sample_payload": {
+        "account": "0x1111111111111111111111111111111111111111111111111111111111111111",
+        "entry": {
+          "kind": "position",
+          "block": "1",
+          "index": 1
+        }
+      },
+      "rust": {
+        "declaration": "StorageQuery",
+        "variant": "CanRenew",
+        "result": "StorageResponse"
+      },
+      "typescript": {
+        "object": "storage",
+        "callable": "canRenew"
+      },
+      "runtime": {
+        "kind": "runtime-api",
+        "source": "origin/orbis/pallets/transaction-storage/runtime-api/src/lib.rs",
+        "target": "can_renew",
+        "pallet": "TransactionStorage",
+        "pallet_index": 110,
+        "runtime_api_version": 1,
+        "implementation_source": "origin/orbis/runtime/src/lib.rs"
+      },
+      "metadata_binding": {
+        "metadata_hash": "0x50c8958f0171889a4b01093a5dd5272faf8802018f24a4ac22b231d37b2adc45",
+        "inventory": "runtime-source-item-index-and-canonical-sdk-typed-factory;decoded-metadata-blob-unavailable"
+      },
+      "canonical_arguments": [
+        "0x1111111111111111111111111111111111111111111111111111111111111111",
+        {
+          "kind": "position",
+          "block": "1",
+          "index": 1
+        }
+      ]
+    },
+    {
+      "id": "storage:stored_content_provenance",
+      "capability": "storage",
+      "method": "stored_content_provenance",
+      "finality": "finalized",
+      "parameters": [
+        {
+          "name": "reference",
+          "schema": {
+            "type": "object",
+            "additionalProperties": false,
+            "required": [
+              "block",
+              "transaction_index"
+            ],
+            "properties": {
+              "block": {
+                "type": "string",
+                "pattern": "^(0|[1-9][0-9]{0,19})$"
+              },
+              "transaction_index": {
+                "type": "integer",
+                "minimum": 0,
+                "maximum": 4294967295
+              }
+            }
+          }
+        }
+      ],
+      "sample_payload": {
+        "reference": {
+          "block": "1",
+          "transaction_index": 1
+        }
+      },
+      "rust": {
+        "declaration": "StorageQuery",
+        "variant": "StoredContentProvenance",
+        "result": "StorageResponse"
+      },
+      "typescript": {
+        "object": "storage",
+        "callable": "storedContentProvenance"
+      },
+      "runtime": {
+        "kind": "runtime-api",
+        "source": "origin/orbis/pallets/transaction-storage/runtime-api/src/lib.rs",
+        "target": "stored_content_provenance",
+        "pallet": "TransactionStorage",
+        "pallet_index": 110,
+        "runtime_api_version": 1,
+        "implementation_source": "origin/orbis/runtime/src/lib.rs"
+      },
+      "metadata_binding": {
+        "metadata_hash": "0x50c8958f0171889a4b01093a5dd5272faf8802018f24a4ac22b231d37b2adc45",
+        "inventory": "runtime-source-item-index-and-canonical-sdk-typed-factory;decoded-metadata-blob-unavailable"
+      },
+      "canonical_arguments": [
+        {
+          "block": "1",
+          "transaction_index": 1
+        }
+      ]
+    },
+    {
+      "id": "storage:resource_reservation",
+      "capability": "storage",
+      "method": "resource_reservation",
+      "finality": "finalized",
+      "parameters": [
+        {
+          "name": "reservation_id",
+          "schema": {
+            "type": "string",
+            "pattern": "^(0|[1-9][0-9]{0,19})$"
+          }
+        }
+      ],
+      "sample_payload": {
+        "reservation_id": "1"
+      },
+      "rust": {
+        "declaration": "StorageQuery",
+        "variant": "ResourceReservation",
+        "result": "StorageResponse"
+      },
+      "typescript": {
+        "object": "storage",
+        "callable": "resourceReservation"
+      },
+      "runtime": {
+        "kind": "runtime-api",
+        "source": "origin/orbis/pallets/transaction-storage/runtime-api/src/lib.rs",
+        "target": "resource_reservation",
+        "pallet": "TransactionStorage",
+        "pallet_index": 110,
+        "runtime_api_version": 1,
+        "implementation_source": "origin/orbis/runtime/src/lib.rs"
+      },
+      "metadata_binding": {
+        "metadata_hash": "0x50c8958f0171889a4b01093a5dd5272faf8802018f24a4ac22b231d37b2adc45",
+        "inventory": "runtime-source-item-index-and-canonical-sdk-typed-factory;decoded-metadata-blob-unavailable"
+      },
+      "canonical_arguments": [
+        "1"
+      ]
+    },
+    {
+      "id": "storage:resource_reservation_link",
+      "capability": "storage",
+      "method": "resource_reservation_link",
+      "finality": "finalized",
+      "parameters": [
+        {
+          "name": "reservation_id",
+          "schema": {
+            "type": "string",
+            "pattern": "^(0|[1-9][0-9]{0,19})$"
+          }
+        },
+        {
+          "name": "content_hash",
+          "schema": {
+            "type": "string",
+            "pattern": "^0x[0-9a-f]{64}$"
+          }
+        }
+      ],
+      "sample_payload": {
+        "reservation_id": "1",
+        "content_hash": "0x1111111111111111111111111111111111111111111111111111111111111111"
+      },
+      "rust": {
+        "declaration": "StorageQuery",
+        "variant": "ResourceReservationLink",
+        "result": "StorageResponse"
+      },
+      "typescript": {
+        "object": "storage",
+        "callable": "resourceReservationLink"
+      },
+      "runtime": {
+        "kind": "runtime-api",
+        "source": "origin/orbis/pallets/transaction-storage/runtime-api/src/lib.rs",
+        "target": "resource_reservation_link",
+        "pallet": "TransactionStorage",
+        "pallet_index": 110,
+        "runtime_api_version": 1,
+        "implementation_source": "origin/orbis/runtime/src/lib.rs"
+      },
+      "metadata_binding": {
+        "metadata_hash": "0x50c8958f0171889a4b01093a5dd5272faf8802018f24a4ac22b231d37b2adc45",
+        "inventory": "runtime-source-item-index-and-canonical-sdk-typed-factory;decoded-metadata-blob-unavailable"
+      },
+      "canonical_arguments": [
+        "1",
+        "0x1111111111111111111111111111111111111111111111111111111111111111"
+      ]
+    },
+    {
+      "id": "storage:resource_provider_ref",
+      "capability": "storage",
+      "method": "resource_provider_ref",
+      "finality": "finalized",
+      "parameters": [
+        {
+          "name": "reservation_id",
+          "schema": {
+            "type": "string",
+            "pattern": "^(0|[1-9][0-9]{0,19})$"
+          }
+        }
+      ],
+      "sample_payload": {
+        "reservation_id": "1"
+      },
+      "rust": {
+        "declaration": "StorageQuery",
+        "variant": "ResourceProviderRef",
+        "result": "StorageResponse"
+      },
+      "typescript": {
+        "object": "storage",
+        "callable": "resourceProviderRef"
+      },
+      "runtime": {
+        "kind": "runtime-api",
+        "source": "origin/orbis/pallets/transaction-storage/runtime-api/src/lib.rs",
+        "target": "resource_provider_ref",
+        "pallet": "TransactionStorage",
+        "pallet_index": 110,
+        "runtime_api_version": 1,
+        "implementation_source": "origin/orbis/runtime/src/lib.rs"
+      },
+      "metadata_binding": {
+        "metadata_hash": "0x50c8958f0171889a4b01093a5dd5272faf8802018f24a4ac22b231d37b2adc45",
+        "inventory": "runtime-source-item-index-and-canonical-sdk-typed-factory;decoded-metadata-blob-unavailable"
+      },
+      "canonical_arguments": [
+        "1"
+      ]
+    },
+    {
+      "id": "storage:store",
+      "capability": "storage",
+      "method": "store",
+      "finality": "submit-and-finalize",
+      "parameters": [
+        {
+          "name": "content_base64",
+          "schema": {
+            "type": "string",
+            "minLength": 4,
+            "pattern": "^(?:[A-Za-z0-9+/]{4})*(?:[A-Za-z0-9+/]{2}==|[A-Za-z0-9+/]{3}=)?$"
+          }
+        }
+      ],
+      "sample_payload": {
+        "content_base64": "AQID"
+      },
+      "rust": {
+        "declaration": "StorageCommand",
+        "variant": "Store",
+        "result": "FinalizedNativeExtrinsic"
+      },
+      "typescript": {
+        "object": "storage",
+        "callable": "store"
+      },
+      "runtime": {
+        "kind": "pallet-call",
+        "source": "origin/orbis/pallets/transaction-storage/src/lib.rs",
+        "target": "store",
+        "pallet": "TransactionStorage",
+        "pallet_index": 110,
+        "call_index": 0
+      },
+      "metadata_binding": {
+        "metadata_hash": "0x50c8958f0171889a4b01093a5dd5272faf8802018f24a4ac22b231d37b2adc45",
+        "inventory": "runtime-source-item-index-and-canonical-sdk-typed-factory;decoded-metadata-blob-unavailable"
+      },
+      "canonical_arguments": [
+        "AQID"
+      ]
+    },
+    {
+      "id": "storage:store_with_cid_config",
+      "capability": "storage",
+      "method": "store_with_cid_config",
+      "finality": "submit-and-finalize",
+      "parameters": [
+        {
+          "name": "cid_config",
+          "schema": {
+            "type": "object",
+            "additionalProperties": false,
+            "required": [
+              "codec",
+              "hashing"
+            ],
+            "properties": {
+              "codec": {
+                "type": "string",
+                "pattern": "^(0|[1-9][0-9]{0,19})$"
+              },
+              "hashing": {
+                "oneOf": [
+                  {
+                    "const": "blake2b256"
+                  },
+                  {
+                    "const": "sha2_256"
+                  },
+                  {
+                    "const": "keccak256"
+                  }
+                ]
+              }
+            }
+          }
+        },
+        {
+          "name": "content_base64",
+          "schema": {
+            "type": "string",
+            "minLength": 4,
+            "pattern": "^(?:[A-Za-z0-9+/]{4})*(?:[A-Za-z0-9+/]{2}==|[A-Za-z0-9+/]{3}=)?$"
+          }
+        }
+      ],
+      "sample_payload": {
+        "cid_config": {
+          "codec": "1",
+          "hashing": "blake2b256"
+        },
+        "content_base64": "AQID"
+      },
+      "rust": {
+        "declaration": "StorageCommand",
+        "variant": "StoreWithCidConfig",
+        "result": "FinalizedNativeExtrinsic"
+      },
+      "typescript": {
+        "object": "storage",
+        "callable": "storeWithCidConfig"
+      },
+      "runtime": {
+        "kind": "pallet-call",
+        "source": "origin/orbis/pallets/transaction-storage/src/lib.rs",
+        "target": "store_with_cid_config",
+        "pallet": "TransactionStorage",
+        "pallet_index": 110,
+        "call_index": 9
+      },
+      "metadata_binding": {
+        "metadata_hash": "0x50c8958f0171889a4b01093a5dd5272faf8802018f24a4ac22b231d37b2adc45",
+        "inventory": "runtime-source-item-index-and-canonical-sdk-typed-factory;decoded-metadata-blob-unavailable"
+      },
+      "canonical_arguments": [
+        {
+          "codec": "1",
+          "hashing": "blake2b256"
+        },
+        "AQID"
+      ]
+    },
+    {
+      "id": "storage:store_reserved",
+      "capability": "storage",
+      "method": "store_reserved",
+      "finality": "submit-and-finalize",
+      "parameters": [
+        {
+          "name": "reservation_id",
+          "schema": {
+            "type": "string",
+            "pattern": "^(0|[1-9][0-9]{0,19})$"
+          }
+        },
+        {
+          "name": "cid_config",
+          "schema": {
+            "type": "object",
+            "additionalProperties": false,
+            "required": [
+              "codec",
+              "hashing"
+            ],
+            "properties": {
+              "codec": {
+                "type": "string",
+                "pattern": "^(0|[1-9][0-9]{0,19})$"
+              },
+              "hashing": {
+                "oneOf": [
+                  {
+                    "const": "blake2b256"
+                  },
+                  {
+                    "const": "sha2_256"
+                  },
+                  {
+                    "const": "keccak256"
+                  }
+                ]
+              }
+            }
+          }
+        },
+        {
+          "name": "content_base64",
+          "schema": {
+            "type": "string",
+            "minLength": 4,
+            "pattern": "^(?:[A-Za-z0-9+/]{4})*(?:[A-Za-z0-9+/]{2}==|[A-Za-z0-9+/]{3}=)?$"
+          }
+        }
+      ],
+      "sample_payload": {
+        "reservation_id": "1",
+        "cid_config": {
+          "codec": "1",
+          "hashing": "blake2b256"
+        },
+        "content_base64": "AQID"
+      },
+      "rust": {
+        "declaration": "StorageCommand",
+        "variant": "StoreReserved",
+        "result": "FinalizedNativeExtrinsic"
+      },
+      "typescript": {
+        "object": "storage",
+        "callable": "storeReserved"
+      },
+      "runtime": {
+        "kind": "pallet-call",
+        "source": "origin/orbis/pallets/transaction-storage/src/lib.rs",
+        "target": "store_reserved",
+        "pallet": "TransactionStorage",
+        "pallet_index": 110,
+        "call_index": 10
+      },
+      "metadata_binding": {
+        "metadata_hash": "0x50c8958f0171889a4b01093a5dd5272faf8802018f24a4ac22b231d37b2adc45",
+        "inventory": "runtime-source-item-index-and-canonical-sdk-typed-factory;decoded-metadata-blob-unavailable"
+      },
+      "canonical_arguments": [
+        "1",
+        {
+          "codec": "1",
+          "hashing": "blake2b256"
+        },
+        "AQID"
+      ]
+    },
+    {
+      "id": "storage:renew_reserved",
+      "capability": "storage",
+      "method": "renew_reserved",
+      "finality": "submit-and-finalize",
+      "parameters": [
+        {
+          "name": "reservation_id",
+          "schema": {
+            "type": "string",
+            "pattern": "^(0|[1-9][0-9]{0,19})$"
+          }
+        },
+        {
+          "name": "content_hash",
+          "schema": {
+            "type": "string",
+            "pattern": "^0x[0-9a-f]{64}$"
+          }
+        }
+      ],
+      "sample_payload": {
+        "reservation_id": "1",
+        "content_hash": "0x1111111111111111111111111111111111111111111111111111111111111111"
+      },
+      "rust": {
+        "declaration": "StorageCommand",
+        "variant": "RenewReserved",
+        "result": "FinalizedNativeExtrinsic"
+      },
+      "typescript": {
+        "object": "storage",
+        "callable": "renewReserved"
+      },
+      "runtime": {
+        "kind": "pallet-call",
+        "source": "origin/orbis/pallets/transaction-storage/src/lib.rs",
+        "target": "renew_reserved",
+        "pallet": "TransactionStorage",
+        "pallet_index": 110,
+        "call_index": 11
+      },
+      "metadata_binding": {
+        "metadata_hash": "0x50c8958f0171889a4b01093a5dd5272faf8802018f24a4ac22b231d37b2adc45",
+        "inventory": "runtime-source-item-index-and-canonical-sdk-typed-factory;decoded-metadata-blob-unavailable"
+      },
+      "canonical_arguments": [
+        "1",
+        "0x1111111111111111111111111111111111111111111111111111111111111111"
+      ]
+    },
+    {
+      "id": "storage:attach_provider",
+      "capability": "storage",
+      "method": "attach_provider",
+      "finality": "submit-and-finalize",
+      "parameters": [
+        {
+          "name": "reservation_id",
+          "schema": {
+            "type": "string",
+            "pattern": "^(0|[1-9][0-9]{0,19})$"
+          }
+        },
+        {
+          "name": "provider_ref",
+          "schema": {
+            "type": "string",
+            "pattern": "^0x[0-9a-f]{64}$"
+          }
+        }
+      ],
+      "sample_payload": {
+        "reservation_id": "1",
+        "provider_ref": "0x1111111111111111111111111111111111111111111111111111111111111111"
+      },
+      "rust": {
+        "declaration": "StorageCommand",
+        "variant": "AttachProvider",
+        "result": "FinalizedNativeExtrinsic"
+      },
+      "typescript": {
+        "object": "storage",
+        "callable": "attachProvider"
+      },
+      "runtime": {
+        "kind": "pallet-call",
+        "source": "origin/orbis/pallets/transaction-storage/src/lib.rs",
+        "target": "attach_provider",
+        "pallet": "TransactionStorage",
+        "pallet_index": 110,
+        "call_index": 18
+      },
+      "metadata_binding": {
+        "metadata_hash": "0x50c8958f0171889a4b01093a5dd5272faf8802018f24a4ac22b231d37b2adc45",
+        "inventory": "runtime-source-item-index-and-canonical-sdk-typed-factory;decoded-metadata-blob-unavailable"
+      },
+      "canonical_arguments": [
+        "1",
+        "0x1111111111111111111111111111111111111111111111111111111111111111"
+      ]
+    },
+    {
+      "id": "storage:renew",
+      "capability": "storage",
+      "method": "renew",
+      "finality": "submit-and-finalize",
+      "parameters": [
+        {
+          "name": "entry",
+          "schema": {
+            "oneOf": [
+              {
+                "type": "object",
+                "additionalProperties": false,
+                "required": [
+                  "kind",
+                  "block",
+                  "index"
+                ],
+                "properties": {
+                  "kind": {
+                    "const": "position"
+                  },
+                  "block": {
+                    "type": "string",
+                    "pattern": "^(0|[1-9][0-9]{0,19})$"
+                  },
+                  "index": {
+                    "type": "integer",
+                    "minimum": 0,
+                    "maximum": 4294967295
+                  }
+                }
+              },
+              {
+                "type": "object",
+                "additionalProperties": false,
+                "required": [
+                  "kind",
+                  "content_hash"
+                ],
+                "properties": {
+                  "kind": {
+                    "const": "content_hash"
+                  },
+                  "content_hash": {
+                    "type": "string",
+                    "pattern": "^0x[0-9a-f]{64}$"
+                  }
+                }
+              }
+            ]
+          }
+        }
+      ],
+      "sample_payload": {
+        "entry": {
+          "kind": "position",
+          "block": "1",
+          "index": 1
+        }
+      },
+      "rust": {
+        "declaration": "StorageCommand",
+        "variant": "Renew",
+        "result": "FinalizedNativeExtrinsic"
+      },
+      "typescript": {
+        "object": "storage",
+        "callable": "renew"
+      },
+      "runtime": {
+        "kind": "pallet-call",
+        "source": "origin/orbis/pallets/transaction-storage/src/lib.rs",
+        "target": "renew",
+        "pallet": "TransactionStorage",
+        "pallet_index": 110,
+        "call_index": 1
+      },
+      "metadata_binding": {
+        "metadata_hash": "0x50c8958f0171889a4b01093a5dd5272faf8802018f24a4ac22b231d37b2adc45",
+        "inventory": "runtime-source-item-index-and-canonical-sdk-typed-factory;decoded-metadata-blob-unavailable"
+      },
+      "canonical_arguments": [
+        {
+          "kind": "position",
+          "block": "1",
+          "index": 1
+        }
+      ]
+    },
+    {
+      "id": "storage:force_renew",
+      "capability": "storage",
+      "method": "force_renew",
+      "finality": "submit-and-finalize",
+      "parameters": [
+        {
+          "name": "entry",
+          "schema": {
+            "oneOf": [
+              {
+                "type": "object",
+                "additionalProperties": false,
+                "required": [
+                  "kind",
+                  "block",
+                  "index"
+                ],
+                "properties": {
+                  "kind": {
+                    "const": "position"
+                  },
+                  "block": {
+                    "type": "string",
+                    "pattern": "^(0|[1-9][0-9]{0,19})$"
+                  },
+                  "index": {
+                    "type": "integer",
+                    "minimum": 0,
+                    "maximum": 4294967295
+                  }
+                }
+              },
+              {
+                "type": "object",
+                "additionalProperties": false,
+                "required": [
+                  "kind",
+                  "content_hash"
+                ],
+                "properties": {
+                  "kind": {
+                    "const": "content_hash"
+                  },
+                  "content_hash": {
+                    "type": "string",
+                    "pattern": "^0x[0-9a-f]{64}$"
+                  }
+                }
+              }
+            ]
+          }
+        }
+      ],
+      "sample_payload": {
+        "entry": {
+          "kind": "position",
+          "block": "1",
+          "index": 1
+        }
+      },
+      "rust": {
+        "declaration": "StorageCommand",
+        "variant": "ForceRenew",
+        "result": "FinalizedNativeExtrinsic"
+      },
+      "typescript": {
+        "object": "storage",
+        "callable": "forceRenew"
+      },
+      "runtime": {
+        "kind": "pallet-call",
+        "source": "origin/orbis/pallets/transaction-storage/src/lib.rs",
+        "target": "force_renew",
+        "pallet": "TransactionStorage",
+        "pallet_index": 110,
+        "call_index": 2
+      },
+      "metadata_binding": {
+        "metadata_hash": "0x50c8958f0171889a4b01093a5dd5272faf8802018f24a4ac22b231d37b2adc45",
+        "inventory": "runtime-source-item-index-and-canonical-sdk-typed-factory;decoded-metadata-blob-unavailable"
+      },
+      "canonical_arguments": [
+        {
+          "kind": "position",
+          "block": "1",
+          "index": 1
+        }
+      ]
+    },
+    {
+      "id": "storage:enable_auto_renew",
+      "capability": "storage",
+      "method": "enable_auto_renew",
+      "finality": "submit-and-finalize",
+      "parameters": [
+        {
+          "name": "content_hash",
+          "schema": {
+            "type": "string",
+            "pattern": "^0x[0-9a-f]{64}$"
+          }
+        }
+      ],
+      "sample_payload": {
+        "content_hash": "0x1111111111111111111111111111111111111111111111111111111111111111"
+      },
+      "rust": {
+        "declaration": "StorageCommand",
+        "variant": "EnableAutoRenew",
+        "result": "FinalizedNativeExtrinsic"
+      },
+      "typescript": {
+        "object": "storage",
+        "callable": "enableAutoRenew"
+      },
+      "runtime": {
+        "kind": "pallet-call",
+        "source": "origin/orbis/pallets/transaction-storage/src/lib.rs",
+        "target": "enable_auto_renew",
+        "pallet": "TransactionStorage",
+        "pallet_index": 110,
+        "call_index": 12
+      },
+      "metadata_binding": {
+        "metadata_hash": "0x50c8958f0171889a4b01093a5dd5272faf8802018f24a4ac22b231d37b2adc45",
+        "inventory": "runtime-source-item-index-and-canonical-sdk-typed-factory;decoded-metadata-blob-unavailable"
+      },
+      "canonical_arguments": [
+        "0x1111111111111111111111111111111111111111111111111111111111111111"
+      ]
+    },
+    {
+      "id": "storage:disable_auto_renew",
+      "capability": "storage",
+      "method": "disable_auto_renew",
+      "finality": "submit-and-finalize",
+      "parameters": [
+        {
+          "name": "content_hash",
+          "schema": {
+            "type": "string",
+            "pattern": "^0x[0-9a-f]{64}$"
+          }
+        }
+      ],
+      "sample_payload": {
+        "content_hash": "0x1111111111111111111111111111111111111111111111111111111111111111"
+      },
+      "rust": {
+        "declaration": "StorageCommand",
+        "variant": "DisableAutoRenew",
+        "result": "FinalizedNativeExtrinsic"
+      },
+      "typescript": {
+        "object": "storage",
+        "callable": "disableAutoRenew"
+      },
+      "runtime": {
+        "kind": "pallet-call",
+        "source": "origin/orbis/pallets/transaction-storage/src/lib.rs",
+        "target": "disable_auto_renew",
+        "pallet": "TransactionStorage",
+        "pallet_index": 110,
+        "call_index": 13
+      },
+      "metadata_binding": {
+        "metadata_hash": "0x50c8958f0171889a4b01093a5dd5272faf8802018f24a4ac22b231d37b2adc45",
+        "inventory": "runtime-source-item-index-and-canonical-sdk-typed-factory;decoded-metadata-blob-unavailable"
+      },
+      "canonical_arguments": [
+        "0x1111111111111111111111111111111111111111111111111111111111111111"
       ]
     },
     {
@@ -7558,6 +9786,1013 @@ export const NATIVE_ROUTE_CONTRACT = {
                 ],
                 "properties": {
                   "capability": {
+                    "const": "identity"
+                  },
+                  "method": {
+                    "const": "set_identity"
+                  },
+                  "payload": {
+                    "type": "object",
+                    "additionalProperties": false,
+                    "required": [
+                      "info"
+                    ],
+                    "properties": {
+                      "info": {
+                        "type": "object",
+                        "additionalProperties": false,
+                        "required": [
+                          "display",
+                          "legal",
+                          "web",
+                          "email",
+                          "image",
+                          "additional"
+                        ],
+                        "properties": {
+                          "display": {
+                            "oneOf": [
+                              {
+                                "type": "object",
+                                "additionalProperties": false,
+                                "required": [
+                                  "kind"
+                                ],
+                                "properties": {
+                                  "kind": {
+                                    "const": "none"
+                                  }
+                                }
+                              },
+                              {
+                                "type": "object",
+                                "additionalProperties": false,
+                                "required": [
+                                  "kind",
+                                  "value"
+                                ],
+                                "properties": {
+                                  "kind": {
+                                    "const": "raw"
+                                  },
+                                  "value": {
+                                    "type": "string",
+                                    "minLength": 1,
+                                    "maxUtf8Bytes": 32
+                                  }
+                                }
+                              },
+                              {
+                                "type": "object",
+                                "additionalProperties": false,
+                                "required": [
+                                  "kind",
+                                  "hash"
+                                ],
+                                "properties": {
+                                  "kind": {
+                                    "const": "blake2_256"
+                                  },
+                                  "hash": {
+                                    "type": "string",
+                                    "pattern": "^0x[0-9a-f]{64}$"
+                                  }
+                                }
+                              },
+                              {
+                                "type": "object",
+                                "additionalProperties": false,
+                                "required": [
+                                  "kind",
+                                  "hash"
+                                ],
+                                "properties": {
+                                  "kind": {
+                                    "const": "sha2_256"
+                                  },
+                                  "hash": {
+                                    "type": "string",
+                                    "pattern": "^0x[0-9a-f]{64}$"
+                                  }
+                                }
+                              },
+                              {
+                                "type": "object",
+                                "additionalProperties": false,
+                                "required": [
+                                  "kind",
+                                  "hash"
+                                ],
+                                "properties": {
+                                  "kind": {
+                                    "const": "keccak_256"
+                                  },
+                                  "hash": {
+                                    "type": "string",
+                                    "pattern": "^0x[0-9a-f]{64}$"
+                                  }
+                                }
+                              },
+                              {
+                                "type": "object",
+                                "additionalProperties": false,
+                                "required": [
+                                  "kind",
+                                  "hash"
+                                ],
+                                "properties": {
+                                  "kind": {
+                                    "const": "sha3_256"
+                                  },
+                                  "hash": {
+                                    "type": "string",
+                                    "pattern": "^0x[0-9a-f]{64}$"
+                                  }
+                                }
+                              }
+                            ]
+                          },
+                          "legal": {
+                            "oneOf": [
+                              {
+                                "type": "object",
+                                "additionalProperties": false,
+                                "required": [
+                                  "kind"
+                                ],
+                                "properties": {
+                                  "kind": {
+                                    "const": "none"
+                                  }
+                                }
+                              },
+                              {
+                                "type": "object",
+                                "additionalProperties": false,
+                                "required": [
+                                  "kind",
+                                  "value"
+                                ],
+                                "properties": {
+                                  "kind": {
+                                    "const": "raw"
+                                  },
+                                  "value": {
+                                    "type": "string",
+                                    "minLength": 1,
+                                    "maxUtf8Bytes": 32
+                                  }
+                                }
+                              },
+                              {
+                                "type": "object",
+                                "additionalProperties": false,
+                                "required": [
+                                  "kind",
+                                  "hash"
+                                ],
+                                "properties": {
+                                  "kind": {
+                                    "const": "blake2_256"
+                                  },
+                                  "hash": {
+                                    "type": "string",
+                                    "pattern": "^0x[0-9a-f]{64}$"
+                                  }
+                                }
+                              },
+                              {
+                                "type": "object",
+                                "additionalProperties": false,
+                                "required": [
+                                  "kind",
+                                  "hash"
+                                ],
+                                "properties": {
+                                  "kind": {
+                                    "const": "sha2_256"
+                                  },
+                                  "hash": {
+                                    "type": "string",
+                                    "pattern": "^0x[0-9a-f]{64}$"
+                                  }
+                                }
+                              },
+                              {
+                                "type": "object",
+                                "additionalProperties": false,
+                                "required": [
+                                  "kind",
+                                  "hash"
+                                ],
+                                "properties": {
+                                  "kind": {
+                                    "const": "keccak_256"
+                                  },
+                                  "hash": {
+                                    "type": "string",
+                                    "pattern": "^0x[0-9a-f]{64}$"
+                                  }
+                                }
+                              },
+                              {
+                                "type": "object",
+                                "additionalProperties": false,
+                                "required": [
+                                  "kind",
+                                  "hash"
+                                ],
+                                "properties": {
+                                  "kind": {
+                                    "const": "sha3_256"
+                                  },
+                                  "hash": {
+                                    "type": "string",
+                                    "pattern": "^0x[0-9a-f]{64}$"
+                                  }
+                                }
+                              }
+                            ]
+                          },
+                          "web": {
+                            "oneOf": [
+                              {
+                                "type": "object",
+                                "additionalProperties": false,
+                                "required": [
+                                  "kind"
+                                ],
+                                "properties": {
+                                  "kind": {
+                                    "const": "none"
+                                  }
+                                }
+                              },
+                              {
+                                "type": "object",
+                                "additionalProperties": false,
+                                "required": [
+                                  "kind",
+                                  "value"
+                                ],
+                                "properties": {
+                                  "kind": {
+                                    "const": "raw"
+                                  },
+                                  "value": {
+                                    "type": "string",
+                                    "minLength": 1,
+                                    "maxUtf8Bytes": 32
+                                  }
+                                }
+                              },
+                              {
+                                "type": "object",
+                                "additionalProperties": false,
+                                "required": [
+                                  "kind",
+                                  "hash"
+                                ],
+                                "properties": {
+                                  "kind": {
+                                    "const": "blake2_256"
+                                  },
+                                  "hash": {
+                                    "type": "string",
+                                    "pattern": "^0x[0-9a-f]{64}$"
+                                  }
+                                }
+                              },
+                              {
+                                "type": "object",
+                                "additionalProperties": false,
+                                "required": [
+                                  "kind",
+                                  "hash"
+                                ],
+                                "properties": {
+                                  "kind": {
+                                    "const": "sha2_256"
+                                  },
+                                  "hash": {
+                                    "type": "string",
+                                    "pattern": "^0x[0-9a-f]{64}$"
+                                  }
+                                }
+                              },
+                              {
+                                "type": "object",
+                                "additionalProperties": false,
+                                "required": [
+                                  "kind",
+                                  "hash"
+                                ],
+                                "properties": {
+                                  "kind": {
+                                    "const": "keccak_256"
+                                  },
+                                  "hash": {
+                                    "type": "string",
+                                    "pattern": "^0x[0-9a-f]{64}$"
+                                  }
+                                }
+                              },
+                              {
+                                "type": "object",
+                                "additionalProperties": false,
+                                "required": [
+                                  "kind",
+                                  "hash"
+                                ],
+                                "properties": {
+                                  "kind": {
+                                    "const": "sha3_256"
+                                  },
+                                  "hash": {
+                                    "type": "string",
+                                    "pattern": "^0x[0-9a-f]{64}$"
+                                  }
+                                }
+                              }
+                            ]
+                          },
+                          "email": {
+                            "oneOf": [
+                              {
+                                "type": "object",
+                                "additionalProperties": false,
+                                "required": [
+                                  "kind"
+                                ],
+                                "properties": {
+                                  "kind": {
+                                    "const": "none"
+                                  }
+                                }
+                              },
+                              {
+                                "type": "object",
+                                "additionalProperties": false,
+                                "required": [
+                                  "kind",
+                                  "value"
+                                ],
+                                "properties": {
+                                  "kind": {
+                                    "const": "raw"
+                                  },
+                                  "value": {
+                                    "type": "string",
+                                    "minLength": 1,
+                                    "maxUtf8Bytes": 32
+                                  }
+                                }
+                              },
+                              {
+                                "type": "object",
+                                "additionalProperties": false,
+                                "required": [
+                                  "kind",
+                                  "hash"
+                                ],
+                                "properties": {
+                                  "kind": {
+                                    "const": "blake2_256"
+                                  },
+                                  "hash": {
+                                    "type": "string",
+                                    "pattern": "^0x[0-9a-f]{64}$"
+                                  }
+                                }
+                              },
+                              {
+                                "type": "object",
+                                "additionalProperties": false,
+                                "required": [
+                                  "kind",
+                                  "hash"
+                                ],
+                                "properties": {
+                                  "kind": {
+                                    "const": "sha2_256"
+                                  },
+                                  "hash": {
+                                    "type": "string",
+                                    "pattern": "^0x[0-9a-f]{64}$"
+                                  }
+                                }
+                              },
+                              {
+                                "type": "object",
+                                "additionalProperties": false,
+                                "required": [
+                                  "kind",
+                                  "hash"
+                                ],
+                                "properties": {
+                                  "kind": {
+                                    "const": "keccak_256"
+                                  },
+                                  "hash": {
+                                    "type": "string",
+                                    "pattern": "^0x[0-9a-f]{64}$"
+                                  }
+                                }
+                              },
+                              {
+                                "type": "object",
+                                "additionalProperties": false,
+                                "required": [
+                                  "kind",
+                                  "hash"
+                                ],
+                                "properties": {
+                                  "kind": {
+                                    "const": "sha3_256"
+                                  },
+                                  "hash": {
+                                    "type": "string",
+                                    "pattern": "^0x[0-9a-f]{64}$"
+                                  }
+                                }
+                              }
+                            ]
+                          },
+                          "image": {
+                            "oneOf": [
+                              {
+                                "type": "object",
+                                "additionalProperties": false,
+                                "required": [
+                                  "kind"
+                                ],
+                                "properties": {
+                                  "kind": {
+                                    "const": "none"
+                                  }
+                                }
+                              },
+                              {
+                                "type": "object",
+                                "additionalProperties": false,
+                                "required": [
+                                  "kind",
+                                  "value"
+                                ],
+                                "properties": {
+                                  "kind": {
+                                    "const": "raw"
+                                  },
+                                  "value": {
+                                    "type": "string",
+                                    "minLength": 1,
+                                    "maxUtf8Bytes": 32
+                                  }
+                                }
+                              },
+                              {
+                                "type": "object",
+                                "additionalProperties": false,
+                                "required": [
+                                  "kind",
+                                  "hash"
+                                ],
+                                "properties": {
+                                  "kind": {
+                                    "const": "blake2_256"
+                                  },
+                                  "hash": {
+                                    "type": "string",
+                                    "pattern": "^0x[0-9a-f]{64}$"
+                                  }
+                                }
+                              },
+                              {
+                                "type": "object",
+                                "additionalProperties": false,
+                                "required": [
+                                  "kind",
+                                  "hash"
+                                ],
+                                "properties": {
+                                  "kind": {
+                                    "const": "sha2_256"
+                                  },
+                                  "hash": {
+                                    "type": "string",
+                                    "pattern": "^0x[0-9a-f]{64}$"
+                                  }
+                                }
+                              },
+                              {
+                                "type": "object",
+                                "additionalProperties": false,
+                                "required": [
+                                  "kind",
+                                  "hash"
+                                ],
+                                "properties": {
+                                  "kind": {
+                                    "const": "keccak_256"
+                                  },
+                                  "hash": {
+                                    "type": "string",
+                                    "pattern": "^0x[0-9a-f]{64}$"
+                                  }
+                                }
+                              },
+                              {
+                                "type": "object",
+                                "additionalProperties": false,
+                                "required": [
+                                  "kind",
+                                  "hash"
+                                ],
+                                "properties": {
+                                  "kind": {
+                                    "const": "sha3_256"
+                                  },
+                                  "hash": {
+                                    "type": "string",
+                                    "pattern": "^0x[0-9a-f]{64}$"
+                                  }
+                                }
+                              }
+                            ]
+                          },
+                          "additional": {
+                            "type": "array",
+                            "items": {
+                              "type": "object",
+                              "additionalProperties": false,
+                              "required": [
+                                "key",
+                                "value"
+                              ],
+                              "properties": {
+                                "key": {
+                                  "oneOf": [
+                                    {
+                                      "type": "object",
+                                      "additionalProperties": false,
+                                      "required": [
+                                        "kind"
+                                      ],
+                                      "properties": {
+                                        "kind": {
+                                          "const": "none"
+                                        }
+                                      }
+                                    },
+                                    {
+                                      "type": "object",
+                                      "additionalProperties": false,
+                                      "required": [
+                                        "kind",
+                                        "value"
+                                      ],
+                                      "properties": {
+                                        "kind": {
+                                          "const": "raw"
+                                        },
+                                        "value": {
+                                          "type": "string",
+                                          "minLength": 1,
+                                          "maxUtf8Bytes": 32
+                                        }
+                                      }
+                                    },
+                                    {
+                                      "type": "object",
+                                      "additionalProperties": false,
+                                      "required": [
+                                        "kind",
+                                        "hash"
+                                      ],
+                                      "properties": {
+                                        "kind": {
+                                          "const": "blake2_256"
+                                        },
+                                        "hash": {
+                                          "type": "string",
+                                          "pattern": "^0x[0-9a-f]{64}$"
+                                        }
+                                      }
+                                    },
+                                    {
+                                      "type": "object",
+                                      "additionalProperties": false,
+                                      "required": [
+                                        "kind",
+                                        "hash"
+                                      ],
+                                      "properties": {
+                                        "kind": {
+                                          "const": "sha2_256"
+                                        },
+                                        "hash": {
+                                          "type": "string",
+                                          "pattern": "^0x[0-9a-f]{64}$"
+                                        }
+                                      }
+                                    },
+                                    {
+                                      "type": "object",
+                                      "additionalProperties": false,
+                                      "required": [
+                                        "kind",
+                                        "hash"
+                                      ],
+                                      "properties": {
+                                        "kind": {
+                                          "const": "keccak_256"
+                                        },
+                                        "hash": {
+                                          "type": "string",
+                                          "pattern": "^0x[0-9a-f]{64}$"
+                                        }
+                                      }
+                                    },
+                                    {
+                                      "type": "object",
+                                      "additionalProperties": false,
+                                      "required": [
+                                        "kind",
+                                        "hash"
+                                      ],
+                                      "properties": {
+                                        "kind": {
+                                          "const": "sha3_256"
+                                        },
+                                        "hash": {
+                                          "type": "string",
+                                          "pattern": "^0x[0-9a-f]{64}$"
+                                        }
+                                      }
+                                    }
+                                  ]
+                                },
+                                "value": {
+                                  "oneOf": [
+                                    {
+                                      "type": "object",
+                                      "additionalProperties": false,
+                                      "required": [
+                                        "kind"
+                                      ],
+                                      "properties": {
+                                        "kind": {
+                                          "const": "none"
+                                        }
+                                      }
+                                    },
+                                    {
+                                      "type": "object",
+                                      "additionalProperties": false,
+                                      "required": [
+                                        "kind",
+                                        "value"
+                                      ],
+                                      "properties": {
+                                        "kind": {
+                                          "const": "raw"
+                                        },
+                                        "value": {
+                                          "type": "string",
+                                          "minLength": 1,
+                                          "maxUtf8Bytes": 32
+                                        }
+                                      }
+                                    },
+                                    {
+                                      "type": "object",
+                                      "additionalProperties": false,
+                                      "required": [
+                                        "kind",
+                                        "hash"
+                                      ],
+                                      "properties": {
+                                        "kind": {
+                                          "const": "blake2_256"
+                                        },
+                                        "hash": {
+                                          "type": "string",
+                                          "pattern": "^0x[0-9a-f]{64}$"
+                                        }
+                                      }
+                                    },
+                                    {
+                                      "type": "object",
+                                      "additionalProperties": false,
+                                      "required": [
+                                        "kind",
+                                        "hash"
+                                      ],
+                                      "properties": {
+                                        "kind": {
+                                          "const": "sha2_256"
+                                        },
+                                        "hash": {
+                                          "type": "string",
+                                          "pattern": "^0x[0-9a-f]{64}$"
+                                        }
+                                      }
+                                    },
+                                    {
+                                      "type": "object",
+                                      "additionalProperties": false,
+                                      "required": [
+                                        "kind",
+                                        "hash"
+                                      ],
+                                      "properties": {
+                                        "kind": {
+                                          "const": "keccak_256"
+                                        },
+                                        "hash": {
+                                          "type": "string",
+                                          "pattern": "^0x[0-9a-f]{64}$"
+                                        }
+                                      }
+                                    },
+                                    {
+                                      "type": "object",
+                                      "additionalProperties": false,
+                                      "required": [
+                                        "kind",
+                                        "hash"
+                                      ],
+                                      "properties": {
+                                        "kind": {
+                                          "const": "sha3_256"
+                                        },
+                                        "hash": {
+                                          "type": "string",
+                                          "pattern": "^0x[0-9a-f]{64}$"
+                                        }
+                                      }
+                                    }
+                                  ]
+                                }
+                              }
+                            },
+                            "minItems": 0,
+                            "maxItems": 32
+                          }
+                        }
+                      }
+                    }
+                  }
+                }
+              },
+              {
+                "type": "object",
+                "additionalProperties": false,
+                "required": [
+                  "capability",
+                  "method",
+                  "payload"
+                ],
+                "properties": {
+                  "capability": {
+                    "const": "identity"
+                  },
+                  "method": {
+                    "const": "clear_identity"
+                  },
+                  "payload": {
+                    "type": "object",
+                    "additionalProperties": false,
+                    "required": [],
+                    "properties": {}
+                  }
+                }
+              },
+              {
+                "type": "object",
+                "additionalProperties": false,
+                "required": [
+                  "capability",
+                  "method",
+                  "payload"
+                ],
+                "properties": {
+                  "capability": {
+                    "const": "identity"
+                  },
+                  "method": {
+                    "const": "request_judgement"
+                  },
+                  "payload": {
+                    "type": "object",
+                    "additionalProperties": false,
+                    "required": [
+                      "registrar"
+                    ],
+                    "properties": {
+                      "registrar": {
+                        "type": "string",
+                        "minLength": 1,
+                        "maxLength": 128
+                      }
+                    }
+                  }
+                }
+              },
+              {
+                "type": "object",
+                "additionalProperties": false,
+                "required": [
+                  "capability",
+                  "method",
+                  "payload"
+                ],
+                "properties": {
+                  "capability": {
+                    "const": "identity"
+                  },
+                  "method": {
+                    "const": "cancel_judgement_request"
+                  },
+                  "payload": {
+                    "type": "object",
+                    "additionalProperties": false,
+                    "required": [
+                      "registrar"
+                    ],
+                    "properties": {
+                      "registrar": {
+                        "type": "string",
+                        "minLength": 1,
+                        "maxLength": 128
+                      }
+                    }
+                  }
+                }
+              },
+              {
+                "type": "object",
+                "additionalProperties": false,
+                "required": [
+                  "capability",
+                  "method",
+                  "payload"
+                ],
+                "properties": {
+                  "capability": {
+                    "const": "identity"
+                  },
+                  "method": {
+                    "const": "provide_judgement"
+                  },
+                  "payload": {
+                    "type": "object",
+                    "additionalProperties": false,
+                    "required": [
+                      "target",
+                      "judgement",
+                      "identity_hash"
+                    ],
+                    "properties": {
+                      "target": {
+                        "type": "string",
+                        "minLength": 1,
+                        "maxLength": 128
+                      },
+                      "judgement": {
+                        "oneOf": [
+                          {
+                            "const": "reasonable"
+                          },
+                          {
+                            "const": "known_good"
+                          },
+                          {
+                            "const": "out_of_date"
+                          },
+                          {
+                            "const": "low_quality"
+                          },
+                          {
+                            "const": "erroneous"
+                          }
+                        ]
+                      },
+                      "identity_hash": {
+                        "type": "string",
+                        "pattern": "^0x[0-9a-f]{64}$"
+                      }
+                    }
+                  }
+                }
+              },
+              {
+                "type": "object",
+                "additionalProperties": false,
+                "required": [
+                  "capability",
+                  "method",
+                  "payload"
+                ],
+                "properties": {
+                  "capability": {
+                    "const": "identity"
+                  },
+                  "method": {
+                    "const": "attest_lite_person"
+                  },
+                  "payload": {
+                    "type": "object",
+                    "additionalProperties": false,
+                    "required": [
+                      "candidate",
+                      "candidate_signature",
+                      "ring_vrf_key",
+                      "proof_of_ownership"
+                    ],
+                    "properties": {
+                      "candidate": {
+                        "type": "string",
+                        "minLength": 1,
+                        "maxLength": 128
+                      },
+                      "candidate_signature": {
+                        "oneOf": [
+                          {
+                            "type": "object",
+                            "additionalProperties": false,
+                            "required": [
+                              "scheme",
+                              "bytes"
+                            ],
+                            "properties": {
+                              "scheme": {
+                                "const": "sr25519"
+                              },
+                              "bytes": {
+                                "type": "string",
+                                "pattern": "^0x[0-9a-f]{128}$"
+                              }
+                            }
+                          },
+                          {
+                            "type": "object",
+                            "additionalProperties": false,
+                            "required": [
+                              "scheme",
+                              "bytes"
+                            ],
+                            "properties": {
+                              "scheme": {
+                                "const": "ed25519"
+                              },
+                              "bytes": {
+                                "type": "string",
+                                "pattern": "^0x[0-9a-f]{128}$"
+                              }
+                            }
+                          },
+                          {
+                            "type": "object",
+                            "additionalProperties": false,
+                            "required": [
+                              "scheme",
+                              "bytes"
+                            ],
+                            "properties": {
+                              "scheme": {
+                                "const": "ecdsa"
+                              },
+                              "bytes": {
+                                "type": "string",
+                                "pattern": "^0x[0-9a-f]{130}$"
+                              }
+                            }
+                          }
+                        ]
+                      },
+                      "ring_vrf_key": {
+                        "type": "string",
+                        "pattern": "^0x[0-9a-f]{64}$"
+                      },
+                      "proof_of_ownership": {
+                        "type": "string",
+                        "pattern": "^0x[0-9a-f]{128}$"
+                      }
+                    }
+                  }
+                }
+              },
+              {
+                "type": "object",
+                "additionalProperties": false,
+                "required": [
+                  "capability",
+                  "method",
+                  "payload"
+                ],
+                "properties": {
+                  "capability": {
                     "const": "names"
                   },
                   "method": {
@@ -7979,17 +11214,14 @@ export const NATIVE_ROUTE_CONTRACT = {
                     "const": "names"
                   },
                   "method": {
-                    "const": "publish_content"
+                    "const": "set_content"
                   },
                   "payload": {
                     "type": "object",
                     "additionalProperties": false,
                     "required": [
                       "name",
-                      "content",
-                      "expected_revision",
-                      "operation_deadline",
-                      "operation_id"
+                      "content"
                     ],
                     "properties": {
                       "name": {
@@ -8006,18 +11238,6 @@ export const NATIVE_ROUTE_CONTRACT = {
                             "pattern": "^0x[0-9a-f]{64}$"
                           }
                         ]
-                      },
-                      "expected_revision": {
-                        "type": "string",
-                        "pattern": "^(0|[1-9][0-9]{0,19})$"
-                      },
-                      "operation_deadline": {
-                        "type": "string",
-                        "pattern": "^(0|[1-9][0-9]{0,19})$"
-                      },
-                      "operation_id": {
-                        "type": "string",
-                        "pattern": "^0x[0-9a-f]{32}$"
                       }
                     }
                   }
@@ -9946,11 +13166,9 @@ export const NATIVE_ROUTE_CONTRACT = {
           "valid_until": "65"
         },
         "target": {
-          "capability": "attestation",
-          "method": "revoke",
-          "payload": {
-            "attestation": "0x1111111111111111111111111111111111111111111111111111111111111111"
-          }
+          "capability": "identity",
+          "method": "clear_identity",
+          "payload": {}
         }
       },
       "rust": {
@@ -9982,11 +13200,9 @@ export const NATIVE_ROUTE_CONTRACT = {
             "valid_until": "65"
           },
           "target": {
-            "capability": "attestation",
-            "method": "revoke",
-            "payload": {
-              "attestation": "0x1111111111111111111111111111111111111111111111111111111111111111"
-            }
+            "capability": "identity",
+            "method": "clear_identity",
+            "payload": {}
           }
         }
       ]
@@ -11090,6 +14306,1013 @@ export const NATIVE_ROUTE_CONTRACT = {
                         ],
                         "properties": {
                           "capability": {
+                            "const": "identity"
+                          },
+                          "method": {
+                            "const": "set_identity"
+                          },
+                          "payload": {
+                            "type": "object",
+                            "additionalProperties": false,
+                            "required": [
+                              "info"
+                            ],
+                            "properties": {
+                              "info": {
+                                "type": "object",
+                                "additionalProperties": false,
+                                "required": [
+                                  "display",
+                                  "legal",
+                                  "web",
+                                  "email",
+                                  "image",
+                                  "additional"
+                                ],
+                                "properties": {
+                                  "display": {
+                                    "oneOf": [
+                                      {
+                                        "type": "object",
+                                        "additionalProperties": false,
+                                        "required": [
+                                          "kind"
+                                        ],
+                                        "properties": {
+                                          "kind": {
+                                            "const": "none"
+                                          }
+                                        }
+                                      },
+                                      {
+                                        "type": "object",
+                                        "additionalProperties": false,
+                                        "required": [
+                                          "kind",
+                                          "value"
+                                        ],
+                                        "properties": {
+                                          "kind": {
+                                            "const": "raw"
+                                          },
+                                          "value": {
+                                            "type": "string",
+                                            "minLength": 1,
+                                            "maxUtf8Bytes": 32
+                                          }
+                                        }
+                                      },
+                                      {
+                                        "type": "object",
+                                        "additionalProperties": false,
+                                        "required": [
+                                          "kind",
+                                          "hash"
+                                        ],
+                                        "properties": {
+                                          "kind": {
+                                            "const": "blake2_256"
+                                          },
+                                          "hash": {
+                                            "type": "string",
+                                            "pattern": "^0x[0-9a-f]{64}$"
+                                          }
+                                        }
+                                      },
+                                      {
+                                        "type": "object",
+                                        "additionalProperties": false,
+                                        "required": [
+                                          "kind",
+                                          "hash"
+                                        ],
+                                        "properties": {
+                                          "kind": {
+                                            "const": "sha2_256"
+                                          },
+                                          "hash": {
+                                            "type": "string",
+                                            "pattern": "^0x[0-9a-f]{64}$"
+                                          }
+                                        }
+                                      },
+                                      {
+                                        "type": "object",
+                                        "additionalProperties": false,
+                                        "required": [
+                                          "kind",
+                                          "hash"
+                                        ],
+                                        "properties": {
+                                          "kind": {
+                                            "const": "keccak_256"
+                                          },
+                                          "hash": {
+                                            "type": "string",
+                                            "pattern": "^0x[0-9a-f]{64}$"
+                                          }
+                                        }
+                                      },
+                                      {
+                                        "type": "object",
+                                        "additionalProperties": false,
+                                        "required": [
+                                          "kind",
+                                          "hash"
+                                        ],
+                                        "properties": {
+                                          "kind": {
+                                            "const": "sha3_256"
+                                          },
+                                          "hash": {
+                                            "type": "string",
+                                            "pattern": "^0x[0-9a-f]{64}$"
+                                          }
+                                        }
+                                      }
+                                    ]
+                                  },
+                                  "legal": {
+                                    "oneOf": [
+                                      {
+                                        "type": "object",
+                                        "additionalProperties": false,
+                                        "required": [
+                                          "kind"
+                                        ],
+                                        "properties": {
+                                          "kind": {
+                                            "const": "none"
+                                          }
+                                        }
+                                      },
+                                      {
+                                        "type": "object",
+                                        "additionalProperties": false,
+                                        "required": [
+                                          "kind",
+                                          "value"
+                                        ],
+                                        "properties": {
+                                          "kind": {
+                                            "const": "raw"
+                                          },
+                                          "value": {
+                                            "type": "string",
+                                            "minLength": 1,
+                                            "maxUtf8Bytes": 32
+                                          }
+                                        }
+                                      },
+                                      {
+                                        "type": "object",
+                                        "additionalProperties": false,
+                                        "required": [
+                                          "kind",
+                                          "hash"
+                                        ],
+                                        "properties": {
+                                          "kind": {
+                                            "const": "blake2_256"
+                                          },
+                                          "hash": {
+                                            "type": "string",
+                                            "pattern": "^0x[0-9a-f]{64}$"
+                                          }
+                                        }
+                                      },
+                                      {
+                                        "type": "object",
+                                        "additionalProperties": false,
+                                        "required": [
+                                          "kind",
+                                          "hash"
+                                        ],
+                                        "properties": {
+                                          "kind": {
+                                            "const": "sha2_256"
+                                          },
+                                          "hash": {
+                                            "type": "string",
+                                            "pattern": "^0x[0-9a-f]{64}$"
+                                          }
+                                        }
+                                      },
+                                      {
+                                        "type": "object",
+                                        "additionalProperties": false,
+                                        "required": [
+                                          "kind",
+                                          "hash"
+                                        ],
+                                        "properties": {
+                                          "kind": {
+                                            "const": "keccak_256"
+                                          },
+                                          "hash": {
+                                            "type": "string",
+                                            "pattern": "^0x[0-9a-f]{64}$"
+                                          }
+                                        }
+                                      },
+                                      {
+                                        "type": "object",
+                                        "additionalProperties": false,
+                                        "required": [
+                                          "kind",
+                                          "hash"
+                                        ],
+                                        "properties": {
+                                          "kind": {
+                                            "const": "sha3_256"
+                                          },
+                                          "hash": {
+                                            "type": "string",
+                                            "pattern": "^0x[0-9a-f]{64}$"
+                                          }
+                                        }
+                                      }
+                                    ]
+                                  },
+                                  "web": {
+                                    "oneOf": [
+                                      {
+                                        "type": "object",
+                                        "additionalProperties": false,
+                                        "required": [
+                                          "kind"
+                                        ],
+                                        "properties": {
+                                          "kind": {
+                                            "const": "none"
+                                          }
+                                        }
+                                      },
+                                      {
+                                        "type": "object",
+                                        "additionalProperties": false,
+                                        "required": [
+                                          "kind",
+                                          "value"
+                                        ],
+                                        "properties": {
+                                          "kind": {
+                                            "const": "raw"
+                                          },
+                                          "value": {
+                                            "type": "string",
+                                            "minLength": 1,
+                                            "maxUtf8Bytes": 32
+                                          }
+                                        }
+                                      },
+                                      {
+                                        "type": "object",
+                                        "additionalProperties": false,
+                                        "required": [
+                                          "kind",
+                                          "hash"
+                                        ],
+                                        "properties": {
+                                          "kind": {
+                                            "const": "blake2_256"
+                                          },
+                                          "hash": {
+                                            "type": "string",
+                                            "pattern": "^0x[0-9a-f]{64}$"
+                                          }
+                                        }
+                                      },
+                                      {
+                                        "type": "object",
+                                        "additionalProperties": false,
+                                        "required": [
+                                          "kind",
+                                          "hash"
+                                        ],
+                                        "properties": {
+                                          "kind": {
+                                            "const": "sha2_256"
+                                          },
+                                          "hash": {
+                                            "type": "string",
+                                            "pattern": "^0x[0-9a-f]{64}$"
+                                          }
+                                        }
+                                      },
+                                      {
+                                        "type": "object",
+                                        "additionalProperties": false,
+                                        "required": [
+                                          "kind",
+                                          "hash"
+                                        ],
+                                        "properties": {
+                                          "kind": {
+                                            "const": "keccak_256"
+                                          },
+                                          "hash": {
+                                            "type": "string",
+                                            "pattern": "^0x[0-9a-f]{64}$"
+                                          }
+                                        }
+                                      },
+                                      {
+                                        "type": "object",
+                                        "additionalProperties": false,
+                                        "required": [
+                                          "kind",
+                                          "hash"
+                                        ],
+                                        "properties": {
+                                          "kind": {
+                                            "const": "sha3_256"
+                                          },
+                                          "hash": {
+                                            "type": "string",
+                                            "pattern": "^0x[0-9a-f]{64}$"
+                                          }
+                                        }
+                                      }
+                                    ]
+                                  },
+                                  "email": {
+                                    "oneOf": [
+                                      {
+                                        "type": "object",
+                                        "additionalProperties": false,
+                                        "required": [
+                                          "kind"
+                                        ],
+                                        "properties": {
+                                          "kind": {
+                                            "const": "none"
+                                          }
+                                        }
+                                      },
+                                      {
+                                        "type": "object",
+                                        "additionalProperties": false,
+                                        "required": [
+                                          "kind",
+                                          "value"
+                                        ],
+                                        "properties": {
+                                          "kind": {
+                                            "const": "raw"
+                                          },
+                                          "value": {
+                                            "type": "string",
+                                            "minLength": 1,
+                                            "maxUtf8Bytes": 32
+                                          }
+                                        }
+                                      },
+                                      {
+                                        "type": "object",
+                                        "additionalProperties": false,
+                                        "required": [
+                                          "kind",
+                                          "hash"
+                                        ],
+                                        "properties": {
+                                          "kind": {
+                                            "const": "blake2_256"
+                                          },
+                                          "hash": {
+                                            "type": "string",
+                                            "pattern": "^0x[0-9a-f]{64}$"
+                                          }
+                                        }
+                                      },
+                                      {
+                                        "type": "object",
+                                        "additionalProperties": false,
+                                        "required": [
+                                          "kind",
+                                          "hash"
+                                        ],
+                                        "properties": {
+                                          "kind": {
+                                            "const": "sha2_256"
+                                          },
+                                          "hash": {
+                                            "type": "string",
+                                            "pattern": "^0x[0-9a-f]{64}$"
+                                          }
+                                        }
+                                      },
+                                      {
+                                        "type": "object",
+                                        "additionalProperties": false,
+                                        "required": [
+                                          "kind",
+                                          "hash"
+                                        ],
+                                        "properties": {
+                                          "kind": {
+                                            "const": "keccak_256"
+                                          },
+                                          "hash": {
+                                            "type": "string",
+                                            "pattern": "^0x[0-9a-f]{64}$"
+                                          }
+                                        }
+                                      },
+                                      {
+                                        "type": "object",
+                                        "additionalProperties": false,
+                                        "required": [
+                                          "kind",
+                                          "hash"
+                                        ],
+                                        "properties": {
+                                          "kind": {
+                                            "const": "sha3_256"
+                                          },
+                                          "hash": {
+                                            "type": "string",
+                                            "pattern": "^0x[0-9a-f]{64}$"
+                                          }
+                                        }
+                                      }
+                                    ]
+                                  },
+                                  "image": {
+                                    "oneOf": [
+                                      {
+                                        "type": "object",
+                                        "additionalProperties": false,
+                                        "required": [
+                                          "kind"
+                                        ],
+                                        "properties": {
+                                          "kind": {
+                                            "const": "none"
+                                          }
+                                        }
+                                      },
+                                      {
+                                        "type": "object",
+                                        "additionalProperties": false,
+                                        "required": [
+                                          "kind",
+                                          "value"
+                                        ],
+                                        "properties": {
+                                          "kind": {
+                                            "const": "raw"
+                                          },
+                                          "value": {
+                                            "type": "string",
+                                            "minLength": 1,
+                                            "maxUtf8Bytes": 32
+                                          }
+                                        }
+                                      },
+                                      {
+                                        "type": "object",
+                                        "additionalProperties": false,
+                                        "required": [
+                                          "kind",
+                                          "hash"
+                                        ],
+                                        "properties": {
+                                          "kind": {
+                                            "const": "blake2_256"
+                                          },
+                                          "hash": {
+                                            "type": "string",
+                                            "pattern": "^0x[0-9a-f]{64}$"
+                                          }
+                                        }
+                                      },
+                                      {
+                                        "type": "object",
+                                        "additionalProperties": false,
+                                        "required": [
+                                          "kind",
+                                          "hash"
+                                        ],
+                                        "properties": {
+                                          "kind": {
+                                            "const": "sha2_256"
+                                          },
+                                          "hash": {
+                                            "type": "string",
+                                            "pattern": "^0x[0-9a-f]{64}$"
+                                          }
+                                        }
+                                      },
+                                      {
+                                        "type": "object",
+                                        "additionalProperties": false,
+                                        "required": [
+                                          "kind",
+                                          "hash"
+                                        ],
+                                        "properties": {
+                                          "kind": {
+                                            "const": "keccak_256"
+                                          },
+                                          "hash": {
+                                            "type": "string",
+                                            "pattern": "^0x[0-9a-f]{64}$"
+                                          }
+                                        }
+                                      },
+                                      {
+                                        "type": "object",
+                                        "additionalProperties": false,
+                                        "required": [
+                                          "kind",
+                                          "hash"
+                                        ],
+                                        "properties": {
+                                          "kind": {
+                                            "const": "sha3_256"
+                                          },
+                                          "hash": {
+                                            "type": "string",
+                                            "pattern": "^0x[0-9a-f]{64}$"
+                                          }
+                                        }
+                                      }
+                                    ]
+                                  },
+                                  "additional": {
+                                    "type": "array",
+                                    "items": {
+                                      "type": "object",
+                                      "additionalProperties": false,
+                                      "required": [
+                                        "key",
+                                        "value"
+                                      ],
+                                      "properties": {
+                                        "key": {
+                                          "oneOf": [
+                                            {
+                                              "type": "object",
+                                              "additionalProperties": false,
+                                              "required": [
+                                                "kind"
+                                              ],
+                                              "properties": {
+                                                "kind": {
+                                                  "const": "none"
+                                                }
+                                              }
+                                            },
+                                            {
+                                              "type": "object",
+                                              "additionalProperties": false,
+                                              "required": [
+                                                "kind",
+                                                "value"
+                                              ],
+                                              "properties": {
+                                                "kind": {
+                                                  "const": "raw"
+                                                },
+                                                "value": {
+                                                  "type": "string",
+                                                  "minLength": 1,
+                                                  "maxUtf8Bytes": 32
+                                                }
+                                              }
+                                            },
+                                            {
+                                              "type": "object",
+                                              "additionalProperties": false,
+                                              "required": [
+                                                "kind",
+                                                "hash"
+                                              ],
+                                              "properties": {
+                                                "kind": {
+                                                  "const": "blake2_256"
+                                                },
+                                                "hash": {
+                                                  "type": "string",
+                                                  "pattern": "^0x[0-9a-f]{64}$"
+                                                }
+                                              }
+                                            },
+                                            {
+                                              "type": "object",
+                                              "additionalProperties": false,
+                                              "required": [
+                                                "kind",
+                                                "hash"
+                                              ],
+                                              "properties": {
+                                                "kind": {
+                                                  "const": "sha2_256"
+                                                },
+                                                "hash": {
+                                                  "type": "string",
+                                                  "pattern": "^0x[0-9a-f]{64}$"
+                                                }
+                                              }
+                                            },
+                                            {
+                                              "type": "object",
+                                              "additionalProperties": false,
+                                              "required": [
+                                                "kind",
+                                                "hash"
+                                              ],
+                                              "properties": {
+                                                "kind": {
+                                                  "const": "keccak_256"
+                                                },
+                                                "hash": {
+                                                  "type": "string",
+                                                  "pattern": "^0x[0-9a-f]{64}$"
+                                                }
+                                              }
+                                            },
+                                            {
+                                              "type": "object",
+                                              "additionalProperties": false,
+                                              "required": [
+                                                "kind",
+                                                "hash"
+                                              ],
+                                              "properties": {
+                                                "kind": {
+                                                  "const": "sha3_256"
+                                                },
+                                                "hash": {
+                                                  "type": "string",
+                                                  "pattern": "^0x[0-9a-f]{64}$"
+                                                }
+                                              }
+                                            }
+                                          ]
+                                        },
+                                        "value": {
+                                          "oneOf": [
+                                            {
+                                              "type": "object",
+                                              "additionalProperties": false,
+                                              "required": [
+                                                "kind"
+                                              ],
+                                              "properties": {
+                                                "kind": {
+                                                  "const": "none"
+                                                }
+                                              }
+                                            },
+                                            {
+                                              "type": "object",
+                                              "additionalProperties": false,
+                                              "required": [
+                                                "kind",
+                                                "value"
+                                              ],
+                                              "properties": {
+                                                "kind": {
+                                                  "const": "raw"
+                                                },
+                                                "value": {
+                                                  "type": "string",
+                                                  "minLength": 1,
+                                                  "maxUtf8Bytes": 32
+                                                }
+                                              }
+                                            },
+                                            {
+                                              "type": "object",
+                                              "additionalProperties": false,
+                                              "required": [
+                                                "kind",
+                                                "hash"
+                                              ],
+                                              "properties": {
+                                                "kind": {
+                                                  "const": "blake2_256"
+                                                },
+                                                "hash": {
+                                                  "type": "string",
+                                                  "pattern": "^0x[0-9a-f]{64}$"
+                                                }
+                                              }
+                                            },
+                                            {
+                                              "type": "object",
+                                              "additionalProperties": false,
+                                              "required": [
+                                                "kind",
+                                                "hash"
+                                              ],
+                                              "properties": {
+                                                "kind": {
+                                                  "const": "sha2_256"
+                                                },
+                                                "hash": {
+                                                  "type": "string",
+                                                  "pattern": "^0x[0-9a-f]{64}$"
+                                                }
+                                              }
+                                            },
+                                            {
+                                              "type": "object",
+                                              "additionalProperties": false,
+                                              "required": [
+                                                "kind",
+                                                "hash"
+                                              ],
+                                              "properties": {
+                                                "kind": {
+                                                  "const": "keccak_256"
+                                                },
+                                                "hash": {
+                                                  "type": "string",
+                                                  "pattern": "^0x[0-9a-f]{64}$"
+                                                }
+                                              }
+                                            },
+                                            {
+                                              "type": "object",
+                                              "additionalProperties": false,
+                                              "required": [
+                                                "kind",
+                                                "hash"
+                                              ],
+                                              "properties": {
+                                                "kind": {
+                                                  "const": "sha3_256"
+                                                },
+                                                "hash": {
+                                                  "type": "string",
+                                                  "pattern": "^0x[0-9a-f]{64}$"
+                                                }
+                                              }
+                                            }
+                                          ]
+                                        }
+                                      }
+                                    },
+                                    "minItems": 0,
+                                    "maxItems": 32
+                                  }
+                                }
+                              }
+                            }
+                          }
+                        }
+                      },
+                      {
+                        "type": "object",
+                        "additionalProperties": false,
+                        "required": [
+                          "capability",
+                          "method",
+                          "payload"
+                        ],
+                        "properties": {
+                          "capability": {
+                            "const": "identity"
+                          },
+                          "method": {
+                            "const": "clear_identity"
+                          },
+                          "payload": {
+                            "type": "object",
+                            "additionalProperties": false,
+                            "required": [],
+                            "properties": {}
+                          }
+                        }
+                      },
+                      {
+                        "type": "object",
+                        "additionalProperties": false,
+                        "required": [
+                          "capability",
+                          "method",
+                          "payload"
+                        ],
+                        "properties": {
+                          "capability": {
+                            "const": "identity"
+                          },
+                          "method": {
+                            "const": "request_judgement"
+                          },
+                          "payload": {
+                            "type": "object",
+                            "additionalProperties": false,
+                            "required": [
+                              "registrar"
+                            ],
+                            "properties": {
+                              "registrar": {
+                                "type": "string",
+                                "minLength": 1,
+                                "maxLength": 128
+                              }
+                            }
+                          }
+                        }
+                      },
+                      {
+                        "type": "object",
+                        "additionalProperties": false,
+                        "required": [
+                          "capability",
+                          "method",
+                          "payload"
+                        ],
+                        "properties": {
+                          "capability": {
+                            "const": "identity"
+                          },
+                          "method": {
+                            "const": "cancel_judgement_request"
+                          },
+                          "payload": {
+                            "type": "object",
+                            "additionalProperties": false,
+                            "required": [
+                              "registrar"
+                            ],
+                            "properties": {
+                              "registrar": {
+                                "type": "string",
+                                "minLength": 1,
+                                "maxLength": 128
+                              }
+                            }
+                          }
+                        }
+                      },
+                      {
+                        "type": "object",
+                        "additionalProperties": false,
+                        "required": [
+                          "capability",
+                          "method",
+                          "payload"
+                        ],
+                        "properties": {
+                          "capability": {
+                            "const": "identity"
+                          },
+                          "method": {
+                            "const": "provide_judgement"
+                          },
+                          "payload": {
+                            "type": "object",
+                            "additionalProperties": false,
+                            "required": [
+                              "target",
+                              "judgement",
+                              "identity_hash"
+                            ],
+                            "properties": {
+                              "target": {
+                                "type": "string",
+                                "minLength": 1,
+                                "maxLength": 128
+                              },
+                              "judgement": {
+                                "oneOf": [
+                                  {
+                                    "const": "reasonable"
+                                  },
+                                  {
+                                    "const": "known_good"
+                                  },
+                                  {
+                                    "const": "out_of_date"
+                                  },
+                                  {
+                                    "const": "low_quality"
+                                  },
+                                  {
+                                    "const": "erroneous"
+                                  }
+                                ]
+                              },
+                              "identity_hash": {
+                                "type": "string",
+                                "pattern": "^0x[0-9a-f]{64}$"
+                              }
+                            }
+                          }
+                        }
+                      },
+                      {
+                        "type": "object",
+                        "additionalProperties": false,
+                        "required": [
+                          "capability",
+                          "method",
+                          "payload"
+                        ],
+                        "properties": {
+                          "capability": {
+                            "const": "identity"
+                          },
+                          "method": {
+                            "const": "attest_lite_person"
+                          },
+                          "payload": {
+                            "type": "object",
+                            "additionalProperties": false,
+                            "required": [
+                              "candidate",
+                              "candidate_signature",
+                              "ring_vrf_key",
+                              "proof_of_ownership"
+                            ],
+                            "properties": {
+                              "candidate": {
+                                "type": "string",
+                                "minLength": 1,
+                                "maxLength": 128
+                              },
+                              "candidate_signature": {
+                                "oneOf": [
+                                  {
+                                    "type": "object",
+                                    "additionalProperties": false,
+                                    "required": [
+                                      "scheme",
+                                      "bytes"
+                                    ],
+                                    "properties": {
+                                      "scheme": {
+                                        "const": "sr25519"
+                                      },
+                                      "bytes": {
+                                        "type": "string",
+                                        "pattern": "^0x[0-9a-f]{128}$"
+                                      }
+                                    }
+                                  },
+                                  {
+                                    "type": "object",
+                                    "additionalProperties": false,
+                                    "required": [
+                                      "scheme",
+                                      "bytes"
+                                    ],
+                                    "properties": {
+                                      "scheme": {
+                                        "const": "ed25519"
+                                      },
+                                      "bytes": {
+                                        "type": "string",
+                                        "pattern": "^0x[0-9a-f]{128}$"
+                                      }
+                                    }
+                                  },
+                                  {
+                                    "type": "object",
+                                    "additionalProperties": false,
+                                    "required": [
+                                      "scheme",
+                                      "bytes"
+                                    ],
+                                    "properties": {
+                                      "scheme": {
+                                        "const": "ecdsa"
+                                      },
+                                      "bytes": {
+                                        "type": "string",
+                                        "pattern": "^0x[0-9a-f]{130}$"
+                                      }
+                                    }
+                                  }
+                                ]
+                              },
+                              "ring_vrf_key": {
+                                "type": "string",
+                                "pattern": "^0x[0-9a-f]{64}$"
+                              },
+                              "proof_of_ownership": {
+                                "type": "string",
+                                "pattern": "^0x[0-9a-f]{128}$"
+                              }
+                            }
+                          }
+                        }
+                      },
+                      {
+                        "type": "object",
+                        "additionalProperties": false,
+                        "required": [
+                          "capability",
+                          "method",
+                          "payload"
+                        ],
+                        "properties": {
+                          "capability": {
                             "const": "names"
                           },
                           "method": {
@@ -11511,17 +15734,14 @@ export const NATIVE_ROUTE_CONTRACT = {
                             "const": "names"
                           },
                           "method": {
-                            "const": "publish_content"
+                            "const": "set_content"
                           },
                           "payload": {
                             "type": "object",
                             "additionalProperties": false,
                             "required": [
                               "name",
-                              "content",
-                              "expected_revision",
-                              "operation_deadline",
-                              "operation_id"
+                              "content"
                             ],
                             "properties": {
                               "name": {
@@ -11538,18 +15758,6 @@ export const NATIVE_ROUTE_CONTRACT = {
                                     "pattern": "^0x[0-9a-f]{64}$"
                                   }
                                 ]
-                              },
-                              "expected_revision": {
-                                "type": "string",
-                                "pattern": "^(0|[1-9][0-9]{0,19})$"
-                              },
-                              "operation_deadline": {
-                                "type": "string",
-                                "pattern": "^(0|[1-9][0-9]{0,19})$"
-                              },
-                              "operation_id": {
-                                "type": "string",
-                                "pattern": "^0x[0-9a-f]{32}$"
                               }
                             }
                           }
@@ -13553,11 +17761,9 @@ export const NATIVE_ROUTE_CONTRACT = {
               "valid_until": "65"
             },
             "target": {
-              "capability": "attestation",
-              "method": "revoke",
-              "payload": {
-                "attestation": "0x1111111111111111111111111111111111111111111111111111111111111111"
-              }
+              "capability": "identity",
+              "method": "clear_identity",
+              "payload": {}
             },
             "signing_payload_hash": "0x2222222222222222222222222222222222222222222222222222222222222222",
             "intent_id": "0x1111111111111111111111111111111111111111111111111111111111111111"
@@ -13607,11 +17813,9 @@ export const NATIVE_ROUTE_CONTRACT = {
               "valid_until": "65"
             },
             "target": {
-              "capability": "attestation",
-              "method": "revoke",
-              "payload": {
-                "attestation": "0x1111111111111111111111111111111111111111111111111111111111111111"
-              }
+              "capability": "identity",
+              "method": "clear_identity",
+              "payload": {}
             },
             "signing_payload_hash": "0x2222222222222222222222222222222222222222222222222222222222222222",
             "intent_id": "0x1111111111111111111111111111111111111111111111111111111111111111"
@@ -13627,12 +17831,7 @@ export const NATIVE_ROUTE_CONTRACT = {
   "signature_schema_basis": {
     "host_payload": "product-sdk core validation rules and direct callable canonical arguments",
     "rust_binding": "canonical samples deserialize into the named Rust query/command variants and validate or prepare successfully",
-    "runtime_metadata": "checked-in Commons V14 SCALE metadata is historical spec 29 inventory and does not bind the current spec 33 source runtime; native SDK admission remains disabled until current metadata is regenerated",
+    "runtime_metadata": "checked-in Commons V14 SCALE metadata is extracted from the current runtime Wasm and drives the reproducible PAPI descriptor; this route contract remains the authoritative product-policy projection",
     "sdk_host_operation": "prepare_sponsored_intent is an SDK/host operation bound to current Orbis state; it is not represented as a runtime API or pallet call"
-  },
-  "papi_availability": {
-    "runtime_metadata_current": false,
-    "sdk_admission": false,
-    "reason": "checked-in PAPI metadata predates the current Commons runtime"
   }
 } as const;

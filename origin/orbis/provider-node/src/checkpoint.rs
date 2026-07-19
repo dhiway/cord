@@ -948,6 +948,7 @@ mod tests {
 				service_key: duty.service_key.clone(),
 				region: None,
 			},
+			1024,
 		)
 		.unwrap();
 		let context = watermark();

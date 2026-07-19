@@ -324,43 +324,12 @@ mod benchmarks {
 	}
 
 	#[benchmark]
-	fn create_bucket(
-		r: Linear<2, { T::MaxReplicas::get() }>,
-		q: Linear<0, { T::MaxBucketOperationReceipts::get() }>,
-	) {
+	fn create_bucket(r: Linear<2, { T::MaxReplicas::get() }>) {
 		let owner: T::AccountId = account("owner", 0, SEED);
 		let (primary, _) = provider::<T>(0, ProviderStatus::Active);
 		let (replicas, _) = replicas::<T>(r);
-		let now = frame_system::Pallet::<T>::block_number();
-		for index in 0..q {
-			let mut operation_id = [0u8; 16];
-			operation_id[..4].copy_from_slice(&index.to_le_bytes());
-			BucketOperationReceipts::<T>::insert(
-				&owner,
-				operation_id,
-				BucketOperationReceipt {
-					request_hash: T::Hashing::hash_of(&(b"expired-receipt", index)),
-					bucket_id: T::Hashing::hash_of(&(b"expired-bucket", index)),
-					primary: primary.clone(),
-					replicas: replicas.clone(),
-					version: 1,
-					expires_at: now,
-				},
-			);
-			BucketOperationReceiptIds::<T>::try_mutate(&owner, |ids| ids.try_push(operation_id))
-				.expect("benchmark receipt bound admits q");
-		}
-		let operation_deadline = frame_system::Pallet::<T>::block_number()
-			.saturating_add(T::MaxBucketOperationReceiptLifetime::get());
 		#[extrinsic_call]
-		_(
-			RawOrigin::Signed(owner),
-			T::Hashing::hash_of(&b"policy"),
-			primary,
-			replicas,
-			operation_deadline,
-			[1; 16],
-		);
+		_(RawOrigin::Signed(owner), T::Hashing::hash_of(&b"policy"), primary, replicas);
 	}
 
 	#[benchmark]
@@ -866,16 +835,12 @@ mod benchmarks {
 
 	#[benchmark]
 	fn create_host_delegation() {
-		// The dev chain spec starts at genesis block zero; benchmarked dispatches
-		// must use the first real block so the one-block capability lifetime is valid.
-		let now: BlockNumberFor<T> = One::one();
-		frame_system::Pallet::<T>::set_block_number(now);
 		let owner: T::AccountId = account("host-owner", 0, SEED);
 		let (primary, _) = provider::<T>(40_000, ProviderStatus::Active);
 		let bucket_id = bucket::<T>(&owner, &primary, Default::default());
 		let product_id: CapabilityProductIdOf<T> = b"benchmark".to_vec().try_into().ok().unwrap();
 		let methods: CapabilityMethodsOf<T> = vec![1010].try_into().ok().unwrap();
-		let issuance_nonce = GrantNonce::<T>::get(&owner);
+		let now = frame_system::Pallet::<T>::block_number();
 		#[extrinsic_call]
 		_(
 			RawOrigin::Signed(owner.clone()),
@@ -889,7 +854,7 @@ mod benchmarks {
 			now.saturating_add(One::one()),
 		);
 		assert!(HostDelegations::<T>::contains_key(Pallet::<T>::host_delegation_id(
-			&owner, bucket_id, issuance_nonce
+			&owner, bucket_id, 0
 		)));
 	}
 

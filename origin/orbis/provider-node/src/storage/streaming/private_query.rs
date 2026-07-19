@@ -299,78 +299,6 @@ struct FinalizedCheckpoint {
 }
 
 impl StreamingStore {
-	/// Resolve the immutable generation-zero query request and capability selected by one exact
-	/// successor token without retaining the durable journal guard.
-	pub(crate) fn private_query_root(
-		&self,
-		token_bytes: &[u8],
-	) -> Result<Option<(Vec<u8>, Vec<u8>)>, PrivateQueryError> {
-		let token = ResumeTokenV1::decode(token_bytes)?;
-		let (request, authority) = {
-			let state = self.read_state()?;
-			let operation_id = hex::encode(token.operation_id);
-			let host_key_id = hex::encode(token.host_key_id);
-			let mut roots = state.private_queries.values().filter(|record| {
-				record.operation_id == operation_id
-					&& record.host_key_id == host_key_id
-					&& record.generation == 0
-			});
-			let Some(root) = roots.next() else { return Ok(None) };
-			if roots.next().is_some() {
-				return Err(ContentError::IntegrityFailed.into());
-			}
-			(
-				hex::decode(&root.request).map_err(|_| ContentError::IntegrityFailed)?,
-				hex::decode(&root.authority).map_err(|_| ContentError::IntegrityFailed)?,
-			)
-		};
-		let request_dto = PrivateObjectRequestV2::decode(&request)?;
-		let capability = ProviderCapabilityV1::decode(&authority)?;
-		if derive_operation_id(request_dto.method, request_dto.request_id) != token.operation_id
-			|| request_dto.bucket_id != token.bucket_id
-			|| request_dto.cid != token.cid
-			|| capability.issuer_key_id != token.host_key_id
-		{
-			return Err(ContentError::IntegrityFailed.into());
-		}
-		Ok(Some((request, authority)))
-	}
-
-	/// Derive the only canonical cancellation frame which may consume this exact successor. The
-	/// caller compares it before entering the mutating cancellation kernel.
-	pub(crate) fn private_query_cancel_request(
-		&self,
-		request_bytes: &[u8],
-		token_bytes: &[u8],
-	) -> Result<Vec<u8>, PrivateQueryError> {
-		let request = PrivateObjectRequestV2::decode(request_bytes)?;
-		let token = ResumeTokenV1::decode(token_bytes)?;
-		if derive_operation_id(request.method, request.request_id) != token.operation_id
-			|| request.bucket_id != token.bucket_id
-			|| request.cid != token.cid
-		{
-			return Err(RecoveryError::ResumeAudienceInvalid.into());
-		}
-		let state = self.read_state()?;
-		let predecessor = query_predecessor(&state, token_bytes)?;
-		if predecessor.terminal
-			|| predecessor.next_verified_offset != Some(u64::from(token.cursor))
-		{
-			return Err(RecoveryError::ResumeReplay.into());
-		}
-		let sequence = token
-			.generation
-			.checked_add(1)
-			.and_then(|sequence| sequence.try_into().ok())
-			.ok_or(PrivateQueryError::WireSchemaInvalid)?;
-		Ok(event(
-			request.request_id,
-			sequence,
-			4,
-			Value::Map(vec![(uint(0), uint(107))]),
-		))
-	}
-
 	/// Start one private provider GET, RANGE, or local STATUS recovery chain. This has no public
 	/// route. The capability is consumed only by generation zero; continuation is possible only with
 	/// the provider-signed successor token returned in [`PrivateObjectResponseV2`].
@@ -618,8 +546,8 @@ impl StreamingStore {
 			signer.public_key(),
 		)?;
 		let (frames, next_verified_offset) = match request.method {
-			GET => self.get_frames(request, record, checkpoint, generation, verified_offset)?,
-			RANGE => self.range_frames(request, record, checkpoint, generation, verified_offset)?,
+			GET => self.get_frames(request, record, checkpoint, verified_offset)?,
+			RANGE => self.range_frames(request, record, checkpoint, verified_offset)?,
 			STATUS if verified_offset == 0 => self.status_frames(
 				request,
 				record,
@@ -838,27 +766,6 @@ impl StreamingStore {
 		Ok(())
 	}
 
-	/// Resolve the unique host journal owning this exact private-query response acknowledgement.
-	pub(crate) fn private_query_ack_host(
-		&self,
-		ack_bytes: &[u8],
-	) -> Result<Option<[u8; 32]>, PrivateQueryError> {
-		let ack = ResponseAckV1::decode(ack_bytes)?;
-		let state = self.read_state()?;
-		let mut matches = state.private_queries.values().filter(|record| {
-			record.request_id == hex::encode(ack.request_id)
-				&& record.operation_id == hex::encode(ack.operation_id)
-				&& record.generation == ack.generation
-				&& record.response_hash == hex::encode(ack.response_hash)
-		});
-		let Some(record) = matches.next() else { return Ok(None) };
-		let host = decode_hex_content(&record.host_key_id)?;
-		if matches.next().is_some() {
-			return Err(ContentError::IntegrityFailed.into());
-		}
-		Ok(Some(host))
-	}
-
 	/// Durably acknowledge one exact private-query generation. Duplicate acknowledgements return the
 	/// same canonical reply and never repeat the journal transition.
 	pub(crate) fn acknowledge_private_query_response(
@@ -984,14 +891,9 @@ impl StreamingStore {
 				other => PrivateQueryError::Capability(other),
 			}
 		})?;
-		let sequence = token
-			.generation
-			.checked_add(1)
-			.and_then(|sequence| sequence.try_into().ok())
-			.ok_or(PrivateQueryError::WireSchemaInvalid)?;
 		let frames = vec![event(
 			request.request_id,
-			sequence,
+			token.generation.try_into().map_err(|_| PrivateQueryError::WireSchemaInvalid)?,
 			4,
 			Value::Map(vec![(uint(0), uint(107))]),
 		)];
@@ -1159,7 +1061,6 @@ impl StreamingStore {
 		request: &PrivateObjectRequestV2,
 		record: Option<&OperationRecord>,
 		checkpoint: FinalizedCheckpoint,
-		generation: u64,
 		verified_offset: u64,
 	) -> Result<(Vec<Vec<u8>>, Option<u64>), PrivateQueryError> {
 		let record = record
@@ -1173,9 +1074,11 @@ impl StreamingStore {
 		let end = total.min(verified_offset.saturating_add(MAX_RANGE_BYTES));
 		let bytes = self.read_range_verified(request.cid.as_str(), verified_offset, end)?;
 		let mut frames = Vec::new();
-		let mut sequence = private_query_event_sequence(generation)?;
-		if generation == 0 {
+		let mut sequence = (verified_offset / MAX_RANGE_BYTES) as u32;
+		if verified_offset == 0 {
 			frames.push(event(request.request_id, sequence, 0, accepted()));
+			sequence = sequence.checked_add(1).ok_or(PrivateQueryError::WireSchemaInvalid)?;
+		} else {
 			sequence = sequence.checked_add(1).ok_or(PrivateQueryError::WireSchemaInvalid)?;
 		}
 		if !bytes.is_empty() {
@@ -1209,7 +1112,6 @@ impl StreamingStore {
 		request: &PrivateObjectRequestV2,
 		record: Option<&OperationRecord>,
 		checkpoint: FinalizedCheckpoint,
-		generation: u64,
 		verified_offset: u64,
 	) -> Result<(Vec<Vec<u8>>, Option<u64>), PrivateQueryError> {
 		let record = record
@@ -1229,9 +1131,11 @@ impl StreamingStore {
 		let absolute_end = start.checked_add(relative_end).ok_or(ContentError::RangeInvalid)?;
 		let bytes = self.read_range_verified(request.cid.as_str(), absolute, absolute_end)?;
 		let mut frames = Vec::new();
-		let mut sequence = private_query_event_sequence(generation)?;
-		if generation == 0 {
+		let mut sequence = (verified_offset / MAX_RANGE_BYTES) as u32;
+		if verified_offset == 0 {
 			frames.push(event(request.request_id, sequence, 0, accepted()));
+			sequence = sequence.checked_add(1).ok_or(PrivateQueryError::WireSchemaInvalid)?;
+		} else {
 			sequence = sequence.checked_add(1).ok_or(PrivateQueryError::WireSchemaInvalid)?;
 		}
 		if !bytes.is_empty() {
@@ -2140,16 +2044,6 @@ fn derive_operation_id(method: u16, request_id: [u8; 16]) -> [u8; 16] {
 	digest[..16].try_into().expect("fixed prefix")
 }
 
-fn private_query_event_sequence(generation: u64) -> Result<u32, PrivateQueryError> {
-	if generation == 0 {
-		return Ok(0);
-	}
-	generation
-		.checked_add(1)
-		.and_then(|sequence| sequence.try_into().ok())
-		.ok_or(PrivateQueryError::WireSchemaInvalid)
-}
-
 fn fingerprint(request: &[u8], authority: &[u8]) -> [u8; 32] {
 	let mut hash = Sha256::new();
 	hash.update(request);
@@ -2520,58 +2414,6 @@ mod tests {
 		assert_ne!(derive_operation_id(GET, request), derive_operation_id(GET, [8; 16]));
 	}
 
-	fn frame_sequence(frame: &[u8]) -> u32 {
-		let Value::Map(fields) = ciborium::from_reader(frame).unwrap() else { panic!("event map") };
-		fields
-			.into_iter()
-			.find_map(|(key, value)| {
-				matches!(key, Value::Integer(key) if u64::try_from(key).ok() == Some(2)).then(|| {
-					let Value::Integer(sequence) = value else { panic!("event sequence") };
-					u64::try_from(sequence).unwrap() as u32
-				})
-			})
-			.unwrap()
-	}
-
-	#[test]
-	fn provider_query_sequences_ignore_short_batch_cursors_and_nonzero_range_starts() {
-		let fixture = query_fixture(vec![61; MAX_RANGE_BYTES as usize + 512]);
-		let checkpoint = FinalizedCheckpoint {
-			root: [1; 32],
-			start: 0,
-			leaves: 1,
-			block: 108,
-			finalized_hash: [10; 32],
-			finalized_number: 110,
-			replicas: 0,
-		};
-		let record = fixture.streaming.local_record([5; 32], &fixture.cid).unwrap().unwrap();
-		let get = PrivateObjectRequestV2::decode(&request(&fixture, GET, None)).unwrap();
-		let (get_frames, _) = fixture
-			.streaming
-			.get_frames(&get, Some(&record), checkpoint, 1, 17)
-			.unwrap();
-		assert_eq!(frame_sequence(&get_frames[0]), 2);
-
-		let range = PrivateObjectRequestV2::decode(&request(
-			&fixture,
-			RANGE,
-			Some((123, MAX_RANGE_BYTES + 256)),
-		))
-		.unwrap();
-		let (initial, _) = fixture
-			.streaming
-			.range_frames(&range, Some(&record), checkpoint, 0, 0)
-			.unwrap();
-		assert_eq!(frame_sequence(&initial[0]), 0);
-		assert_eq!(frame_sequence(&initial[1]), 1);
-		let (resumed, _) = fixture
-			.streaming
-			.range_frames(&range, Some(&record), checkpoint, 1, 17)
-			.unwrap();
-		assert_eq!(frame_sequence(&resumed[0]), 2);
-	}
-
 	struct QueryFixture {
 		temp: TempDir,
 		streaming: StreamingStore,
@@ -2850,10 +2692,6 @@ mod tests {
 			)
 			.unwrap();
 		let first_token = first.successor_token.clone().unwrap();
-		assert_eq!(
-			fixture.streaming.private_query_root(&first_token).unwrap(),
-			Some((get.clone(), capability.clone()))
-		);
 		let second = fixture
 			.streaming
 			.resume_private_object_query(
@@ -3440,16 +3278,6 @@ mod tests {
 				)
 				.unwrap();
 			let token = first.successor_token.unwrap();
-			let expected_cancel = event(
-				PrivateObjectRequestV2::decode(&get).unwrap().request_id,
-				2,
-				4,
-				Value::Map(vec![(uint(0), uint(107))]),
-			);
-			assert_eq!(
-				fixture.streaming.private_query_cancel_request(&get, &token).unwrap(),
-				expected_cancel
-			);
 			fixture.streaming.inject_fault_once(fault).unwrap();
 			assert!(fixture
 				.streaming

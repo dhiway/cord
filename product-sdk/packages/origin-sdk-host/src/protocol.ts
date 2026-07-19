@@ -28,6 +28,8 @@ export type HostCapability =
   | "chain"
   | "signing"
   | "local-storage"
+  | "preimages"
+  | "resources"
   | "statements";
 
 export interface ProductIdentity {
@@ -66,6 +68,33 @@ export interface HostRuntimeIdentity {
   readonly chain_spec_source_sha256: string;
 }
 
+export interface HostPreimageReference {
+  readonly contentHash: `0x${string}`;
+  readonly size: number;
+  readonly contentType?: string;
+}
+
+export type HostResourceRequest =
+  | {
+    readonly kind: "statement-allowance";
+    readonly account: string;
+    readonly bytes: bigint;
+    readonly expiresAt?: bigint;
+  }
+  | {
+    readonly kind: "storage-reservation";
+    readonly account: string;
+    readonly bytes: bigint;
+    readonly expiresAt?: bigint;
+  };
+
+export interface HostResourceGrant {
+  readonly kind: HostResourceRequest["kind"];
+  readonly account: string;
+  readonly authorization: Uint8Array;
+  readonly expiresAt?: bigint;
+}
+
 export interface HostStatementDraft {
   readonly account: string;
   readonly topics: readonly string[];
@@ -96,6 +125,12 @@ export interface HostMethodMap {
   "local-storage.get": { readonly input: { readonly key: string }; readonly output: Uint8Array | undefined };
   "local-storage.set": { readonly input: { readonly key: string; readonly value: Uint8Array }; readonly output: void };
   "local-storage.delete": { readonly input: { readonly key: string }; readonly output: void };
+  "preimages.put": {
+    readonly input: { readonly bytes: Uint8Array; readonly contentType?: string };
+    readonly output: HostPreimageReference;
+  };
+  "preimages.get": { readonly input: { readonly contentHash: `0x${string}` }; readonly output: Uint8Array };
+  "resources.allocate": { readonly input: HostResourceRequest; readonly output: HostResourceGrant };
   "statements.submit": { readonly input: HostStatementDraft; readonly output: HostStatementRecord };
   "statements.query": { readonly input: HostStatementQuery; readonly output: readonly HostStatementRecord[] };
 }

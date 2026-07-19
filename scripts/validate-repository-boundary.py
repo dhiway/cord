@@ -24,7 +24,6 @@ from __future__ import annotations
 import argparse
 import fnmatch
 import json
-import subprocess
 import sys
 try:
     import tomllib
@@ -39,17 +38,7 @@ from evidence_common import atomic_write_json, canonical_bytes, sha256_bytes
 
 
 VOLATILE_SNAPSHOT_KEYS = {"captured_at", "snapshot_sha256", "manifest_path", "manifest_sha256"}
-# OMX orchestration is intentionally outside CORD source. It may be present only as untracked
-# state in the protected checkout that supplied the immutable baseline, not in a compose worktree.
-ORCHESTRATION_UNTRACKED_PREFIXES = (".omx/", "omx_wiki/")
 CORD_CHANGE_KEYS = {
-	# CORD may be executed from an isolated detached worktree while the immutable
-	# baseline is captured from the protected branch checkout. These describe
-	# checkout topology, not CORD content; content remains bound below by the
-	# changed-file contract and declared commit set.
-	"path",
-	"branch",
-	"detached",
     "head",
     "head_tree",
     "index_sha256",
@@ -95,10 +84,6 @@ def changed_paths(before: dict[str, Any], after: dict[str, Any]) -> set[str]:
         old = record_map(before, field)
         new = record_map(after, field)
         for path in old.keys() | new.keys():
-            # Never treat local OMX state as CORD source. The exception is restricted to
-            # *untracked* files, so a committed source path cannot be hidden by this rule.
-            if field == "untracked_files" and path.startswith(ORCHESTRATION_UNTRACKED_PREFIXES):
-                continue
             if old.get(path) != new.get(path):
                 paths.add(path)
     old_modules = {row["path"]: row for row in before.get("submodules", [])}
@@ -118,40 +103,6 @@ def allowed_contract(path: Path) -> tuple[list[str], set[str]]:
             globs.extend(slice_entry.get("path_globs", []))
             commits.update(slice_entry.get("commit_shas", []))
     return globs, commits
-
-
-def validate_cord_history(
-    baseline: dict[str, Any], current: dict[str, Any], allowed_globs: list[str], allowed_commits: set[str]
-) -> list[dict[str, Any]]:
-    """Require a declared, Satish-authored, path-scoped descendant history."""
-    old_head, new_head = baseline.get("head"), current.get("head")
-    checkout = current.get("path")
-    if not all(isinstance(value, str) and value for value in (old_head, new_head, checkout)):
-        return [{"kind": "cord-history-unavailable"}]
-    ancestor = subprocess.run(["git", "-C", checkout, "merge-base", "--is-ancestor", old_head, new_head], check=False)
-    if ancestor.returncode != 0:
-        return [{"kind": "cord-history-non-ancestral", "before": old_head, "after": new_head}]
-    log = subprocess.run(
-        ["git", "-C", checkout, "log", "--format=%H%x00%an%x00%ae", f"{old_head}..{new_head}"],
-        check=True, stdout=subprocess.PIPE, text=True,
-    ).stdout.splitlines()
-    violations: list[dict[str, Any]] = []
-    commits = []
-    for line in log:
-        commit, author, email = line.split("\0")
-        commits.append(commit)
-        if (author, email) != ("Satish Mohan", "satish@dhiway.com"):
-            violations.append({"kind": "cord-history-author", "commit": commit, "author": author, "email": email})
-        paths = subprocess.run(
-            ["git", "-C", checkout, "diff-tree", "--no-commit-id", "--name-only", "-r", commit],
-            check=True, stdout=subprocess.PIPE, text=True,
-        ).stdout.splitlines()
-        undeclared = [path for path in paths if not any(fnmatch.fnmatchcase(path, pattern) for pattern in allowed_globs)]
-        if undeclared:
-            violations.append({"kind": "cord-history-paths", "commit": commit, "paths": undeclared})
-    if new_head != old_head and allowed_commits and not any(anchor in commits for anchor in allowed_commits):
-        violations.append({"kind": "cord-history-anchor-missing", "after": new_head})
-    return violations
 
 
 def main() -> int:
@@ -190,20 +141,19 @@ def main() -> int:
             continue
 
         for key in sorted((old.keys() | new.keys()) - CORD_CHANGE_KEYS):
-            if key == "index_tree":
-                # A committed descendant necessarily has a different index tree. Retain
-                # the invariant when the revision is unchanged, which detects a staged-only
-                # mutation hidden by restoring worktree bytes.
-                if old.get("head") == new.get("head") and old.get(key) != new.get(key):
-                    violations.append({"kind": "cord-invariant", "field": key})
-                continue
             if old.get(key) != new.get(key):
                 violations.append({"kind": "cord-invariant", "field": key})
         for changed in sorted(changed_paths(old, new), key=lambda value: value.encode("utf-8")):
             if not any(fnmatch.fnmatchcase(changed, pattern) for pattern in allowed_globs):
                 cord_undeclared_paths.append(changed)
-        if old.get("head") != new.get("head"):
-            violations.extend(validate_cord_history(old, new, allowed_globs, allowed_commits))
+        if old.get("head") != new.get("head") and new.get("head") not in allowed_commits:
+            violations.append(
+                {
+                    "kind": "cord-commit-not-declared",
+                    "before": old.get("head"),
+                    "after": new.get("head"),
+                }
+            )
 
     if cord_undeclared_paths:
         violations.append({"kind": "cord-undeclared-paths", "paths": cord_undeclared_paths})

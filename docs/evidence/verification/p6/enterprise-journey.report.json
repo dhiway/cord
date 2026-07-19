@@ -1,0 +1,29 @@
+{
+  "assertions": {
+    "application_storage": "native Drive and S3 records bind the verified content hash",
+    "attestation": "native schema, issue, live check, revoke and deny",
+    "content": "Orbis Storage commitment/provenance plus Product SDK ordered gateway-to-Bitswap failover with CID byte verification",
+    "identity_judgement": "native People registrar judgement",
+    "name": "native Orbis Names commit, register and attestation/content resolution",
+    "provider": "inactive-provider rejection, active-provider agreement/checkpoint, and DiskStore committed-byte read/reopen proof",
+    "sponsorship": "successful paid outer MetaTx executes native inner attestation and advances participant/sponsor nonces; exhaustion and signed version drift reject",
+    "subject": "native Entity subject identifier"
+  },
+  "journey_acceptance": true,
+  "native_only": {
+    "contract_abi": false,
+    "legacy_state": false,
+    "migrated_domain_revive": false,
+    "raw_scale_product_api": false
+  },
+  "p6_acceptance": false,
+  "production_evidence_deferred": [
+    "Live candidate topology execution and multi-provider network failover remain deferred.",
+    "Final E/Q/C SLO and storage-headroom campaigns run after deterministic journey closure.",
+    "Production launch approval remains unsigned and blocked."
+  ],
+  "runtime": "origin-commons-runtime",
+  "schema": "cord.enterprise-journey-report.v1",
+  "source": "origin/orbis/runtime/src/enterprise_journey.rs",
+  "status": "PASS"
+}

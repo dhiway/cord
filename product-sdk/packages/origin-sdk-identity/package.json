@@ -1,7 +1,7 @@
 {
   "name": "@cord-network/origin-sdk-identity",
   "version": "0.1.0",
-  "description": "Unified Commons Identity facade with separately granted Host-v2 operations",
+  "description": "Finalized Commons identity reads and typed People transactions",
   "license": "GPL-3.0-or-later",
   "type": "module",
   "sideEffects": false,
@@ -23,8 +23,11 @@
     "check": "tsc -p tsconfig.json --noEmit && node --experimental-strip-types --test tests/*.test.ts"
   },
   "dependencies": {
+    "@cord-network/origin-sdk-chain-client": "0.1.0",
+    "@cord-network/origin-sdk-descriptors": "0.1.0",
     "@cord-network/origin-sdk-errors": "0.1.0",
-    "@cord-network/origin-sdk-result": "0.1.0"
+    "@cord-network/origin-sdk-result": "0.1.0",
+    "@cord-network/origin-sdk-tx": "0.1.0"
   },
   "cord": {
     "bundleBudgetBytes": 200000

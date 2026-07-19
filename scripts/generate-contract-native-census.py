@@ -1211,7 +1211,7 @@ def symbol_semantics(row: dict[str, str], kind: str, name: str) -> dict[str, obj
                 disposition, native, owner, rust, ts = "intentional-change", "Attestation atomic derived indexes", "Attestation", "attestation.indexes", "attestation.indexes"
                 detail = "Retire external resolver callbacks/addresses. Admit only bounded recipient/attester indexes updated atomically in the same issue/revoke transaction; callback failure/reentrancy semantics disappear."
         elif n in {"timestamp", "multitimestamp", "gettimestamp", "_timestamp", "_timestamps"} or "timestamped" in n:
-            retire("Retire standalone arbitrary-data timestamp ledger; Provider, Drive and S3 are the only Commons storage authority.")
+            retire("Retire standalone arbitrary-data timestamp ledger from the attestation capability; TransactionStorage may anchor separately only through its own admitted bounded semantics.")
         elif "offchain" in n or "revokeoffchain" in n or "revocationsoffchain" in n:
             disposition, native, owner, rust, ts = "intentional-change", "Attestation external-status commitment", "Attestation", "attestation.externalStatus", "attestation.externalStatus"
             detail = "Keep private claim material off-chain; native state may store only issuer-authenticated bounded status commitments keyed by domain-separated digest, with monotonic revoke time and no arbitrary revoker namespace."

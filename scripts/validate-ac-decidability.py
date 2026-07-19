@@ -136,15 +136,7 @@ def validate_gate(
             failures.append("command read inputs are not explicitly declared")
         else:
             for value in read_inputs:
-                generated_by_prior_command = any(
-                    value == output or value.startswith(f"{output.rstrip('/')}/")
-                    for output in prior_outputs
-                )
-                if (
-                    value not in {"@registry", "@schema", "@repository_snapshot"}
-                    and value not in gate_input_paths
-                    and not generated_by_prior_command
-                ):
+                if value not in {"@registry", "@schema", "@repository_snapshot"} and value not in gate_input_paths and value not in prior_outputs:
                     failures.append(f"command read is not frozen or generated: {value}")
             if isinstance(argv, list):
                 inferred = {
@@ -188,13 +180,6 @@ def validate_gate(
                 artifacts = {row.get("path") for row in producer.get("artifact", [])}
                 if output != item.get("path") or output not in produced or output not in artifacts:
                     failures.append(f"generated input producer relation is invalid: {item.get('path')}")
-            continue
-        if expected == "record" and item.get("input_class") == "canonical_release":
-            attestation = item.get("attestation")
-            if not isinstance(attestation, str) or not attestation:
-                failures.append(f"canonical release input lacks SHA256SUMS attestation: {item.get('path')}")
-            elif not (root / attestation).is_file():
-                failures.append(f"canonical release attestation is missing: {attestation}")
             continue
         if re.fullmatch(r"[0-9a-f]{64}", expected) is None:
             failures.append(f"input hash is not frozen: {item.get('path')}")

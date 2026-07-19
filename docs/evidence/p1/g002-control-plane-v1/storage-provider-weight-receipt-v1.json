@@ -1,10 +1,10 @@
 {
   "schema_version": 1,
   "status": "pass",
-  "scope": "P1 Commons storage weights: compiled-Wasm 50x20 measurement",
+  "scope": "G002 provider control-plane weights: clean provider-only compiled-Wasm 50x20 rerun",
   "measurement_source": {
-    "commit": "2f33901e7567099bb5d2d3751e85df346ea1f038",
-    "tree": "3f221fe89258a87d93c2e72dc8adcac87b9df056",
+    "commit": "1ef7cc7285c5012d3d112d1211bd15a12fa5120c",
+    "tree": "52c1ee56f3230691096dd855b71e440e6c3b6981",
     "branch": "sm-update-sub-0x65",
     "isolated_worktree": true
   },
@@ -24,7 +24,7 @@
   },
   "benchmark": {
     "pallet": "pallet_orbis_storage_provider",
-    "benchmark_count": 33,
+    "benchmark_count": 30,
     "benchmarks": [
       "register_provider",
       "update_provider",
@@ -53,17 +53,14 @@
       "acknowledge_manifest_deletion",
       "replace_bucket_replica",
       "advance_finalized_checkpoint",
-      "create_host_delegation",
-      "rotate_host_delegation",
-      "revoke_host_delegation",
       "on_initialize_release",
       "on_initialize_reconcile",
       "on_initialize_challenges"
     ],
     "raw_json_path": "docs/evidence/p1/g002-control-plane-v1/benchmarks/pallet_orbis_storage_provider.json",
-    "raw_json_sha256": "b89eba6076f732fd544205e441f5824bfe5d1415fed6c043a678436df9c59021",
+    "raw_json_sha256": "32c11274c0528e7692d0ab788a7dfa941e744624459bf5243b1fa73136c40608",
     "generated_weight_path": "origin/orbis/pallets/storage-provider/src/weights.rs",
-    "generated_weight_sha256": "022594cabf3b1755cd9319e851c8666b289bf38dc6f66e70489759286b72fe81"
+    "generated_weight_sha256": "2b7356a2c4e4b9e8663507ec52a6dcb6dd927b120a3571f6211fa220e9756292"
   },
   "worst_case_binding": {
     "configured_max_replicas": 4,
@@ -148,6 +145,5 @@
     "g002_control_plane": true,
     "g003_provider_byte_plane": false,
     "production_ready": false
-  },
-  "finished_at": "2026-07-19T01:13:07.413932Z"
+  }
 }

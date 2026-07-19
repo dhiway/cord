@@ -18,15 +18,25 @@
 
 import { attestationHostRoutes } from "./attestation-host-routes.ts";
 import { namesHostRoutes } from "./names-host-routes.ts";
-import { driveHostRoutes, providerHostRoutes, s3HostRoutes } from "./storage-host-routes.ts";
+import { driveHostRoutes, providerHostRoutes, s3HostRoutes, storageHostRoutes } from "./storage-host-routes.ts";
 
 
 
 
+import { identityHostRoutes, personhoodHostRoutes } from "./identity-host-routes.ts";
 import { sponsoredTransaction } from "../../../src/sponsored-transaction.ts";
 
 /** Direct references to every real exported SDK route callable. */
 export const NATIVE_RUNTIME_ROUTE_REGISTRY = {
+  "identity:identity_status": identityHostRoutes.identityStatus,
+  "identity:personhood_status": personhoodHostRoutes.personhoodStatus,
+  "identity:attestation_allowance": personhoodHostRoutes.attestationAllowance,
+  "identity:set_identity": identityHostRoutes.setIdentity,
+  "identity:clear_identity": identityHostRoutes.clearIdentity,
+  "identity:request_judgement": identityHostRoutes.requestJudgement,
+  "identity:cancel_judgement_request": identityHostRoutes.cancelJudgementRequest,
+  "identity:provide_judgement": identityHostRoutes.provideJudgement,
+  "identity:attest_lite_person": personhoodHostRoutes.attestLitePerson,
   "attestation:schema_by_id": attestationHostRoutes.schemaById,
   "attestation:attestation_by_id": attestationHostRoutes.attestationById,
   "attestation:attestation_live_status": attestationHostRoutes.liveStatus,
@@ -61,7 +71,7 @@ export const NATIVE_RUNTIME_ROUTE_REGISTRY = {
   "names:resolve_address": namesHostRoutes.resolveAddress,
   "names:resolve_subject": namesHostRoutes.resolveSubject,
   "names:resolve_attestation": namesHostRoutes.resolveAttestation,
-  "names:resolve_content_publication": namesHostRoutes.resolveContentPublication,
+  "names:resolve_content": namesHostRoutes.resolveContent,
   "names:resolve_text": namesHostRoutes.resolveText,
   "names:primary_name": namesHostRoutes.primaryName,
   "names:name_status": namesHostRoutes.nameStatus,
@@ -76,7 +86,7 @@ export const NATIVE_RUNTIME_ROUTE_REGISTRY = {
   "names:set_address": namesHostRoutes.setAddress,
   "names:set_subject": namesHostRoutes.setSubject,
   "names:set_attestation": namesHostRoutes.setAttestation,
-  "names:publish_content": namesHostRoutes.publishContent,
+  "names:set_content": namesHostRoutes.setContent,
   "names:set_text": namesHostRoutes.setText,
   "names:set_primary_name": namesHostRoutes.setPrimaryName,
   "names:release": namesHostRoutes.release,
@@ -88,6 +98,22 @@ export const NATIVE_RUNTIME_ROUTE_REGISTRY = {
   "names:force_transfer": namesHostRoutes.forceTransfer,
   "names:force_revoke": namesHostRoutes.forceRevoke,
   "names:set_registrar": namesHostRoutes.setRegistrar,
+  "storage:account_authorization": storageHostRoutes.accountAuthorization,
+  "storage:can_store": storageHostRoutes.canStore,
+  "storage:can_renew": storageHostRoutes.canRenew,
+  "storage:stored_content_provenance": storageHostRoutes.storedContentProvenance,
+  "storage:resource_reservation": storageHostRoutes.resourceReservation,
+  "storage:resource_reservation_link": storageHostRoutes.resourceReservationLink,
+  "storage:resource_provider_ref": storageHostRoutes.resourceProviderRef,
+  "storage:store": storageHostRoutes.store,
+  "storage:store_with_cid_config": storageHostRoutes.storeWithCidConfig,
+  "storage:store_reserved": storageHostRoutes.storeReserved,
+  "storage:renew_reserved": storageHostRoutes.renewReserved,
+  "storage:attach_provider": storageHostRoutes.attachProvider,
+  "storage:renew": storageHostRoutes.renew,
+  "storage:force_renew": storageHostRoutes.forceRenew,
+  "storage:enable_auto_renew": storageHostRoutes.enableAutoRenew,
+  "storage:disable_auto_renew": storageHostRoutes.disableAutoRenew,
   "storage:provider_by_id": providerHostRoutes.providerById,
   "storage:providers": providerHostRoutes.providers,
   "storage:agreement_by_id": providerHostRoutes.agreementById,
@@ -106,9 +132,9 @@ export const NATIVE_RUNTIME_ROUTE_REGISTRY = {
   "storage:accept_agreement": providerHostRoutes.acceptAgreement,
   "storage:cancel_agreement": providerHostRoutes.cancelAgreement,
   "storage:issue_challenge": providerHostRoutes.issueChallenge,
-  "storage:acknowledge_manifest_deletion": providerHostRoutes.acknowledgeManifestDeletion,
   "storage:timeout_challenge": providerHostRoutes.timeoutChallenge,
   "storage:request_renewal": providerHostRoutes.requestRenewal,
+  "storage:acknowledge_manifest_deletion": providerHostRoutes.acknowledgeManifestDeletion,
   "storage:accept_renewal": providerHostRoutes.acceptRenewal,
   "storage:expire_agreement": providerHostRoutes.expireAgreement,
   "storage:prune_agreement": providerHostRoutes.pruneAgreement,

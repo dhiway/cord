@@ -1,0 +1,15 @@
+{
+  "assertion_sha256": "b5b72af6c3abfe44099a2ff1a36f91c79c494523b667c033f098179624c639a2",
+  "command": "CARGO_TARGET_DIR=target/evidence-v4 SKIP_WASM_BUILD=1 cargo test -p origin-orbis-runtime --lib tests::completion_manifest_v4_evidence_is_exact_and_semantically_frozen -- --exact --nocapture",
+  "expected": "bounded transaction support is active and evidence-backed",
+  "expected_output": "test result: ok",
+  "id": "GATE-2-ACTIVE",
+  "output_artifact": "docs/evidence/orbis-v4/outputs/fd41045d6108ca44ce4932262fdca8c18202c0248cffee2af415923b83ad6b01.log",
+  "output_artifact_sha256": "4649539b12b7ab5dbe261037a4307533811dcfc73e1168e9319584ab4b77a3c1",
+  "output_sha256": "4649539b12b7ab5dbe261037a4307533811dcfc73e1168e9319584ab4b77a3c1",
+  "schema": "orbis-completion-evidence-v4",
+  "source_commit": "f88aa3faa6573582ca690fa3cace58b7f670aa88",
+  "source_paths": "docs/orbis-completion-manifest.toml; docs/adr/0008-orbis-transaction-policy-pipeline.md; docs/orbis-native-capability-matrix.md",
+  "source_symbol": "Orbis",
+  "table": "remediation_gate"
+}

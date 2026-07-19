@@ -11,7 +11,7 @@ inside this repository on CORD's single `release-v1.24.0` SDK graph.
 |---|---:|---|---|
 | Dhiway SDK / Polkadot SDK fork | `release-v1.24.0#cc190ea8` | Apache-2.0 | FRAME, Cumulus, relay host, Assets, Revive, Broker and node interfaces |
 | Individuality Community | `28b7d07dab05` | Apache-2.0 | `next-asset-hub-paseo` and `next-people-paseo` behavior |
-| upstream transaction-storage reference | `b6c2827d2326` | Apache-2.0 | evaluated reference; runtime, node and SDK surfaces removed |
+| upstream transaction-storage reference | `b6c2827d2326` | Apache-2.0 | durable transaction storage, proof handling and hop promotion |
 | Paseo runtimes | `ac99ed6c1122` | GPL-3.0 | relay/system-chain configuration and XCM |
 | Fellows runtimes | `477689fddba4` | GPL-3.0 | system-chain production configuration |
 | Web3 Storage | `a32f83aae7a2` | Apache-2.0 except undeclared `file-system-primitives` | provider, drive and S3 storage service behavior; the undeclared crate requires legal clearance before copying |
@@ -101,7 +101,7 @@ inside this repository on CORD's single `release-v1.24.0` SDK graph.
 | Capability | Reference semantics | Orbis state |
 |---|---|---|
 | Orbis Names ownership and lifecycle | Orbis Names contracts/SDK | Native bounded pallet at index 116 with commit/reveal registration, renewal, transfer, controllers, reservations and root administration |
-| Address/subject/attestation/content/text resolution | Orbis Names resolvers | Native records reference canonical identities, attestations and Commons content commitments; no contract registry or ABI facade |
+| Address/subject/attestation/content/text resolution | Orbis Names resolvers | Native records reference canonical identities, attestations and TransactionStorage commitments; no contract registry or ABI facade |
 | Label policy | Orbis Names normalization semantics | Deterministic ASCII policy v1 exposed through the runtime API; non-ASCII and reserved forms fail closed |
 | Rust/TypeScript access | Orbis Names SDK patterns | CORD-owned typed clients and exact finalized-hash runtime API surface; no changes to the reference Orbis Names repositories |
 
@@ -109,7 +109,14 @@ inside this repository on CORD's single `release-v1.24.0` SDK graph.
 
 | Capability/pallet | Reference | Orbis state |
 |---|---|---|
-| Removed transaction-retention plane | Legacy TransactionStorage / Hop promotion | Deleted from the Commons runtime, node, workspace and SDK; no proof inherent, retention API or compatibility route remains |
+| Authorized durable storage | Orbis Storage TransactionStorage | Vendored and present at index 110 |
+| Person resource reservation and provenance | Orbis Resources/Orbis Storage semantics | Clean-genesis TransactionStorage V8: isolated capacity, exact `(block, transaction_index)` links, explicit current-network actors, manual reserved renewal, deterministic expiry/tombstone audit and optional native provider agreement references |
+| Content hash/CID lookup | Orbis Storage | Present and tested |
+| Retention, renewal and permanent accounting | Orbis Storage | Present and unit-tested |
+| Storage transaction validation and anti-wrapper policy | Orbis Storage | Present in the Orbis transaction envelope |
+| Runtime authorization/query API | Orbis Storage | Present |
+| Proof inherent | Orbis Storage node/runtime | TransactionStorageApi v2 and the SDK-v1.24 omni-node Aura provider (which accepts v1+) are composed; production retention-window E2E is deferred to P7 after feature completeness |
+| Hop promotion | `pallet_orbis_hop_promotion` | Vendored under Orbis, present at index 111 with `sp_hop` runtime API |
 | Storage providers | Web3 Storage semantics | Native CORD pallet present at index 120; Sudo-authorized, zero-stake provider lifecycle, agreements, challenges and checkpoints |
 | Drive registry | Web3 Storage semantics | Native bounded CORD pallet present at index 121 |
 | S3 registry | Web3 Storage semantics | Native bounded CORD pallet present at index 122 |
@@ -135,9 +142,11 @@ copied verbatim.
 
 ### Clean-genesis feature sequence
 
-1. The deleted transaction-retention and hop surfaces have no genesis state, compatibility decode or migration path.
-2. Provider, Drive and S3 are the only Commons storage authority surfaces.
-3. Production recovery and performance campaigns run after the CORD-owned stack is feature complete.
+1. TransactionStorage starts directly at storage version 8; no V0-V7 migration, backfill, tolerant legacy decode or `LegacyUnknown` provenance is part of the network.
+2. `ReservationProviderRef` and `attach_provider` are native current-schema capabilities validated against active Provider agreements.
+3. Provider 120, Drive 121 and S3 122 plus their versioned runtime APIs are composed from genesis.
+4. Historical manifest-v4/V5 migration evidence remains non-buildable provenance only and is not a current launch obligation.
+5. Broad proof-retention, recovery and performance campaigns run only after the provider node and both CORD-owned SDKs are feature complete.
 
 ## Completion order
 

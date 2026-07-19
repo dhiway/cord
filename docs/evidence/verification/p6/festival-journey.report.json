@@ -1,0 +1,402 @@
+{
+  "schema": "cord.festival-journey-report.v1",
+  "status": "PASS",
+  "journey_acceptance": true,
+  "p6_acceptance": false,
+  "application_id": "festival-p6-reference",
+  "network_activation": "candidate-pending",
+  "route_factory": "NATIVE_RUNTIME_ROUTE_REGISTRY",
+  "transport": "createTypedNetworkHostRoutes+FakeHost",
+  "results": {
+    "permission_denial": {
+      "code": "permission_denied",
+      "retryable": false
+    },
+    "personhood_credential": {
+      "code": "success",
+      "retryable": false,
+      "finalized_hash": "0xa1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1",
+      "response": {
+        "version": 1,
+        "full_personal_id": "42",
+        "full_recognized": true,
+        "lite_recognized": true
+      }
+    },
+    "attestation_live_evidence": {
+      "code": "success",
+      "retryable": false,
+      "finalized_hash": "0xa1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1",
+      "response": {
+        "version": 1,
+        "exists": true,
+        "live": true,
+        "evaluated_at": "100",
+        "expiry": null,
+        "revoked_at": null
+      }
+    },
+    "dot_lookup": {
+      "code": "success",
+      "retryable": false,
+      "finalized_hash": "0xa1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1",
+      "response": {
+        "version": 1,
+        "value": {
+          "name": "0x1414141414141414141414141414141414141414141414141414141414141414",
+          "label": "festival",
+          "owner": "participant"
+        }
+      }
+    },
+    "dot_commit": {
+      "code": "success",
+      "retryable": false,
+      "finalized_hash": "0xb2b2b2b2b2b2b2b2b2b2b2b2b2b2b2b2b2b2b2b2b2b2b2b2b2b2b2b2b2b2b2b2",
+      "extrinsic_hash": "0xc3c3c3c3c3c3c3c3c3c3c3c3c3c3c3c3c3c3c3c3c3c3c3c3c3c3c3c3c3c3c3c3"
+    },
+    "dot_register": {
+      "code": "success",
+      "retryable": false,
+      "finalized_hash": "0xb2b2b2b2b2b2b2b2b2b2b2b2b2b2b2b2b2b2b2b2b2b2b2b2b2b2b2b2b2b2b2b2",
+      "extrinsic_hash": "0xc3c3c3c3c3c3c3c3c3c3c3c3c3c3c3c3c3c3c3c3c3c3c3c3c3c3c3c3c3c3c3c3"
+    },
+    "dot_credential_link": {
+      "code": "success",
+      "retryable": false,
+      "finalized_hash": "0xa1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1",
+      "response": {
+        "version": 1,
+        "value": "0x1111111111111111111111111111111111111111111111111111111111111111"
+      }
+    },
+    "prepare_sponsored_check_in": {
+      "code": "success",
+      "retryable": false,
+      "finalized_hash": "0xa1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1",
+      "response": {
+        "version": 1,
+        "signing_domain": "orbis/meta-intent/v7",
+        "genesis_hash": "0x2584c9d420dc8160b85deaf958d776886366d5beecc2ee7b1236293d20ac70fc",
+        "spec_version": 29,
+        "transaction_version": 8,
+        "metadata_hash": "0x50c8958f0171889a4b01093a5dd5272faf8802018f24a4ac22b231d37b2adc45",
+        "participant": "0x31f3322d4923d36c41c109bdb0099193187bed99942096e4926a24c77efd0d2f",
+        "nonce": "1",
+        "mortality": {
+          "valid_from": "100",
+          "valid_until": "164"
+        },
+        "target": {
+          "capability": "attestation",
+          "method": "issue",
+          "payload": {
+            "schema": "0x1313131313131313131313131313131313131313131313131313131313131313",
+            "subject_commitment": "0x1616161616161616161616161616161616161616161616161616161616161616",
+            "payload_commitment": "0x1717171717171717171717171717171717171717171717171717171717171717",
+            "status_commitment": "0x1818181818181818181818181818181818181818181818181818181818181818",
+            "parent": "0x1111111111111111111111111111111111111111111111111111111111111111",
+            "expiry": null,
+            "uniqueness_commitment": null,
+            "revocable": true
+          }
+        },
+        "signing_payload_hash": "0xe4787db353dfd3c98fb6361945d9faf9b04eaa6a77e21d41f9afd892a7023874",
+        "intent_id": "0x5afd6c0b47725e16804bff577c22f3fb43d9ee11bb180ad35f48241144617503"
+      }
+    },
+    "sponsored_check_in": {
+      "code": "success",
+      "retryable": false,
+      "finalized_hash": "0xb2b2b2b2b2b2b2b2b2b2b2b2b2b2b2b2b2b2b2b2b2b2b2b2b2b2b2b2b2b2b2b2",
+      "extrinsic_hash": "0xd4d4d4d4d4d4d4d4d4d4d4d4d4d4d4d4d4d4d4d4d4d4d4d4d4d4d4d4d4d4d4d4",
+      "response": {
+        "version": 1,
+        "intent_id": "0x5afd6c0b47725e16804bff577c22f3fb43d9ee11bb180ad35f48241144617503",
+        "participant": "0x31f3322d4923d36c41c109bdb0099193187bed99942096e4926a24c77efd0d2f",
+        "sponsor": "festival-sponsor-account",
+        "dispatched": true,
+        "meta_tx_event": "Dispatched",
+        "inner_result": "Ok"
+      }
+    },
+    "sponsored_replay": {
+      "code": "replay",
+      "retryable": false
+    },
+    "tampered_sponsored_intent": {
+      "code": "proof_invalid",
+      "retryable": false
+    },
+    "prepare_exhausted_check_in": {
+      "code": "success",
+      "retryable": false,
+      "finalized_hash": "0xa1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1",
+      "response": {
+        "version": 1,
+        "signing_domain": "orbis/meta-intent/v7",
+        "genesis_hash": "0x2584c9d420dc8160b85deaf958d776886366d5beecc2ee7b1236293d20ac70fc",
+        "spec_version": 29,
+        "transaction_version": 8,
+        "metadata_hash": "0x50c8958f0171889a4b01093a5dd5272faf8802018f24a4ac22b231d37b2adc45",
+        "participant": "0x31f3322d4923d36c41c109bdb0099193187bed99942096e4926a24c77efd0d2f",
+        "nonce": "2",
+        "mortality": {
+          "valid_from": "100",
+          "valid_until": "164"
+        },
+        "target": {
+          "capability": "attestation",
+          "method": "issue",
+          "payload": {
+            "schema": "0x1313131313131313131313131313131313131313131313131313131313131313",
+            "subject_commitment": "0x1616161616161616161616161616161616161616161616161616161616161616",
+            "payload_commitment": "0x1717171717171717171717171717171717171717171717171717171717171717",
+            "status_commitment": "0x1818181818181818181818181818181818181818181818181818181818181818",
+            "parent": "0x1111111111111111111111111111111111111111111111111111111111111111",
+            "expiry": null,
+            "uniqueness_commitment": null,
+            "revocable": true
+          }
+        },
+        "signing_payload_hash": "0x6518ef8e758ef25aabcbf288f2bea91d6d05838ceee46fd355d9308865d15fdb",
+        "intent_id": "0x8fef16fd46cf5841a4443b6dbfd8bf96ac761e9f644b4f4afebf8aa9b19d83d2"
+      }
+    },
+    "sponsor_budget_exhaustion": {
+      "code": "capacity_exceeded",
+      "retryable": false
+    },
+    "offline": {
+      "code": "timeout",
+      "retryable": true
+    },
+    "offline_reconnect": {
+      "code": "success",
+      "retryable": false,
+      "finalized_hash": "0xa1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1",
+      "response": {
+        "version": 1,
+        "value": {
+          "name": "0x1414141414141414141414141414141414141414141414141414141414141414",
+          "label": "festival",
+          "owner": "participant"
+        }
+      }
+    },
+    "offline_replay": {
+      "code": "conflict",
+      "retryable": false
+    },
+    "cancelled": {
+      "code": "cancelled",
+      "retryable": false
+    },
+    "cancel_reconnect": {
+      "code": "success",
+      "retryable": false,
+      "finalized_hash": "0xb2b2b2b2b2b2b2b2b2b2b2b2b2b2b2b2b2b2b2b2b2b2b2b2b2b2b2b2b2b2b2b2",
+      "extrinsic_hash": "0xc3c3c3c3c3c3c3c3c3c3c3c3c3c3c3c3c3c3c3c3c3c3c3c3c3c3c3c3c3c3c3c3"
+    },
+    "cancel_replay": {
+      "code": "conflict",
+      "retryable": false
+    },
+    "version_drift": {
+      "code": "unsupported_runtime",
+      "retryable": false
+    },
+    "revoke_credential": {
+      "code": "success",
+      "retryable": false,
+      "finalized_hash": "0xb2b2b2b2b2b2b2b2b2b2b2b2b2b2b2b2b2b2b2b2b2b2b2b2b2b2b2b2b2b2b2b2",
+      "extrinsic_hash": "0xc3c3c3c3c3c3c3c3c3c3c3c3c3c3c3c3c3c3c3c3c3c3c3c3c3c3c3c3c3c3c3c3"
+    },
+    "revoked_evidence": {
+      "code": "success",
+      "retryable": false,
+      "finalized_hash": "0xa1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1",
+      "response": {
+        "version": 1,
+        "exists": true,
+        "live": false,
+        "evaluated_at": "100",
+        "expiry": null,
+        "revoked_at": "99"
+      }
+    },
+    "prepare_revoked_check_in": {
+      "code": "success",
+      "retryable": false,
+      "finalized_hash": "0xa1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1",
+      "response": {
+        "version": 1,
+        "signing_domain": "orbis/meta-intent/v7",
+        "genesis_hash": "0x2584c9d420dc8160b85deaf958d776886366d5beecc2ee7b1236293d20ac70fc",
+        "spec_version": 29,
+        "transaction_version": 8,
+        "metadata_hash": "0x50c8958f0171889a4b01093a5dd5272faf8802018f24a4ac22b231d37b2adc45",
+        "participant": "0x31f3322d4923d36c41c109bdb0099193187bed99942096e4926a24c77efd0d2f",
+        "nonce": "3",
+        "mortality": {
+          "valid_from": "100",
+          "valid_until": "164"
+        },
+        "target": {
+          "capability": "attestation",
+          "method": "issue",
+          "payload": {
+            "schema": "0x1313131313131313131313131313131313131313131313131313131313131313",
+            "subject_commitment": "0x1616161616161616161616161616161616161616161616161616161616161616",
+            "payload_commitment": "0x1717171717171717171717171717171717171717171717171717171717171717",
+            "status_commitment": "0x1818181818181818181818181818181818181818181818181818181818181818",
+            "parent": "0x1111111111111111111111111111111111111111111111111111111111111111",
+            "expiry": null,
+            "uniqueness_commitment": null,
+            "revocable": true
+          }
+        },
+        "signing_payload_hash": "0x6ed2819e619dca70fc2a8c2b3ada0dab843c85537934502e4c40227de26119a6",
+        "intent_id": "0xeeac4c66cd05a4f53e8525e4ba77ccda15a7b00554a4724fe6128cd2fc4008e8"
+      }
+    },
+    "revoked_sponsored_denial": {
+      "code": "not_authorized",
+      "retryable": false
+    },
+    "permission_revoked": {
+      "code": "permission_revoked",
+      "retryable": false
+    }
+  },
+  "signer_boundaries": {
+    "participant_authorization_count": 19,
+    "self_chain_signer": "0x31f3322d4923d36c41c109bdb0099193187bed99942096e4926a24c77efd0d2f",
+    "remote_sponsor_chain_signer": "festival-sponsor-account",
+    "self_submission_count": 4,
+    "sponsored_submission_count": 5,
+    "distinct_chain_signers": true,
+    "qualification": "A deterministic Ed25519 participant key signs a digest committing the complete typed v7 envelope; the distinct host signer submits MetaTx::dispatch and requires finalized MetaTx::Dispatched(Ok). Runtime SCALE/signature parity remains covered by Rust integration tests."
+  },
+  "route_selections": {
+    "self": [
+      "identity:personhood_status",
+      "names:root_name_by_normalized_label",
+      "names:commit",
+      "names:register",
+      "names:resolve_attestation",
+      "names:root_name_by_normalized_label",
+      "names:commit",
+      "names:commit"
+    ],
+    "sponsor": [
+      "attestation:attestation_live_status",
+      "transaction:prepare_sponsored_intent",
+      "transaction:submit_sponsored_intent",
+      "transaction:submit_sponsored_intent",
+      "transaction:submit_sponsored_intent",
+      "transaction:prepare_sponsored_intent",
+      "transaction:submit_sponsored_intent",
+      "attestation:revoke",
+      "attestation:attestation_live_status",
+      "transaction:prepare_sponsored_intent",
+      "transaction:submit_sponsored_intent"
+    ]
+  },
+  "finalized_events": [
+    {
+      "finalized_block_hash": "0xb2b2b2b2b2b2b2b2b2b2b2b2b2b2b2b2b2b2b2b2b2b2b2b2b2b2b2b2b2b2b2b2",
+      "event_index": 0,
+      "event": {
+        "event": "name_registered",
+        "data": {
+          "name": "0x1414141414141414141414141414141414141414141414141414141414141414",
+          "label": "festival",
+          "owner": "participant"
+        }
+      }
+    },
+    {
+      "finalized_block_hash": "0xb2b2b2b2b2b2b2b2b2b2b2b2b2b2b2b2b2b2b2b2b2b2b2b2b2b2b2b2b2b2b2b2",
+      "event_index": 1,
+      "event": {
+        "event": "sponsored_check_in",
+        "data": {
+          "intent": "0x5afd6c0b47725e16804bff577c22f3fb43d9ee11bb180ad35f48241144617503",
+          "participant": "0x31f3322d4923d36c41c109bdb0099193187bed99942096e4926a24c77efd0d2f",
+          "sponsor": "festival-sponsor-account"
+        }
+      }
+    },
+    {
+      "finalized_block_hash": "0xb2b2b2b2b2b2b2b2b2b2b2b2b2b2b2b2b2b2b2b2b2b2b2b2b2b2b2b2b2b2b2b2",
+      "event_index": 2,
+      "event": {
+        "event": "attestation_revoked",
+        "data": {
+          "attestation": "0x1111111111111111111111111111111111111111111111111111111111111111",
+          "by": "sponsor"
+        }
+      }
+    }
+  ],
+  "replay_boundaries": {
+    "sponsored_intent_replay": "replay",
+    "tampered_sponsored_intent": "proof_invalid",
+    "host_consent_replay": "conflict",
+    "reconnect_uses_new_request_and_consent": true
+  },
+  "vector_observations": {
+    "participant-dot-registration": {
+      "chain_signer": "participant",
+      "event": "name_registered"
+    },
+    "sponsored-check-in": {
+      "chain_signer": "sponsor",
+      "event": "sponsored_check_in",
+      "meta_tx_event": "Dispatched",
+      "inner_result": "Ok"
+    },
+    "reconnect": {
+      "new_request_and_consent": true
+    },
+    "revoked-credential-deny": {
+      "event": "attestation_revoked"
+    }
+  },
+  "terminal_count": 23,
+  "native_only": {
+    "raw_scale": false,
+    "contract_abi": false,
+    "pallet_indices": false,
+    "call_indices": false
+  },
+  "sealed_route_registry": {
+    "capabilities": [
+      "attestation",
+      "names",
+      "identity",
+      "storage",
+      "transaction"
+    ],
+    "identity_routes": 9,
+    "personhood_routes": 1,
+    "sponsored_transaction_routes": 2
+  },
+  "production_evidence_deferred": [
+    "Live-chain execution and production-finality observation remain outside this deterministic contract harness.",
+    "Final E/Q/C SLO and storage-headroom campaigns run only after both P6 journeys are feature complete.",
+    "Production Swift or Kotlin rewrites are explicit non-goals; mobile deliverables are contract harnesses."
+  ],
+  "mobile_contract_harness": {
+    "ios": "product-sdk/examples/festival/ios-contract-harness.manifest.json",
+    "android": "product-sdk/examples/festival/android-contract-harness.manifest.json",
+    "vectors": "product-sdk/examples/festival/mobile-contract-vectors.json"
+  },
+  "deferred": {
+    "live_chain": true,
+    "production_finality": true,
+    "slo": true,
+    "production_mobile_rewrite": true
+  }
+}

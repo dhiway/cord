@@ -1,0 +1,45 @@
+{
+  "android_contract_harness": {
+    "report": "docs/evidence/verification/p6/festival-android-contract-parity.report.json",
+    "sha256": "6a44062a4bc4097b27e3151e88fd525ec601bdee115fe8c7e39c61257ee799e2"
+  },
+  "enterprise": {
+    "report": "docs/evidence/verification/p6/enterprise-journey.report.json",
+    "sha256": "0adf1db982ffb0cbc47ecd236927517eb81cf0a6eb54fae62a21a4a77eb4d130"
+  },
+  "festival": {
+    "report": "docs/evidence/verification/p6/festival-journey.report.json",
+    "sha256": "402173312ee060a56e8516b21bcd00d011908402b47f7f7e6f301e31413ea22a"
+  },
+  "ios_contract_harness": {
+    "report": "docs/evidence/verification/p6/festival-ios-contract-parity.report.json",
+    "sha256": "119f8f1ae5f51769ea6529bf6e5a8655a913c55fa061cbcf09c1e92221d31c8c"
+  },
+  "journey_acceptance": true,
+  "mobile_contract_parity": {
+    "report": "docs/evidence/verification/p6/festival-mobile-contract-parity.report.json",
+    "sha256": "d2d7490fc99bd3f5e6921a36d29793165c9534359d528ce33c0a56eccee801bf"
+  },
+  "p6_acceptance": false,
+  "production_app_claim": false,
+  "remaining_p6_gates": [
+    "final mixed E/Q/C campaign and storage/resource headroom",
+    "clean-developer diagnosis of at least three injected failures",
+    "independent P6 verification and adoption acceptance"
+  ],
+  "required_failures": [
+    "permission_denial",
+    "cancellation",
+    "sponsor_exhaustion",
+    "version_drift",
+    "provider_unavailable",
+    "offline",
+    "reconnect",
+    "replay",
+    "revocation",
+    "sponsored_replay",
+    "tampered_sponsored_intent"
+  ],
+  "schema": "cord.p6-journeys.v1",
+  "status": "PASS"
+}

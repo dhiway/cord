@@ -7,52 +7,52 @@
   },
   "components": [
     {
-      "benchmark_count": 33,
+      "benchmark_count": 30,
       "generated_weight_path": "origin/orbis/pallets/storage-provider/src/weights.rs",
-      "generated_weight_sha256": "022594cabf3b1755cd9319e851c8666b289bf38dc6f66e70489759286b72fe81",
+      "generated_weight_sha256": "2b7356a2c4e4b9e8663507ec52a6dcb6dd927b120a3571f6211fa220e9756292",
       "measurement_source": {
-        "commit": "2f33901e7567099bb5d2d3751e85df346ea1f038",
-        "tree": "3f221fe89258a87d93c2e72dc8adcac87b9df056",
         "branch": "sm-update-sub-0x65",
-        "isolated_worktree": true
+        "commit": "1ef7cc7285c5012d3d112d1211bd15a12fa5120c",
+        "isolated_worktree": true,
+        "tree": "52c1ee56f3230691096dd855b71e440e6c3b6981"
       },
       "pallet": "pallet_orbis_storage_provider",
       "raw_json_path": "docs/evidence/p1/g002-control-plane-v1/benchmarks/pallet_orbis_storage_provider.json",
-      "raw_json_sha256": "b89eba6076f732fd544205e441f5824bfe5d1415fed6c043a678436df9c59021",
+      "raw_json_sha256": "32c11274c0528e7692d0ab788a7dfa941e744624459bf5243b1fa73136c40608",
       "receipt_path": "docs/evidence/p1/g002-control-plane-v1/storage-provider-weight-receipt-v1.json",
-      "receipt_sha256": "5e26245ef1af99cc233aa996f4c2aacae31ddc6bda421fd55ef8871cbb4fcf19"
+      "receipt_sha256": "6f6d9ff2e0e79700b60bf6e71ad190264311219ba80e590a2a81ea14e88fa34f"
     },
     {
       "benchmark_count": 8,
       "generated_weight_path": "origin/orbis/pallets/drive/src/weights.rs",
-      "generated_weight_sha256": "25af195852af0c66e265bfd82ded1ddd878c4527b672d08d04401221eab25615",
+      "generated_weight_sha256": "ba4c5a6c2dcb0d43ef14b4356d20e5c42d947268e2b3a74a73290be0516ec70e",
       "measurement_source": {
-        "commit": "2f33901e7567099bb5d2d3751e85df346ea1f038",
-        "tree": "3f221fe89258a87d93c2e72dc8adcac87b9df056",
         "branch": "sm-update-sub-0x65",
-        "isolated_worktree": true
+        "commit": "048309a9e45abb315a25d25c06039936872e938f",
+        "isolated_worktree": true,
+        "tree": "c9455774c63decfb62b35eb250524c121fcca6eb"
       },
       "pallet": "pallet_orbis_drive",
       "raw_json_path": "docs/evidence/p1/g002-control-plane-v1/benchmarks/pallet_orbis_drive.json",
-      "raw_json_sha256": "964952282dc62ebac8fa009da51d28dacdd0b0c19b6073d2ba888a6955c555ab",
+      "raw_json_sha256": "633e9d86a1ecb295b0ef13988f91254a50d8f2cca5678979a8c3f7eaadb21283",
       "receipt_path": "docs/evidence/p1/g002-control-plane-v1/drive-weight-receipt-v1.json",
-      "receipt_sha256": "780e59b9dbc6140f28a40c6660acef26830befe8f71db15f0dcf1a6d2381e4b6"
+      "receipt_sha256": "9885800019f0a5b45b199978d35721b948c2db6eb3f5395acf78603d0c017012"
     },
     {
       "benchmark_count": 11,
       "generated_weight_path": "origin/orbis/pallets/s3/src/weights.rs",
-      "generated_weight_sha256": "0ea2abd134979aea574c6f6e2cdd5fae8bfcb67f01db0307a33e998647791987",
+      "generated_weight_sha256": "5d6a7cae56deffba6d3cce491883eaa8e9bdaebc7f4ce3531894cd2d68a2396b",
       "measurement_source": {
-        "commit": "2f33901e7567099bb5d2d3751e85df346ea1f038",
-        "tree": "3f221fe89258a87d93c2e72dc8adcac87b9df056",
         "branch": "sm-update-sub-0x65",
-        "isolated_worktree": true
+        "commit": "048309a9e45abb315a25d25c06039936872e938f",
+        "isolated_worktree": true,
+        "tree": "c9455774c63decfb62b35eb250524c121fcca6eb"
       },
       "pallet": "pallet_orbis_s3",
       "raw_json_path": "docs/evidence/p1/g002-control-plane-v1/benchmarks/pallet_orbis_s3.json",
-      "raw_json_sha256": "119e51e27b94aae7b506cc44d7c7beab61ec3a492ed464c16e3112fcbda5e63f",
+      "raw_json_sha256": "649a3e62fe31ed7e42d9874e3d2dee949ddad19f7b4c884b0ac591d8ad12d524",
       "receipt_path": "docs/evidence/p1/g002-control-plane-v1/s3-weight-receipt-v1.json",
-      "receipt_sha256": "81e1fc4ca5c224730eb373a417d2ce4195cd40b9e6596cc31afdec30640eda61"
+      "receipt_sha256": "82c0cc1aec5090cd2a0d66530f5206651c206e741f4bf1e9999adcd37f1b10de"
     }
   ],
   "materialized_at_commit": "cb35f8064454571adf7389885c301ba26fdb748a",

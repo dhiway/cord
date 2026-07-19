@@ -30,6 +30,7 @@ import {
   ORBIS_CANDIDATE_NETWORK_BINDING,
   ORBIS_NETWORK_BINDING,
 } from "../../packages/descriptors/generated/orbis-network-binding.ts";
+import { NATIVE_RUNTIME_ROUTE_REGISTRY } from "../../packages/descriptors/src/runtime-route-registry.ts";
 import { validateHostRequest, type HostRequest } from "../../packages/host/src/fake-host.ts";
 import {
   createTypedNetworkHostRoutes,
@@ -38,6 +39,8 @@ import {
   type TypedRuntimeIdentity,
   type TypedSponsoredIntentTransport,
 } from "../../packages/host/src/network-host.ts";
+import type { IdentityInfo } from "@cord-network/origin-sdk-identity";
+import { identityHostRoutes, personhoodHostRoutes } from "../../packages/descriptors/src/identity-host-routes.ts";
 import {
   sponsoredNonce,
   sponsoredTransaction,
@@ -48,6 +51,7 @@ import {
 const HASH = (byte: string) => `0x${byte.repeat(64)}`;
 const PARTICIPANT = "participant-account" as any;
 const SPONSOR = "sponsor-account" as any;
+const REGISTRAR = "registrar-account" as any;
 type AssertFalse<Value extends false> = Value;
 type _SponsoredMethodIsClosed = AssertFalse<string extends SponsoredNativeTarget["method"] ? true : false>;
 type _InventedTargetIsRejected = AssertFalse<{
@@ -55,6 +59,15 @@ type _InventedTargetIsRejected = AssertFalse<{
   method: "invented";
   payload: {};
 } extends SponsoredNativeTarget ? true : false>;
+const identityInfo: IdentityInfo = {
+  display: { kind: "raw", value: "Festival Participant" },
+  legal: { kind: "none" },
+  web: { kind: "none" },
+  email: { kind: "none" },
+  image: { kind: "blake2_256", hash: HASH("1") as any },
+  additional: [{ key: { kind: "raw", value: "tier" }, value: { kind: "raw", value: "enterprise" } }],
+};
+
 let sequence = 0;
 function context(scope: string) {
   sequence++;
@@ -82,7 +95,7 @@ const envelope = {
   participant: PARTICIPANT,
   nonce: sponsoredNonce(7),
   mortality: { valid_from: "100" as any, valid_until: "164" as any },
-  target: { capability: "attestation", method: "revoke", payload: { attestation: HASH("4") } } as const,
+  target: { capability: "identity", method: "clear_identity", payload: {} } as const,
   signing_payload_hash: HASH("3") as any,
   intent_id: HASH("2") as any,
 };
@@ -90,6 +103,65 @@ const signedIntent: SignedSponsoredIntent = {
   envelope,
   participant_signature: { scheme: "sr25519", value: `0x${"33".repeat(64)}` },
 };
+
+test("identity and personhood host factories expose only the nine audit-approved closed routes", () => {
+  const requests = [
+    identityHostRoutes.identityStatus(context("identity:identity_status"), PARTICIPANT),
+    personhoodHostRoutes.personhoodStatus(context("identity:personhood_status"), PARTICIPANT),
+    personhoodHostRoutes.attestationAllowance(context("identity:attestation_allowance"), PARTICIPANT),
+    identityHostRoutes.setIdentity(context("identity:set_identity"), identityInfo),
+    identityHostRoutes.clearIdentity(context("identity:clear_identity")),
+    identityHostRoutes.requestJudgement(context("identity:request_judgement"), REGISTRAR),
+    identityHostRoutes.cancelJudgementRequest(context("identity:cancel_judgement_request"), REGISTRAR),
+    identityHostRoutes.provideJudgement(
+      context("identity:provide_judgement"),
+      PARTICIPANT,
+      "known_good",
+      HASH("4") as any,
+    ),
+    personhoodHostRoutes.attestLitePerson(context("identity:attest_lite_person"), {
+      candidate: PARTICIPANT,
+      candidate_signature: { scheme: "sr25519", bytes: `0x${"11".repeat(64)}` },
+      ring_vrf_key: HASH("2") as any,
+      proof_of_ownership: `0x${"22".repeat(64)}` as any,
+    }),
+  ];
+  assert.deepEqual(requests.map(({ capability, method }) => `${capability}:${method}`), [
+    "identity:identity_status",
+    "identity:personhood_status",
+    "identity:attestation_allowance",
+    "identity:set_identity",
+    "identity:clear_identity",
+    "identity:request_judgement",
+    "identity:cancel_judgement_request",
+    "identity:provide_judgement",
+    "identity:attest_lite_person",
+  ]);
+  requests.forEach(validateHostRequest);
+  assert.deepEqual(requests.map(({ finality }) => finality), [
+    "finalized", "finalized", "finalized",
+    "submit-and-finalize", "submit-and-finalize", "submit-and-finalize",
+    "submit-and-finalize", "submit-and-finalize", "submit-and-finalize",
+  ]);
+  for (const route of requests.map(({ capability, method }) => `${capability}:${method}`)) {
+    assert.equal(typeof (NATIVE_RUNTIME_ROUTE_REGISTRY as any)[route], "function", route);
+  }
+  assert.equal(typeof NATIVE_RUNTIME_ROUTE_REGISTRY["transaction:prepare_sponsored_intent"], "function");
+  assert.equal(typeof NATIVE_RUNTIME_ROUTE_REGISTRY["transaction:submit_sponsored_intent"], "function");
+});
+
+test("identity and personhood payloads fail closed on unbounded or invented fields", () => {
+  assert.equal(code(() => assertMethodPayload("identity", "set_identity", {
+    info: { ...identityInfo, display: { kind: "raw", value: "x".repeat(33) } },
+  } as any)), "invalid_input");
+  assert.equal(code(() => assertMethodPayload("identity", "attest_lite_person", {
+    candidate: PARTICIPANT,
+    candidate_signature: { scheme: "sr25519", bytes: `0x${"11".repeat(64)}` },
+    ring_vrf_key: HASH("2"),
+    proof_of_ownership: `0x${"22".repeat(64)}`,
+    consumer_registration: null,
+  } as any)), "invalid_input");
+});
 
 test("sponsored factories carry typed targets and participant signatures without raw SCALE", () => {
   assert.doesNotThrow(() => assertNoContractSurface({ capability: "identity" }));

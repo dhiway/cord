@@ -80,6 +80,20 @@ state = "present"
 dependencies = ["@cord-network/origin-sdk-chain-client", "@cord-network/origin-sdk-descriptors", "@cord-network/origin-sdk-errors", "@cord-network/origin-sdk-result", "@cord-network/origin-sdk-tx"]
 
 [[package]]
+name = "@cord-network/origin-sdk-personhood"
+tier = "B"
+owner = "sdk-domains"
+state = "present"
+dependencies = ["@cord-network/origin-sdk-chain-client", "@cord-network/origin-sdk-descriptors", "@cord-network/origin-sdk-errors", "@cord-network/origin-sdk-result", "@cord-network/origin-sdk-tx", "@cord-network/origin-sdk-identity"]
+
+[[package]]
+name = "@cord-network/origin-sdk-resources"
+tier = "B"
+owner = "sdk-domains"
+state = "present"
+dependencies = ["@cord-network/origin-sdk-chain-client", "@cord-network/origin-sdk-descriptors", "@cord-network/origin-sdk-errors", "@cord-network/origin-sdk-result", "@cord-network/origin-sdk-tx", "@cord-network/origin-sdk-identity", "@cord-network/origin-sdk-personhood"]
+
+[[package]]
 name = "@cord-network/origin-sdk-attestation"
 tier = "B"
 owner = "sdk-domains"
@@ -99,6 +113,13 @@ tier = "B"
 owner = "sdk-storage"
 state = "present"
 dependencies = ["@cord-network/origin-sdk-chain-client", "@cord-network/origin-sdk-crypto", "@cord-network/origin-sdk-descriptors", "@cord-network/origin-sdk-errors", "@cord-network/origin-sdk-identity", "@cord-network/origin-sdk-result", "@cord-network/origin-sdk-tx"]
+
+[[package]]
+name = "@cord-network/origin-sdk-statement-store"
+tier = "B"
+owner = "sdk-messaging"
+state = "present"
+dependencies = ["@cord-network/origin-sdk-result", "@cord-network/origin-sdk-errors", "@cord-network/origin-sdk-host", "@cord-network/origin-sdk-identity", "@cord-network/origin-sdk-resources"]
 
 [[package]]
 name = "@cord-network/origin-sdk-assets"
@@ -157,8 +178,15 @@ state = "present"
 dependencies = ["@cord-network/origin-sdk-chain-client", "@cord-network/origin-sdk-cloud-storage", "@cord-network/origin-sdk-descriptors", "@cord-network/origin-sdk-errors", "@cord-network/origin-sdk-host", "@cord-network/origin-sdk-names", "@cord-network/origin-sdk-result", "@cord-network/origin-sdk-tx"]
 
 [[package]]
+name = "@cord-network/origin-sdk-contracts"
+tier = "C-optional"
+owner = "sdk-contract-extension"
+state = "present"
+dependencies = ["@cord-network/origin-sdk-chain-client", "@cord-network/origin-sdk-descriptors", "@cord-network/origin-sdk-errors", "@cord-network/origin-sdk-result", "@cord-network/origin-sdk-tx"]
+
+[[package]]
 name = "@cord-network/origin-sdk"
 tier = "C-umbrella"
 owner = "sdk-app-platform"
 state = "present"
-dependencies = ["@cord-network/origin-sdk-apps", "@cord-network/origin-sdk-assets", "@cord-network/origin-sdk-attestation", "@cord-network/origin-sdk-chain-client", "@cord-network/origin-sdk-cloud-storage", "@cord-network/origin-sdk-descriptors", "@cord-network/origin-sdk-errors", "@cord-network/origin-sdk-host", "@cord-network/origin-sdk-identity", "@cord-network/origin-sdk-local-storage", "@cord-network/origin-sdk-names", "@cord-network/origin-sdk-result", "@cord-network/origin-sdk-signer", "@cord-network/origin-sdk-tx"]
+dependencies = ["@cord-network/origin-sdk-apps", "@cord-network/origin-sdk-assets", "@cord-network/origin-sdk-attestation", "@cord-network/origin-sdk-chain-client", "@cord-network/origin-sdk-cloud-storage", "@cord-network/origin-sdk-descriptors", "@cord-network/origin-sdk-errors", "@cord-network/origin-sdk-host", "@cord-network/origin-sdk-identity", "@cord-network/origin-sdk-local-storage", "@cord-network/origin-sdk-names", "@cord-network/origin-sdk-personhood", "@cord-network/origin-sdk-resources", "@cord-network/origin-sdk-result", "@cord-network/origin-sdk-signer", "@cord-network/origin-sdk-statement-store", "@cord-network/origin-sdk-tx"]

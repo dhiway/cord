@@ -151,7 +151,7 @@ pub struct LongTermStorageAllocation {
 	pub bytes: u64,
 }
 
-pub type ReservationId = u64;
+pub use orbis_transaction_storage_primitives::ReservationId;
 
 /// Stable purpose bound to an isolated Orbis Storage reservation.
 #[derive(

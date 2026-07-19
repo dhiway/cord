@@ -352,18 +352,6 @@ pub struct BucketRecord<AccountId, Hash, BlockNumber, Replicas, Grants> {
 	pub created_at: BlockNumber,
 }
 
-#[derive(
-	Clone, Debug, Decode, DecodeWithMemTracking, Encode, Eq, MaxEncodedLen, PartialEq, TypeInfo,
-)]
-pub struct BucketOperationReceipt<Hash, AccountId, Replicas, BlockNumber> {
-	pub request_hash: Hash,
-	pub bucket_id: Hash,
-	pub primary: AccountId,
-	pub replicas: Replicas,
-	pub version: u64,
-	pub expires_at: BlockNumber,
-}
-
 /// Canonical finalized host-delegation authority for one provider capability grant.
 #[derive(
 	Clone, Debug, Decode, DecodeWithMemTracking, Encode, Eq, MaxEncodedLen, PartialEq, TypeInfo,
@@ -782,10 +770,6 @@ pub mod pallet {
 		#[pallet::constant]
 		type MaxBuckets: Get<u32>;
 		#[pallet::constant]
-		type MaxBucketOperationReceipts: Get<u32>;
-		#[pallet::constant]
-		type MaxBucketOperationReceiptLifetime: Get<BlockNumberFor<Self>>;
-		#[pallet::constant]
 		type MaxBucketGrants: Get<u32>;
 		#[pallet::constant]
 		type MaxHostDelegationsPerBucket: Get<u32>;
@@ -872,25 +856,6 @@ pub mod pallet {
 		StorageMap<_, Blake2_128Concat, T::Hash, BucketRecordOf<T>, OptionQuery>;
 	#[pallet::storage]
 	pub type BucketIds<T: Config> = StorageValue<_, BoundedVec<T::Hash, T::MaxBuckets>, ValueQuery>;
-
-	#[pallet::storage]
-	pub type BucketOperationReceipts<T: Config> = StorageDoubleMap<
-		_,
-		Blake2_128Concat,
-		T::AccountId,
-		Blake2_128Concat,
-		[u8; 16],
-		BucketOperationReceipt<T::Hash, T::AccountId, ReplicasOf<T>, BlockNumberFor<T>>,
-		OptionQuery,
-	>;
-	#[pallet::storage]
-	pub type BucketOperationReceiptIds<T: Config> = StorageMap<
-		_,
-		Blake2_128Concat,
-		T::AccountId,
-		BoundedVec<[u8; 16], T::MaxBucketOperationReceipts>,
-		ValueQuery,
-	>;
 	#[pallet::storage]
 	pub type BucketNonce<T: Config> =
 		StorageMap<_, Blake2_128Concat, T::AccountId, u64, ValueQuery>;
@@ -1122,12 +1087,6 @@ pub mod pallet {
 			primary: T::AccountId,
 			replicas: ReplicasOf<T>,
 			version: u64,
-			operation_id: [u8; 16],
-			replayed: bool,
-		},
-		BucketOperationReceiptPruned {
-			owner: T::AccountId,
-			operation_id: [u8; 16],
 		},
 		BucketGrantChanged {
 			bucket_id: T::Hash,
@@ -1282,11 +1241,6 @@ pub mod pallet {
 		BucketNotFound,
 		BucketAlreadyExists,
 		BucketLimitReached,
-		OperationIdConflict,
-		OperationDeadlineExpired,
-		OperationDeadlineTooFar,
-		BucketOperationReceiptCapacityReached,
-		BucketOperationReceiptLimitDisabled,
 		BucketVersionConflict,
 		BucketMemberLimit,
 		HostDelegationLimit,
@@ -1612,73 +1566,15 @@ pub mod pallet {
 		}
 
 		#[pallet::call_index(7)]
-		#[pallet::weight(T::WeightInfo::create_bucket(
-			replicas.len() as u32,
-			T::MaxBucketOperationReceipts::get(),
-		))]
+		#[pallet::weight(T::WeightInfo::create_bucket(replicas.len() as u32))]
 		#[transactional]
 		pub fn create_bucket(
 			origin: OriginFor<T>,
 			policy: T::Hash,
 			primary: T::AccountId,
 			replicas: ReplicasOf<T>,
-			operation_deadline: BlockNumberFor<T>,
-			operation_id: [u8; 16],
 		) -> DispatchResult {
 			let owner = ensure_signed(origin)?;
-			let now = frame_system::Pallet::<T>::block_number();
-			ensure!(operation_deadline > now, Error::<T>::OperationDeadlineExpired);
-			ensure!(
-				operation_deadline
-					<= now.saturating_add(T::MaxBucketOperationReceiptLifetime::get()),
-				Error::<T>::OperationDeadlineTooFar
-			);
-			let request_hash =
-				T::Hashing::hash_of(&(policy, &primary, &replicas, operation_deadline));
-			if let Some(receipt) = BucketOperationReceipts::<T>::get(&owner, operation_id) {
-				ensure!(receipt.request_hash == request_hash, Error::<T>::OperationIdConflict);
-				Self::deposit_event(Event::BucketCreated {
-					bucket_id: receipt.bucket_id,
-					owner,
-					primary: receipt.primary,
-					replicas: receipt.replicas,
-					version: receipt.version,
-					operation_id,
-					replayed: true,
-				});
-				return Ok(());
-			}
-			BucketOperationReceiptIds::<T>::try_mutate(&owner, |ids| -> DispatchResult {
-				ensure!(
-					T::MaxBucketOperationReceipts::get() > 0,
-					Error::<T>::BucketOperationReceiptLimitDisabled
-				);
-				let mut retained = BoundedVec::<[u8; 16], T::MaxBucketOperationReceipts>::default();
-				for retained_id in ids.iter().copied() {
-					let expired = BucketOperationReceipts::<T>::get(&owner, retained_id)
-						.is_none_or(|receipt| receipt.expires_at <= now);
-					if expired {
-						BucketOperationReceipts::<T>::remove(&owner, retained_id);
-						Self::deposit_event(Event::BucketOperationReceiptPruned {
-							owner: owner.clone(),
-							operation_id: retained_id,
-						});
-					} else {
-						retained
-							.try_push(retained_id)
-							.map_err(|_| Error::<T>::BucketOperationReceiptCapacityReached)?;
-					}
-				}
-				ensure!(
-					(retained.len() as u32) < T::MaxBucketOperationReceipts::get(),
-					Error::<T>::BucketOperationReceiptCapacityReached
-				);
-				retained
-					.try_push(operation_id)
-					.map_err(|_| Error::<T>::BucketOperationReceiptCapacityReached)?;
-				*ids = retained;
-				Ok(())
-			})?;
 			Self::ensure_assignments(&primary, &replicas)?;
 			let finalized = Self::finalized_checkpoint()?;
 			Self::ensure_provider_eligible(&primary, finalized)?;
@@ -1722,26 +1618,12 @@ pub mod pallet {
 					*count = count.saturating_add(1)
 				});
 			}
-			BucketOperationReceipts::<T>::insert(
-				&owner,
-				operation_id,
-				BucketOperationReceipt {
-					request_hash,
-					bucket_id,
-					primary: primary.clone(),
-					replicas: replicas.clone(),
-					version: 1,
-					expires_at: operation_deadline,
-				},
-			);
 			Self::deposit_event(Event::BucketCreated {
 				bucket_id,
 				owner,
 				primary,
 				replicas,
 				version: 1,
-				operation_id,
-				replayed: false,
 			});
 			Ok(())
 		}

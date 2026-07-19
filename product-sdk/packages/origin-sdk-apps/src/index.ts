@@ -34,11 +34,9 @@ import {
   nameId,
   type AccountId,
   type AttestationId,
-  type BlockNumber,
   type ContentCommitment,
   type NameId,
   type NamesRuntimeAdapter,
-  type OperationId,
 } from "@cord-network/origin-sdk-names";
 import { err, ok } from "@cord-network/origin-sdk-result";
 import type { PreparedTransaction } from "@cord-network/origin-sdk-tx";
@@ -102,12 +100,12 @@ export interface ResolvedOriginApp {
 
 export interface OriginAppsClient {
   storeManifest(manifest: OriginAppManifestV1, signal?: AbortSignal): Promise<SdkResult<StoredOriginAppManifest>>;
-  prepareManifestBinding(stored: StoredOriginAppManifest, publication: { readonly expectedRevision: string; readonly operationDeadline: BlockNumber; readonly operationId: OperationId }, signal?: AbortSignal): Promise<SdkResult<PreparedTransaction>>;
+  prepareManifestBinding(stored: StoredOriginAppManifest, signal?: AbortSignal): Promise<SdkResult<PreparedTransaction>>;
   resolveApp(name: NameId, signal?: AbortSignal): Promise<SdkResult<ResolvedOriginApp>>;
 }
 
 const ALL_CAPABILITIES: readonly OriginRequestedCapability[] = [
-  "accounts", "chain", "signing", "local-storage", "statements",
+  "accounts", "chain", "signing", "local-storage", "preimages", "resources", "statements",
   "camera", "nfc", "bluetooth", "location", "biometrics", "external-urls",
 ];
 const utf8 = new TextEncoder();
@@ -177,8 +175,9 @@ function normalizeManifest(value: OriginAppManifestV1): OriginAppManifestV1 {
   }
   if (!isRecord(value.bundle) || !isRecord(value.bundle.address)
     || typeof value.bundle.address.cid !== "string"
-    || value.bundle.address.codec !== "raw"
-    || value.bundle.address.multihash !== "blake2b-256") {
+    || (value.bundle.address.codec !== "raw" && value.bundle.address.codec !== "dag-pb")
+    || (value.bundle.address.multihash !== "blake2b-256"
+      && value.bundle.address.multihash !== "sha2-256")) {
     throw new TypeError("manifest bundle address is invalid");
   }
   const parsed = parseContentCid(value.bundle.address.cid);
@@ -247,6 +246,35 @@ export function decodeOriginAppManifest(bytes: Uint8Array): OriginAppManifestV1 
   return normalizeManifest(parsed as OriginAppManifestV1);
 }
 
+export function createHostOriginAppContentStore(host: OriginHostClient): OriginAppContentStore {
+  return {
+    async put(bytes, contentType, signal) {
+      const address = rawContentAddress(bytes, "blake2b-256");
+      const expected = hashFromAddress(address);
+      const reference = throwSdkResult(await host.putPreimage(bytes, contentType, signal));
+      if (reference.contentHash.toLowerCase() !== expected) {
+        throw new OriginSdkError({
+          source: "apps", domain: "content", code: "content_commitment_mismatch",
+          message: "Host preimage commitment does not match the canonical Commons content hash",
+        });
+      }
+      return { commitment: expected, address };
+    },
+    async get(commitment, signal) {
+      contentCommitment(commitment);
+      const bytes = throwSdkResult(await host.getPreimage(commitment as `0x${string}`, signal));
+      const actual = hashFromAddress(rawContentAddress(bytes, "blake2b-256"));
+      if (actual !== commitment) {
+        throw new OriginSdkError({
+          source: "apps", domain: "content", code: "content_integrity",
+          message: "Manifest bytes do not match the native Names content commitment",
+        });
+      }
+      return bytes;
+    },
+  };
+}
+
 export function createOriginAppsClient(
   chain: CommonsChainClient,
   runtime: NamesRuntimeAdapter,
@@ -265,7 +293,7 @@ export function createOriginAppsClient(
         }));
       }
     },
-    async prepareManifestBinding(stored, publication, signal) {
+    async prepareManifestBinding(stored, signal) {
       try {
         const normalized = normalizeManifest(stored.manifest);
         const bytes = encodeOriginAppManifest(normalized);
@@ -275,13 +303,10 @@ export function createOriginAppsClient(
         }
         const snapshot = await chain.finalizedSnapshot(signal);
         if (!snapshot.success) return snapshot;
-        return ok(await runtime.publishContent(
+        return ok(await runtime.setContent(
           snapshot.value.block.hash,
           normalized.nameId,
           stored.commitment,
-          publication.expectedRevision,
-          publication.operationDeadline,
-          publication.operationId,
           signal,
         ));
       } catch (error) {
@@ -303,16 +328,15 @@ export function createOriginAppsClient(
       const record = await snapshot.value.read((hash) => runtime.nameById(hash, name, signal), signal);
       if (!record.success) return record;
       if (record.value.value === null) return appError("name_not_found", "Application name record is missing");
-      const publication = await snapshot.value.read((hash) => runtime.resolveContentPublication(hash, name, signal), signal);
-      if (!publication.success) return publication;
-      const linkedContent = publication.value.value?.content ?? null;
-      if (linkedContent === null) return appError("app_not_published", "Application name has no manifest commitment");
+      const linkedContent = await snapshot.value.read((hash) => runtime.resolveContent(hash, name, signal), signal);
+      if (!linkedContent.success) return linkedContent;
+      if (linkedContent.value.value === null) return appError("app_not_published", "Application name has no manifest commitment");
       const linkedAttestation = await snapshot.value.read(
         (hash) => runtime.resolveAttestation(hash, name, signal), signal,
       );
       if (!linkedAttestation.success) return linkedAttestation;
       try {
-        const bytes = await content.get(linkedContent, signal);
+        const bytes = await content.get(linkedContent.value.value, signal);
         const manifest = decodeOriginAppManifest(bytes);
         if (manifest.nameId !== name) {
           return appError("manifest_name_mismatch", "Manifest does not belong to the resolved native name");
@@ -323,7 +347,7 @@ export function createOriginAppsClient(
         }
         return ok({
           manifest,
-          manifestCommitment: linkedContent,
+          manifestCommitment: linkedContent.value.value,
           owner: record.value.value.owner,
           finalized: { hash: at, number: snapshot.value.block.number },
           launch: {

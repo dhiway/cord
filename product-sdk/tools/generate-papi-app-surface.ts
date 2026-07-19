@@ -27,13 +27,10 @@ const output = resolve(root, "docs/sdk/commons-papi-app-surface.json");
 const metadataIdentity = JSON.parse(
   readFileSync(resolve(root, "docs/sdk/metadata/commons-v29.json"), "utf8"),
 );
-const currentRuntime = JSON.parse(
-  readFileSync(resolve(root, "origin/orbis/runtime/vectors/transaction-policy-v8/metadata-hash.json"), "utf8"),
-);
 const source = readFileSync(input, "utf8");
 const file = ts.createSourceFile(input, source, ts.ScriptTarget.Latest, true, ts.ScriptKind.TS);
 const typeNames = { storage: "IStorage", calls: "ICalls", events: "IEvent", errors: "IError", constants: "IConstants" } as const;
-const pallets = ["People", "Attestation", "Names", "StorageProvider", "Drive", "S3", "Assets", "Uniques", "Nfts", "MetaTx", "Revive"] as const;
+const pallets = ["People", "PeopleLite", "Personhood", "Resources", "Attestation", "Names", "TransactionStorage", "StorageProvider", "Drive", "S3", "Assets", "Uniques", "Nfts", "MetaTx", "Revive"] as const;
 const propertyName = (member: ts.TypeElement): string | undefined => member.name && ts.isIdentifier(member.name)
   ? member.name.text
   : member.name && ts.isStringLiteral(member.name) ? member.name.text : undefined;
@@ -67,11 +64,6 @@ const manifest = {
     metadata_presence_is_not_sdk_admission: true,
     administrative_calls_require_explicit_exclusion: true,
     revive_is_optional_app_logic_only: true,
-    runtime_metadata_current: metadataIdentity.spec_version === currentRuntime.spec_version,
-    sdk_admission: metadataIdentity.spec_version === currentRuntime.spec_version,
-    unavailable_reason: metadataIdentity.spec_version === currentRuntime.spec_version
-      ? null
-      : "checked-in PAPI metadata predates the current Commons runtime",
   },
 };
 const serialized = `${JSON.stringify(manifest, null, 2)}\n`;

@@ -139,8 +139,8 @@ def derive(raw: Any) -> dict[str, Any]:
     convergence_blocks = observed_block - failure_block
     require(convergence_blocks <= 200, "recovery exceeded the 200-block bound")
 
-    require(integer(raw.get("runtime_duty_reads"), "runtime_duty_reads", 1) == 9,
-            "each provider must discover each deterministic duty phase")
+    require(integer(raw.get("runtime_duty_reads"), "runtime_duty_reads", 1) == 7,
+            "each provider must discover both checkpoint duties and the promoter must discover fallback")
     checkpoints = object_list(raw.get("checkpoints"), "checkpoints")
     require(len(checkpoints) == 2, "initial and promoted checkpoint observations are required")
     checkpoint_fields = {

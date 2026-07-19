@@ -25,7 +25,7 @@ use sp_crypto_hashing::blake2_256;
 use super::common::{
 	ensure_bytes, invalid, AccountId, AttestationId, BlockNumber, ContentCommitment, DomainResult,
 	FinalizedPage, FinalizedQuery, FinalizedValue, Hash32, NameId, PageRequest,
-	OperationId, RegistrationCommitment, SubjectId, SubmitAndFinalize, Validate,
+	RegistrationCommitment, SubjectId, SubmitAndFinalize, Validate,
 };
 
 pub const LABEL_POLICY_VERSION: u16 = 1;
@@ -165,13 +165,6 @@ pub struct NameStatus {
 	pub expires_at: Option<BlockNumber>,
 }
 
-#[derive(Clone, Debug, Deserialize, Eq, PartialEq, Serialize)]
-#[serde(deny_unknown_fields)]
-pub struct ContentPublication {
-	pub content: Option<ContentCommitment>,
-	pub revision: u64,
-}
-
 #[derive(Clone, Copy, Debug, Deserialize, Eq, Hash, PartialEq, Serialize)]
 #[serde(rename_all = "snake_case")]
 pub enum NamesEventKind {
@@ -188,7 +181,6 @@ pub enum NamesEventKind {
 	SubjectSet,
 	AttestationSet,
 	ContentSet,
-	ContentOperationReceiptPruned,
 	TextSet,
 	PrimaryNameSet,
 	NameReserved,
@@ -258,13 +250,6 @@ pub enum NamesEvent {
 	ContentSet {
 		name: NameId,
 		present: bool,
-		revision: u64,
-		operation_id: OperationId,
-		replayed: bool,
-	},
-	ContentOperationReceiptPruned {
-		owner: AccountId,
-		operation_id: OperationId,
 	},
 	TextSet {
 		name: NameId,
@@ -315,8 +300,7 @@ pub enum NamesOutcome {
 	AddressSet { name: NameId, present: bool },
 	SubjectSet { name: NameId, present: bool },
 	AttestationSet { name: NameId, present: bool },
-	ContentSet { name: NameId, present: bool, revision: u64, operation_id: OperationId, replayed: bool },
-	ContentOperationReceiptPruned { operation_id: OperationId },
+	ContentSet { name: NameId, present: bool },
 	TextSet { name: NameId, key: TextKey, present: bool },
 	PrimaryNameSet { owner: AccountId, name: Option<NameId> },
 	NameReserved { name: NameId },
@@ -343,7 +327,6 @@ impl NamesEvent {
 			Self::SubjectSet { .. } => NamesEventKind::SubjectSet,
 			Self::AttestationSet { .. } => NamesEventKind::AttestationSet,
 			Self::ContentSet { .. } => NamesEventKind::ContentSet,
-			Self::ContentOperationReceiptPruned { .. } => NamesEventKind::ContentOperationReceiptPruned,
 			Self::TextSet { .. } => NamesEventKind::TextSet,
 			Self::PrimaryNameSet { .. } => NamesEventKind::PrimaryNameSet,
 			Self::NameReserved { .. } => NamesEventKind::NameReserved,
@@ -392,11 +375,9 @@ impl NamesEvent {
 			Self::AttestationSet { name, present } => {
 				NamesOutcome::AttestationSet { name: name.clone(), present: *present }
 			},
-			Self::ContentSet { name, present, revision, operation_id, replayed } => {
-				NamesOutcome::ContentSet { name: name.clone(), present: *present, revision: *revision, operation_id: operation_id.clone(), replayed: *replayed }
+			Self::ContentSet { name, present } => {
+				NamesOutcome::ContentSet { name: name.clone(), present: *present }
 			},
-			Self::ContentOperationReceiptPruned { operation_id, .. } =>
-				NamesOutcome::ContentOperationReceiptPruned { operation_id: operation_id.clone() },
 			Self::TextSet { name, key, present } => {
 				NamesOutcome::TextSet { name: name.clone(), key: key.clone(), present: *present }
 			},
@@ -454,10 +435,10 @@ impl NamesEventSubscription {
 	pub fn new(from_finalized_block: Hash32, kinds: Vec<NamesEventKind>) -> DomainResult<Self> {
 		from_finalized_block.validate()?;
 		if kinds.is_empty()
-			|| kinds.len() > 22
+			|| kinds.len() > 21
 			|| kinds.iter().collect::<HashSet<_>>().len() != kinds.len()
 		{
-			return Err(invalid("Orbis Names event subscription requires 1-22 unique kinds"));
+			return Err(invalid("Orbis Names event subscription requires 1-21 unique kinds"));
 		}
 		Ok(Self { finality: NamesSubscriptionFinality::Finalized, from_finalized_block, kinds })
 	}
@@ -474,7 +455,7 @@ pub enum NamesResponse {
 	Address(FinalizedValue<Address>),
 	Subject(FinalizedValue<SubjectId>),
 	Attestation(FinalizedValue<AttestationId>),
-	ContentPublication(FinalizedValue<ContentPublication>),
+	Content(FinalizedValue<ContentCommitment>),
 	Text(FinalizedValue<TextValue>),
 	Status(FinalizedValue<NameStatus>),
 }
@@ -490,7 +471,7 @@ pub enum NamesQuery {
 	ResolveAddress { name: NameId },
 	ResolveSubject { name: NameId },
 	ResolveAttestation { name: NameId },
-	ResolveContentPublication { name: NameId },
+	ResolveContent { name: NameId },
 	ResolveText { name: NameId, key: TextKey },
 	PrimaryName { owner: AccountId },
 	NameStatus { name: NameId },
@@ -505,7 +486,7 @@ impl Validate for NamesQuery {
 			| Self::ResolveAddress { name }
 			| Self::ResolveSubject { name }
 			| Self::ResolveAttestation { name }
-			| Self::ResolveContentPublication { name }
+			| Self::ResolveContent { name }
 			| Self::NameStatus { name } => name.validate(),
 			Self::RootByLabel { label } => label.validate(),
 			Self::OwnerNames { owner, page } => {
@@ -567,12 +548,9 @@ pub enum NamesCommand {
 		name: NameId,
 		attestation: Option<AttestationId>,
 	},
-	PublishContent {
+	SetContent {
 		name: NameId,
 		content: Option<ContentCommitment>,
-		expected_revision: u64,
-		operation_deadline: BlockNumber,
-		operation_id: OperationId,
 	},
 	SetText {
 		name: NameId,
@@ -674,10 +652,9 @@ impl Validate for NamesCommand {
 				name.validate()?;
 				attestation.as_ref().map_or(Ok(()), Validate::validate)
 			},
-			Self::PublishContent { name, content, operation_id, .. } => {
+			Self::SetContent { name, content } => {
 				name.validate()?;
-				content.as_ref().map_or(Ok(()), Validate::validate)?;
-				operation_id.validate()
+				content.as_ref().map_or(Ok(()), Validate::validate)
 			},
 			Self::SetText { name, key, value } => {
 				name.validate()?;
@@ -786,7 +763,6 @@ mod canonical_vector_tests {
 			NamesEventKind::SubjectSet,
 			NamesEventKind::AttestationSet,
 			NamesEventKind::ContentSet,
-			NamesEventKind::ContentOperationReceiptPruned,
 			NamesEventKind::TextSet,
 			NamesEventKind::PrimaryNameSet,
 			NamesEventKind::NameReserved,

@@ -1,10 +1,10 @@
-# Identity and attestation domain contract
+# Identity, personhood and attestation domain contract
 
 Status: **Native P2 implementation is present; composed P6/P7 acceptance evidence remains pending**.
 
 | # | Contract row | Target contract | Prohibited/decision | Evidence plan | Implementation evidence |
 |---:|---|---|---|---|---|
-| 1 | Canonical owner/state | The unified Identity facade owns the developer vocabulary; existing runtime internals remain authoritative for their bounded state while native schema/attestation owns credential schema and status commitments | Stable IDs link domains; no copied roots, profiles, private claims or contract status; runtime internals never become additional product capabilities | Runtime metadata, product-projection, invariant and duplicate-state tests | Native implementation present; P6/P7 acceptance evidence pending |
+| 1 | Canonical owner/state | Existing Entity/People/Members/Personhood/Resources/Score/Honour remain sole owners; new native schema/attestation owns credential schema/status commitments | Stable IDs link domains; no copied roots, profiles, private claims or contract status | Runtime metadata, invariant and duplicate-state tests | Native implementation present; P6/P7 acceptance evidence pending |
 | 2 | Upstream/provenance | CORD-owned thin additions; current SDK pallets reused at locked `cc190ea83c590b6a14a6b9771ab02c81618dc118`; semantic references never enter the build graph implicitly | Source classes and exact SHAs come from `docs/evidence/source-ledger.csv` | Source-ledger and dependency-graph validator | Native implementation present; P6/P7 acceptance evidence pending |
 | 3 | Bounds/versions | All collections and payloads use bounded types, bounded pagination/cleanup cursors, explicit storage/API/schema/context versions | No unbounded iteration in dispatch or runtime APIs | Unit/property/weight and API-bound tests | Native implementation present; P6/P7 acceptance evidence pending |
 | 4 | Calls/events/errors | Deterministic native state machines with typed max-input, authorization, stale-version and replay errors | Mapped by `docs/architecture/contract-to-native-migration.csv` | Semantic coverage and negative vector reports | Native implementation present; P6/P7 acceptance evidence pending |

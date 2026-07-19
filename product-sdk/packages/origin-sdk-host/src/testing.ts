@@ -27,6 +27,7 @@ import type {
   HostFinalizedBlock,
   HostMethod,
   HostMethodMap,
+  HostPreimageReference,
   HostRuntimeIdentity,
   HostStatementQuery,
   HostStatementRecord,
@@ -76,6 +77,7 @@ export function createFakeHost(options: FakeHostOptions = {}): FakeHost {
   const grants = new Map<string, number | undefined>();
   const revoked = new Set<string>();
   const storage = new Map<string, Uint8Array>();
+  const preimages = new Map<string, Uint8Array>();
   const statements: HostStatementRecord[] = [];
   let available = true;
   let rejectSignature = false;
@@ -167,6 +169,38 @@ export function createFakeHost(options: FakeHostOptions = {}): FakeHost {
           const { key: storageKey } = input as HostMethodMap["local-storage.delete"]["input"];
           storage.delete(`${product.id}:${storageKey}`);
           return answer(undefined);
+        }
+        case "preimages.put": {
+          const request = input as HostMethodMap["preimages.put"]["input"];
+          const contentHash = `0x${Array.from(
+            blake2b256(request.bytes),
+            (byte) => byte.toString(16).padStart(2, "0"),
+          ).join("")}` as const;
+          preimages.set(contentHash, request.bytes.slice());
+          const reference: HostPreimageReference = {
+            contentHash,
+            size: request.bytes.length,
+            ...(request.contentType === undefined ? {} : { contentType: request.contentType }),
+          };
+          return answer(reference);
+        }
+        case "preimages.get": {
+          const { contentHash } = input as HostMethodMap["preimages.get"]["input"];
+          const bytes = preimages.get(contentHash);
+          return bytes === undefined
+            ? reject("preimages", "not_found", "Preimage not found")
+            : answer(bytes.slice());
+        }
+        case "resources.allocate": {
+          const request = input as HostMethodMap["resources.allocate"]["input"];
+          return answer({
+            kind: request.kind,
+            account: request.account,
+            authorization: new Uint8Array(createHash("sha256").update(
+              `${product.id}:${request.kind}:${request.account}:${request.bytes}`,
+            ).digest()),
+            ...(request.expiresAt === undefined ? {} : { expiresAt: request.expiresAt }),
+          });
         }
         case "statements.submit": {
           const draft = input as HostMethodMap["statements.submit"]["input"];

@@ -1,0 +1,3 @@
+$ node --experimental-strip-types product-sdk/examples/festival/android-contract-harness.ts --write
+exit=0
+/Users/smohan/dev/smohan-dw/cord-2026-1.0.x/cord/docs/evidence/verification/p6/festival-android-contract-parity.report.json

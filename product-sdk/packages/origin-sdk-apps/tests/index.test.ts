@@ -22,11 +22,14 @@ import test from "node:test";
 import { createCommonsChainClient } from "@cord-network/origin-sdk-chain-client";
 import { parseContentCid, rawContentAddress } from "@cord-network/origin-sdk-cloud-storage";
 import { COMMONS_NETWORK_BINDING } from "@cord-network/origin-sdk-descriptors";
+import { createHostClient } from "@cord-network/origin-sdk-host";
+import { createFakeHost } from "@cord-network/origin-sdk-host/testing";
 import { contentCommitment, nameId, type NamesRuntimeAdapter } from "@cord-network/origin-sdk-names";
 import type { PreparedTransaction } from "@cord-network/origin-sdk-tx";
 import {
   ORIGIN_APP_MANIFEST_SCHEMA,
   createOriginAppsClient,
+  createHostOriginAppContentStore,
   decodeOriginAppManifest,
   encodeOriginAppManifest,
   type OriginAppContentStore,
@@ -66,13 +69,17 @@ test("OriginAppManifestV1 is canonical, bounded, and round-trips", () => {
   assert.deepEqual(first, reordered);
   assert.deepEqual(decodeOriginAppManifest(first), manifest);
   assert.throws(() => encodeOriginAppManifest({ ...manifest, entrypoint: "../index.html" }), /safe relative/);
-  assert.throws(
-    () => encodeOriginAppManifest({
-      ...manifest,
-      bundle: { address: rawContentAddress(bundleBytes, "sha2-256"), size: bundleBytes.length },
-    }),
-    /bundle address is invalid/,
-  );
+});
+
+test("host content store derives and verifies the native Commons commitment", async () => {
+  const product = { id: "festival.app", name: "Festival" };
+  const fake = createFakeHost();
+  fake.grant(product.id, "preimages");
+  const store = createHostOriginAppContentStore(createHostClient(fake.bridge, product));
+  const bytes = encodeOriginAppManifest(manifest);
+  const stored = await store.put(bytes, "application/vnd.cord.origin-app+json");
+  assert.deepEqual(await store.get(stored.commitment), bytes);
+  assert.equal(stored.address.multihash, "blake2b-256");
 });
 
 test("resolver pins all native authority reads to one finalized block", async () => {
@@ -89,9 +96,9 @@ test("resolver pins all native authority reads to one finalized block", async ()
   const runtime = {
     async nameStatus(hash) { seen.push(`${hash}:status`); return { version: 1, exists: true, active: true, expires_at: "10" as never }; },
     async nameById(hash) { seen.push(`${hash}:name`); return { version: 1, value: { name: appName, parent: null, label: "festival" as never, owner, expires_at: "10" as never, depth: 0 } }; },
-    async resolveContentPublication(hash) { seen.push(`${hash}:content`); return { version: 1, value: { content: commitment, revision: 1n } }; },
+    async resolveContent(hash) { seen.push(`${hash}:content`); return { version: 1, value: commitment }; },
     async resolveAttestation(hash) { seen.push(`${hash}:attestation`); return { version: 1, value: null }; },
-    async publishContent() { return tx; },
+    async setContent() { return tx; },
   } as NamesRuntimeAdapter;
   const chain = createCommonsChainClient({
     async finalizedBlock() { return { hash: at, number: 7n }; },

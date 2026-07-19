@@ -18,10 +18,8 @@
 
 //! Conservative pre-benchmark weights for native Orbis Names.
 //!
-//! Names does not yet have a runtime-benchmarking module. Until generated measurements replace
-//! these constants, `publish_content` charges the configured maximum receipt count rather than the
-//! observed count, covering the bounded worst-case scan/prune path without undercharging it.
-//! Production activation must replace these constants with benchmark output for Commons.
+//! These functions keep the pallet integrable before runtime benchmarks are generated. Production
+//! activation must replace the constants with benchmark output for the final Commons runtime.
 
 use core::marker::PhantomData;
 use frame_support::{traits::Get, weights::Weight};
@@ -35,7 +33,6 @@ pub trait WeightInfo {
 	fn transfer() -> Weight;
 	fn controller() -> Weight;
 	fn resolver_write() -> Weight;
-	fn publish_content(retained_receipts: u32) -> Weight;
 	fn set_text() -> Weight;
 	fn set_primary() -> Weight;
 	fn remove_name() -> Weight;
@@ -67,11 +64,6 @@ impl WeightInfo for () {
 	}
 	fn resolver_write() -> Weight {
 		Weight::from_parts(30_000_000, 4_500)
-	}
-	fn publish_content(retained_receipts: u32) -> Weight {
-		Weight::from_parts(34_000_000, 6_000).saturating_add(
-			Weight::from_parts(1_000_000, 2_600).saturating_mul(retained_receipts.into()),
-		)
 	}
 	fn set_text() -> Weight {
 		Weight::from_parts(48_000_000, 6_000)
@@ -132,19 +124,6 @@ impl<T: frame_system::Config> WeightInfo for SubstrateWeight<T> {
 			// the authorized Orbis Names record mutation. Keep one conservative shared resolver weight.
 			.saturating_add(T::DbWeight::get().reads(6))
 			.saturating_add(T::DbWeight::get().writes(1))
-	}
-	fn publish_content(retained_receipts: u32) -> Weight {
-		Weight::from_parts(34_000_000, 6_000)
-			// Worst case scans and prunes every expired receipt in the bounded window.
-			.saturating_add(
-				Weight::from_parts(1_000_000, 2_600).saturating_mul(retained_receipts.into()),
-			)
-			.saturating_add(
-				T::DbWeight::get().reads(9_u64.saturating_add(retained_receipts.into())),
-			)
-			.saturating_add(
-				T::DbWeight::get().writes(5_u64.saturating_add(retained_receipts.into())),
-			)
 	}
 	fn set_text() -> Weight {
 		Weight::from_parts(48_000_000, 6_000)

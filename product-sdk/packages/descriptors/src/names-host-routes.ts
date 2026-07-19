@@ -67,8 +67,8 @@ export const namesHostRoutes = {
     return finalizedRead("names", context, "names", "resolve_attestation", { name });
   },
 
-  resolveContentPublication(context: RequestContext, name: NameId) {
-    return finalizedRead("names", context, "names", "resolve_content_publication", { name });
+  resolveContent(context: RequestContext, name: NameId) {
+    return finalizedRead("names", context, "names", "resolve_content", { name });
   },
 
   resolveText(context: RequestContext, name: NameId, key: TextKey) {
@@ -139,8 +139,8 @@ export const namesHostRoutes = {
     return submitAndFinalize("names", context, "names", "set_attestation", { name, attestation });
   },
 
-  publishContent(context: RequestContext, name: NameId, content: ContentCommitment | null, expectedRevision: string, operationDeadline: BlockNumber, operationId: string) {
-    return submitAndFinalize("names", context, "names", "publish_content", { name, content, expected_revision: expectedRevision, operation_deadline: operationDeadline, operation_id: operationId });
+  setContent(context: RequestContext, name: NameId, content: ContentCommitment | null) {
+    return submitAndFinalize("names", context, "names", "set_content", { name, content });
   },
 
   setText(context: RequestContext, name: NameId, key: TextKey, value: TextValue | null) {

@@ -46,12 +46,36 @@ const MANIFEST_DELETION_OUTBOX_FILE: &str = "provider-submissions-v3.jsonl";
 const MANIFEST_DELETION_OUTBOX_LOCK_FILE: &str = "provider-submissions-v3.jsonl.lock";
 
 use crate::{
-	observability::{emit_failure, ProviderFailureCode},
+	storage::{PendingDeletion, PendingRootSubmission},
 	BucketId, ChainAuthority, DeletionDuty, ProviderService,
 };
 
 const MAX_CHECKPOINT_DUTY_PAGES_PER_POLL: usize = 4_096;
 const MAX_MANIFEST_DELETIONS_PER_POLL: usize = 128;
+
+/// Native provider deletion acknowledgement queued after finalized authorization and byte removal.
+#[derive(Clone, Debug, Eq, PartialEq, Serialize, Deserialize)]
+#[serde(deny_unknown_fields)]
+pub(crate) struct ContentDeletionSubmission {
+	/// Agreement whose provider must acknowledge content deletion.
+	pub agreement_id: String,
+	/// Deleted raw-content commitment.
+	pub content_commitment: String,
+	/// Finalized block that authorized deletion.
+	pub authorized_at: String,
+	/// Provider root after appending the tombstone leaf.
+	pub tombstone_root: String,
+	/// Exact tombstone leaf appended by the preceding provider-root call.
+	pub tombstone_leaf: String,
+	/// Provider root sequence which must already be finalized on Orbis.
+	pub root_sequence: u64,
+	/// Canonical tombstone leaf index.
+	pub leaf_index: u64,
+	/// Total leaves covered by the committed root.
+	pub leaf_count: u64,
+	/// Bounded leaf-to-root sibling hashes.
+	pub inclusion_proof: Vec<String>,
+}
 
 /// Idempotent canonical manifest-deletion acknowledgement for the governed signer pipeline.
 #[derive(Clone, Debug, Eq, PartialEq, Serialize, Deserialize)]
@@ -73,6 +97,20 @@ pub struct ManifestDeletionSubmission {
 	pub signature: String,
 	/// Exact finalized runtime duty fingerprint retained for replay auditing.
 	pub duty_fingerprint: String,
+}
+
+/// Provider-authenticated append-only root which must finalize before a deletion acknowledgement.
+#[derive(Clone, Debug, Eq, PartialEq, Serialize, Deserialize)]
+#[serde(deny_unknown_fields)]
+pub(crate) struct ProviderRootSubmission {
+	/// Monotonic provider-authenticated submission sequence.
+	pub sequence: u64,
+	/// Exact leaf values appended and folded by the runtime accumulator.
+	pub appended_leaves: Vec<String>,
+	/// Locally derived expected root retained for finalized-result audit.
+	pub expected_root: String,
+	/// Locally derived expected leaf count retained for finalized-result audit.
+	pub expected_leaf_count: u64,
 }
 
 /// Versioned typed provider transaction request.
@@ -268,6 +306,16 @@ impl ArmedJsonlStartup {
 	fn rollback(self) -> Result<(), String> {
 		self.lock.rollback_created()
 	}
+}
+
+/// Private P4 cutover bearer for the legacy DiskStore append journal.
+///
+/// No production worker or HTTP route invokes this seam. It remains private so P4 can replace the
+/// object mutation and completion unit atomically without publishing nonexistent Commons calls.
+#[async_trait]
+pub(crate) trait LegacyDiskCompletionSubmitter: Send + Sync {
+	async fn submit_root(&self, request: ProviderRootSubmission) -> Result<(), String>;
+	async fn submit_deletion(&self, request: ContentDeletionSubmission) -> Result<(), String>;
 }
 
 /// Append-only JSONL outbox for metadata-valid canonical manifest-deletion acknowledgements.
@@ -1035,10 +1083,10 @@ pub async fn run_workers<A: ChainAuthority>(
 		runtime_duties.tick().await;
 		let (checkpoint, deletion) = poll_canonical_runtime_duties_once(&service).await;
 		if checkpoint.is_err() {
-			emit_failure(ProviderFailureCode::CheckpointDutyIntakeFailed);
+			eprintln!("checkpoint-v2 duty intake failed");
 		}
 		if deletion.is_err() {
-			emit_failure(ProviderFailureCode::ManifestDeletionFailed);
+			eprintln!("manifest deletion duty processing failed");
 		}
 	}
 }
@@ -1183,16 +1231,77 @@ fn decode_prefixed_hash(value: &str, label: &str) -> Result<[u8; 32], String> {
 		.map_err(|_| format!("{label} is not 32 bytes"))
 }
 
+pub(crate) fn deletion_submission(
+	pending: &PendingDeletion,
+) -> Result<ContentDeletionSubmission, String> {
+	Ok(ContentDeletionSubmission {
+		agreement_id: pending.agreement_id.clone(),
+		content_commitment: format!("0x{}", pending.commitment),
+		authorized_at: pending.authorized_at.clone(),
+		tombstone_root: format!("0x{}", pending.tombstone_root),
+		root_sequence: pending.root_sequence,
+		tombstone_leaf: format!("0x{}", pending.tombstone_leaf),
+		leaf_index: pending.leaf_index,
+		leaf_count: pending.leaf_count,
+		inclusion_proof: pending.inclusion_proof.iter().map(|hash| format!("0x{hash}")).collect(),
+	})
+}
+
+/// Flush every journaled root in ascending sequence order while the caller holds the service's
+/// shared root/outbox ordering lock. A deletion root and acknowledgement are one indivisible
+/// ordering unit; failures stop the scan before any later sequence can be queued or cleared.
+pub(crate) async fn flush_pending_submissions(
+	store: &crate::DiskStore,
+	outbox: &dyn LegacyDiskCompletionSubmitter,
+) -> Result<(), String> {
+	let deletions = store.pending_deletions().map_err(|error| error.to_string())?;
+	for pending in store.pending_root_submissions().map_err(|error| error.to_string())? {
+		if let Some(deletion) = deletions.iter().find(|item| item.root_sequence == pending.sequence)
+		{
+			outbox.submit_deletion(deletion_submission(deletion)?).await?;
+			store.complete_delete(&deletion.commitment).map_err(|error| error.to_string())?;
+			store
+				.complete_root_submission(pending.sequence)
+				.map_err(|error| error.to_string())?;
+		} else {
+			outbox.submit_root(root_submission(&pending)).await?;
+			store
+				.complete_root_submission(pending.sequence)
+				.map_err(|error| error.to_string())?;
+		}
+	}
+	Ok(())
+}
+
+pub(crate) fn root_submission(pending: &PendingRootSubmission) -> ProviderRootSubmission {
+	ProviderRootSubmission {
+		sequence: pending.sequence,
+		appended_leaves: pending.appended_leaves.iter().map(|leaf| format!("0x{leaf}")).collect(),
+		expected_root: format!("0x{}", pending.expected_root),
+		expected_leaf_count: pending.expected_leaf_count,
+	}
+}
+
 #[cfg(test)]
 mod tests {
 	use super::*;
-	use std::sync::atomic::{AtomicBool, AtomicUsize, Ordering};
+	use std::sync::{
+		atomic::{AtomicBool, AtomicUsize, Ordering},
+		Mutex as StdMutex,
+	};
 
-	use crate::{AgreementAuthorization, ChainError, ChallengeBatch, DiskStore, NodeProfile};
+	use crate::{
+		storage::CommitInput, AgreementAuthorization, ChainError, ChallengeBatch, DiskStore,
+		NodeProfile,
+	};
 	use sp_core::{crypto::AccountId32, Pair as _};
 
 	#[derive(Default)]
-	struct FaultOutbox;
+	struct FaultOutbox {
+		log: StdMutex<Vec<String>>,
+		fail_next_root: AtomicBool,
+		partial_delete_once: AtomicBool,
+	}
 
 	struct NoopAuthority;
 
@@ -1875,6 +1984,32 @@ mod tests {
 		}
 	}
 
+	impl FaultOutbox {
+		fn log(&self) -> Vec<String> {
+			self.log.lock().unwrap().clone()
+		}
+	}
+
+	#[async_trait]
+	impl LegacyDiskCompletionSubmitter for FaultOutbox {
+		async fn submit_root(&self, request: ProviderRootSubmission) -> Result<(), String> {
+			if self.fail_next_root.swap(false, Ordering::SeqCst) {
+				return Err("injected root failure".into());
+			}
+			self.log.lock().unwrap().push(format!("root-{}", request.sequence));
+			Ok(())
+		}
+
+		async fn submit_deletion(&self, request: ContentDeletionSubmission) -> Result<(), String> {
+			self.log.lock().unwrap().push(format!("root-{}", request.root_sequence));
+			if self.partial_delete_once.swap(false, Ordering::SeqCst) {
+				return Err("injected failure after deletion root".into());
+			}
+			self.log.lock().unwrap().push(format!("ack-{}", request.root_sequence));
+			Ok(())
+		}
+	}
+
 	#[async_trait]
 	impl ManifestDeletionSubmitter for FaultOutbox {}
 
@@ -1886,6 +2021,33 @@ mod tests {
 			service_key: hex::encode(service_key.0),
 			region: None,
 		}
+	}
+
+	fn authorization(commitment: [u8; 32], bytes: u64) -> AgreementAuthorization {
+		AgreementAuthorization {
+			finalized_hash: format!("0x{}", "11".repeat(32)),
+			agreement_id: format!("0x{}", hex::encode(commitment)),
+			provider: profile().provider,
+			container_ref: format!("0x{}", "03".repeat(32)),
+			bytes,
+			expires_at: 100,
+		}
+	}
+
+	fn commit(store: &DiskStore, value: u8) -> (String, AgreementAuthorization) {
+		let bytes = vec![value];
+		let commitment = DiskStore::content_commitment(&bytes);
+		let authorization = authorization(commitment, bytes.len() as u64);
+		let record = store
+			.commit(CommitInput {
+				commitment,
+				authorization: authorization.clone(),
+				bucket: None,
+				key: None,
+				bytes,
+			})
+			.unwrap();
+		(record.commitment, authorization)
 	}
 
 	fn service(store: Arc<DiskStore>) -> ProviderService<NoopAuthority> {
@@ -1901,7 +2063,7 @@ mod tests {
 	#[tokio::test]
 	async fn checkpoint_duty_authority_failure_cannot_advance_durable_intake() {
 		let temp = tempfile::tempdir().unwrap();
-		let store = Arc::new(DiskStore::open(temp.path(), profile()).unwrap());
+		let store = Arc::new(DiskStore::open(temp.path(), profile(), 1024).unwrap());
 		let service = service(store.clone());
 		assert!(poll_checkpoint_duties_once(&service).await.is_err());
 		assert!(store.checkpoint_duty_resume_request().unwrap().is_none());
@@ -1912,7 +2074,7 @@ mod tests {
 	#[tokio::test]
 	async fn production_duty_tick_never_invokes_legacy_challenge_or_completion_seams() {
 		let temp = tempfile::tempdir().unwrap();
-		let store = Arc::new(DiskStore::open(temp.path(), profile()).unwrap());
+		let store = Arc::new(DiskStore::open(temp.path(), profile(), 1024).unwrap());
 		let authority = Arc::new(CanonicalOnlyAuthority::default());
 		let outbox = Arc::new(FaultOutbox::default());
 		let service = ProviderService::new_preopened(
@@ -1929,6 +2091,7 @@ mod tests {
 		assert_eq!(authority.checkpoint_calls.load(Ordering::SeqCst), 1);
 		assert_eq!(authority.deletion_calls.load(Ordering::SeqCst), 1);
 		assert_eq!(authority.legacy_challenge_calls.load(Ordering::SeqCst), 0);
+		assert!(outbox.log().is_empty());
 	}
 
 	#[tokio::test]
@@ -2042,6 +2205,65 @@ mod tests {
 		let result = outbox.submit_manifest_deletion(manifest_deletion("11")).await;
 		assert_eq!(result.unwrap_err(), "injected parent directory sync failure");
 		assert!(tokio::fs::read(&path).await.unwrap().ends_with(b"\n"));
+	}
+
+	#[tokio::test]
+	async fn failed_root_is_flushed_before_a_later_commit_or_delete_sequence() {
+		let temp = tempfile::tempdir().unwrap();
+		let store = DiskStore::open(temp.path(), profile(), 1024).unwrap();
+		let outbox = FaultOutbox::default();
+		outbox.fail_next_root.store(true, Ordering::SeqCst);
+		let (_first, _) = commit(&store, 1);
+		assert!(flush_pending_submissions(&store, &outbox).await.is_err());
+		assert_eq!(store.pending_root_submissions().unwrap()[0].sequence, 1);
+
+		// This is the pre-mutation flush performed by /commit and /delete.
+		flush_pending_submissions(&store, &outbox).await.unwrap();
+		let (second, second_authorization) = commit(&store, 2);
+		flush_pending_submissions(&store, &outbox).await.unwrap();
+		assert_eq!(outbox.log(), vec!["root-1", "root-2"]);
+
+		store.prepare_delete(&second, &second_authorization).unwrap();
+		flush_pending_submissions(&store, &outbox).await.unwrap();
+		assert_eq!(outbox.log(), vec!["root-1", "root-2", "root-3", "ack-3"]);
+		assert!(store.pending_root_submissions().unwrap().is_empty());
+		assert!(store.pending_deletions().unwrap().is_empty());
+	}
+
+	#[tokio::test]
+	async fn failed_root_is_flushed_before_delete_is_created() {
+		let temp = tempfile::tempdir().unwrap();
+		let store = DiskStore::open(temp.path(), profile(), 1024).unwrap();
+		let outbox = FaultOutbox::default();
+		outbox.fail_next_root.store(true, Ordering::SeqCst);
+		let (commitment, authorization) = commit(&store, 4);
+		assert!(flush_pending_submissions(&store, &outbox).await.is_err());
+		flush_pending_submissions(&store, &outbox).await.unwrap();
+		store.prepare_delete(&commitment, &authorization).unwrap();
+		flush_pending_submissions(&store, &outbox).await.unwrap();
+		assert_eq!(outbox.log(), vec!["root-1", "root-2", "ack-2"]);
+	}
+
+	#[tokio::test]
+	async fn partial_deletion_submission_recovers_after_restart_before_later_sequence() {
+		let temp = tempfile::tempdir().unwrap();
+		let outbox = FaultOutbox::default();
+		let store = DiskStore::open(temp.path(), profile(), 1024).unwrap();
+		let (commitment, authorization) = commit(&store, 5);
+		flush_pending_submissions(&store, &outbox).await.unwrap();
+		store.prepare_delete(&commitment, &authorization).unwrap();
+		outbox.partial_delete_once.store(true, Ordering::SeqCst);
+		assert!(flush_pending_submissions(&store, &outbox).await.is_err());
+		assert_eq!(outbox.log(), vec!["root-1", "root-2"]);
+		assert_eq!(store.pending_root_submissions().unwrap()[0].sequence, 2);
+		drop(store);
+
+		let reopened = DiskStore::open(temp.path(), profile(), 1024).unwrap();
+		flush_pending_submissions(&reopened, &outbox).await.unwrap();
+		commit(&reopened, 6);
+		flush_pending_submissions(&reopened, &outbox).await.unwrap();
+		assert_eq!(outbox.log(), vec!["root-1", "root-2", "root-2", "ack-2", "root-3"]);
+		assert!(reopened.pending_root_submissions().unwrap().is_empty());
 	}
 
 	#[test]

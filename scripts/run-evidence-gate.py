@@ -163,29 +163,6 @@ def hash_path(path: Path) -> str:
     return sha256_bytes(canonical_bytes(records))
 
 
-def canonical_release_hash(root: Path, declared: dict[str, Any]) -> str:
-    """Validate a release member against its adjacent canonical SHA256SUMS.
-
-    Canonical release outputs are intentionally generated outside the Git tree.
-    Their immutable commitment is SHA256SUMS, while the consumer also verifies
-    semantic provenance (source, lockfile, pinned srtool and two clean runs).
-    """
-    path = root / declared["path"]
-    attestation = declared.get("attestation")
-    if not isinstance(attestation, str):
-        raise ValueError("canonical release input has no SHA256SUMS attestation")
-    checksum_path = root / attestation
-    entries: dict[str, str] = {}
-    for line in checksum_path.read_text(encoding="utf-8").splitlines():
-        fields = line.split(maxsplit=1)
-        if len(fields) == 2:
-            entries[fields[1].lstrip(" *")] = fields[0]
-    actual = sha256_file(path)
-    if entries.get(path.name) != actual:
-        raise ValueError(f"canonical release attestation does not bind {declared['path']}")
-    return actual
-
-
 def workspace_state(
     root: Path, external_roots: list[str], output_paths: list[Path]
 ) -> dict[str, list[int | str]]:
@@ -527,23 +504,9 @@ def main() -> int:
         try:
             actual_hash = hash_path(path)
             input_hashes[declared["path"]] = actual_hash
-            input_class = declared.get("input_class")
-            if input_class == "canonical_release":
-                actual_hash = canonical_release_hash(root, declared)
-                input_hashes[declared["path"]] = actual_hash
-                input_ancestry[declared["path"]] = {
-                    # EvidenceReportV1 records all input ancestry with this
-                    # common shape. Here SHA256SUMS is the external producer
-                    # receipt rather than a prior in-repository gate report.
-                    "producer_gate": "CANONICAL_RELEASE",
-                    "producer_output": declared["path"],
-                    "producer_report": declared["attestation"],
-                    "producer_report_sha256": sha256_file(root / declared["attestation"]),
-                    "artifact_sha256": actual_hash,
-                }
-            elif declared["sha256"] == "record" and input_class != "generated":
+            if declared["sha256"] == "record" and declared.get("input_class") != "generated":
                 blockers.append(f"unfrozen input is not an approved generated input: {declared['path']}")
-            elif input_class == "generated":
+            elif declared.get("input_class") == "generated":
                 producer_id = declared.get("producer_gate")
                 producer_output = declared.get("producer_output")
                 producer_gates = [row for row in registry.get("gate", []) if row.get("id") == producer_id]
@@ -658,19 +621,11 @@ def main() -> int:
                 if value == "@repository_snapshot":
                     command_read_hashes[value] = repository_snapshot["sha256"]
                     continue
-                generated_parent = next(
-                    (
-                        output
-                        for output in produced_outputs
-                        if value == output or value.startswith(f"{output.rstrip('/')}/")
-                    ),
-                    None,
-                )
-                if generated_parent is not None:
+                if value in produced_outputs:
                     path = root / value
                     try:
                         command_read_hashes[value] = hash_path(path)
-                        command_ancestry[value] = produced_outputs[generated_parent]
+                        command_ancestry[value] = produced_outputs[value]
                     except OSError as exception:
                         blockers.append(f"missing generated command input {value}: {exception}")
                     continue
@@ -783,7 +738,7 @@ def main() -> int:
             if result.returncode != 0:
                 blockers.append(f"command failed ({result.returncode}): {argv!r}")
                 break
-            missing_outputs = [output for output in declared_outputs if not (root / output).exists()]
+            missing_outputs = [output for output in declared_outputs if not (root / output).is_file()]
             if missing_outputs:
                 blockers.append(
                     f"command did not materialize declared output(s): {missing_outputs!r}"

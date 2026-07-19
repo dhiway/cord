@@ -28,6 +28,7 @@ pub mod frame_system_extensions;
 pub mod meta_v6;
 pub mod pallet_balances;
 pub mod pallet_broker;
+pub mod pallet_orbis_hop_promotion;
 pub mod pallet_collator_selection;
 pub mod pallet_indices;
 pub mod pallet_message_queue;

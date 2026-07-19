@@ -16,110 +16,14 @@
 // You should have received a copy of the GNU General Public License
 // along with CORD. If not, see <https://www.gnu.org/licenses/>.
 
-import assert from "node:assert/strict";
-import test from "node:test";
-import { decodeStorageNativeEvent, subscribeStorageNativeEvents } from "../../packages/host/src/storage-events.ts";
-import { storageNativeEventSubscription, type StorageNativeEventKind } from "@cord-network/origin-sdk-cloud-storage";
-import type { TypedFinalizedEventSource } from "../../packages/host/src/attestation-events.ts";
-import type { BlockHash } from "@cord-network/origin-sdk-cloud-storage";
+import assert from "node:assert/strict";import test from "node:test";
+import {decodeStorageNativeEvent,subscribeStorageNativeEvents} from "../../packages/host/src/storage-events.ts";
+import {storageNativeEventSubscription,type StorageNativeEventKind} from "@cord-network/origin-sdk-cloud-storage";
+import type {TypedFinalizedEventSource} from "../../packages/host/src/attestation-events.ts";import type{BlockHash}from"@cord-network/origin-sdk-cloud-storage";
+const h=(n:number)=>`0x${n.toString(16).padStart(2,"0").repeat(32)}`,a=(n:number)=>`account-${n}`;
+const cases:[string,string,Record<string,unknown>,StorageNativeEventKind][]=[
+["StorageProvider","ProviderRegistered",{provider:a(1),capacity_bytes:2},"provider_registered"],["StorageProvider","ProviderUpdated",{provider:a(1),capacity_bytes:"3"},"provider_updated"],["StorageProvider","ProviderStatusChanged",{provider:a(1),status:"Active"},"provider_status_changed"],["StorageProvider","ProviderRemoved",{provider:a(1)},"provider_removed"],["StorageProvider","Heartbeat",{provider:a(1),at:2},"heartbeat"],["StorageProvider","AgreementProposed",{agreement_id:h(2),owner:a(2),provider:a(1)},"agreement_proposed"],["StorageProvider","AgreementAccepted",{agreement_id:h(2)},"agreement_accepted"],["StorageProvider","AgreementCancelled",{agreement_id:h(2)},"agreement_cancelled"],["StorageProvider","AgreementRenewalRequested",{agreement_id:h(2),expires_at:3},"agreement_renewal_requested"],["StorageProvider","AgreementRenewed",{agreement_id:h(2),expires_at:4},"agreement_renewed"],["StorageProvider","AgreementExpired",{agreement_id:h(2)},"agreement_expired"],["StorageProvider","AgreementPruned",{agreement_id:h(2)},"agreement_pruned"],["StorageProvider","ChallengeIssued",{challenge_id:h(3),provider:a(1),due_at:4},"challenge_issued"],["StorageProvider","CheckpointSubmitted",{challenge_id:h(3),proof_commitment:h(4)},"checkpoint_submitted"],["StorageProvider","ChallengeTimedOut",{challenge_id:h(3),provider:a(1)},"challenge_timed_out"],["StorageProvider","ProviderRootCommitted",{provider:a(1),sequence:3,root:h(4),leaf_count:3},"provider_root_committed"],["StorageProvider","DeletionAcknowledged",{agreement_id:h(2),provider:a(1),content_commitment:h(5),tombstone_root:h(6),root_sequence:3,leaf_index:2,leaf_count:3,proof_commitment:h(7)},"deletion_acknowledged"],["Drive","DriveCreated",{drive_id:h(8),owner:a(2)},"drive_created"],["Drive","DriveRootUpdated",{drive_id:h(8),version:2},"drive_root_updated"],["Drive","ControllerChanged",{drive_id:h(8),controller:a(3),enabled:true},"drive_controller_changed"],["Drive","DriveTransferred",{drive_id:h(8),old_owner:a(2),new_owner:a(3)},"drive_transferred"],["Drive","DriveArchived",{drive_id:h(8)},"drive_archived"],["S3","BucketCreated",{bucket:h(9),name:[98],owner:a(2)},"bucket_created"],["S3","ControllerChanged",{bucket:h(9),controller:a(3),enabled:true,version:2},"bucket_controller_changed"],["S3","BucketTransferred",{bucket:h(9),from:a(2),to:a(3),version:3},"bucket_transferred"],["S3","BucketArchived",{bucket:h(9),archived:true,version:4},"bucket_archived"],["S3","BucketVersioningChanged",{bucket:h(9),enabled:true,version:5},"bucket_versioning_changed"],["S3","ObjectPut",{bucket:h(9),object:h(10),key:[107],content_hash:h(11),version:1},"object_put"],["S3","ObjectDeleted",{bucket:h(9),object:h(10),key:[107],version:2},"object_deleted"],["S3","BucketDeleted",{bucket:h(9),name:[98],owner:a(3)},"bucket_deleted"]];
+test("every provider Drive and S3 event decodes to one stable kind",()=>{const found=new Set<StorageNativeEventKind>();cases.forEach(([p,e,d,k],index)=>{const decoded=decodeStorageNativeEvent({pallet:p,event:e,data:d,index});assert.equal(decoded?.event,k);found.add(decoded!.event)});assert.equal(found.size,30);assert.equal(decodeStorageNativeEvent({pallet:"System",event:"ExtrinsicSuccess",data:{},index:31}),null);assert.throws(()=>decodeStorageNativeEvent({pallet:"S3",event:"FutureEvent",data:{},index:0}),/unknown native storage event/)});
+test("fake finalized source filters kinds and emits deterministic outcomes",async()=>{const source:TypedFinalizedEventSource={async *subscribeFinalizedEvents(){yield{hash:h(12),events:cases.map(([p,e,d],index)=>({pallet:p,event:e,data:d,index}))}}};const wanted=cases.map(x=>x[3]).filter(x=>x==="provider_root_committed"||x==="deletion_acknowledged"||x==="object_put");const sub=storageNativeEventSubscription(h(1) as BlockHash,wanted);const got=[];for await(const item of subscribeStorageNativeEvents(source,sub))got.push(item);assert.deepEqual(got.map(x=>x.event.event.event),wanted);assert.deepEqual(got.map(x=>x.event.event_index),[15,16,27]);assert.deepEqual(got.map(x=>x.outcome.outcome),["provider","agreement","object"])});
 
-const h = (n: number) => `0x${n.toString(16).padStart(2, "0").repeat(32)}`;
-const a = (n: number) => h(0x20 + n);
-type Case = readonly [string, string, Readonly<Record<string, unknown>>, StorageNativeEventKind];
-const cases: readonly Case[] = [
-  ["StorageProvider", "ProviderRegistered", { provider: a(1), capacity_bytes: 2 }, "provider_registered"],
-  ["StorageProvider", "ProviderUpdated", { provider: a(1), capacity_bytes: "3" }, "provider_updated"],
-  ["StorageProvider", "ProviderStatusChanged", { provider: a(1), status: { type: "Active" } }, "provider_status_changed"],
-  ["StorageProvider", "ProviderRemoved", { provider: a(1) }, "provider_removed"],
-  ["StorageProvider", "Heartbeat", { provider: a(1), at: 2 }, "heartbeat"],
-  ["StorageProvider", "BucketCreated", { bucket_id: h(1), owner: a(2), primary: a(1), replicas: [a(3), a(4)], version: 1 }, "storage_bucket_created"],
-  ["StorageProvider", "BucketGrantChanged", { bucket_id: h(1), account: a(5), role: "Writer", previous_version: 1, new_version: 2 }, "storage_bucket_grant_changed"],
-  ["StorageProvider", "AgreementTransitioned", { agreement_id: h(2), previous: null, current: "Proposed", previous_version: 0, new_version: 1 }, "agreement_transitioned"],
-  ["StorageProvider", "AgreementCapacityReleased", { agreement_id: h(2) }, "agreement_capacity_released"],
-  ["StorageProvider", "AgreementProviderRebound", { agreement_id: h(2), old_provider: a(1), new_provider: a(3), status: "Active", bytes: 12 }, "agreement_provider_rebound"],
-  ["StorageProvider", "ChallengeIssued", { challenge_id: h(3), bucket_id: h(1), provider: a(1), due_at: 4 }, "challenge_issued"],
-  ["StorageProvider", "ChallengeProved", { challenge_id: h(3), provider: a(1) }, "challenge_proved"],
-  ["StorageProvider", "ChallengeTimedOut", { challenge_id: h(3), provider: a(1), checkpoint: 5 }, "challenge_timed_out"],
-  ["StorageProvider", "CheckpointAccepted", { bucket_id: h(1), commitment: { mmr_root: h(4), start_seq: 2, leaf_count: 3 }, checkpoint: 6, replica_confirmations: [a(3), a(4)] }, "checkpoint_accepted"],
-  ["StorageProvider", "CheckpointEquivocation", { code: 7, bucket_id: h(1), provider: a(1), accepted_root: h(4), conflicting_root: h(5), nonce: 6 }, "checkpoint_equivocation"],
-  ["StorageProvider", "ReplicaSelected", { bucket_id: h(1), provider: a(3), checkpoint: 6 }, "replica_selected"],
-  ["StorageProvider", "PrimaryPromoted", { bucket_id: h(1), old_provider: a(1), new_provider: a(3), checkpoint: 7 }, "primary_promoted"],
-  ["StorageProvider", "BucketReplicaReplaced", { bucket_id: h(1), old_provider: a(4), new_provider: a(5), previous_version: 2, new_version: 3 }, "bucket_replica_replaced"],
-  ["StorageProvider", "ManifestCommitmentChanged", { manifest: h(6), bucket_id: h(1), state: "Publishable", checkpoint: 7 }, "manifest_commitment_changed"],
-  ["StorageProvider", "ManifestDeletionAcknowledged", { manifest: h(6), bucket_id: h(1), provider: a(3), evidence_hash: h(7), acknowledged_at: 8 }, "manifest_deletion_acknowledged"],
-  ["Drive", "DriveCreated", { drive_id: h(8), owner: a(2), version: 1 }, "drive_created"],
-  ["Drive", "DriveRootUpdated", { drive_id: h(8), previous_root: null, new_root: h(6), previous_version: 1, version: 2 }, "drive_root_updated"],
-  ["Drive", "GrantChanged", { drive_id: h(8), subject: a(3), role: "Reader", previous_version: 2, version: 3 }, "drive_grant_changed"],
-  ["Drive", "DriveTransferred", { drive_id: h(8), old_owner: a(2), new_owner: a(3), previous_version: 3, version: 4 }, "drive_transferred"],
-  ["Drive", "DriveArchived", { drive_id: h(8), previous_version: 4, version: 5 }, "drive_archived"],
-  ["Drive", "NodeWritten", { drive_id: h(8), path: [47, 100, 105, 114, 47, 102], kind: "File", previous_version: 5, version: 6 }, "drive_node_written"],
-  ["Drive", "NodeRemoved", { drive_id: h(8), path: "/dir/f", previous_version: 6, version: 7 }, "drive_node_removed"],
-  ["S3", "BucketCreated", { bucket: h(9), name: [97, 112, 112], owner: a(2) }, "s3_bucket_created"],
-  ["S3", "ControllerChanged", { bucket: h(9), controller: a(3), enabled: true, version: 2 }, "s3_controller_changed"],
-  ["S3", "BucketTransferred", { bucket: h(9), from: a(2), to: a(3), version: 3 }, "s3_bucket_transferred"],
-  ["S3", "BucketArchived", { bucket: h(9), archived: true, version: 4 }, "s3_bucket_archived"],
-  ["S3", "BucketVersioningChanged", { bucket: h(9), enabled: true, version: 5 }, "s3_bucket_versioning_changed"],
-  ["S3", "ObjectPut", { bucket: h(9), object: h(10), key: [0xff], content_hash: h(11), version: 1 }, "s3_object_put"],
-  ["S3", "ObjectDeleted", { bucket: h(9), object: h(10), key: [0xff], version: 2 }, "s3_object_deleted"],
-  ["S3", "ObjectPurged", { bucket: h(9), key: [0xff] }, "s3_object_purged"],
-  ["S3", "BucketDeleted", { bucket: h(9), name: [97, 112, 112], owner: a(3) }, "s3_bucket_deleted"],
-  ["S3", "ObjectHistoryPruned", { bucket: h(9), key: [0xff], through_version: 2, removed: 1 }, "s3_object_history_pruned"],
-];
-
-test("every exposed Commons storage event decodes to one exact distinct kind", () => {
-  const found = new Set<StorageNativeEventKind>();
-  cases.forEach(([pallet, event, data, kind], index) => {
-    const decoded = decodeStorageNativeEvent({ pallet, event, data, index });
-    assert.equal(decoded?.event, kind);
-    found.add(decoded!.event);
-  });
-  assert.equal(found.size, 37);
-  assert.equal(decodeStorageNativeEvent({ pallet: "System", event: "ExtrinsicSuccess", data: {}, index: 38 }), null);
-  assert.equal(decodeStorageNativeEvent({ pallet: "StorageProvider", event: "ServiceKeyRotated", data: {}, index: 39 }), null);
-  assert.throws(() => decodeStorageNativeEvent({ pallet: "S3", event: "FutureEvent", data: {}, index: 0 }), /unknown native storage event/);
-  assert.throws(() => decodeStorageNativeEvent({ pallet: "StorageProvider", event: "CheckpointAccepted", data: { ...cases[13]![2], replica_confirmations: [a(3), a(3)] }, index: 0 }), /duplicate accounts/);
-  assert.throws(() => decodeStorageNativeEvent({ pallet: "StorageProvider", event: "CheckpointAccepted", data: { ...cases[13]![2], replica_confirmations: [a(4), a(3)] }, index: 0 }), /canonical account order/);
-  assert.throws(() => decodeStorageNativeEvent({ pallet: "StorageProvider", event: "CheckpointAccepted", data: { ...cases[13]![2], replica_confirmations: [a(3)] }, index: 0 }), /2-2 accounts/);
-  assert.throws(() => decodeStorageNativeEvent({ pallet: "StorageProvider", event: "CheckpointAccepted", data: { ...cases[13]![2], commitment: { mmr_root: h(4), start_seq: 2, leaf_count: 0 } }, index: 0 }), /sequence range/);
-  assert.throws(() => decodeStorageNativeEvent({ pallet: "StorageProvider", event: "CheckpointAccepted", data: { ...cases[13]![2], commitment: { mmr_root: h(4), start_seq: "18446744073709551615", leaf_count: 1 } }, index: 0 }), /sequence range/);
-  assert.throws(() => decodeStorageNativeEvent({ pallet: "StorageProvider", event: "BucketCreated", data: { ...cases[5]![2], replicas: [a(3)] }, index: 0 }), /2-4 accounts/);
-  assert.throws(() => decodeStorageNativeEvent({ pallet: "StorageProvider", event: "BucketCreated", data: { ...cases[5]![2], replicas: [a(1), a(3)] }, index: 0 }), /primary provider/);
-  assert.throws(() => decodeStorageNativeEvent({ pallet: "Drive", event: "NodeWritten", data: { ...cases[25]![2], path: "dir/f" }, index: 0 }), /Drive path bounds/);
-  assert.throws(() => decodeStorageNativeEvent({ pallet: "Drive", event: "NodeWritten", data: { ...cases[25]![2], path: "/dir/.." }, index: 0 }), /Drive component/);
-  assert.throws(() => decodeStorageNativeEvent({ pallet: "Drive", event: "NodeWritten", data: { ...cases[25]![2], path: "/e\u0301" }, index: 0 }), /Drive component/);
-  assert.throws(() => decodeStorageNativeEvent({ pallet: "S3", event: "BucketCreated", data: { ...cases[27]![2], name: "Abc" }, index: 0 }), /bucket-name bounds/);
-  assert.throws(() => decodeStorageNativeEvent({ pallet: "S3", event: "ObjectPut", data: { ...cases[32]![2], key: [0] }, index: 0 }), /object-key bounds/);
-});
-
-test("finalized source filters exact kinds and emits deterministic domain outcomes", async () => {
-  const source: TypedFinalizedEventSource = {
-    async *subscribeFinalizedEvents() {
-      yield { hash: h(12), events: cases.map(([pallet, event, data], index) => ({ pallet, event, data, index })) };
-    },
-  };
-  const wanted: StorageNativeEventKind[] = ["checkpoint_accepted", "manifest_deletion_acknowledged", "s3_object_put"];
-  const subscription = storageNativeEventSubscription(h(1) as BlockHash, wanted);
-  const received = [];
-  for await (const item of subscribeStorageNativeEvents(source, subscription)) received.push(item);
-  assert.deepEqual(received.map((item) => item.event.event.event), wanted);
-  assert.deepEqual(received.map((item) => item.event.event_index), [13, 19, 32]);
-  assert.deepEqual(received.map((item) => item.outcome.outcome), ["checkpoint", "manifest", "s3_object"]);
-});
-
-test("S3 object outcomes remain distinct when native purge events omit object hashes", async () => {
-  const first = decodeStorageNativeEvent({ pallet: "S3", event: "ObjectPurged", data: { bucket: h(9), key: [0xff] }, index: 0 })!;
-  const second = decodeStorageNativeEvent({ pallet: "S3", event: "ObjectPurged", data: { bucket: h(9), key: [0xfe] }, index: 1 })!;
-  const source: TypedFinalizedEventSource = {
-    async *subscribeFinalizedEvents() {
-      yield { hash: h(12), events: [
-        { pallet: "S3", event: "ObjectPurged", data: first.data, index: 0 },
-        { pallet: "S3", event: "ObjectPurged", data: second.data, index: 1 },
-      ] };
-    },
-  };
-  assert.notDeepEqual(first.data.key, second.data.key);
-  const ids: Array<string | null> = [];
-  for await (const item of subscribeStorageNativeEvents(source, storageNativeEventSubscription(h(1) as BlockHash, ["s3_object_purged"])))
-    ids.push(item.outcome.data.id);
-  assert.deepEqual(ids, [`s3-key:${h(9)}:ff`, `s3-key:${h(9)}:fe`]);
-});
+test("shared provider deletion vector survives TS descriptor decoding exactly",async()=>{const {readFileSync}=await import("node:fs");const vector=JSON.parse(readFileSync(new URL("../../../docs/sdk/vectors/storage-provider-deletion-v1.json",import.meta.url),"utf8"));const root=decodeStorageNativeEvent({pallet:"StorageProvider",event:"ProviderRootCommitted",index:0,data:{provider:vector.input.provider_account_id32,sequence:vector.input.leaf_count,root:vector.expected.tombstone_root,leaf_count:vector.input.leaf_count}});const ack=decodeStorageNativeEvent({pallet:"StorageProvider",event:"DeletionAcknowledged",index:1,data:{agreement_id:vector.input.agreement_id,provider:vector.input.provider_account_id32,content_commitment:vector.input.content_commitment,tombstone_root:vector.expected.tombstone_root,root_sequence:vector.input.leaf_count,leaf_index:vector.input.leaf_index,leaf_count:vector.input.leaf_count,proof_commitment:h(13)}});assert.equal(root?.event,"provider_root_committed");assert.equal(root?.data.root,vector.expected.tombstone_root);assert.equal(ack?.event,"deletion_acknowledged");assert.equal(ack?.data.leaf_index,vector.input.leaf_index);assert.equal(ack?.data.leaf_count,vector.input.leaf_count)});

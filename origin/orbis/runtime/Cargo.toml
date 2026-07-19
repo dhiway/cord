@@ -25,7 +25,9 @@ origin-primitives = { workspace = true }
 origin-runtime-constants = { workspace = true }
 origin-commons-runtime-constants = { workspace = true }
 orbis-storage-runtime-api = { workspace = true }
+orbis-identity-personhood-runtime-api = { workspace = true }
 token-origin-commons-runtime-api = { workspace = true }
+orbis-transaction-storage-primitives = { workspace = true }
 indiv-pallet-chunks-manager = { workspace = true }
 indiv-pallet-members = { workspace = true }
 indiv-pallet-members-notifier = { workspace = true }
@@ -58,6 +60,9 @@ pallet-asset-conversion-tx-payment = { workspace = true }
 pallet-balances = { workspace = true }
 pallet-broker = { workspace = true }
 pallet-coretime-control = { workspace = true }
+pallet-orbis-hop-promotion = { workspace = true }
+pallet-orbis-transaction-storage = { workspace = true }
+pallet-orbis-transaction-storage-runtime-api = { workspace = true }
 pallet-orbis-attestation = { workspace = true }
 pallet-orbis-attestation-runtime-api = { workspace = true }
 pallet-orbis-names = { workspace = true }
@@ -98,6 +103,7 @@ sp-block-builder = { workspace = true }
 sp-consensus-aura = { workspace = true }
 sp-core = { workspace = true }
 sp-genesis-builder = { workspace = true }
+sp-hop = { workspace = true }
 sp-inherents = { workspace = true }
 sp-offchain = { workspace = true }
 sp-io = { workspace = true }
@@ -106,6 +112,7 @@ sp-session = { workspace = true }
 sp-storage = { workspace = true }
 sp-statement-store = { workspace = true }
 sp-transaction-pool = { workspace = true }
+sp-transaction-storage-proof = { workspace = true }
 sp-version = { workspace = true }
 
 # Polkadot
@@ -154,11 +161,13 @@ p1-upgrade-candidate = []
 std = [
 	"assets-common/std",
 	"orbis-pallets-common/std",
+	"orbis-transaction-storage-primitives/std",
 	"codec/std",
 	"origin-primitives/std",
 	"origin-runtime-constants/std",
 	"origin-commons-runtime-constants/std",
 	"orbis-storage-runtime-api/std",
+	"orbis-identity-personhood-runtime-api/std",
 	"token-origin-commons-runtime-api/std",
 	"indiv-pallet-chunks-manager/std",
 	"indiv-pallet-members/std",
@@ -201,6 +210,9 @@ std = [
 	"pallet-balances/std",
 	"pallet-broker/std",
 	"pallet-coretime-control/std",
+	"pallet-orbis-hop-promotion/std",
+	"pallet-orbis-transaction-storage/std",
+	"pallet-orbis-transaction-storage-runtime-api/std",
 	"pallet-orbis-attestation/std",
 	"pallet-orbis-attestation-runtime-api/std",
 	"pallet-orbis-names/std",
@@ -251,6 +263,7 @@ std = [
 	"sp-consensus-aura/std",
 	"sp-core/std",
 	"sp-genesis-builder/std",
+	"sp-hop/std",
 	"sp-inherents/std",
 	"sp-offchain/std",
 	"sp-io/std",
@@ -259,6 +272,7 @@ std = [
 	"sp-storage/std",
 	"sp-statement-store/std",
 	"sp-transaction-pool/std",
+	"sp-transaction-storage-proof/std",
 	"sp-version/std",
 	"substrate-wasm-builder",
 	"xcm-builder/std",
@@ -296,6 +310,8 @@ runtime-benchmarks = [
 	"frame-system/experimental",
 	"pallet-balances/runtime-benchmarks",
 	"pallet-broker/runtime-benchmarks",
+	"pallet-orbis-hop-promotion/runtime-benchmarks",
+	"pallet-orbis-transaction-storage/runtime-benchmarks",
 	"pallet-coretime-control/runtime-benchmarks",
 	"pallet-orbis-attestation/runtime-benchmarks",
 	"pallet-orbis-names/runtime-benchmarks",
@@ -369,6 +385,8 @@ try-runtime = [
 	"pallet-balances/try-runtime",
 	"pallet-broker/try-runtime",
 	"pallet-coretime-control/try-runtime",
+	"pallet-orbis-hop-promotion/try-runtime",
+	"pallet-orbis-transaction-storage/try-runtime",
 	"pallet-orbis-attestation/try-runtime",
 	"pallet-orbis-names/try-runtime",
 	"pallet-orbis-drive/try-runtime",

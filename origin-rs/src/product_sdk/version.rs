@@ -38,25 +38,27 @@ pub const ORBIS_CANDIDATE_GENESIS_HEADER_HASH: &str =
 pub const ORBIS_CANDIDATE_GENESIS_STATE_ROOT: &str =
 	"0xe778ef91e9e1419f77a17a687245fc903335ecdb8dd3cf450df86637d529a53c";
 pub const ORBIS_CANDIDATE_GENESIS_IDENTITY_SHA256: &str =
-	"e0cfdc509e90b58c7c36a9cc522eab9013f281c076c100ec3f09fc9e24c074de";
+	"bfac0f6c85fac491cc9aa6fb0ff03ab1581db78c7901d094c8a9843e898c9e0d";
 pub const ORBIS_ACTIVATION_STATE: &str = "candidate-pending";
 pub const ORBIS_PRODUCTION_ACTIVATION_READY: bool = false;
 
+pub const IDENTITY_PERSONHOOD_RUNTIME_API_VERSION: u32 = 1;
 pub const ATTESTATION_RUNTIME_API_VERSION: u32 = 1;
 pub const NAMES_RUNTIME_API_VERSION: u32 = 1;
-pub const STORAGE_PROVIDER_RUNTIME_API_VERSION: u32 = 11;
+pub const STORAGE_PROVIDER_RUNTIME_API_VERSION: u32 = 10;
 pub const DRIVE_RUNTIME_API_VERSION: u32 = 2;
 pub const S3_RUNTIME_API_VERSION: u32 = 3;
 
 pub const ATTESTATION_STORAGE_SCHEMA_VERSION: u32 = 1;
 pub const NAMES_STORAGE_SCHEMA_VERSION: u32 = 1;
-pub const STORAGE_PROVIDER_STORAGE_SCHEMA_VERSION: u32 = 2;
+pub const STORAGE_PROVIDER_STORAGE_SCHEMA_VERSION: u32 = 5;
 pub const DRIVE_STORAGE_SCHEMA_VERSION: u32 = 1;
-pub const S3_STORAGE_SCHEMA_VERSION: u32 = 2;
+pub const S3_STORAGE_SCHEMA_VERSION: u32 = 1;
+pub const TRANSACTION_STORAGE_SCHEMA_VERSION: u32 = 8;
 pub const RESOURCES_STORAGE_SCHEMA_VERSION: u32 = 1;
 
 pub const NAMES_LABEL_POLICY_VERSION: u32 = 1;
-pub const STORAGE_PROVIDER_PROTOCOL_VERSION: u32 = 6;
+pub const STORAGE_PROVIDER_PROTOCOL_VERSION: u32 = 4;
 
 #[cfg(test)]
 mod tests {
@@ -85,6 +87,10 @@ mod tests {
 		assert_eq!(
 			matrix["networks"]["orbis"]["production_activation_ready"],
 			ORBIS_PRODUCTION_ACTIVATION_READY
+		);
+		assert_eq!(
+			matrix["native_runtime_apis"]["identity_personhood"]["version"],
+			IDENTITY_PERSONHOOD_RUNTIME_API_VERSION
 		);
 		assert_eq!(
 			matrix["native_runtime_apis"]["storage_provider"]["version"],

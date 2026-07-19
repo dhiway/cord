@@ -17,9 +17,8 @@
   documented generator runs. Hand edits to generated output are prohibited.
 - Each publishable package declares `files`, `exports`, `sideEffects`, runtime/development
   dependencies, supported engines and a `/testing` subpath when a fake exists.
-- The product workspace does not publish a contracts package. Commons-native capabilities and the
-  host-v2 boundary are the only supported application path; contract deployment, ABI wrappers, and
-  native-versus-contract switches are intentionally absent.
+- The umbrella cannot depend on `origin-sdk-contracts`. Application contracts are an explicit leaf
+  import, never a native-domain implementation detail.
 
 ## Release gates
 

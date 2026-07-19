@@ -27,9 +27,11 @@ backoff = { workspace = true }
 codec = { workspace = true, features = ["std"] }
 futures = { workspace = true }
 origin-primitives = { workspace = true, features = ["std"] }
+pallet-orbis-transaction-storage-runtime-api = { workspace = true, features = ["std"] }
 pallet-orbis-attestation-runtime-api = { workspace = true, features = ["std"] }
 pallet-orbis-names-runtime-api = { workspace = true, features = ["std"] }
 orbis-storage-runtime-api = { workspace = true, features = ["std"] }
+orbis-identity-personhood-runtime-api = { workspace = true, features = ["std"] }
 serde = { workspace = true, features = ["derive", "std"] }
 serde_json = { workspace = true, features = ["std"] }
 thiserror = { workspace = true }
@@ -50,19 +52,17 @@ base64 = "0.22"
 clap = { version = "4.5", features = ["derive"] }
 ciborium = "0.2.2"
 sha2 = { workspace = true, features = ["std"] }
-hkdf = { workspace = true }
-ed25519-dalek = { workspace = true, features = ["std"] }
 chacha20poly1305 = "0.10.1"
-unicode-normalization = "0.1.24"
-rand = { workspace = true, features = ["std", "std_rng"] }
 
 [dev-dependencies]
 serde_json = { workspace = true }
 env_logger = "0.11"
 kvdb = { workspace = true }
 kvdb-rocksdb = { workspace = true }
+rand = "0.8"
 proptest = "1"
 tempfile = { workspace = true }
 cddl = "0.10.6"
 blake2 = { workspace = true, features = ["std"] }
 ed25519-dalek = { workspace = true, features = ["std"] }
+unicode-normalization = "0.1.24"

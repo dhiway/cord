@@ -23,13 +23,13 @@ import {
   type AssetsRuntimeAdapter,
 } from "@cord-network/origin-sdk-assets";
 import {
+  createHostOriginAppContentStore,
+  createHostOriginAppBlockStore,
   createOriginAppDeployer,
   createOriginAppsClient,
   type PrepareOriginAppDeployment,
   type PreparedOriginAppDeployment,
   type OriginAppsClient,
-  type OriginAppContentStore,
-  type OriginAppBlockStore,
 } from "@cord-network/origin-sdk-apps";
 import {
   createAttestationClient,
@@ -54,12 +54,9 @@ import {
   type ProductIdentity,
 } from "@cord-network/origin-sdk-host";
 import {
-  createIdentityV2Client,
-  createTransactionSigningV2Client,
-  IdentityReplayJournalV2,
-  type IdentityV2Bridge,
-  type IdentityV2Client,
-  type TransactionSigningV2Client,
+  createIdentityClient,
+  type IdentityClient,
+  type IdentityRuntimeAdapter,
 } from "@cord-network/origin-sdk-identity";
 import {
   createLocalStorage,
@@ -70,6 +67,16 @@ import {
   type NamesClient,
   type NamesRuntimeAdapter,
 } from "@cord-network/origin-sdk-names";
+import {
+  createPersonhoodClient,
+  type PersonhoodClient,
+  type PersonhoodRuntimeAdapter,
+} from "@cord-network/origin-sdk-personhood";
+import {
+  createResourcesClient,
+  type ResourcesClient,
+  type ResourcesRuntimeAdapter,
+} from "@cord-network/origin-sdk-resources";
 import { err, ok } from "@cord-network/origin-sdk-result";
 import {
   selectHostSigner,
@@ -81,8 +88,16 @@ import {
 } from "./runtime.ts";
 
 export * from "./runtime.ts";
+import {
+  createHostStatementStoreTransport,
+  createStatementStoreClient,
+  type StatementStoreClient,
+} from "@cord-network/origin-sdk-statement-store";
 
 export interface OriginAppRuntime {
+  readonly identity: IdentityRuntimeAdapter;
+  readonly personhood: PersonhoodRuntimeAdapter;
+  readonly resources: ResourcesRuntimeAdapter;
   readonly attestation: AttestationRuntimeAdapter;
   readonly names: NamesRuntimeAdapter;
   readonly storage: CloudStorageRuntimeAdapter;
@@ -99,14 +114,8 @@ export interface OriginApplicationClient extends OriginAppsClient {
 export interface CreateAppOptions {
   readonly product: ProductIdentity;
   readonly bridge: OriginHostBridge;
-  /** Host-v2 transport for independently granted Identity operations. */
-  readonly identityBridge: IdentityV2Bridge;
   /** One descriptor-backed integration bundle supplied by the host/platform integration. */
   readonly runtime: OriginAppRuntime | CommonsRuntimeExecutor;
-  /** Authenticated native-provider adapter for application manifest bytes. */
-  readonly content: OriginAppContentStore;
-  /** Authenticated native-provider adapter for raw application blocks. */
-  readonly blocks: OriginAppBlockStore;
   readonly account?: string;
   readonly storageNamespace?: string;
   readonly signal?: AbortSignal;
@@ -118,12 +127,13 @@ export interface OriginApp {
   readonly chain: CommonsChainClient;
   readonly signer: SelectedOriginSigner;
   readonly storage: LocalStorageClient;
-  readonly identity: IdentityV2Client;
-  /** Fresh-consent transaction signing is deliberately separate from Identity reads/proofs. */
-  readonly signing: TransactionSigningV2Client;
+  readonly identity: IdentityClient;
+  readonly personhood: PersonhoodClient;
+  readonly resources: ResourcesClient;
   readonly attestations: AttestationClient;
   readonly names: NamesClient;
   readonly cloudStorage: CloudStorageClient;
+  readonly statements: StatementStoreClient;
   readonly assets: AssetsClient;
   readonly apps: OriginApplicationClient;
   readonly signal: AbortSignal;
@@ -179,22 +189,23 @@ export async function createApp(
     return selected;
   }
 
-  const runtime = "read" in options.runtime
-    ? createOriginAppRuntime(options.runtime)
-    : options.runtime;
-  const identityReplay = new IdentityReplayJournalV2();
-  const identity = createIdentityV2Client(options.product.id, options.identityBridge, identityReplay);
-  const signing = createTransactionSigningV2Client(
-    options.product.id,
-    options.identityBridge,
-    identityReplay,
+  const runtime = "identity" in options.runtime
+    ? options.runtime
+    : createOriginAppRuntime(options.runtime);
+  const identity = createIdentityClient(chain, runtime.identity);
+  const personhood = createPersonhoodClient(chain, runtime.personhood);
+  const resources = createResourcesClient(chain, runtime.resources, runtime.personhood);
+  const statements = createStatementStoreClient(
+    host,
+    createHostStatementStoreTransport(host),
+    resources,
   );
   const cloudStorage = createCloudStorageClient(chain, runtime.storage);
-  const apps = createOriginAppsClient(chain, runtime.names, options.content);
+  const apps = createOriginAppsClient(chain, runtime.names, createHostOriginAppContentStore(host));
   const deployer = createOriginAppDeployer(
     apps,
     cloudStorage,
-    options.blocks,
+    createHostOriginAppBlockStore(host),
   );
   let closed = false;
   const app: OriginApp = {
@@ -204,10 +215,12 @@ export async function createApp(
     signer: selected.value,
     storage: createLocalStorage(host, options.storageNamespace ?? "app"),
     identity,
-    signing,
+    personhood,
+    resources,
     attestations: createAttestationClient(chain, runtime.attestation),
     names: createNamesClient(chain, runtime.names),
     cloudStorage,
+    statements,
     assets: createAssetsClient(chain, runtime.assets),
     apps: { ...apps, prepareDeployment: deployer.prepare },
     signal: lifetime.signal,
@@ -237,7 +250,8 @@ export const ORIGIN_APP_CONTRACT = {
   hosted: true,
   endpointSelection: "host-only",
   nativeDomains: [
-    "identity", "signing", "attestations", "names", "cloudStorage", "assets",
+    "identity", "personhood", "resources", "attestations", "names",
+    "cloudStorage", "statements", "assets",
   ],
   contractsIncluded: false,
   applicationDomains: ["apps"],

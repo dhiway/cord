@@ -4,7 +4,7 @@ integrity_policy = "content-sensitive-no-ignored-deltas"
 [[repository]]
 name = "cord"
 role = "cord"
-path = "."
+path = "/Users/smohan/dev/smohan-dw/cord-2026-1.0.x/cord"
 cache_artifact_globs = ["target/**", "node_modules/**", ".pnpm-store/**", ".turbo/**", "dist/**", "coverage/**"]
 
 [[repository]]

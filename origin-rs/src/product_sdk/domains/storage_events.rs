@@ -16,15 +16,16 @@
 // You should have received a copy of the GNU General Public License
 // along with CORD. If not, see <https://www.gnu.org/licenses/>.
 
-//! Typed finalized lifecycle events for the exact native Commons storage surface.
+//! Typed finalized lifecycle events for the native storage/provider/Drive/S3 stack.
+
+use serde::{Deserialize, Serialize};
+use std::collections::HashSet;
 
 use super::{
 	common::{invalid, AccountId, BlockNumber, DomainResult, Hash32, Validate},
-	storage_provider::{AgreementStatus, ProviderStatus},
-	AgreementId, BucketId, ChallengeId, ContentCommitment, ContentHash, DriveId, ObjectId,
+	storage_provider::ProviderStatus,
+	AgreementId, BucketId, ChallengeId, ContentCommitment, DriveId, ObjectId, ProofCommitment,
 };
-use serde::{Deserialize, Serialize};
-use std::collections::HashSet;
 
 #[derive(Clone, Copy, Debug, Deserialize, Eq, Hash, PartialEq, Serialize)]
 #[serde(rename_all = "snake_case")]
@@ -34,112 +35,33 @@ pub enum StorageNativeEventKind {
 	ProviderStatusChanged,
 	ProviderRemoved,
 	Heartbeat,
-	StorageBucketCreated,
-	StorageBucketGrantChanged,
-	AgreementTransitioned,
-	AgreementCapacityReleased,
-	AgreementProviderRebound,
+	AgreementProposed,
+	AgreementAccepted,
+	AgreementCancelled,
+	AgreementRenewalRequested,
+	AgreementRenewed,
+	AgreementExpired,
+	AgreementPruned,
 	ChallengeIssued,
-	ChallengeProved,
+	CheckpointSubmitted,
 	ChallengeTimedOut,
-	CheckpointAccepted,
-	CheckpointEquivocation,
-	ReplicaSelected,
-	PrimaryPromoted,
-	BucketReplicaReplaced,
-	ManifestCommitmentChanged,
-	ManifestDeletionAcknowledged,
+	ProviderRootCommitted,
+	DeletionAcknowledged,
 	DriveCreated,
 	DriveRootUpdated,
-	DriveGrantChanged,
+	DriveControllerChanged,
 	DriveTransferred,
 	DriveArchived,
-	DriveNodeWritten,
-	DriveNodeRemoved,
-	S3BucketCreated,
-	S3ControllerChanged,
-	S3BucketTransferred,
-	S3BucketArchived,
-	S3BucketVersioningChanged,
-	S3ObjectPut,
-	S3ObjectDeleted,
-	S3ObjectPurged,
-	S3BucketDeleted,
-	S3ObjectHistoryPruned,
+	BucketCreated,
+	BucketControllerChanged,
+	BucketTransferred,
+	BucketArchived,
+	BucketVersioningChanged,
+	ObjectPut,
+	ObjectDeleted,
+	BucketDeleted,
 }
-pub const ALL_STORAGE_NATIVE_EVENT_KINDS: [StorageNativeEventKind; 37] = [
-	StorageNativeEventKind::ProviderRegistered,
-	StorageNativeEventKind::ProviderUpdated,
-	StorageNativeEventKind::ProviderStatusChanged,
-	StorageNativeEventKind::ProviderRemoved,
-	StorageNativeEventKind::Heartbeat,
-	StorageNativeEventKind::StorageBucketCreated,
-	StorageNativeEventKind::StorageBucketGrantChanged,
-	StorageNativeEventKind::AgreementTransitioned,
-	StorageNativeEventKind::AgreementCapacityReleased,
-	StorageNativeEventKind::AgreementProviderRebound,
-	StorageNativeEventKind::ChallengeIssued,
-	StorageNativeEventKind::ChallengeProved,
-	StorageNativeEventKind::ChallengeTimedOut,
-	StorageNativeEventKind::CheckpointAccepted,
-	StorageNativeEventKind::CheckpointEquivocation,
-	StorageNativeEventKind::ReplicaSelected,
-	StorageNativeEventKind::PrimaryPromoted,
-	StorageNativeEventKind::BucketReplicaReplaced,
-	StorageNativeEventKind::ManifestCommitmentChanged,
-	StorageNativeEventKind::ManifestDeletionAcknowledged,
-	StorageNativeEventKind::DriveCreated,
-	StorageNativeEventKind::DriveRootUpdated,
-	StorageNativeEventKind::DriveGrantChanged,
-	StorageNativeEventKind::DriveTransferred,
-	StorageNativeEventKind::DriveArchived,
-	StorageNativeEventKind::DriveNodeWritten,
-	StorageNativeEventKind::DriveNodeRemoved,
-	StorageNativeEventKind::S3BucketCreated,
-	StorageNativeEventKind::S3ControllerChanged,
-	StorageNativeEventKind::S3BucketTransferred,
-	StorageNativeEventKind::S3BucketArchived,
-	StorageNativeEventKind::S3BucketVersioningChanged,
-	StorageNativeEventKind::S3ObjectPut,
-	StorageNativeEventKind::S3ObjectDeleted,
-	StorageNativeEventKind::S3ObjectPurged,
-	StorageNativeEventKind::S3BucketDeleted,
-	StorageNativeEventKind::S3ObjectHistoryPruned,
-];
-#[derive(Clone, Copy, Debug, Deserialize, Eq, PartialEq, Serialize)]
-#[serde(rename_all = "snake_case")]
-pub enum BucketRole {
-	Reader,
-	Writer,
-	Admin,
-}
-#[derive(Clone, Copy, Debug, Deserialize, Eq, PartialEq, Serialize)]
-#[serde(rename_all = "snake_case")]
-pub enum DriveRole {
-	Reader,
-	Writer,
-	Admin,
-}
-#[derive(Clone, Copy, Debug, Deserialize, Eq, PartialEq, Serialize)]
-#[serde(rename_all = "snake_case")]
-pub enum CommitmentState {
-	Publishable,
-	Pending,
-	Tombstoned,
-	Missing,
-}
-#[derive(Clone, Copy, Debug, Deserialize, Eq, PartialEq, Serialize)]
-#[serde(rename_all = "snake_case")]
-pub enum DriveNodeKind {
-	Directory,
-	File,
-}
-#[derive(Clone, Debug, Deserialize, Eq, PartialEq, Serialize)]
-pub struct CheckpointCommitment {
-	pub mmr_root: ContentCommitment,
-	pub start_seq: u64,
-	pub leaf_count: u64,
-}
+
 #[derive(Clone, Debug, Deserialize, Eq, PartialEq, Serialize)]
 #[serde(tag = "event", content = "data", rename_all = "snake_case")]
 pub enum StorageNativeEvent {
@@ -162,245 +84,169 @@ pub enum StorageNativeEvent {
 		provider: AccountId,
 		at: BlockNumber,
 	},
-	StorageBucketCreated {
-		bucket: BucketId,
+	AgreementProposed {
+		agreement: AgreementId,
 		owner: AccountId,
-		primary: AccountId,
-		replicas: Vec<AccountId>,
-		version: u64,
+		provider: AccountId,
 	},
-	StorageBucketGrantChanged {
-		bucket: BucketId,
-		account: AccountId,
-		role: Option<BucketRole>,
-		previous_version: u64,
-		new_version: u64,
-	},
-	AgreementTransitioned {
-		agreement: AgreementId,
-		previous: Option<AgreementStatus>,
-		current: AgreementStatus,
-		previous_version: u64,
-		new_version: u64,
-	},
-	AgreementCapacityReleased {
+	AgreementAccepted {
 		agreement: AgreementId,
 	},
-	AgreementProviderRebound {
+	AgreementCancelled {
 		agreement: AgreementId,
-		old_provider: AccountId,
-		new_provider: AccountId,
-		status: AgreementStatus,
-		bytes: u64,
+	},
+	AgreementRenewalRequested {
+		agreement: AgreementId,
+		expires_at: BlockNumber,
+	},
+	AgreementRenewed {
+		agreement: AgreementId,
+		expires_at: BlockNumber,
+	},
+	AgreementExpired {
+		agreement: AgreementId,
+	},
+	AgreementPruned {
+		agreement: AgreementId,
 	},
 	ChallengeIssued {
 		challenge: ChallengeId,
-		bucket: BucketId,
 		provider: AccountId,
 		due_at: BlockNumber,
 	},
-	ChallengeProved {
+	CheckpointSubmitted {
 		challenge: ChallengeId,
-		provider: AccountId,
+		proof_commitment: ProofCommitment,
 	},
 	ChallengeTimedOut {
 		challenge: ChallengeId,
 		provider: AccountId,
-		checkpoint: BlockNumber,
 	},
-	CheckpointAccepted {
-		bucket: BucketId,
-		commitment: CheckpointCommitment,
-		checkpoint: BlockNumber,
-		replica_confirmations: Vec<AccountId>,
-	},
-	CheckpointEquivocation {
-		code: u16,
-		bucket: BucketId,
+	ProviderRootCommitted {
 		provider: AccountId,
-		accepted_root: ContentCommitment,
-		conflicting_root: ContentCommitment,
-		nonce: BlockNumber,
+		sequence: u64,
+		root: ProofCommitment,
+		leaf_count: u64,
 	},
-	ReplicaSelected {
-		bucket: BucketId,
+	DeletionAcknowledged {
+		agreement: AgreementId,
 		provider: AccountId,
-		checkpoint: BlockNumber,
-	},
-	PrimaryPromoted {
-		bucket: BucketId,
-		old_provider: AccountId,
-		new_provider: AccountId,
-		checkpoint: BlockNumber,
-	},
-	BucketReplicaReplaced {
-		bucket: BucketId,
-		old_provider: AccountId,
-		new_provider: AccountId,
-		previous_version: u64,
-		new_version: u64,
-	},
-	ManifestCommitmentChanged {
-		manifest: ContentCommitment,
-		bucket: BucketId,
-		state: CommitmentState,
-		checkpoint: Option<BlockNumber>,
-	},
-	ManifestDeletionAcknowledged {
-		manifest: ContentCommitment,
-		bucket: BucketId,
-		provider: AccountId,
-		evidence_hash: ContentCommitment,
-		acknowledged_at: BlockNumber,
+		content_commitment: ContentCommitment,
+		tombstone_root: ProofCommitment,
+		root_sequence: u64,
+		leaf_index: u64,
+		leaf_count: u64,
+		proof_commitment: ProofCommitment,
 	},
 	DriveCreated {
 		drive: DriveId,
 		owner: AccountId,
-		version: u64,
 	},
 	DriveRootUpdated {
 		drive: DriveId,
-		previous_root: Option<ContentCommitment>,
-		new_root: ContentCommitment,
-		previous_version: u64,
 		version: u64,
 	},
-	DriveGrantChanged {
+	DriveControllerChanged {
 		drive: DriveId,
-		subject: AccountId,
-		role: Option<DriveRole>,
-		previous_version: u64,
-		version: u64,
+		controller: AccountId,
+		enabled: bool,
 	},
 	DriveTransferred {
 		drive: DriveId,
 		old_owner: AccountId,
 		new_owner: AccountId,
-		previous_version: u64,
-		version: u64,
 	},
 	DriveArchived {
 		drive: DriveId,
-		previous_version: u64,
-		version: u64,
 	},
-	DriveNodeWritten {
-		drive: DriveId,
-		path: Vec<u8>,
-		kind: DriveNodeKind,
-		previous_version: u64,
-		version: u64,
-	},
-	DriveNodeRemoved {
-		drive: DriveId,
-		path: Vec<u8>,
-		previous_version: u64,
-		version: u64,
-	},
-	S3BucketCreated {
+	BucketCreated {
 		bucket: BucketId,
 		name: Vec<u8>,
 		owner: AccountId,
 	},
-	S3ControllerChanged {
+	BucketControllerChanged {
 		bucket: BucketId,
 		controller: AccountId,
 		enabled: bool,
 		version: u64,
 	},
-	S3BucketTransferred {
+	BucketTransferred {
 		bucket: BucketId,
 		from: AccountId,
 		to: AccountId,
 		version: u64,
 	},
-	S3BucketArchived {
+	BucketArchived {
 		bucket: BucketId,
 		archived: bool,
 		version: u64,
 	},
-	S3BucketVersioningChanged {
+	BucketVersioningChanged {
 		bucket: BucketId,
 		enabled: bool,
 		version: u64,
 	},
-	S3ObjectPut {
+	ObjectPut {
 		bucket: BucketId,
 		object: ObjectId,
 		key: Vec<u8>,
-		content_hash: ContentHash,
+		content_commitment: ContentCommitment,
 		version: u64,
 	},
-	S3ObjectDeleted {
+	ObjectDeleted {
 		bucket: BucketId,
 		object: ObjectId,
 		key: Vec<u8>,
 		version: u64,
 	},
-	S3ObjectPurged {
-		bucket: BucketId,
-		key: Vec<u8>,
-	},
-	S3BucketDeleted {
+	BucketDeleted {
 		bucket: BucketId,
 		name: Vec<u8>,
 		owner: AccountId,
 	},
-	S3ObjectHistoryPruned {
-		bucket: BucketId,
-		key: Vec<u8>,
-		through_version: u64,
-		removed: u32,
-	},
 }
+
+#[derive(Clone, Copy, Debug, Deserialize, Eq, PartialEq, Serialize)]
+#[serde(rename_all = "snake_case")]
+pub enum StorageLifecycleAction {
+	Registered,
+	Updated,
+	StatusChanged,
+	Removed,
+	Heartbeat,
+	Proposed,
+	Accepted,
+	Cancelled,
+	RenewalRequested,
+	Renewed,
+	Expired,
+	Pruned,
+	Issued,
+	CheckpointSubmitted,
+	TimedOut,
+	RootCommitted,
+	DeletionAcknowledged,
+	Created,
+	RootUpdated,
+	ControllerChanged,
+	Transferred,
+	Archived,
+	VersioningChanged,
+	Put,
+	Deleted,
+}
+
 #[derive(Clone, Debug, Deserialize, Eq, PartialEq, Serialize)]
 #[serde(tag = "outcome", content = "data", rename_all = "snake_case")]
 pub enum StorageNativeOutcome {
-	Provider { action: StorageNativeEventKind, id: Option<String>, version: Option<u64> },
-	StorageBucket { action: StorageNativeEventKind, id: Option<String>, version: Option<u64> },
-	Agreement { action: StorageNativeEventKind, id: Option<String>, version: Option<u64> },
-	Challenge { action: StorageNativeEventKind, id: Option<String>, version: Option<u64> },
-	Checkpoint { action: StorageNativeEventKind, id: Option<String>, version: Option<u64> },
-	Manifest { action: StorageNativeEventKind, id: Option<String>, version: Option<u64> },
-	Drive { action: StorageNativeEventKind, id: Option<String>, version: Option<u64> },
-	S3Bucket { action: StorageNativeEventKind, id: Option<String>, version: Option<u64> },
-	S3Object { action: StorageNativeEventKind, id: Option<String>, version: Option<u64> },
+	Provider { provider: AccountId, action: StorageLifecycleAction },
+	Agreement { agreement: AgreementId, action: StorageLifecycleAction },
+	Challenge { challenge: ChallengeId, action: StorageLifecycleAction },
+	Drive { drive: DriveId, action: StorageLifecycleAction, version: Option<u64> },
+	Bucket { bucket: BucketId, action: StorageLifecycleAction, version: Option<u64> },
+	Object { bucket: BucketId, object: ObjectId, action: StorageLifecycleAction, version: u64 },
 }
-#[derive(Clone, Copy)]
-enum OutcomeCategory {
-	Provider,
-	StorageBucket,
-	Agreement,
-	Challenge,
-	Checkpoint,
-	Manifest,
-	Drive,
-	S3Bucket,
-	S3Object,
-}
-fn storage_out(
-	category: OutcomeCategory,
-	action: StorageNativeEventKind,
-	id: Option<String>,
-	version: Option<u64>,
-) -> StorageNativeOutcome {
-	macro_rules! make {
-		($variant:ident) => {
-			StorageNativeOutcome::$variant { action, id, version }
-		};
-	}
-	match category {
-		OutcomeCategory::Provider => make!(Provider),
-		OutcomeCategory::StorageBucket => make!(StorageBucket),
-		OutcomeCategory::Agreement => make!(Agreement),
-		OutcomeCategory::Challenge => make!(Challenge),
-		OutcomeCategory::Checkpoint => make!(Checkpoint),
-		OutcomeCategory::Manifest => make!(Manifest),
-		OutcomeCategory::Drive => make!(Drive),
-		OutcomeCategory::S3Bucket => make!(S3Bucket),
-		OutcomeCategory::S3Object => make!(S3Object),
-	}
-}
+
 impl StorageNativeEvent {
 	pub const fn kind(&self) -> StorageNativeEventKind {
 		use StorageNativeEventKind as K;
@@ -410,268 +256,126 @@ impl StorageNativeEvent {
 			Self::ProviderStatusChanged { .. } => K::ProviderStatusChanged,
 			Self::ProviderRemoved { .. } => K::ProviderRemoved,
 			Self::Heartbeat { .. } => K::Heartbeat,
-			Self::StorageBucketCreated { .. } => K::StorageBucketCreated,
-			Self::StorageBucketGrantChanged { .. } => K::StorageBucketGrantChanged,
-			Self::AgreementTransitioned { .. } => K::AgreementTransitioned,
-			Self::AgreementCapacityReleased { .. } => K::AgreementCapacityReleased,
-			Self::AgreementProviderRebound { .. } => K::AgreementProviderRebound,
+			Self::AgreementProposed { .. } => K::AgreementProposed,
+			Self::AgreementAccepted { .. } => K::AgreementAccepted,
+			Self::AgreementCancelled { .. } => K::AgreementCancelled,
+			Self::AgreementRenewalRequested { .. } => K::AgreementRenewalRequested,
+			Self::AgreementRenewed { .. } => K::AgreementRenewed,
+			Self::AgreementExpired { .. } => K::AgreementExpired,
+			Self::AgreementPruned { .. } => K::AgreementPruned,
 			Self::ChallengeIssued { .. } => K::ChallengeIssued,
-			Self::ChallengeProved { .. } => K::ChallengeProved,
+			Self::CheckpointSubmitted { .. } => K::CheckpointSubmitted,
 			Self::ChallengeTimedOut { .. } => K::ChallengeTimedOut,
-			Self::CheckpointAccepted { .. } => K::CheckpointAccepted,
-			Self::CheckpointEquivocation { .. } => K::CheckpointEquivocation,
-			Self::ReplicaSelected { .. } => K::ReplicaSelected,
-			Self::PrimaryPromoted { .. } => K::PrimaryPromoted,
-			Self::BucketReplicaReplaced { .. } => K::BucketReplicaReplaced,
-			Self::ManifestCommitmentChanged { .. } => K::ManifestCommitmentChanged,
-			Self::ManifestDeletionAcknowledged { .. } => K::ManifestDeletionAcknowledged,
+			Self::ProviderRootCommitted { .. } => K::ProviderRootCommitted,
+			Self::DeletionAcknowledged { .. } => K::DeletionAcknowledged,
 			Self::DriveCreated { .. } => K::DriveCreated,
 			Self::DriveRootUpdated { .. } => K::DriveRootUpdated,
-			Self::DriveGrantChanged { .. } => K::DriveGrantChanged,
+			Self::DriveControllerChanged { .. } => K::DriveControllerChanged,
 			Self::DriveTransferred { .. } => K::DriveTransferred,
 			Self::DriveArchived { .. } => K::DriveArchived,
-			Self::DriveNodeWritten { .. } => K::DriveNodeWritten,
-			Self::DriveNodeRemoved { .. } => K::DriveNodeRemoved,
-			Self::S3BucketCreated { .. } => K::S3BucketCreated,
-			Self::S3ControllerChanged { .. } => K::S3ControllerChanged,
-			Self::S3BucketTransferred { .. } => K::S3BucketTransferred,
-			Self::S3BucketArchived { .. } => K::S3BucketArchived,
-			Self::S3BucketVersioningChanged { .. } => K::S3BucketVersioningChanged,
-			Self::S3ObjectPut { .. } => K::S3ObjectPut,
-			Self::S3ObjectDeleted { .. } => K::S3ObjectDeleted,
-			Self::S3ObjectPurged { .. } => K::S3ObjectPurged,
-			Self::S3BucketDeleted { .. } => K::S3BucketDeleted,
-			Self::S3ObjectHistoryPruned { .. } => K::S3ObjectHistoryPruned,
+			Self::BucketCreated { .. } => K::BucketCreated,
+			Self::BucketControllerChanged { .. } => K::BucketControllerChanged,
+			Self::BucketTransferred { .. } => K::BucketTransferred,
+			Self::BucketArchived { .. } => K::BucketArchived,
+			Self::BucketVersioningChanged { .. } => K::BucketVersioningChanged,
+			Self::ObjectPut { .. } => K::ObjectPut,
+			Self::ObjectDeleted { .. } => K::ObjectDeleted,
+			Self::BucketDeleted { .. } => K::BucketDeleted,
 		}
 	}
+
 	pub fn outcome(&self) -> StorageNativeOutcome {
-		use StorageNativeEventKind as K;
+		use StorageLifecycleAction as A;
 		match self {
-			Self::ProviderRegistered { provider, .. } => storage_out(
-				OutcomeCategory::Provider,
-				K::ProviderRegistered,
-				Some(provider.as_str().to_owned()),
-				None,
-			),
-			Self::ProviderUpdated { provider, .. } => storage_out(
-				OutcomeCategory::Provider,
-				K::ProviderUpdated,
-				Some(provider.as_str().to_owned()),
-				None,
-			),
-			Self::ProviderStatusChanged { provider, .. } => storage_out(
-				OutcomeCategory::Provider,
-				K::ProviderStatusChanged,
-				Some(provider.as_str().to_owned()),
-				None,
-			),
-			Self::ProviderRemoved { provider, .. } => storage_out(
-				OutcomeCategory::Provider,
-				K::ProviderRemoved,
-				Some(provider.as_str().to_owned()),
-				None,
-			),
-			Self::Heartbeat { provider, .. } => storage_out(
-				OutcomeCategory::Provider,
-				K::Heartbeat,
-				Some(provider.as_str().to_owned()),
-				None,
-			),
-			Self::StorageBucketCreated { bucket, version, .. } => storage_out(
-				OutcomeCategory::StorageBucket,
-				K::StorageBucketCreated,
-				Some(bucket.as_hash().as_str().to_owned()),
-				Some(*version),
-			),
-			Self::StorageBucketGrantChanged { bucket, new_version, .. } => storage_out(
-				OutcomeCategory::StorageBucket,
-				K::StorageBucketGrantChanged,
-				Some(bucket.as_hash().as_str().to_owned()),
-				Some(*new_version),
-			),
-			Self::AgreementTransitioned { agreement, new_version, .. } => storage_out(
-				OutcomeCategory::Agreement,
-				K::AgreementTransitioned,
-				Some(agreement.as_hash().as_str().to_owned()),
-				Some(*new_version),
-			),
-			Self::AgreementCapacityReleased { agreement, .. } => storage_out(
-				OutcomeCategory::Agreement,
-				K::AgreementCapacityReleased,
-				Some(agreement.as_hash().as_str().to_owned()),
-				None,
-			),
-			Self::AgreementProviderRebound { agreement, .. } => storage_out(
-				OutcomeCategory::Agreement,
-				K::AgreementProviderRebound,
-				Some(agreement.as_hash().as_str().to_owned()),
-				None,
-			),
-			Self::ChallengeIssued { challenge, .. } => storage_out(
-				OutcomeCategory::Challenge,
-				K::ChallengeIssued,
-				Some(challenge.as_hash().as_str().to_owned()),
-				None,
-			),
-			Self::ChallengeProved { challenge, .. } => storage_out(
-				OutcomeCategory::Challenge,
-				K::ChallengeProved,
-				Some(challenge.as_hash().as_str().to_owned()),
-				None,
-			),
-			Self::ChallengeTimedOut { challenge, .. } => storage_out(
-				OutcomeCategory::Challenge,
-				K::ChallengeTimedOut,
-				Some(challenge.as_hash().as_str().to_owned()),
-				None,
-			),
-			Self::CheckpointAccepted { bucket, .. } => storage_out(
-				OutcomeCategory::Checkpoint,
-				K::CheckpointAccepted,
-				Some(bucket.as_hash().as_str().to_owned()),
-				None,
-			),
-			Self::CheckpointEquivocation { bucket, .. } => storage_out(
-				OutcomeCategory::Checkpoint,
-				K::CheckpointEquivocation,
-				Some(bucket.as_hash().as_str().to_owned()),
-				None,
-			),
-			Self::ReplicaSelected { bucket, .. } => storage_out(
-				OutcomeCategory::Checkpoint,
-				K::ReplicaSelected,
-				Some(bucket.as_hash().as_str().to_owned()),
-				None,
-			),
-			Self::PrimaryPromoted { bucket, .. } => storage_out(
-				OutcomeCategory::Checkpoint,
-				K::PrimaryPromoted,
-				Some(bucket.as_hash().as_str().to_owned()),
-				None,
-			),
-			Self::BucketReplicaReplaced { bucket, new_version, .. } => storage_out(
-				OutcomeCategory::Checkpoint,
-				K::BucketReplicaReplaced,
-				Some(bucket.as_hash().as_str().to_owned()),
-				Some(*new_version),
-			),
-			Self::ManifestCommitmentChanged { manifest, .. } => storage_out(
-				OutcomeCategory::Manifest,
-				K::ManifestCommitmentChanged,
-				Some(manifest.as_hash().as_str().to_owned()),
-				None,
-			),
-			Self::ManifestDeletionAcknowledged { manifest, .. } => storage_out(
-				OutcomeCategory::Manifest,
-				K::ManifestDeletionAcknowledged,
-				Some(manifest.as_hash().as_str().to_owned()),
-				None,
-			),
-			Self::DriveCreated { drive, version, .. } => storage_out(
-				OutcomeCategory::Drive,
-				K::DriveCreated,
-				Some(drive.as_hash().as_str().to_owned()),
-				Some(*version),
-			),
-			Self::DriveRootUpdated { drive, version, .. } => storage_out(
-				OutcomeCategory::Drive,
-				K::DriveRootUpdated,
-				Some(drive.as_hash().as_str().to_owned()),
-				Some(*version),
-			),
-			Self::DriveGrantChanged { drive, version, .. } => storage_out(
-				OutcomeCategory::Drive,
-				K::DriveGrantChanged,
-				Some(drive.as_hash().as_str().to_owned()),
-				Some(*version),
-			),
-			Self::DriveTransferred { drive, version, .. } => storage_out(
-				OutcomeCategory::Drive,
-				K::DriveTransferred,
-				Some(drive.as_hash().as_str().to_owned()),
-				Some(*version),
-			),
-			Self::DriveArchived { drive, version, .. } => storage_out(
-				OutcomeCategory::Drive,
-				K::DriveArchived,
-				Some(drive.as_hash().as_str().to_owned()),
-				Some(*version),
-			),
-			Self::DriveNodeWritten { drive, version, .. } => storage_out(
-				OutcomeCategory::Drive,
-				K::DriveNodeWritten,
-				Some(drive.as_hash().as_str().to_owned()),
-				Some(*version),
-			),
-			Self::DriveNodeRemoved { drive, version, .. } => storage_out(
-				OutcomeCategory::Drive,
-				K::DriveNodeRemoved,
-				Some(drive.as_hash().as_str().to_owned()),
-				Some(*version),
-			),
-			Self::S3BucketCreated { bucket, .. } => storage_out(
-				OutcomeCategory::S3Bucket,
-				K::S3BucketCreated,
-				Some(bucket.as_hash().as_str().to_owned()),
-				None,
-			),
-			Self::S3ControllerChanged { bucket, version, .. } => storage_out(
-				OutcomeCategory::S3Bucket,
-				K::S3ControllerChanged,
-				Some(bucket.as_hash().as_str().to_owned()),
-				Some(*version),
-			),
-			Self::S3BucketTransferred { bucket, version, .. } => storage_out(
-				OutcomeCategory::S3Bucket,
-				K::S3BucketTransferred,
-				Some(bucket.as_hash().as_str().to_owned()),
-				Some(*version),
-			),
-			Self::S3BucketArchived { bucket, version, .. } => storage_out(
-				OutcomeCategory::S3Bucket,
-				K::S3BucketArchived,
-				Some(bucket.as_hash().as_str().to_owned()),
-				Some(*version),
-			),
-			Self::S3BucketVersioningChanged { bucket, version, .. } => storage_out(
-				OutcomeCategory::S3Bucket,
-				K::S3BucketVersioningChanged,
-				Some(bucket.as_hash().as_str().to_owned()),
-				Some(*version),
-			),
-			Self::S3ObjectPut { object, version, .. } => storage_out(
-				OutcomeCategory::S3Object,
-				K::S3ObjectPut,
-				Some(object.as_hash().as_str().to_owned()),
-				Some(*version),
-			),
-			Self::S3ObjectDeleted { object, version, .. } => storage_out(
-				OutcomeCategory::S3Object,
-				K::S3ObjectDeleted,
-				Some(object.as_hash().as_str().to_owned()),
-				Some(*version),
-			),
-			Self::S3ObjectPurged { bucket, key } => storage_out(
-				OutcomeCategory::S3Object,
-				K::S3ObjectPurged,
-				Some(format!("s3-key:{}:{}", bucket.as_hash().as_str(), hex::encode(key))),
-				None,
-			),
-			Self::S3BucketDeleted { bucket, .. } => storage_out(
-				OutcomeCategory::S3Bucket,
-				K::S3BucketDeleted,
-				Some(bucket.as_hash().as_str().to_owned()),
-				None,
-			),
-			Self::S3ObjectHistoryPruned { bucket, key, through_version, .. } => storage_out(
-				OutcomeCategory::S3Object,
-				K::S3ObjectHistoryPruned,
-				Some(format!("s3-key:{}:{}", bucket.as_hash().as_str(), hex::encode(key))),
-				Some(*through_version),
-			),
+			Self::ProviderRegistered { provider, .. } => provider_out(provider, A::Registered),
+			Self::ProviderUpdated { provider, .. } => provider_out(provider, A::Updated),
+			Self::ProviderStatusChanged { provider, .. } => {
+				provider_out(provider, A::StatusChanged)
+			},
+			Self::ProviderRemoved { provider } => provider_out(provider, A::Removed),
+			Self::Heartbeat { provider, .. } => provider_out(provider, A::Heartbeat),
+			Self::ProviderRootCommitted { provider, .. } => {
+				provider_out(provider, A::RootCommitted)
+			},
+			Self::AgreementProposed { agreement, .. } => agreement_out(agreement, A::Proposed),
+			Self::AgreementAccepted { agreement } => agreement_out(agreement, A::Accepted),
+			Self::AgreementCancelled { agreement } => agreement_out(agreement, A::Cancelled),
+			Self::AgreementRenewalRequested { agreement, .. } => {
+				agreement_out(agreement, A::RenewalRequested)
+			},
+			Self::AgreementRenewed { agreement, .. } => agreement_out(agreement, A::Renewed),
+			Self::AgreementExpired { agreement } => agreement_out(agreement, A::Expired),
+			Self::AgreementPruned { agreement } => agreement_out(agreement, A::Pruned),
+			Self::DeletionAcknowledged { agreement, .. } => {
+				agreement_out(agreement, A::DeletionAcknowledged)
+			},
+			Self::ChallengeIssued { challenge, .. } => challenge_out(challenge, A::Issued),
+			Self::CheckpointSubmitted { challenge, .. } => {
+				challenge_out(challenge, A::CheckpointSubmitted)
+			},
+			Self::ChallengeTimedOut { challenge, .. } => challenge_out(challenge, A::TimedOut),
+			Self::DriveCreated { drive, .. } => drive_out(drive, A::Created, None),
+			Self::DriveRootUpdated { drive, version } => {
+				drive_out(drive, A::RootUpdated, Some(*version))
+			},
+			Self::DriveControllerChanged { drive, .. } => {
+				drive_out(drive, A::ControllerChanged, None)
+			},
+			Self::DriveTransferred { drive, .. } => drive_out(drive, A::Transferred, None),
+			Self::DriveArchived { drive } => drive_out(drive, A::Archived, None),
+			Self::BucketCreated { bucket, .. } => bucket_out(bucket, A::Created, None),
+			Self::BucketControllerChanged { bucket, version, .. } => {
+				bucket_out(bucket, A::ControllerChanged, Some(*version))
+			},
+			Self::BucketTransferred { bucket, version, .. } => {
+				bucket_out(bucket, A::Transferred, Some(*version))
+			},
+			Self::BucketArchived { bucket, version, .. } => {
+				bucket_out(bucket, A::Archived, Some(*version))
+			},
+			Self::BucketVersioningChanged { bucket, version, .. } => {
+				bucket_out(bucket, A::VersioningChanged, Some(*version))
+			},
+			Self::BucketDeleted { bucket, .. } => bucket_out(bucket, A::Deleted, None),
+			Self::ObjectPut { bucket, object, version, .. } => StorageNativeOutcome::Object {
+				bucket: bucket.clone(),
+				object: object.clone(),
+				action: A::Put,
+				version: *version,
+			},
+			Self::ObjectDeleted { bucket, object, version, .. } => StorageNativeOutcome::Object {
+				bucket: bucket.clone(),
+				object: object.clone(),
+				action: A::Deleted,
+				version: *version,
+			},
 		}
 	}
 }
+fn provider_out(id: &AccountId, action: StorageLifecycleAction) -> StorageNativeOutcome {
+	StorageNativeOutcome::Provider { provider: id.clone(), action }
+}
+fn agreement_out(id: &AgreementId, action: StorageLifecycleAction) -> StorageNativeOutcome {
+	StorageNativeOutcome::Agreement { agreement: id.clone(), action }
+}
+fn challenge_out(id: &ChallengeId, action: StorageLifecycleAction) -> StorageNativeOutcome {
+	StorageNativeOutcome::Challenge { challenge: id.clone(), action }
+}
+fn drive_out(
+	id: &DriveId,
+	action: StorageLifecycleAction,
+	version: Option<u64>,
+) -> StorageNativeOutcome {
+	StorageNativeOutcome::Drive { drive: id.clone(), action, version }
+}
+fn bucket_out(
+	id: &BucketId,
+	action: StorageLifecycleAction,
+	version: Option<u64>,
+) -> StorageNativeOutcome {
+	StorageNativeOutcome::Bucket { bucket: id.clone(), action, version }
+}
+
 #[derive(Clone, Debug, Deserialize, Eq, PartialEq, Serialize)]
 #[serde(deny_unknown_fields)]
 pub struct FinalizedStorageNativeEvent {
@@ -685,17 +389,17 @@ pub struct FinalizedStorageNativeOutcome {
 	pub event: FinalizedStorageNativeEvent,
 	pub outcome: StorageNativeOutcome,
 }
-#[derive(Clone, Copy, Debug, Deserialize, Eq, PartialEq, Serialize)]
-#[serde(rename_all = "snake_case")]
-pub enum StorageSubscriptionFinality {
-	Finalized,
-}
 #[derive(Clone, Debug, Deserialize, Eq, PartialEq, Serialize)]
 #[serde(deny_unknown_fields)]
 pub struct StorageNativeEventSubscription {
 	pub finality: StorageSubscriptionFinality,
 	pub from_finalized_block: Hash32,
 	pub kinds: Vec<StorageNativeEventKind>,
+}
+#[derive(Clone, Copy, Debug, Deserialize, Eq, PartialEq, Serialize)]
+#[serde(rename_all = "snake_case")]
+pub enum StorageSubscriptionFinality {
+	Finalized,
 }
 impl StorageNativeEventSubscription {
 	pub fn new(
@@ -704,10 +408,10 @@ impl StorageNativeEventSubscription {
 	) -> DomainResult<Self> {
 		from_finalized_block.validate()?;
 		if kinds.is_empty()
-			|| kinds.len() > 37
+			|| kinds.len() > 32
 			|| kinds.iter().collect::<HashSet<_>>().len() != kinds.len()
 		{
-			return Err(invalid("storage event subscription requires 1-37 unique kinds"));
+			return Err(invalid("storage event subscription requires 1-32 unique kinds"));
 		}
 		Ok(Self { finality: StorageSubscriptionFinality::Finalized, from_finalized_block, kinds })
 	}

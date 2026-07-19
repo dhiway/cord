@@ -76,7 +76,6 @@ const oneOf = (...choices: Rule[]): Rule => ({ kind: "oneOf", choices });
 const literal = (value: string): Rule => ({ kind: "literal", value });
 
 const hash32 = string({ pattern: /^0x[0-9a-f]{64}$/i });
-const operationId16 = string({ pattern: /^0x[0-9a-f]{32}$/i });
 const signature64 = string({ pattern: /^0x[0-9a-f]{128}$/i });
 const account = string({ min: 1, max: 128 });
 const decimalU64 = string({ pattern: /^(0|[1-9][0-9]{0,19})$/ });
@@ -221,13 +220,37 @@ write("attestation", "revoke_external_status_batch", {
 	status_commitments: array(hash32, 1, 64, true),
 });
 
+// Native People/People-Lite runtime API and pallet calls.
+read("identity", "identity_status", { account });
+read("identity", "personhood_status", { account });
+read("identity", "attestation_allowance", { account });
+write("identity", "set_identity", { info: identityInfo });
+write("identity", "clear_identity", {});
+write("identity", "request_judgement", { registrar: account });
+write("identity", "cancel_judgement_request", { registrar: account });
+write("identity", "provide_judgement", {
+  target: account,
+  judgement: identityJudgement,
+  identity_hash: hash32,
+});
+write("identity", "attest_lite_person", {
+  candidate: account,
+  candidate_signature: oneOf(
+    object({ scheme: literal("sr25519"), bytes: string({ pattern: /^0x[0-9a-f]{128}$/ }) }),
+    object({ scheme: literal("ed25519"), bytes: string({ pattern: /^0x[0-9a-f]{128}$/ }) }),
+    object({ scheme: literal("ecdsa"), bytes: string({ pattern: /^0x[0-9a-f]{130}$/ }) }),
+  ),
+  ring_vrf_key: hash32,
+  proof_of_ownership: string({ pattern: /^0x[0-9a-f]{128}$/ }),
+});
+
 // Native Orbis Names runtime API and pallet calls.
 read("names", "label_policy_version", {});
 read("names", "name_by_id", { name: hash32 });
 read("names", "root_name_by_normalized_label", { label });
 read("names", "owner_names", { owner: account, ...pageFields });
 read("names", "controllers", { name: hash32 });
-for (const method of ["resolve_address", "resolve_subject", "resolve_attestation", "resolve_content_publication", "name_status"])
+for (const method of ["resolve_address", "resolve_subject", "resolve_attestation", "resolve_content", "name_status"])
   read("names", method, { name: hash32 });
 read("names", "resolve_text", { name: hash32, key: string({ min: 1, maxBytes: 32 }) });
 read("names", "primary_name", { owner: account });
@@ -242,7 +265,7 @@ write("names", "remove_controller", { name: hash32, controller: account });
 write("names", "set_address", { name: hash32, address: nullable(string({ min: 1, maxBytes: 128 })) });
 write("names", "set_subject", { name: hash32, subject: nullable(subjectId) });
 write("names", "set_attestation", { name: hash32, attestation: nullable(hash32) });
-write("names", "publish_content", { name: hash32, content: nullable(hash32), expected_revision: decimalU64, operation_deadline: decimalU64, operation_id: operationId16 });
+write("names", "set_content", { name: hash32, content: nullable(hash32) });
 write("names", "set_text", {
   name: hash32,
   key: string({ min: 1, maxBytes: 32 }),
@@ -549,7 +572,6 @@ function sampleRule(rule: Rule): JsonValue {
         `0x${"11".repeat(32)}`,
         `0x${"11".repeat(64)}`,
         `0x${"11".repeat(65)}`,
-        `0x${"11".repeat(16)}`,
         "1", "AQID", "active", "sample", "a",
       ];
       for (const candidate of candidates) {
@@ -566,9 +588,9 @@ function sampleRule(rule: Rule): JsonValue {
     case "object": return Object.fromEntries(Object.entries(rule.fields).map(([name, child]) => [name, sampleRule(child)]));
     case "oneOf": return sampleRule(rule.choices[0]);
     case "nativeWriteTarget": return {
-      capability: "attestation",
-      method: "revoke",
-      payload: { attestation: `0x${"11".repeat(32)}` },
+      capability: "identity",
+      method: "clear_identity",
+      payload: {},
     };
   }
 }
@@ -582,11 +604,7 @@ export function canonicalMethodPayload(capability: string, method: string): Json
       participant: "participant-account",
       nonce: "1",
       mortality: { valid_from: "1", valid_until: "65" },
-      target: {
-        capability: "attestation",
-        method: "revoke",
-        payload: { attestation: `0x${"11".repeat(32)}` },
-      },
+      target: { capability: "identity", method: "clear_identity", payload: {} },
     };
     payload = method === "prepare_sponsored_intent" ? base : {
       signed_intent: {

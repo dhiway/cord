@@ -294,7 +294,7 @@
       "type": "string"
     },
     "gate_id": {
-      "pattern": "(?:AC(?:[1-9]|1[0-4])|P[0-7]|P1_(?:METADATA|PROVIDER_OUTCOMES)|P4_(?:OBJECT|PROVIDER|DRIVE|S3|RUNTIME))",
+      "pattern": "(?:AC(?:[1-9]|1[0-4])|P[0-7]|P1_METADATA|P4_(?:OBJECT|PROVIDER|DRIVE|S3|RUNTIME))",
       "type": "string"
     },
     "input_ancestry": {
@@ -620,8 +620,6 @@
       "codes",
       "seven-ops",
       "separate-signing",
-      "typescript-public-v2",
-      "rust-public-v2",
       "restart-replay",
       "fresh-recovery",
       "continuity",
@@ -635,9 +633,6 @@
     ],
     "AC10": [
       "deletion-items",
-      "deleted-receipts",
-      "active-replacements",
-      "no-pending",
       "dag-fields",
       "dag-ids",
       "dag-orders",
@@ -664,7 +659,6 @@
       "roots",
       "errors",
       "metrics",
-      "provider-input",
       "idempotency",
       "recovery"
     ],

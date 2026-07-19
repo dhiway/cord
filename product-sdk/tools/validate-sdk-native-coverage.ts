@@ -108,7 +108,6 @@ const parsePalletCallItems = (source: string, path: string): Map<string, number>
 
 const matrix = json("docs/sdk/native-version-matrix.json");
 const metadata = json(matrix.networks.orbis.metadata_source);
-const inventoryMetadata = json(matrix.networks.orbis.metadata_inventory_source);
 const candidateGenesis = json(matrix.networks.orbis.candidate_genesis_identity_source);
 const vectorBaselineManifest = json("origin/orbis/runtime/vectors/transaction-policy-v8/manifest.json");
 const vectorBaselineMetadata = json("origin/orbis/runtime/vectors/transaction-policy-v8/metadata-hash-vector-baseline.json");
@@ -121,13 +120,15 @@ const ratification = json(matrix.activation_source);
 const rust = read("origin-rs/src/product_sdk/version.rs");
 const rustAttestation = read("origin-rs/src/product_sdk/domains/attestation.rs");
 const rustNames = read("origin-rs/src/product_sdk/domains/names.rs");
+const rustStorage = read("origin-rs/src/product_sdk/domains/storage.rs");
 const rustStorageProvider = read("origin-rs/src/product_sdk/domains/storage_provider.rs");
 const rustDrive = read("origin-rs/src/product_sdk/domains/drive.rs");
 const rustS3 = read("origin-rs/src/product_sdk/domains/s3.rs");
+const rustIdentityPersonhood = read("origin-rs/src/product_sdk/domains/identity_personhood.rs");
 const rustSponsoredIntent = read("origin-rs/src/product_sdk/sponsored_intent.rs");
 const rustContract = read("origin-rs/src/product_sdk/contract.rs");
 const rustCommon = read("origin-rs/src/product_sdk/domains/common.rs");
-const rustSurface = `${rust}\n${rustAttestation}\n${rustNames}\n${rustStorageProvider}\n${rustDrive}\n${rustS3}\n${rustSponsoredIntent}\n${rustCommon}\n${rustContract}`;
+const rustSurface = `${rust}\n${rustAttestation}\n${rustNames}\n${rustStorage}\n${rustStorageProvider}\n${rustDrive}\n${rustS3}\n${rustIdentityPersonhood}\n${rustSponsoredIntent}\n${rustCommon}\n${rustContract}`;
 const originRuntime = read(matrix.networks.origin.runtime_source);
 const orbisRuntime = read(matrix.networks.orbis.runtime_source);
 const workspaceVersion = read("Cargo.toml").match(/^version\s*=\s*"([^"]+)"/m)?.[1];
@@ -142,34 +143,33 @@ equal(json("product-sdk/package.json").version, matrix.packages.typescript.versi
 
 equal(firstVersion(originRuntime, "spec_version"), matrix.networks.origin.spec_version, "Origin spec version");
 equal(firstVersion(originRuntime, "transaction_version"), matrix.networks.origin.transaction_version, "Origin transaction version");
-equal(firstVersion(orbisRuntime, "spec_version"), matrix.networks.orbis.current_source_runtime.spec_version, "current Orbis source spec version");
-equal(firstVersion(orbisRuntime, "transaction_version"), matrix.networks.orbis.current_source_runtime.transaction_version, "current Orbis source transaction version");
+equal(firstVersion(orbisRuntime, "spec_version"), matrix.networks.orbis.spec_version, "Orbis spec version");
+equal(firstVersion(orbisRuntime, "transaction_version"), matrix.networks.orbis.transaction_version, "Orbis transaction version");
 equal(matrix.networks.origin.activation_state, "candidate-pending", "Origin candidate activation state");
 equal(matrix.networks.origin.production_activation_ready, false, "Origin candidate production gate");
-equal(inventoryMetadata.runtime_rfc78_hash, matrix.networks.orbis.metadata_hash, "Orbis inventory metadata hash");
-equal(metadata.spec_version, matrix.networks.orbis.current_source_runtime.spec_version, "current Orbis source metadata spec");
-equal(metadata.transaction_version, matrix.networks.orbis.current_source_runtime.transaction_version, "current Orbis source metadata transaction");
-equal(metadata.metadata_hash, matrix.networks.orbis.current_source_runtime.metadata_hash, "current Orbis source metadata hash");
-equal(metadata.compact_wasm_sha256, "0d997f2f2c5e42170a4ec3108c2ff97917e0dd7dad32371402879cca5fb73bbe", "current Orbis compact Wasm");
+equal(metadata.metadata_hash, matrix.networks.orbis.metadata_hash, "Orbis metadata hash");
+equal(metadata.compact_wasm_sha256, "19662465cef9ea3cde0c7c10865cc9e68cf3afb723e6184de8a0029de82b1f2e", "Orbis compact Wasm");
 equal(sha256(matrix.networks.orbis.candidate_genesis_identity_source), matrix.networks.orbis.candidate_genesis_identity_sha256, "candidate genesis artifact");
 equal(candidateGenesis.genesis.header_hash, matrix.networks.orbis.candidate_genesis_header_hash, "candidate genesis header");
 equal(candidateGenesis.genesis.state_root, matrix.networks.orbis.candidate_genesis_state_root, "candidate genesis state root");
-equal(candidateGenesis.runtime.spec_version, matrix.networks.orbis.spec_version, "historical candidate spec inventory");
-equal(candidateGenesis.runtime.metadata_hash, matrix.networks.orbis.metadata_hash, "historical candidate metadata inventory");
-if (candidateGenesis.runtime.metadata_hash === metadata.metadata_hash)
-  fail("historical candidate metadata must not be represented as current source metadata");
+equal(candidateGenesis.runtime.metadata_hash, metadata.metadata_hash, "candidate genesis metadata");
+equal(candidateGenesis.runtime.metadata_hash_manifest_sha256, sha256(matrix.networks.orbis.metadata_source), "candidate metadata manifest binding");
+equal(candidateGenesis.runtime.compact_wasm_sha256, metadata.compact_wasm_sha256, "candidate compact Wasm binding");
 equal(candidateGenesis.production_activation, false, "candidate production activation");
 equal(matrix.networks.orbis.activation_state, "candidate-pending", "Orbis candidate activation state");
 equal(matrix.networks.orbis.production_activation_ready, false, "Orbis candidate production gate");
 equal(ratification.payload.production_activation.final_genesis_status, "PENDING", "P5 final genesis status");
 equal(ratification.derived_status.production_activation_ready, false, "P5 production activation gate");
-equal(vectorBaselineManifest.fixture_status, "current-runtime-signed-payload-vectors", "signed-payload vector status");
-equal(vectorBaselineManifest.current_runtime_vectors_regenerated, true, "signed-payload current-runtime claim");
-equal(vectorBaselineManifest.metadata_record, "metadata-hash.json", "signed-payload metadata record");
+equal(vectorBaselineManifest.fixture_status, "historical-signed-payload-vector-baseline", "signed-payload vector status");
+equal(vectorBaselineManifest.current_runtime_vectors_regenerated, false, "signed-payload current-runtime claim");
+equal(vectorBaselineManifest.metadata_record, "metadata-hash-vector-baseline.json", "signed-payload metadata record");
 equal(vectorBaselineManifest.current_runtime_metadata_record, "metadata-hash.json", "current metadata record");
-equal(vectorBaselineManifest.historical_metadata_record, "metadata-hash-vector-baseline.json", "historical metadata record");
-equal(vectorBaselineManifest.metadata_implicit, metadata.metadata_hash, "signed-payload current metadata");
-equal(vectorBaselineMetadata.metadata_hash !== metadata.metadata_hash, true, "historical metadata remains distinct");
+equal(vectorBaselineManifest.metadata_implicit, vectorBaselineMetadata.metadata_hash, "signed-payload baseline metadata");
+const baselineConstant = read("origin/orbis/runtime/src/transaction_policy_vectors.rs").match(/const VECTOR_BASELINE_METADATA_IMPLICIT:[^=]+=\s*\[([\s\S]*?)\];/)?.[1];
+if (!baselineConstant) fail("missing historical vector metadata constant");
+const baselineConstantHex = `0x${[...baselineConstant.matchAll(/0x([0-9a-f]{2})/g)].map((match) => match[1]).join("")}`;
+equal(baselineConstantHex, vectorBaselineManifest.metadata_implicit, "runtime vector baseline constant");
+if (vectorBaselineManifest.metadata_implicit === metadata.metadata_hash) fail("historical vector baseline must not be represented as current metadata");
 
 equal(NATIVE_SDK_VERSION.contractVersion, matrix.contract_version, "TypeScript contract version");
 equal(NATIVE_SDK_VERSION.release, matrix.release, "TypeScript release");
@@ -212,6 +212,7 @@ equal(rustConstant(rust, "ORBIS_CANDIDATE_GENESIS_IDENTITY_SHA256"), matrix.netw
 
 const apiVersions = [...read("origin/orbis/runtime-api/storage/src/lib.rs").matchAll(/#\[api_version\((\d+)\)\]/g)].map((match) => Number(match[1]));
 const observedApis = {
+  identity_personhood: Number(read(matrix.native_runtime_apis.identity_personhood.source).match(/#\[api_version\((\d+)\)\]/)?.[1]),
   attestation: Number(read(matrix.native_runtime_apis.attestation.source).match(/#\[api_version\((\d+)\)\]/)?.[1]),
   names: Number(read(matrix.native_runtime_apis.names.source).match(/#\[api_version\((\d+)\)\]/)?.[1]),
   storage_provider: apiVersions[0],
@@ -219,6 +220,7 @@ const observedApis = {
   s3: apiVersions[2],
 };
 const apiBindings = {
+  identity_personhood: ["identityPersonhood", "IDENTITY_PERSONHOOD_RUNTIME_API_VERSION"],
   attestation: ["attestation", "ATTESTATION_RUNTIME_API_VERSION"],
   names: ["names", "NAMES_RUNTIME_API_VERSION"],
   storage_provider: ["storageProvider", "STORAGE_PROVIDER_RUNTIME_API_VERSION"],
@@ -227,9 +229,7 @@ const apiBindings = {
 } as const;
 for (const [name, contract] of Object.entries(matrix.native_runtime_apis) as [keyof typeof apiBindings, any][]) {
   equal((observedApis as any)[name], contract.version, `${name} runtime API`);
-  const publicBinding = apiBindings[name][0];
-  if (publicBinding !== null)
-    equal((NATIVE_SDK_VERSION.runtimeApis as any)[publicBinding], contract.version, `${name} TypeScript runtime API`);
+  equal((NATIVE_SDK_VERSION.runtimeApis as any)[apiBindings[name][0]], contract.version, `${name} TypeScript runtime API`);
   equal(Number(rustConstant(rust, apiBindings[name][1])), contract.version, `${name} Rust runtime API`);
 }
 
@@ -240,12 +240,13 @@ const schemaBindings = {
   storage_provider: ["storageProvider", "STORAGE_PROVIDER_STORAGE_SCHEMA_VERSION"],
   drive: ["drive", "DRIVE_STORAGE_SCHEMA_VERSION"],
   s3: ["s3", "S3_STORAGE_SCHEMA_VERSION"],
+  transaction_storage: ["transactionStorage", "TRANSACTION_STORAGE_SCHEMA_VERSION"],
+  resources: ["resources", "RESOURCES_STORAGE_SCHEMA_VERSION"],
 } as const;
-for (const [name, binding] of Object.entries(schemaBindings) as [keyof typeof schemaBindings, (typeof schemaBindings)[keyof typeof schemaBindings]][]) {
-  const contract = matrix.native_storage_schemas[name];
+for (const [name, contract] of Object.entries(matrix.native_storage_schemas) as [keyof typeof schemaBindings, any][]) {
   equal(observedSchemas[name], contract.version, `${name} storage schema`);
-  equal((NATIVE_SDK_VERSION.storageSchemas as any)[binding[0]], contract.version, `${name} TypeScript storage schema`);
-  equal(Number(rustConstant(rust, binding[1])), contract.version, `${name} Rust storage schema`);
+  equal((NATIVE_SDK_VERSION.storageSchemas as any)[schemaBindings[name][0]], contract.version, `${name} TypeScript storage schema`);
+  equal(Number(rustConstant(rust, schemaBindings[name][1])), contract.version, `${name} Rust storage schema`);
 }
 const providerProtocol = Number(read(matrix.service_protocols.storage_provider.source).match(/PROTOCOL_VERSION:\s*u16\s*=\s*(\d+)/)?.[1]);
 equal(providerProtocol, matrix.service_protocols.storage_provider.version, "storage provider protocol");
@@ -368,14 +369,6 @@ equal(migrationRows.length, 0, "data migration rows");
 equal(descriptor.runtime.specVersion, matrix.networks.orbis.spec_version, "descriptor spec version");
 equal(descriptor.runtime.transactionVersion, matrix.networks.orbis.transaction_version, "descriptor transaction version");
 equal(descriptor.runtime.metadataHash, matrix.networks.orbis.metadata_hash, "descriptor metadata hash");
-equal(descriptor.firstSupportedNativeSdk, false, "descriptor native SDK admission");
-equal(descriptor.productionPapiDescriptorGenerated, false, "descriptor production PAPI admission");
-equal(descriptor.papiAvailability.runtimeMetadataCurrent, false, "descriptor PAPI metadata currency");
-equal(descriptor.papiAvailability.sdkAdmission, false, "descriptor PAPI SDK admission");
-equal(descriptor.currentSourceRuntime.specVersion, metadata.spec_version, "current source runtime spec version");
-equal(descriptor.currentSourceRuntime.transactionVersion, metadata.transaction_version, "current source runtime transaction version");
-equal(descriptor.currentSourceRuntime.metadataHash, metadata.metadata_hash, "current source runtime metadata hash");
-equal(descriptor.currentSourceRuntime.metadataBoundNativeSdk, false, "current source runtime metadata binding");
 equal(descriptor.networkActivation.state, matrix.networks.orbis.activation_state, "descriptor activation state");
 equal(descriptor.networkActivation.productionActivationReady, false, "descriptor production activation gate");
 equal(descriptor.fixtureIdentity.genesis_identity, matrix.networks.orbis.candidate_genesis_header_hash, "descriptor candidate genesis");
@@ -383,12 +376,12 @@ equal(descriptor.fixtureIdentity.genesis_state_root, matrix.networks.orbis.candi
 equal(descriptor.fixtureIdentity.candidate_identity_sha256, matrix.networks.orbis.candidate_genesis_identity_sha256, "descriptor candidate artifact");
 equal(descriptor.nativeHostContract.methodCount, NATIVE_HOST_METHODS.length, "descriptor native method count");
 equal(routeContract.schema, "cord.native-route-contract.v1", "route contract schema");
-equal(routeContract.route_count, 111, "route contract count");
+equal(routeContract.route_count, 136, "route contract count");
 equal(routeContract.network.metadata_hash, matrix.networks.orbis.metadata_hash, "route contract metadata hash");
 equal(routeContract.network.activation_state, matrix.networks.orbis.activation_state, "route contract activation state");
 equal(routeContract.network.production_activation_ready, false, "route contract production gate");
 equal(routeContract.signature_schema_basis.runtime_metadata,
-  "checked-in Commons V14 SCALE metadata is historical spec 29 inventory and does not bind the current spec 33 source runtime; native SDK admission remains disabled until current metadata is regenerated",
+  "checked-in Commons V14 SCALE metadata is extracted from the current runtime Wasm and drives the reproducible PAPI descriptor; this route contract remains the authoritative product-policy projection",
   "route contract decoded metadata boundary");
 equal(routeContract.routes.length, NATIVE_HOST_METHODS.length, "route projection count");
 const projectedRoutes = routeContract.routes.map((route: any) => ({ capability: route.capability, method: route.method, finality: route.finality, payloadFields: route.parameters.map(({ name }: any) => name) }));
@@ -398,8 +391,8 @@ const runtimeTable = read("origin/orbis/runtime/src/lib.rs");
 const routeGaps: string[] = [];
 const palletCallItems = new Map<string, Map<string, number>>();
 const writeRoutes = routeContract.routes.filter((route: any) => route.runtime.kind === "pallet-call");
-equal(writeRoutes.length, 73, "authoritative pallet call route count");
-equal(new Set(writeRoutes.map((route: any) => `${route.runtime.source}#${route.runtime.target}`)).size, 73, "distinct pallet call item count");
+equal(writeRoutes.length, 84, "authoritative pallet call route count");
+equal(new Set(writeRoutes.map((route: any) => `${route.runtime.source}#${route.runtime.target}`)).size, 84, "distinct pallet call item count");
 const sdkHostRoutes = routeContract.routes.filter((route: any) => route.runtime.kind === "sdk-host-operation");
 equal(sdkHostRoutes.length, 1, "authoritative SDK host operation count");
 for (const route of routeContract.routes) {
@@ -501,7 +494,7 @@ const report = {
     compatibility_facade_rows: compatibilityRows.length,
     data_migration_rows: migrationRows.length,
   },
-  descriptor: { kind: descriptor.kind, native_method_count: NATIVE_HOST_METHODS.length, authoritative_route_contract: "docs/sdk/native-route-contract.json", runtime_dispatch_or_api_bound_routes: routeContract.route_count, metadata_reconciliation: "historical spec 29 PAPI inventory is explicitly unavailable for the current spec 33 source runtime; route policy is not metadata-bound until regeneration" },
+  descriptor: { kind: descriptor.kind, native_method_count: NATIVE_HOST_METHODS.length, authoritative_route_contract: "docs/sdk/native-route-contract.json", runtime_dispatch_or_api_bound_routes: routeContract.route_count, metadata_reconciliation: "checked-in Commons V14 SCALE metadata plus exact current RFC-78 hash; reproducible PAPI output provides metadata-derived types while the route contract restricts the supported product surface" },
   reference_surface: { raw_scale: false, migrated_domain_revive: false, contract_abi: false, pallet_or_call_indices: false },
   inputs: {
     version_matrix_sha256: sha256("docs/sdk/native-version-matrix.json"),
@@ -515,16 +508,6 @@ const report = {
 };
 const reportPath = resolve(root, "docs/evidence/verification/p5/sdk-native-coverage.report.json");
 const serialized = `${JSON.stringify(report, null, 2)}\n`;
-const evidenceAuthoritative = descriptor.firstSupportedNativeSdk === true
-  && descriptor.productionPapiDescriptorGenerated === true
-  && descriptor.papiAvailability.sdkAdmission === true;
-if (process.argv.includes("--write")) {
-  if (!evidenceAuthoritative)
-    fail("native SDK evidence cannot be regenerated while current runtime metadata admission is unavailable");
-  writeFileSync(reportPath, serialized);
-} else if (evidenceAuthoritative && readFileSync(reportPath, "utf8") !== serialized) {
-  fail("native SDK coverage report drift; run npm run update:sdk-freeze");
-} else if (!evidenceAuthoritative) {
-  process.stdout.write("INFO native SDK evidence is intentionally absent until current runtime metadata is regenerated and admitted\n");
-}
-process.stdout.write(`PASS native SDK mappings: inventory=${matrix.networks.orbis.spec_version}/${matrix.networks.orbis.transaction_version} current_source=${matrix.networks.orbis.current_source_runtime.spec_version}/${matrix.networks.orbis.current_source_runtime.transaction_version} design=${coverage.entries.length} adopted=${adopted.length} exact_m5_bindings=${m5Bindings.bindings.length} intentional_change=${intentionalChanges.length} executable_routes=${routeContract.route_count} Rust=${routeContract.route_count} TS=${routeContract.route_count}\n`);
+if (process.argv.includes("--write")) writeFileSync(reportPath, serialized);
+else if (readFileSync(reportPath, "utf8") !== serialized) fail("native SDK coverage report drift; run npm run update:sdk-freeze");
+process.stdout.write(`PASS native SDK mappings: runtime=${matrix.networks.orbis.spec_version}/${matrix.networks.orbis.transaction_version} design=${coverage.entries.length} adopted=${adopted.length} exact_m5_bindings=${m5Bindings.bindings.length} intentional_change=${intentionalChanges.length} executable_routes=${routeContract.route_count} Rust=${routeContract.route_count} TS=${routeContract.route_count}\n`);

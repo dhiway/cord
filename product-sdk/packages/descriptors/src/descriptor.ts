@@ -20,22 +20,13 @@ export interface OrbisDescriptorContract {
   contractVersion: 1;
   kind: "cord-native-host-contract-manifest";
   release: "origin-orbis-native-v1";
-  firstSupportedNativeSdk: false;
+  firstSupportedNativeSdk: true;
   runtime: {
     name: "orbis";
     paraId: 1006;
     specVersion: 29;
     transactionVersion: 8;
     metadataHash: `0x${string}`;
-  };
-  currentSourceRuntime: {
-    name: "commons";
-    source: "origin/orbis/runtime/src/lib.rs";
-    metadataRecord: "origin/orbis/runtime/vectors/transaction-policy-v8/metadata-hash.json";
-    specVersion: 33;
-    transactionVersion: 8;
-    metadataHash: `0x${string}`;
-    metadataBoundNativeSdk: false;
   };
   fixtureIdentity: {
     status: "deterministic-clean-break-candidate-not-production-approved";
@@ -63,16 +54,5 @@ export interface OrbisDescriptorContract {
       payloadFields: readonly string[];
     }[];
   };
-  descriptorProvenance: {
-    runtimeMetadataBinding: string;
-    papiDescriptor: string;
-    methodInventory: string;
-    driftValidation: string;
-  };
-  papiAvailability: {
-    runtimeMetadataCurrent: false;
-    sdkAdmission: false;
-    reason: string;
-  };
-  productionPapiDescriptorGenerated: false;
+  productionPapiDescriptorGenerated: true;
 }

@@ -17,30 +17,30 @@
 // along with CORD. If not, see <https://www.gnu.org/licenses/>.
 
 import assert from "node:assert/strict";
+import { readFileSync } from "node:fs";
+import { resolve } from "node:path";
 import test from "node:test";
 import { runFestivalJourney } from "./journey.ts";
-import { validateMobileAppProjection } from "./mobile-app-projection.ts";
+import { validateMobileContractHarness } from "./mobile-contract-harness.ts";
+
+const evidence = (name: string): any => JSON.parse(readFileSync(
+  resolve(import.meta.dirname, `../../../docs/evidence/verification/p6/${name}`),
+  "utf8",
+));
 
 test("Festival journey uses sealed typed routes and exercises required failure boundaries", async () => {
   const report = await runFestivalJourney();
-  assert.deepEqual(report, await runFestivalJourney());
+  assert.deepEqual(report, evidence("festival-journey.report.json"));
   assert.equal(report.status, "PASS");
   assert.equal(report.journey_acceptance, true);
-  assert.equal(report.p6_acceptance, true);
-  const developer = report.developer_flow as any;
-  assert.equal(developer.status, "PASS");
-  assert.deepEqual(developer.identity_operations, [
-    "identity.subject.derive", "identity.entitlements.read", "transaction.sign",
-  ]);
-  assert.equal(developer.results.provider_unavailable.retryable, true);
-  assert.equal(developer.results.object_write_recovered.code, "success");
+  assert.equal(report.p6_acceptance, false);
   assert.deepEqual(report.native_only, {
     raw_scale: false,
     contract_abi: false,
     pallet_indices: false,
     call_indices: false,
   });
-  assert.equal((report.signer_boundaries as any).distinct_chain_signers, true);
+  assert.equal(report.signer_boundaries.distinct_chain_signers, true);
   assert.deepEqual(report.deferred, {
     live_chain: true,
     production_finality: true,
@@ -49,12 +49,12 @@ test("Festival journey uses sealed typed routes and exercises required failure b
   });
 });
 
-test("iOS and Android projections cover the complete createApp journey", async () => {
-  const report = await validateMobileAppProjection();
-  assert.deepEqual(report, await validateMobileAppProjection());
+test("iOS and Android manifests have exact request consent network error and event parity", async () => {
+  const report = await validateMobileContractHarness();
+  assert.deepEqual(report, evidence("festival-mobile-contract-parity.report.json"));
   assert.equal(report.status, "PASS");
   assert.equal(report.journey_acceptance, true);
-  assert.equal(report.p6_acceptance, true);
-  assert.equal(report.vector_count, 29);
-  assert.equal(report.app_projection_outcome_parity, true);
+  assert.equal(report.p6_acceptance, false);
+  assert.equal(report.vector_count, 14);
+  assert.equal(report.host_harness_outcome_parity, true);
 });

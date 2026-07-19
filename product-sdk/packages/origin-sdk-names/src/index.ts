@@ -34,7 +34,6 @@ export type RegistrationCommitment = Hash32 & { readonly [nativeNamesType]: "Reg
 export type RegistrationSalt = string & { readonly [nativeNamesType]: "RegistrationSalt" };
 export type SubjectId = Hash32 & { readonly [nativeNamesType]: "SubjectId" };
 export type ContentCommitment = Hash32 & { readonly [nativeNamesType]: "ContentCommitment" };
-export type OperationId = string & { readonly [nativeNamesType]: "OperationId" };
 export type BlockNumber = string & { readonly [nativeNamesType]: "BlockNumber" };
 
 export interface PageInput { readonly cursor?: number | null; readonly limit?: number; }
@@ -58,10 +57,6 @@ export const nameId = (value: string): NameId => nativeHash<"NameId">(value, "na
 export const registrationCommitment = (value: string): RegistrationCommitment => nativeHash<"RegistrationCommitment">(value, "registration commitment") as RegistrationCommitment;
 export const subjectId = (value: string): SubjectId => nativeHash<"SubjectId">(value, "subject id") as SubjectId;
 export const contentCommitment = (value: string): ContentCommitment => nativeHash<"ContentCommitment">(value, "content commitment") as ContentCommitment;
-export function operationId(value: string): OperationId {
-  if (!/^0x[0-9a-fA-F]{32}$/.test(value)) throw new TypeError("operation id must be a 16-byte 0x-prefixed value");
-  return value.toLowerCase() as OperationId;
-}
 export function blockNumber(value: string | number): BlockNumber {
   const text = String(value);
   if (!/^(0|[1-9][0-9]*)$/.test(text) || BigInt(text) > 0xffff_ffffn) throw new TypeError("block number must be a u32");
@@ -191,7 +186,6 @@ export interface NameStatus {
   readonly active: boolean;
   readonly expires_at: BlockNumber | null;
 }
-export interface ContentPublication { readonly content: ContentCommitment | null; readonly revision: bigint; }
 
 export interface OwnerNamesPage {
   readonly version: 1;
@@ -284,7 +278,7 @@ export interface NamesRuntimeAdapter {
   resolveAddress(at: `0x${string}`, name: NameId, signal?: AbortSignal): Promise<Versioned<NamesAddress>>;
   resolveSubject(at: `0x${string}`, name: NameId, signal?: AbortSignal): Promise<Versioned<SubjectId>>;
   resolveAttestation(at: `0x${string}`, name: NameId, signal?: AbortSignal): Promise<Versioned<AttestationId>>;
-  resolveContentPublication(at: `0x${string}`, name: NameId, signal?: AbortSignal): Promise<Versioned<ContentPublication>>;
+  resolveContent(at: `0x${string}`, name: NameId, signal?: AbortSignal): Promise<Versioned<ContentCommitment>>;
   resolveText(at: `0x${string}`, name: NameId, key: TextKey, signal?: AbortSignal): Promise<Versioned<TextValue>>;
   primaryName(at: `0x${string}`, owner: AccountId, signal?: AbortSignal): Promise<Versioned<NameId>>;
   nameStatus(at: `0x${string}`, name: NameId, signal?: AbortSignal): Promise<NameStatus>;
@@ -299,7 +293,7 @@ export interface NamesRuntimeAdapter {
   setAddress(at: `0x${string}`, name: NameId, address: NamesAddress | null, signal?: AbortSignal): Promise<PreparedTransaction>;
   setSubject(at: `0x${string}`, name: NameId, subject: SubjectId | null, signal?: AbortSignal): Promise<PreparedTransaction>;
   setAttestation(at: `0x${string}`, name: NameId, attestation: AttestationId | null, signal?: AbortSignal): Promise<PreparedTransaction>;
-  publishContent(at: `0x${string}`, name: NameId, content: ContentCommitment | null, expectedRevision: string, operationDeadline: BlockNumber, operationId: OperationId, signal?: AbortSignal): Promise<PreparedTransaction>;
+  setContent(at: `0x${string}`, name: NameId, content: ContentCommitment | null, signal?: AbortSignal): Promise<PreparedTransaction>;
   setText(at: `0x${string}`, name: NameId, key: TextKey, value: TextValue | null, signal?: AbortSignal): Promise<PreparedTransaction>;
   setPrimaryName(at: `0x${string}`, name: NameId | null, signal?: AbortSignal): Promise<PreparedTransaction>;
   release(at: `0x${string}`, name: NameId, signal?: AbortSignal): Promise<PreparedTransaction>;
@@ -315,7 +309,7 @@ export interface NamesClient {
   resolveAddress(name: NameId, signal?: AbortSignal): Promise<SdkResult<Versioned<NamesAddress>>>;
   resolveSubject(name: NameId, signal?: AbortSignal): Promise<SdkResult<Versioned<SubjectId>>>;
   resolveAttestation(name: NameId, signal?: AbortSignal): Promise<SdkResult<Versioned<AttestationId>>>;
-  resolveContentPublication(name: NameId, signal?: AbortSignal): Promise<SdkResult<Versioned<ContentPublication>>>;
+  resolveContent(name: NameId, signal?: AbortSignal): Promise<SdkResult<Versioned<ContentCommitment>>>;
   resolveText(name: NameId, key: TextKey, signal?: AbortSignal): Promise<SdkResult<Versioned<TextValue>>>;
   primaryName(owner: AccountId, signal?: AbortSignal): Promise<SdkResult<Versioned<NameId>>>;
   nameStatus(name: NameId, signal?: AbortSignal): Promise<SdkResult<NameStatus>>;
@@ -330,7 +324,7 @@ export interface NamesClient {
   prepareSetAddress(name: NameId, address: NamesAddress | null, signal?: AbortSignal): Promise<SdkResult<PreparedTransaction>>;
   prepareSetSubject(name: NameId, subject: SubjectId | null, signal?: AbortSignal): Promise<SdkResult<PreparedTransaction>>;
   prepareSetAttestation(name: NameId, attestation: AttestationId | null, signal?: AbortSignal): Promise<SdkResult<PreparedTransaction>>;
-  preparePublishContent(name: NameId, content: ContentCommitment | null, expectedRevision: string, operationDeadline: BlockNumber, operationId: OperationId, signal?: AbortSignal): Promise<SdkResult<PreparedTransaction>>;
+  prepareSetContent(name: NameId, content: ContentCommitment | null, signal?: AbortSignal): Promise<SdkResult<PreparedTransaction>>;
   prepareSetText(name: NameId, key: TextKey, value: TextValue | null, signal?: AbortSignal): Promise<SdkResult<PreparedTransaction>>;
   prepareSetPrimaryName(name: NameId | null, signal?: AbortSignal): Promise<SdkResult<PreparedTransaction>>;
   prepareRelease(name: NameId, signal?: AbortSignal): Promise<SdkResult<PreparedTransaction>>;
@@ -351,8 +345,8 @@ export const NAMES_NATIVE_BINDINGS = {
   metadataHash: COMMONS_NETWORK_BINDING.metadata_hash,
   runtimeApi: "NamesApi.v1",
   pallet: "Names",
-  reads: ["label_policy_version", "name_by_id", "root_name_by_normalized_label", "owner_names", "controllers", "resolve_address", "resolve_subject", "resolve_attestation", "resolve_content_publication", "resolve_text", "primary_name", "name_status"],
-  transactions: ["commit", "cancel_commitment", "prune_expired_commitment", "register", "renew", "transfer", "add_controller", "remove_controller", "set_address", "set_subject", "set_attestation", "publish_content", "set_text", "set_primary_name", "release", "remove_expired_name"],
+  reads: ["label_policy_version", "name_by_id", "root_name_by_normalized_label", "owner_names", "controllers", "resolve_address", "resolve_subject", "resolve_attestation", "resolve_content", "resolve_text", "primary_name", "name_status"],
+  transactions: ["commit", "cancel_commitment", "prune_expired_commitment", "register", "renew", "transfer", "add_controller", "remove_controller", "set_address", "set_subject", "set_attestation", "set_content", "set_text", "set_primary_name", "release", "remove_expired_name"],
 } as const;
 
 const invalidResult = <T>(message: string): SdkResult<T> => err(new OriginSdkError({
@@ -377,7 +371,7 @@ export function createNamesClient(chain: CommonsChainClient, runtime: NamesRunti
     resolveAddress: (name, signal) => checked(() => validName(name), () => chain.readFinalized((at) => runtime.resolveAddress(at, name, signal), signal)),
     resolveSubject: (name, signal) => checked(() => validName(name), () => chain.readFinalized((at) => runtime.resolveSubject(at, name, signal), signal)),
     resolveAttestation: (name, signal) => checked(() => validName(name), () => chain.readFinalized((at) => runtime.resolveAttestation(at, name, signal), signal)),
-    resolveContentPublication: (name, signal) => checked(() => validName(name), () => chain.readFinalized((at) => runtime.resolveContentPublication(at, name, signal), signal)),
+    resolveContent: (name, signal) => checked(() => validName(name), () => chain.readFinalized((at) => runtime.resolveContent(at, name, signal), signal)),
     resolveText: (name, key, signal) => checked(() => { validName(name); textKey(key); }, () => chain.readFinalized((at) => runtime.resolveText(at, name, key, signal), signal)),
     primaryName: (owner, signal) => checked(() => { accountId(owner); }, () => chain.readFinalized((at) => runtime.primaryName(at, owner, signal), signal)),
     nameStatus: (name, signal) => checked(() => validName(name), () => chain.readFinalized((at) => runtime.nameStatus(at, name, signal), signal)),
@@ -392,10 +386,7 @@ export function createNamesClient(chain: CommonsChainClient, runtime: NamesRunti
     prepareSetAddress: (name, address, signal) => checked(() => { validName(name); if (address !== null) namesAddress(address); }, () => prepare((at) => runtime.setAddress(at, name, address, signal), signal)),
     prepareSetSubject: (name, subject, signal) => checked(() => { validName(name); if (subject !== null) subjectId(subject); }, () => prepare((at) => runtime.setSubject(at, name, subject, signal), signal)),
     prepareSetAttestation: (name, attestation, signal) => checked(() => { validName(name); if (attestation !== null) hash32(attestation); }, () => prepare((at) => runtime.setAttestation(at, name, attestation, signal), signal)),
-    preparePublishContent: (name, content, expectedRevision, operationDeadline, id, signal) => checked(() => {
-      validName(name); if (content !== null) contentCommitment(content); blockNumber(operationDeadline); operationId(id);
-      if (!/^(0|[1-9][0-9]*)$/.test(expectedRevision) || BigInt(expectedRevision) > 0xffff_ffff_ffff_ffffn) throw new TypeError("expected revision must be a u64 decimal string");
-    }, () => prepare((at) => runtime.publishContent(at, name, content, expectedRevision, operationDeadline, id, signal), signal)),
+    prepareSetContent: (name, content, signal) => checked(() => { validName(name); if (content !== null) contentCommitment(content); }, () => prepare((at) => runtime.setContent(at, name, content, signal), signal)),
     prepareSetText: (name, key, value, signal) => checked(() => { validName(name); textKey(key); if (value !== null) textValue(value); }, () => prepare((at) => runtime.setText(at, name, key, value, signal), signal)),
     prepareSetPrimaryName: (name, signal) => checked(() => validOptionalName(name), () => prepare((at) => runtime.setPrimaryName(at, name, signal), signal)),
     prepareRelease: (name, signal) => checked(() => validName(name), () => prepare((at) => runtime.release(at, name, signal), signal)),

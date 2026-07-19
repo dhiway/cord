@@ -44,7 +44,6 @@ import {
   type TypedTransactionStatus,
 } from "../../packages/host/src/network-host.ts";
 import { normalizedLabel, registrationSalt, textKey, textValue } from "@cord-network/origin-sdk-names";
-import { runFestivalDeveloperJourney } from "./developer-journey.ts";
 
 const APP_ID = "festival-p6-reference";
 const FINALIZED_HASH = `0x${"a1".repeat(32)}`;
@@ -172,6 +171,14 @@ function finalizedTransaction(
 
 function selfRoutes(state: JourneyState): TypedNetworkRoutes<JourneyClient, TypedChainSigner> {
   return {
+    "identity:personhood_status": {
+      finality: "finalized",
+      async query(_payload, context): Promise<JsonValue> {
+        state.selfRouteSelections.push("identity:personhood_status");
+        state.participantAuthorizations.push(context.authorizationSignature);
+        return { version: 1, full_personal_id: "42", full_recognized: true, lite_recognized: true };
+      },
+    },
     "names:root_name_by_normalized_label": {
       finality: "finalized",
       async query(payload, context): Promise<JsonValue> {
@@ -402,7 +409,6 @@ function readManifest(): any {
 
 export async function runFestivalJourney(): Promise<JsonObject> {
   const manifest = readManifest();
-  const developerJourney = await runFestivalDeveloperJourney();
   const state: JourneyState = {
     credentialLive: true,
     sponsorCredits: 1,
@@ -461,7 +467,7 @@ export async function runFestivalJourney(): Promise<JsonObject> {
         nonce: `festival-p6-consent-${tag}`,
       },
     };
-    const route = NATIVE_RUNTIME_ROUTE_REGISTRY[scope] as (...values: any[]) => HostRequest;
+    const route = NATIVE_RUNTIME_ROUTE_REGISTRY[scope] as (context: typeof context, ...values: any[]) => HostRequest;
     return route(context, ...args);
   };
 
@@ -470,6 +476,10 @@ export async function runFestivalJourney(): Promise<JsonObject> {
   const denied = build("names:set_text", [NAME_ID, textKey("festival"), textValue("denied")]);
   results.permission_denial = await execute(selfHost, denied);
 
+  results.personhood_credential = await execute(
+    selfHost,
+    build("identity:personhood_status", [selfSigner.accountId]),
+  );
   results.attestation_live_evidence = await execute(
     sponsorHost,
     build("attestation:attestation_live_status", [CREDENTIAL_ID]),
@@ -577,6 +587,7 @@ export async function runFestivalJourney(): Promise<JsonObject> {
 
   const expected: Record<string, string> = {
     permission_denial: "permission_denied",
+    personhood_credential: "success",
     attestation_live_evidence: "success",
     dot_lookup: "success",
     dot_commit: "success",
@@ -617,13 +628,12 @@ export async function runFestivalJourney(): Promise<JsonObject> {
     schema: "cord.festival-journey-report.v1",
     status: "PASS",
     journey_acceptance: true,
-    p6_acceptance: true,
+    p6_acceptance: false,
     application_id: APP_ID,
     network_activation: ORBIS_CANDIDATE_NETWORK_BINDING.activation_state,
     route_factory: "NATIVE_RUNTIME_ROUTE_REGISTRY",
     transport: "createTypedNetworkHostRoutes+FakeHost",
     results,
-    developer_flow: developerJourney,
     signer_boundaries: {
       participant_authorization_count: state.participantAuthorizations.length,
       self_chain_signer: selfSigner.accountId,
@@ -672,19 +682,20 @@ export async function runFestivalJourney(): Promise<JsonObject> {
       call_indices: false,
     },
     sealed_route_registry: {
-      capabilities: ["attestation", "names", "storage", "transaction"],
-      identity_routes: 0,
+      capabilities: ["attestation", "names", "identity", "storage", "transaction"],
+      identity_routes: 9,
+      personhood_routes: 1,
       sponsored_transaction_routes: 2,
     },
     production_evidence_deferred: [
-      "Live-chain execution and production-finality observation remain outside this deterministic application harness.",
-      "Final E/Q/C SLO and storage-headroom campaigns are production-readiness work after P6 feature completion.",
-      "Production Swift or Kotlin rewrites are explicit non-goals; mobile deliverables are consumable projections.",
+      "Live-chain execution and production-finality observation remain outside this deterministic contract harness.",
+      "Final E/Q/C SLO and storage-headroom campaigns run only after both P6 journeys are feature complete.",
+      "Production Swift or Kotlin rewrites are explicit non-goals; mobile deliverables are contract harnesses.",
     ],
-    mobile_app_projection: {
-      ios: "product-sdk/examples/festival/ios-app-projection.manifest.json",
-      android: "product-sdk/examples/festival/android-app-projection.manifest.json",
-      vectors: "product-sdk/examples/festival/mobile-app-vectors.json",
+    mobile_contract_harness: {
+      ios: "product-sdk/examples/festival/ios-contract-harness.manifest.json",
+      android: "product-sdk/examples/festival/android-contract-harness.manifest.json",
+      vectors: "product-sdk/examples/festival/mobile-contract-vectors.json",
     },
     deferred: {
       live_chain: true,
@@ -699,7 +710,7 @@ const invokedPath = process.argv[1] ? resolve(process.argv[1]) : "";
 if (invokedPath === fileURLToPath(import.meta.url)) {
   const report = await runFestivalJourney();
   if (process.argv.includes("--write")) {
-    const path = resolve(import.meta.dirname, "../../../target/evidence/p6/festival-journey.report.json");
+    const path = resolve(import.meta.dirname, "../../../docs/evidence/verification/p6/festival-journey.report.json");
     mkdirSync(dirname(path), { recursive: true });
     writeFileSync(path, `${JSON.stringify(report, null, 2)}\n`);
     process.stdout.write(`${path}\n`);

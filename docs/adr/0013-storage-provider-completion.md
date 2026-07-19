@@ -6,15 +6,15 @@
 
 ## Context
 
-Commons composes Resources with bounded Provider, Drive and S3 registries. Resource claims remain application entitlements; provider agreements, manifests, checkpoints, object metadata and content commitments belong to the native storage-provider plane. The removed transaction-retention and hop-promotion implementation is not part of the new network.
+Orbis composes TransactionStorage 110, HopPromotion 111 and Resources. Soft temporary authorization and renewed hard capacity are distinct. The new network also needs one native provider reference on an isolated reservation plus bounded Provider, Drive and S3 registries.
 
 ## Decision
 
-Provider, Drive and S3 are the only on-chain storage authorities. Provider owns governed zero-stake providers, agreements, manifests, checkpoints, challenges and deletion acknowledgement. Drive and S3 own bounded application metadata. Resources may issue storage claims, but its long-term storage adapter fails closed until it is explicitly bound to the canonical Provider authority; it must never fabricate a second reservation ledger.
+Keep TransactionStorage as the sole on-chain content-commitment/provenance ledger. Its first-network schema is storage version 8 and includes a separate optional reservation-to-provider-agreement map. A reservation owner may attach one active, sufficiently sized native agreement before storing content; the reference survives closure for tombstone audit and is removed with the tombstone. There is no V7 state upgrade, backfill or migration hook. Add bounded zero-stake, Sudo-authorized Provider, Drive and S3 registries.
 
-The chain stores commitments, authorization, capacity, renewal/deletion state and provider references. CID/DAG-PB/UnixFS reconstruction, Bitswap/gateway transport and private content remain off-chain. Provider accountability includes health/capacity, failure, re-replication and audit events. Fixed-finalized checkpoint duties use the dedicated quorum/confirmation/publication lanes, while finalized manifest-deletion duties produce idempotent `StorageProvider::acknowledge_manifest_deletion` requests through the metadata-derived signer/nonce/finality pipeline. Generic provider-root and agreement-deletion calls are not part of the Commons runtime or developer contract.
+The chain stores commitments, authorization, capacity, renewal/deletion state and provider references. CID/DAG-PB/UnixFS reconstruction, Bitswap/gateway transport and private content remain off-chain. Provider accountability includes health/capacity, failure, re-replication and audit events. The active provider completion contract is checkpoint-v2 plus canonical manifest deletion: fixed-finalized checkpoint duties enter the dedicated quorum/confirmation/publication lanes, while finalized manifest-deletion duties produce idempotent `StorageProvider::acknowledge_manifest_deletion` requests through the metadata-derived signer/nonce/finality pipeline. Generic provider-root and agreement-deletion calls are not part of the Commons runtime or developer contract.
 
-Until the atomic object API cutover completes, authenticated `POST /commit` and `POST /delete` route identities remain reserved and return unavailable before body parsing or byte-store mutation. Pending root/deletion journal structures remain private, dormant implementation bearers only; no production route or worker drains them. The cutover must either replace the mutation and completion unit atomically or delete these bearers. It must not publish a duplicate generic checkpoint, root, retention, or deletion protocol.
+Until P4 completes the atomic object API cutover, authenticated `POST /commit` and `POST /delete` route identities remain reserved and return unavailable before body parsing or DiskStore mutation. Pending root/deletion journal structures remain private, dormant implementation bearers only; no production route or worker drains them. P4 must either replace the mutation and completion unit atomically or delete these bearers. It must not publish a duplicate generic checkpoint, root, or deletion protocol.
 
 ## Drivers
 
@@ -26,7 +26,7 @@ Second storage authority (rejected); contract registry (rejected); on-chain cont
 
 ## Authority and security
 
-Node/provider services become release-critical. Commons starts directly with the Provider, Drive and S3 schemas; no removed retention-plane state or compatibility route exists.
+Node/provider services become release-critical. V8 is the clean-genesis TransactionStorage schema, not an upgrade from an existing Orbis network.
 
 ## Consequences
 
@@ -38,7 +38,7 @@ Origin and Orbis start from a new genesis. No legacy state import, Solidity ABI/
 
 ## Verification
 
-Checkpoint and challenge missing/late/invalid/duplicate/fork/restart/disk scenarios; provider authorization/provenance/renew/delete APIs; CID integrity/failover; E/Q/C resource/headroom gates.
+Proof missing/late/invalid/duplicate/fork/prune/restart/disk scenarios; authorization/provenance/renew/delete APIs; CID integrity/failover; E/Q/C resource/headroom gates.
 
 ## Reversal
 

@@ -162,6 +162,7 @@ def validate() -> tuple[dict, list[str]]:
         "ORBIS-PAL-121",
         "ORBIS-PAL-122",
         "ORBIS-PAL-221",
+        "NODE-PROOF-PROVIDER",
         "MANIFEST-CURRENT",
     ):
         require(by_id.get(row_id, {}).get("status") == "present", f"{row_id} is not present")
@@ -182,7 +183,7 @@ def validate() -> tuple[dict, list[str]]:
         require(len({index for _, index in actual}) == len(actual), f"{owner} pallet index collision")
         pallet_counts[owner.lower()] = len(actual)
 
-    permitted_validation_gaps = {"GAP-XCM-E2E", "GAP-WEIGHTS"}
+    permitted_validation_gaps = {"GAP-XCM-E2E", "GAP-PROOF-E2E", "GAP-WEIGHTS"}
     gap_ids = {row["id"] for row in rows if row["status"] == "gap"}
     require(gap_ids == permitted_validation_gaps, f"feature or unclassified alignment gaps: {sorted(gap_ids)}")
     for row in rows:
@@ -223,9 +224,9 @@ def validate() -> tuple[dict, list[str]]:
 
     manifest_version = scalar("manifest_version")
     current_state = scalar("current_state")
-    require(manifest_version == 22, "current completion manifest is not version 22")
+    require(manifest_version == 21, "current completion manifest is not version 21")
     require(
-        current_state == "runtime-native-features-present-sdk-app-platform-p0-frozen-production-validation-deferred",
+        current_state == "p2-p6-native-feature-implementation-present-production-validation-deferred",
         "manifest current-state drift",
     )
     review_statuses = {
@@ -459,7 +460,7 @@ def validate() -> tuple[dict, list[str]]:
         },
         "deferred_production_gates": [
             "live Broker/Coretime XCM lifecycle and session receipts",
-            "provider checkpoint, challenge and recovery production campaign",
+            "proof-retention production campaign",
             "final E/Q/C SLO and independent resource-headroom verdict",
             "final generated weights and deterministic release artifacts",
             "soak, recovery, security review, and explicit activation approvals",

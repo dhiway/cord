@@ -18,7 +18,7 @@
 
 schema_version = 1
 protocol = "cord.origin.host/2"
-registry_sha256 = "42e4e9660d7e2c26f15565a2448f9d2b384cb5c73321422a3b9ae9107f364b57"
+registry_sha256 = "d17c24596fbae30c300d57ae8e51bc0c7b149ab2e91c2b9c751bedd3fbc1eeba"
 
 [boundary]
 scope = "p2-private-protocol-kernel"
@@ -35,32 +35,32 @@ sha256 = "de8116cb44b3b8f5a0a6d5bc135588edbb85366f1865db737c449f257deb99cf"
 [[artifact]]
 role = "registry"
 path = "docs/specs/origin-host-registry-v2.cddl"
-sha256 = "42e4e9660d7e2c26f15565a2448f9d2b384cb5c73321422a3b9ae9107f364b57"
+sha256 = "d17c24596fbae30c300d57ae8e51bc0c7b149ab2e91c2b9c751bedd3fbc1eeba"
 
 [[artifact]]
 role = "operations"
 path = "docs/specs/origin-host-registry-v2.operations.json"
-sha256 = "2489e8c5b98e221cf4b93e0308f82149672ba53aadf5c22fc1fe2fa2a9c4c49b"
+sha256 = "a50a80ec2f4ab36785fcfbbc38b6512ca4e355e5a48a4cbe9b5083968db15aca"
 
 [[artifact]]
 role = "errors"
 path = "docs/specs/origin-host-registry-v2.errors.json"
-sha256 = "20e8135116ac9b82f86891b798224ec5c08ac09cdc6c249269e7a8e236ae88c5"
+sha256 = "f9734782c6ade5eb8c0cbea5ad93a9808a6cc6a88363fec6f7bfc023de58d8ca"
 
 [[artifact]]
 role = "projection"
 path = "docs/specs/origin-host-registry-v2.schema.json"
-sha256 = "ca9325a8adb0aad5b7db9b24bc27f1305087d0aead872d548df79ffa54139950"
+sha256 = "f6ce027cb6b4f93038f96d045e8abbeee751c901015d3e9bd58e2833beedc18b"
 
 [[artifact]]
 role = "host-vectors-json"
 path = "docs/specs/origin-host-registry-v2.vectors.json"
-sha256 = "69f0bc1c834508861b69a6cee3ea53189712bbb88c8a7790e1913f4c49034862"
+sha256 = "6a2be09c04d1cf006c72eeaddfe66915381bfc849216c9d91746151687afc03b"
 
 [[artifact]]
 role = "host-vectors-cbor"
 path = "docs/specs/origin-host-registry-v2.vectors.cbor"
-sha256 = "3845b833817f14f6b7a0bebfd15d6601d6a8325d2e518bf4ea9d29dbc683fdf4"
+sha256 = "9ef6624ba14275b9e30cca8ff786255011962e05986a12aac0071c85427be71c"
 
 [[artifact]]
 role = "protocol-vectors"

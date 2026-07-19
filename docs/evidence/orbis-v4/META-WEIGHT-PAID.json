@@ -1,0 +1,15 @@
+{
+  "assertion_sha256": "322d6987bcd07a9efae9dd0fa773c7f1bf6361d4459721bc1ec1657c6a2f0712",
+  "command": "CARGO_TARGET_DIR=target/evidence-v4 SKIP_WASM_BUILD=1 cargo test -p origin-orbis-runtime --lib tests::remediation_v3::tests::conservative_weights_freeze_formula_and_db_ownership -- --exact --nocapture",
+  "expected": "PaidMetaScope = 2R + 2W",
+  "expected_output": "test result: ok",
+  "id": "META-WEIGHT-PAID",
+  "output_artifact": "docs/evidence/orbis-v4/outputs/1e4600b7ceb8de946eb710305f6a45110591c5fa1ffd5d9d2dc809dc3a1648a4.log",
+  "output_artifact_sha256": "2a868e68ef0e26fc239bffe934e1dbb110657d041f3856419e02f3f40216f913",
+  "output_sha256": "2a868e68ef0e26fc239bffe934e1dbb110657d041f3856419e02f3f40216f913",
+  "schema": "orbis-completion-evidence-v4",
+  "source_commit": "f88aa3faa6573582ca690fa3cace58b7f670aa88",
+  "source_paths": "origin/orbis/runtime/src/lib.rs; origin/orbis/runtime/src/meta_v6.rs",
+  "source_symbol": "IntentPreimageV7",
+  "table": "meta_contract"
+}

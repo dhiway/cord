@@ -23,7 +23,10 @@ import type {
 } from "@cord-network/origin-sdk-assets";
 import type { AttestationRuntimeAdapter } from "@cord-network/origin-sdk-attestation";
 import type { CloudStorageRuntimeAdapter } from "@cord-network/origin-sdk-cloud-storage";
+import type { IdentityRuntimeAdapter } from "@cord-network/origin-sdk-identity";
 import type { NamesRuntimeAdapter } from "@cord-network/origin-sdk-names";
+import type { PersonhoodRuntimeAdapter } from "@cord-network/origin-sdk-personhood";
+import type { ResourcesRuntimeAdapter } from "@cord-network/origin-sdk-resources";
 import type { PreparedTransaction } from "@cord-network/origin-sdk-tx";
 import type { OriginAppRuntime } from "./index.ts";
 
@@ -66,6 +69,60 @@ export function createOriginAppRuntime(
     payload: Readonly<Record<string, unknown>>,
     signal?: AbortSignal,
   ): Promise<PreparedTransaction> => executor.prepare(at, target, payload, undefined, signal);
+
+  const identity: IdentityRuntimeAdapter = {
+    identityStatus: (at, account, signal) =>
+      read(at, "IdentityPersonhoodApi.identity_status", { account }, signal),
+    setIdentity: (at, info, signal) => prepare(at, "People.set_identity", { info }, signal),
+    clearIdentity: (at, signal) => prepare(at, "People.clear_identity", {}, signal),
+    requestJudgement: (at, registrar, signal) =>
+      prepare(at, "People.request_judgement", { registrar }, signal),
+    cancelJudgementRequest: (at, registrar, signal) =>
+      prepare(at, "People.cancel_request", { registrar }, signal),
+    provideJudgement: (at, target, judgement, identityHash, signal) =>
+      prepare(at, "People.provide_judgement", {
+        target, judgement, identity_hash: identityHash,
+      }, signal),
+  };
+
+  const personhood: PersonhoodRuntimeAdapter = {
+    personhoodStatus: (at, account, signal) =>
+      read(at, "IdentityPersonhoodApi.personhood_status", { account }, signal),
+    attestationAllowance: (at, account, signal) =>
+      read(at, "IdentityPersonhoodApi.attestation_allowance", { account }, signal),
+    attestLitePerson: (at, input, signal) =>
+      prepare(at, "PeopleLite.attest", { ...input }, signal),
+  };
+
+  const resources: ResourcesRuntimeAdapter = {
+    consumer: (at, account, signal) => read(at, "Resources.Consumers", { account }, signal),
+    statementAllowances: (at, account, signal) => read(
+      at,
+      "Resources.StmtStoreAllowanceByAccount+StatementStoreAllowances",
+      { account },
+      signal,
+    ),
+    storageClaim: (at, reservationId, signal) =>
+      read(at, "Resources.StorageClaims", { reservation_id: reservationId }, signal),
+    registerLitePerson: (at, input, signal) =>
+      prepare(at, "Resources.register_lite_person", { ...input }, signal),
+    registerPerson: (at, input, signal) =>
+      prepare(at, "Resources.register_person", { ...input }, signal),
+    touchPersonAuthorization: (at, authorization, signal) =>
+      prepare(at, "Resources.touch_person_authorization", { authorization }, signal),
+    updateIdentifierKey: (at, identifierKey, signal) =>
+      prepare(at, "Resources.update_identifier_key", { identifier_key: identifierKey }, signal),
+    setStatementAllowance: (at, input, signal) =>
+      prepare(at, "Resources.set_statement_store_account", { ...input }, signal),
+    claimLongTermStorage: (at, input, signal) =>
+      prepare(at, "Resources.claim_long_term_storage", { ...input }, signal),
+    cancelLongTermStorage: (at, reservationId, signal) => prepare(
+      at,
+      "Resources.cancel_long_term_storage_reservation",
+      { reservation_id: reservationId },
+      signal,
+    ),
+  };
 
   const attestation: AttestationRuntimeAdapter = {
     schemaById: (at, schema, signal) =>
@@ -142,8 +199,8 @@ export function createOriginAppRuntime(
       read(at, "NamesApi.resolve_subject", { name }, signal),
     resolveAttestation: (at, name, signal) =>
       read(at, "NamesApi.resolve_attestation", { name }, signal),
-    resolveContentPublication: (at, name, signal) =>
-      read(at, "NamesApi.resolve_content_publication", { name }, signal),
+    resolveContent: (at, name, signal) =>
+      read(at, "NamesApi.resolve_content", { name }, signal),
     resolveText: (at, name, key, signal) =>
       read(at, "NamesApi.resolve_text", { name, key }, signal),
     primaryName: (at, owner, signal) =>
@@ -180,8 +237,8 @@ export function createOriginAppRuntime(
       prepare(at, "Names.set_subject", { name, subject }, signal),
     setAttestation: (at, name, attestation, signal) =>
       prepare(at, "Names.set_attestation", { name, attestation }, signal),
-    publishContent: (at, name, content, expectedRevision, operationDeadline, operationId, signal) =>
-      prepare(at, "Names.publish_content", { name, content, expected_revision: expectedRevision, operation_deadline: operationDeadline, operation_id: operationId }, signal),
+    setContent: (at, name, content, signal) =>
+      prepare(at, "Names.set_content", { name, content }, signal),
     setText: (at, name, key, value, signal) =>
       prepare(at, "Names.set_text", { name, key, value }, signal),
     setPrimaryName: (at, name, signal) =>
@@ -209,7 +266,7 @@ export function createOriginAppRuntime(
     ),
   };
 
-  return { attestation, names, storage, assets };
+  return { identity, personhood, resources, attestation, names, storage, assets };
 }
 
 export const ORIGIN_RUNTIME_EXECUTOR_CONTRACT = {
@@ -217,5 +274,5 @@ export const ORIGIN_RUNTIME_EXECUTOR_CONTRACT = {
   rawScaleAccepted: false,
   palletIndicesAccepted: false,
   applicationEndpointsAccepted: false,
-  adapterCount: 4,
+  adapterCount: 7,
 } as const;

@@ -129,7 +129,6 @@ parameter_types! {
 	pub const MaxCheckpointAge: u64 = 128;
 	pub const EvidenceWindow: u64 = 10;
 	pub const MaxHostDelegationLifetime: u64 = 128;
-	pub const MaxBucketOperationReceiptLifetime: u64 = 20;
 }
 
 impl pallet_orbis_storage_provider::Config for Test {
@@ -139,8 +138,6 @@ impl pallet_orbis_storage_provider::Config for Test {
 	type MaxEntityIdBytes = MaxEntityIdBytes;
 	type MaxProviders = ConstU32<16>;
 	type MaxBuckets = ConstU32<16>;
-	type MaxBucketOperationReceipts = ConstU32<2>;
-	type MaxBucketOperationReceiptLifetime = MaxBucketOperationReceiptLifetime;
 	type MaxBucketGrants = ConstU32<4>;
 	type MaxHostDelegationsPerBucket = ConstU32<2>;
 	type MaxCapabilityProductIdBytes = ConstU32<128>;

@@ -24,15 +24,18 @@ use super::{
 	domains::{
 		attestation::{AttestationCommand, AttestationQuery},
 		common::{AccountId, Hash32},
-		drive::{DriveCommand, DriveQuery},
 		names::{NamesCommand, NamesQuery},
+		drive::{DriveCommand, DriveQuery},
+		identity_personhood::{IdentityPersonhoodCommand, IdentityPersonhoodQuery},
 		s3::{S3Command, S3Query},
+		storage::{StorageCommand, StorageQuery},
 		storage_provider::{StorageProviderCommand, StorageProviderQuery},
 		Validate,
 	},
 	transport::{
-		prepare_attestation_command, prepare_drive_command, prepare_names_command,
-		prepare_s3_command, prepare_storage_provider_command,
+		prepare_attestation_command, prepare_names_command, prepare_drive_command,
+		prepare_identity_personhood_command, prepare_s3_command, prepare_storage_command,
+		prepare_storage_provider_command,
 	},
 };
 
@@ -42,12 +45,16 @@ pub enum NativeRouteBinding {
 	AttestationCommand(AttestationCommand),
 	NamesQuery(NamesQuery),
 	NamesCommand(NamesCommand),
+	StorageQuery(StorageQuery),
+	StorageCommand(StorageCommand),
 	StorageProviderQuery(StorageProviderQuery),
 	StorageProviderCommand(StorageProviderCommand),
 	DriveQuery(DriveQuery),
 	DriveCommand(DriveCommand),
 	S3Query(S3Query),
 	S3Command(S3Command),
+	IdentityPersonhoodQuery(IdentityPersonhoodQuery),
+	IdentityPersonhoodCommand(IdentityPersonhoodCommand),
 	PrepareSponsoredIntent(PrepareSponsoredIntentBinding),
 	SubmitSponsoredIntent(SubmitSponsoredIntentBinding),
 }
@@ -149,9 +156,9 @@ impl ParticipantSignature {
 			ParticipantSignatureScheme::Sr25519 | ParticipantSignatureScheme::Ed25519 => 64,
 			ParticipantSignatureScheme::Ecdsa => 65,
 		};
-		if bytes.len() != 2 + expected * 2
-			|| !self.value.starts_with("0x")
-			|| !bytes[2..]
+		if bytes.len() != 2 + expected * 2 ||
+			!self.value.starts_with("0x") ||
+			!bytes[2..]
 				.iter()
 				.all(|byte| byte.is_ascii_digit() || (b'a'..=b'f').contains(byte))
 		{
@@ -174,6 +181,7 @@ struct SponsoredTargetWire {
 #[derive(Clone, Copy, Debug, Deserialize)]
 #[serde(rename_all = "snake_case")]
 enum SponsorableCapability {
+	Identity,
 	Attestation,
 	Names,
 	Storage,
@@ -225,14 +233,18 @@ impl NativeRouteBinding {
 			Self::AttestationCommand(value) => prepare_attestation_command(value).map(drop),
 			Self::NamesQuery(value) => value.validate(),
 			Self::NamesCommand(value) => prepare_names_command(value).map(drop),
+			Self::StorageQuery(value) => value.validate(),
+			Self::StorageCommand(value) => prepare_storage_command(value).map(drop),
 			Self::StorageProviderQuery(value) => value.validate(),
-			Self::StorageProviderCommand(value) => {
-				prepare_storage_provider_command(value).map(drop)
-			},
+			Self::StorageProviderCommand(value) =>
+				prepare_storage_provider_command(value).map(drop),
 			Self::DriveQuery(value) => value.validate(),
 			Self::DriveCommand(value) => prepare_drive_command(value).map(drop),
 			Self::S3Query(value) => value.validate(),
 			Self::S3Command(value) => prepare_s3_command(value).map(drop),
+			Self::IdentityPersonhoodQuery(value) => value.validate(),
+			Self::IdentityPersonhoodCommand(value) =>
+				prepare_identity_personhood_command(value).map(drop),
 			Self::PrepareSponsoredIntent(value) => {
 				value.participant.validate()?;
 				value.nonce.validate()?;
@@ -296,6 +308,21 @@ fn sponsored_target_declaration(
 	method: &str,
 ) -> Result<(&'static str, String), NativeError> {
 	let declaration = match capability {
+		SponsorableCapability::Identity => {
+			if ![
+				"set_identity",
+				"clear_identity",
+				"request_judgement",
+				"cancel_judgement_request",
+				"provide_judgement",
+				"attest_lite_person",
+			]
+			.contains(&method)
+			{
+				return Err(invalid("unsupported sponsored identity target"));
+			}
+			"IdentityPersonhoodCommand"
+		},
 		SponsorableCapability::Attestation => {
 			if ![
 				"create_schema",
@@ -333,7 +360,7 @@ fn sponsored_target_declaration(
 				"set_address",
 				"set_subject",
 				"set_attestation",
-				"publish_content",
+				"set_content",
 				"set_text",
 				"set_primary_name",
 				"release",
@@ -354,6 +381,20 @@ fn sponsored_target_declaration(
 		},
 		SponsorableCapability::Storage => {
 			if [
+				"store",
+				"store_with_cid_config",
+				"store_reserved",
+				"renew_reserved",
+				"attach_provider",
+				"renew",
+				"force_renew",
+				"enable_auto_renew",
+				"disable_auto_renew",
+			]
+			.contains(&method)
+			{
+				"StorageCommand"
+			} else if [
 				"register_provider",
 				"update_provider",
 				"set_provider_status",
@@ -436,7 +477,7 @@ fn bytes(value: &mut Value) {
 fn normalize_numbers(value: &mut Value) {
 	match value {
 		Value::Array(values) => values.iter_mut().for_each(normalize_numbers),
-		Value::Object(fields) => {
+		Value::Object(fields) =>
 			for (name, value) in fields {
 				if [
 					"spec_version",
@@ -456,8 +497,6 @@ fn normalize_numbers(value: &mut Value) {
 					"additional_blocks",
 					"block",
 					"expected_version",
-					"expected_revision",
-					"operation_deadline",
 					"expected_bucket_version",
 					"expected_object_version",
 					"data_len",
@@ -469,7 +508,6 @@ fn normalize_numbers(value: &mut Value) {
 					}
 				}
 				normalize_numbers(value);
-			}
 		},
 		_ => {},
 	}
@@ -479,7 +517,7 @@ fn normalize_accounts(value: &mut Value) {
 	const ALICE: &str = "5GrwvaEF5zXb26Fz9rcQpDWS57CtERHpNehXCPcNoHGKutQY";
 	match value {
 		Value::Array(values) => values.iter_mut().for_each(normalize_accounts),
-		Value::Object(fields) => {
+		Value::Object(fields) =>
 			for (name, value) in fields {
 				if [
 					"account",
@@ -508,7 +546,6 @@ fn normalize_accounts(value: &mut Value) {
 					}
 				}
 				normalize_accounts(value);
-			}
 		},
 		_ => {},
 	}
@@ -573,16 +610,16 @@ fn rust_arguments(route: &Value) -> Result<Map<String, Value>, NativeError> {
 	}
 	for field in ["definition", "label", "salt", "key", "value", "endpoint", "service_key", "name"]
 	{
-		if (declaration == "AttestationCommand" && field == "definition")
-			|| declaration.starts_with("Names")
-				&& ((method == "register" && field == "salt")
-					|| (["resolve_text", "set_text"].contains(&method) && field == "key")
-					|| (method == "set_text" && field == "value")
-					|| (method == "set_address" && field == "address"))
-			|| declaration.starts_with("Drive") && method == "create_drive" && field == "name"
-			|| declaration.starts_with("StorageProvider")
-				&& ["endpoint", "service_key"].contains(&field)
-			|| declaration.starts_with("S3") && field == "key"
+		if (declaration == "AttestationCommand" && field == "definition") ||
+			declaration.starts_with("Names") &&
+				((method == "register" && field == "salt") ||
+					(["resolve_text", "set_text"].contains(&method) && field == "key") ||
+					(method == "set_text" && field == "value") ||
+					(method == "set_address" && field == "address")) ||
+			declaration.starts_with("Drive") && method == "create_drive" && field == "name" ||
+			declaration.starts_with("StorageProvider") &&
+				["endpoint", "service_key"].contains(&field) ||
+			declaration.starts_with("S3") && field == "key"
 		{
 			if let Some(value) = fields.get_mut(field) {
 				bytes(value);
@@ -665,12 +702,20 @@ pub fn instantiate_native_route(route: &Value) -> Result<NativeRouteBinding, Nat
 		"AttestationCommand" => decode!(AttestationCommand, AttestationCommand),
 		"NamesQuery" => decode!(NamesQuery, NamesQuery),
 		"NamesCommand" => decode!(NamesCommand, NamesCommand),
+		"StorageQuery" => decode!(StorageQuery, StorageQuery),
+		"StorageCommand" => decode!(StorageCommand, StorageCommand),
 		"StorageProviderQuery" => decode!(StorageProviderQuery, StorageProviderQuery),
 		"StorageProviderCommand" => decode!(StorageProviderCommand, StorageProviderCommand),
 		"DriveQuery" => decode!(DriveQuery, DriveQuery),
 		"DriveCommand" => decode!(DriveCommand, DriveCommand),
 		"S3Query" => decode!(S3Query, S3Query),
 		"S3Command" => decode!(S3Command, S3Command),
+		"IdentityPersonhoodQuery" => {
+			decode!(IdentityPersonhoodQuery, IdentityPersonhoodQuery)
+		},
+		"IdentityPersonhoodCommand" => {
+			decode!(IdentityPersonhoodCommand, IdentityPersonhoodCommand)
+		},
 		_ => Err(invalid("unsupported Rust route declaration")),
 	}
 }

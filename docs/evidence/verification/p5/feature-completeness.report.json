@@ -2,16 +2,17 @@
   "candidate_ratified": false,
   "checks": {
     "backward_compatibility": false,
-    "external_repositories_checked": 0,
-    "external_repository_edits": true,
+    "external_repositories_checked": 33,
+    "external_repository_edits": false,
     "external_web3_rows_excluded": 17,
     "legacy_data_migration": false,
-    "manifest_version": 22,
-    "orbis_pallets": 61,
+    "manifest_version": 21,
+    "orbis_pallets": 63,
     "origin_pallets": 48,
     "planned_implementation_rows": 0,
     "remaining_feature_or_unclassified_gaps": [],
     "remaining_validation_or_release_gaps": [
+      "GAP-PROOF-E2E",
       "GAP-WEIGHTS",
       "GAP-XCM-E2E"
     ],
@@ -20,22 +21,17 @@
   },
   "deferred_production_gates": [
     "live Broker/Coretime XCM lifecycle and session receipts",
-    "provider checkpoint, challenge and recovery production campaign",
+    "proof-retention production campaign",
     "final E/Q/C SLO and independent resource-headroom verdict",
     "final generated weights and deterministic release artifacts",
     "soak, recovery, security review, and explicit activation approvals"
   ],
-  "errors": [
-    "wrong branch",
-    "CORD-only repository scope validation failed",
-    "CORD-only repository scope is not pass",
-    "an external reference repository is modified"
-  ],
-  "feature_complete": false,
+  "errors": [],
+  "feature_complete": true,
   "inputs": [
     {
       "path": "Cargo.lock",
-      "sha256": "528b8986a1803dc92c30305304714b42691453acd7b6881420a405c9c988d64c"
+      "sha256": "24adde73138855dbf401450a407391dba1e5f7ebd6484729daf885451cbf14f1"
     },
     {
       "path": "docs/adr/0017-native-feature-source-of-truth.md",
@@ -43,7 +39,7 @@
     },
     {
       "path": "docs/architecture/origin-foundation-commons-runtime-alignment.csv",
-      "sha256": "46d6c29f5dc29c3f1282fc0247ea7ca30db7f00620268cce0d9c864dd2bc8ce6"
+      "sha256": "99c42be481c629dd470aab3fb6deac9ffe1a10d85419487f578a8fe46bca1dd1"
     },
     {
       "path": "docs/architecture/contract-to-native-migration.csv",
@@ -59,15 +55,15 @@
     },
     {
       "path": "docs/genesis/origin-orbis-clean-genesis-manifest.json",
-      "sha256": "40f8c5f55fbfe7ac37bca49bdd65f27a83ed66a333af9c86703e6d7423f6c7c4"
+      "sha256": "8729ee61b1c61b37fb20551e8933390dfd889cc45ccc835b3b98070a6859c982"
     },
     {
       "path": "docs/orbis-completion-manifest.toml",
-      "sha256": "96683f4c09b47967e940312dc7bd6c9548d019bc55e9fa6d9f3801d236183ed6"
+      "sha256": "5cf25b886b17cf73496ca9ad6e724201713f2b8ab246d3552a0aac42ebcde73d"
     },
     {
       "path": "docs/orbis-native-capability-matrix.md",
-      "sha256": "c456d6eae1dd43e5658e1ff0266d2f2bc0b0506492e178f2f8f583b0158e4839"
+      "sha256": "bb1cb6d4be46bd7ac51fa17f37d6fdc75a09417883c21c4e5c500be460e86033"
     },
     {
       "path": "origin/base/runtime/Cargo.toml",
@@ -95,11 +91,11 @@
     },
     {
       "path": "origin/pallets/token/src/benchmarking.rs",
-      "sha256": "6db8adc1f71135e0affbdc899da6392c4259f8b7bced68b3254bd78de0cc4636"
+      "sha256": "5cd2f1f1e49b8e289acb89cfed8324c2505736a8cc80599e2fdb4199f1f2404a"
     },
     {
       "path": "origin/orbis/runtime/Cargo.toml",
-      "sha256": "7106d1812c30c7cf3cdb44c5c446052d24374a7b8fd560c4484c58c74647d5ff"
+      "sha256": "e2ad6f21bef7fa6827c267e31a29b80813b63316704c4184a0005f42453727c6"
     },
     {
       "path": "origin/orbis/runtime/src/coretime.rs",
@@ -107,7 +103,7 @@
     },
     {
       "path": "origin/orbis/runtime/src/lib.rs",
-      "sha256": "f1e27547eb40ea54784ab308970563ffc0a31af8dcaa47c33579f5de75db2e3f"
+      "sha256": "348b2ac5008544a5a031bcef62ed3226abf631b7f80faffe752aee14080af116"
     },
     {
       "path": "origin/pallets/coretime-control/Cargo.toml",
@@ -115,19 +111,19 @@
     },
     {
       "path": "origin/pallets/coretime-control/src/benchmarking.rs",
-      "sha256": "3518213972325b667b3dff546ae71a25a1d90794557f0f813564aa5d58bc0e72"
+      "sha256": "620d9e3519fbf4d05cbbb0a52302cc5e3017b5bbfc8d9f72b7d5ea3ac3d5efa4"
     },
     {
       "path": "origin/pallets/coretime-control/src/lib.rs",
-      "sha256": "729a00055559e043a9679f740f722ea76bc3a3ebf4a7471e0b145781c6fa6141"
+      "sha256": "2c451833541412d162e424773abbed5444bc397c7ad11c418c2b3f27ce88d4a3"
     },
     {
       "path": "origin/pallets/coretime-control/src/tests.rs",
-      "sha256": "9e13eb5a8e4e8b427bb6ee85c56716e62c8d65915c2397d719f12dc6698dfcb9"
+      "sha256": "e8b3012572f62acb00bf0199b3aea9eb7ef13be66b4fe0d1f147244aa149f997"
     },
     {
       "path": "scripts/validate-p0-provenance.py",
-      "sha256": "e51d07c47007441d15efd7052b5eac33c463ec074845fde39ed58ca1b1b0fbb3"
+      "sha256": "d585b852b7ecbdf8738ba0e5b401669d9d34ef84177d08079afc5023aace8a70"
     }
   ],
   "production_activation": false,
@@ -142,5 +138,5 @@
   },
   "schema": "cord.origin-orbis-feature-completeness.v1",
   "scope": "CORD-owned clean-break native implementation",
-  "status": "fail"
+  "status": "pass"
 }

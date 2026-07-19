@@ -25,9 +25,6 @@ readonly SRTOOL_LOCAL_REPOSITORY="cord-srtool-pinned"
 readonly SRTOOL_RUST_TAG="1.93.0"
 readonly SRTOOL_LOCAL_IMAGE="$SRTOOL_LOCAL_REPOSITORY:$SRTOOL_RUST_TAG"
 readonly PROFILE="release"
-# Serial Cargo scheduling prevents an intermittent missing dependency artifact
-# under amd64 Docker emulation while retaining fresh no-cache targets.
-readonly SRTOOL_CARGO_JOBS="1"
 readonly FOUNDATION_PACKAGE="origin-foundation-runtime"
 readonly FOUNDATION_DIR="origin/base/runtime"
 readonly COMMONS_PACKAGE="origin-commons-runtime"
@@ -145,7 +142,7 @@ run_srtool() {
 
 	verify_source_tree "$source_root" "$source_label"
 	verify_pinned_image
-	CARGO_BUILD_JOBS="$SRTOOL_CARGO_JOBS" CARGO_INCREMENTAL=0 SRTOOL_TAG="$SRTOOL_RUST_TAG" srtool build \
+	SRTOOL_TAG="$SRTOOL_RUST_TAG" srtool build \
 		--engine docker \
 		--image "$SRTOOL_LOCAL_REPOSITORY" \
 		--app \
@@ -249,16 +246,6 @@ docker run --rm \
 	"$SRTOOL_LOCAL_IMAGE" -lc "
 		set -euo pipefail
 		rustup override set 1.93.0
-		# rocksdb's bindgen/clang-sys needs a libclang.so filename. The pinned
-		# image's llvm-14 compatibility link is broken, but its verified Debian
-		# library is present. Create an ephemeral in-container discovery link;
-		# do not alter the image or use a host toolchain.
-		test -r /usr/lib/x86_64-linux-gnu/libclang-14.so.14.0.0
-		mkdir -p /tmp/cord-srtool-libclang
-		ln -sfn /usr/lib/x86_64-linux-gnu/libclang-14.so.14.0.0 /tmp/cord-srtool-libclang/libclang.so
-		test -r /tmp/cord-srtool-libclang/libclang.so
-		export LIBCLANG_PATH=/tmp/cord-srtool-libclang
-		export CLANG_PATH=/usr/bin/clang-14
 		cargo build --locked --profile $PROFILE \
 			--package origin \
 			--no-default-features \
@@ -335,20 +322,7 @@ import pathlib
 import sys
 
 output, commit, cargo_lock_sha256, image_digest, image_id, srtool_version, rust_tag = sys.argv[1:]
-def material_hash(root):
-    import hashlib
-    import subprocess
-    roots = ["Cargo.lock", "origin/orbis/runtime", "origin/orbis/runtime-api/storage", "origin/orbis/primitives", "origin/orbis/pallets/storage-provider", "origin/orbis/pallets/drive", "origin/orbis/pallets/s3"]
-    digest = hashlib.sha256()
-    tracked = subprocess.check_output(["git", "ls-files", "-z", "--", *roots], cwd=root).split(b"\0")
-    files = [pathlib.Path(root, item.decode("utf-8")) for item in tracked if item]
-    for path in sorted(files, key=lambda p: p.relative_to(root).as_posix().encode()):
-        relative = path.relative_to(root).as_posix().encode()
-        digest.update(len(relative).to_bytes(8, "big")); digest.update(relative)
-        digest.update(bytes.fromhex(hashlib.sha256(path.read_bytes()).hexdigest()))
-    return digest.hexdigest()
 report = {
-    "p1_runtime_material_sha256": material_hash(pathlib.Path.cwd()),
     "cargo_lock_sha256": cargo_lock_sha256,
     "fresh_srtool_target": True,
     "independent_clean_source_runs": 2,
@@ -360,8 +334,6 @@ report = {
     "srtool_image_id": image_id,
     "srtool_os": "linux",
     "srtool_no_cache": True,
-    "srtool_cargo_incremental": False,
-    "srtool_cargo_jobs": 1,
     "srtool_profile": "release",
     "srtool_rust_tag": rust_tag,
     "runtime_feature": "on-chain-release-build",

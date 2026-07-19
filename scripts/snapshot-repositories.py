@@ -148,9 +148,7 @@ def submodules(root: Path) -> list[dict[str, Any]]:
 def snapshot_repo(entry: dict[str, Any]) -> dict[str, Any]:
     root = Path(entry["path"])
     if not root.is_absolute():
-        if root != Path("."):
-            raise ValueError(f"only the current repository may use a relative path: {root}")
-        root = Path.cwd().resolve()
+        raise ValueError(f"repository path is not absolute: {root}")
     if not root.exists():
         raise FileNotFoundError(root)
     actual_root = Path(git(root, "rev-parse", "--show-toplevel").decode().strip()).resolve()

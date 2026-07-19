@@ -18,6 +18,7 @@
     "commons-runtime-owner",
     "domain-registrar-owner",
     "attestation-issuer-owner",
+    "storage-authority-owner",
     "provider-operator",
     "incident-commander"
   ],
@@ -52,6 +53,15 @@
       "success": "schema_by_id at the finalizing block returns the approved definition and issuer set"
     },
     {
+      "id": "authorize-storage-account",
+      "actor": "storage-authority-owner",
+      "kind": "submit-and-finalize",
+      "surface": "native-runtime",
+      "method": "TransactionStorage.authorize_account",
+      "approval": "storage-authority-multisig",
+      "success": "account_authorization at the finalizing block matches bounded bytes, transactions and expiry"
+    },
+    {
       "id": "register-provider",
       "actor": "storage-authority-owner",
       "kind": "submit-and-finalize",
@@ -67,10 +77,7 @@
       "kind": "process",
       "surface": "origin-orbis-provider",
       "command": "origin-orbis-provider --orbis-rpc ${ORBIS_RPC} --provider ${PROVIDER_ACCOUNT} --public-endpoint ${PROVIDER_PUBLIC_ENDPOINT} --data-path ${PROVIDER_DATA_PATH} --capacity-bytes ${PROVIDER_CAPACITY_BYTES} --listen ${PROVIDER_LISTEN}",
-      "secret_environment": [
-        "ORBIS_PROVIDER_BEARER_TOKEN",
-        "ORBIS_PROVIDER_SERVICE_SURI"
-      ],
+      "secret_environment": ["ORBIS_PROVIDER_BEARER_TOKEN", "ORBIS_PROVIDER_SERVICE_SURI"],
       "success": "authenticated /info and /stats bind the configured account/key and a single finalized runtime identity"
     },
     {
@@ -79,9 +86,7 @@
       "kind": "process",
       "surface": "origin-orbis-provider-outbox",
       "command": "origin-orbis-provider-outbox --orbis-rpc ${ORBIS_RPC_WS} --outbox ${PROVIDER_DATA_PATH}/provider-submissions-v3.jsonl",
-      "secret_environment": [
-        "ORBIS_PROVIDER_ACCOUNT_SURI"
-      ],
+      "secret_environment": ["ORBIS_PROVIDER_ACCOUNT_SURI"],
       "success": "provider-submissions-v3 entries receive fsynced receipts-v3 finality records in order"
     },
     {
@@ -98,11 +103,6 @@
   "failure_policy": {
     "before_genesis": "fix inputs and regenerate; never transform or import an old state",
     "after_genesis": "pause the native role/capability, preserve audit evidence and apply a normal forward runtime fix",
-    "forbidden": [
-      "legacy import",
-      "contract fallback",
-      "dual write",
-      "deployment address restore"
-    ]
+    "forbidden": ["legacy import", "contract fallback", "dual write", "deployment address restore"]
   }
 }
