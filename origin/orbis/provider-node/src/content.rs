@@ -58,7 +58,7 @@ macro_rules! fixed_identifier {
 			pub fn parse(value: &str) -> Result<Self, ContentError> {
 				if value.len() != $bytes * 2 || value.bytes().any(|byte| byte.is_ascii_uppercase())
 				{
-					return Err(ContentError::SchemaInvalid)
+					return Err(ContentError::SchemaInvalid);
 				}
 				let decoded = hex::decode(value).map_err(|_| ContentError::SchemaInvalid)?;
 				let bytes = decoded.try_into().map_err(|_| ContentError::SchemaInvalid)?;
@@ -106,21 +106,21 @@ impl CanonicalCid {
 	/// Parse an exact canonical textual CID.
 	pub fn parse(value: &str) -> Result<Self, ContentError> {
 		if !value.starts_with('b') || value.bytes().any(|byte| byte.is_ascii_uppercase()) {
-			return Err(ContentError::SchemaInvalid)
+			return Err(ContentError::SchemaInvalid);
 		}
 		let cid = CidGeneric::<32>::from_str(value).map_err(|_| ContentError::SchemaInvalid)?;
-		if cid.version() != cid::Version::V1 ||
-			cid.codec() != RAW_CODEC ||
-			cid.hash().code() != BLAKE2B_256_CODE ||
-			cid.hash().size() != 32
+		if cid.version() != cid::Version::V1
+			|| cid.codec() != RAW_CODEC
+			|| cid.hash().code() != BLAKE2B_256_CODE
+			|| cid.hash().size() != 32
 		{
-			return Err(ContentError::SchemaInvalid)
+			return Err(ContentError::SchemaInvalid);
 		}
 		let canonical = cid
 			.to_string_of_base(Base::Base32Lower)
 			.map_err(|_| ContentError::SchemaInvalid)?;
 		if canonical != value {
-			return Err(ContentError::SchemaInvalid)
+			return Err(ContentError::SchemaInvalid);
 		}
 		let digest = cid.hash().digest().try_into().map_err(|_| ContentError::SchemaInvalid)?;
 		Ok(Self { text: canonical, digest })

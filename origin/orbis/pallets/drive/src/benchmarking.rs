@@ -52,7 +52,7 @@ fn drive<T: Config>(owner: &T::AccountId, version: u64) -> T::Hash {
 
 fn path_with_len(len: u32) -> DrivePath {
 	if len == 1 {
-		return b"/".to_vec().try_into().expect("root is bounded")
+		return b"/".to_vec().try_into().expect("root is bounded");
 	}
 	let components = (len + 63) / 64;
 	let mut letters = len - components;
@@ -69,7 +69,7 @@ fn path_with_len(len: u32) -> DrivePath {
 
 fn parent_path(path: &DrivePath) -> Option<DrivePath> {
 	if path.as_slice() == b"/" {
-		return None
+		return None;
 	}
 	let last = path.iter().rposition(|byte| *byte == b'/').unwrap_or(0);
 	if last == 0 {

@@ -39,8 +39,8 @@ use crate::{
 		MAX_REQUEST_ENCODED,
 	},
 	replication_session::ReplicationSessionV1,
-	storage::{bucket_mmr::BucketMmrStore, StreamingStore},
-	BucketId, CanonicalCid, ContentError, OperationId, CHUNK_BYTES, MAX_CHUNKS,
+	storage::bucket_mmr::BucketMmrStore,
+	BucketId, CanonicalCid, ContentError, OperationId, StreamingStore, CHUNK_BYTES, MAX_CHUNKS,
 	MAX_STORED_BYTES,
 };
 
@@ -276,70 +276,18 @@ pub(crate) struct ReplicationIntentStore {
 	limit: usize,
 }
 
-pub(crate) struct PreparedReplicationIntentStore {
-	root: PathBuf,
-	root_missing: bool,
-	records: BTreeMap<String, ReplicationIntentV1>,
-	scheduler: SchedulerStateV1,
-	scheduler_install: Option<Vec<u8>>,
-	durable_bytes: u64,
-	temp_artifacts: Vec<PathBuf>,
-	limit: usize,
-}
-
-impl PreparedReplicationIntentStore {
-	pub(crate) fn apply(self) -> Result<ReplicationIntentStore, ContentError> {
-		crate::bounded_io::create_prepared_directory(&self.root, self.root_missing)?;
-		crate::bounded_io::remove_validated_temp_artifacts(&self.root, &self.temp_artifacts)?;
-		if let Some(bytes) = &self.scheduler_install {
-			install_prepared_scheduler(&self.root, bytes)?;
-		}
-		Ok(ReplicationIntentStore {
-			root: self.root,
-			records: RwLock::new(self.records),
-			scheduler: RwLock::new(self.scheduler),
-			durable_bytes: RwLock::new(self.durable_bytes),
-			poisoned: RwLock::new(false),
-			fault: RwLock::new(None),
-			limit: self.limit,
-		})
-	}
-}
-
 impl ReplicationIntentStore {
 	pub(crate) fn open(root: impl AsRef<Path>) -> Result<Self, ContentError> {
 		Self::open_with_limit(root, MAX_RECORDS)
 	}
 
-	pub(crate) fn prepare_open(
-		root: impl AsRef<Path>,
-	) -> Result<PreparedReplicationIntentStore, ContentError> {
-		Self::prepare_open_with_limit(root, MAX_RECORDS)
-	}
-
 	fn open_with_limit(root: impl AsRef<Path>, limit: usize) -> Result<Self, ContentError> {
-		Self::prepare_open_with_limit(root, limit)?.apply()
-	}
-
-	fn prepare_open_with_limit(
-		root: impl AsRef<Path>,
-		limit: usize,
-	) -> Result<PreparedReplicationIntentStore, ContentError> {
 		if limit == 0 || limit > MAX_RECORDS {
 			return Err(ContentError::SchemaInvalid);
 		}
 		let root = root.as_ref().join(ROOT);
-		let root_missing = !crate::bounded_io::optional_directory_exists(&root)?;
-		let loaded = if root_missing {
-			ReadState {
-				records: Vec::new(),
-				scheduler: None,
-				durable_bytes: 0,
-				temp_artifacts: Vec::new(),
-			}
-		} else {
-			read_state(&root, limit)?
-		};
+		fs::create_dir_all(&root).map_err(io_error)?;
+		let loaded = read_state(&root, limit)?;
 		let mut records = BTreeMap::new();
 		for file in loaded.records {
 			let record: ReplicationIntentV1 =
@@ -351,40 +299,29 @@ impl ReplicationIntentStore {
 				return Err(ContentError::IntegrityFailed);
 			}
 		}
-		let (scheduler, scheduler_install, durable_bytes) = match loaded.scheduler {
+		let scheduler = match loaded.scheduler {
 			Some(bytes) => {
 				let scheduler: SchedulerStateV1 =
 					serde_json::from_slice(&bytes).map_err(|_| ContentError::IntegrityFailed)?;
 				validate_scheduler(&scheduler)?;
-				(scheduler, None, loaded.durable_bytes)
+				scheduler
 			},
-			None => {
-				let scheduler = new_scheduler()?;
-				validate_scheduler(&scheduler)?;
-				let bytes = serde_json::to_vec(&scheduler).map_err(io_error)?;
-				if bytes.len() > MAX_RECORD_BYTES {
-					return Err(ContentError::IntegrityFailed);
-				}
-				let durable_bytes = loaded
-					.durable_bytes
-					.checked_add(bytes.len() as u64)
-					.ok_or(ContentError::ProviderRecoveryTableFull)?;
-				if durable_bytes > MAX_TOTAL_RECORD_BYTES {
-					return Err(ContentError::ProviderRecoveryTableFull);
-				}
-				(scheduler, Some(bytes), durable_bytes)
-			},
+			None => new_scheduler()?,
 		};
-		Ok(PreparedReplicationIntentStore {
+		let store = Self {
 			root,
-			root_missing,
-			records,
-			scheduler,
-			scheduler_install,
-			durable_bytes,
-			temp_artifacts: loaded.temp_artifacts,
+			records: RwLock::new(records),
+			scheduler: RwLock::new(scheduler),
+			durable_bytes: RwLock::new(loaded.durable_bytes),
+			poisoned: RwLock::new(false),
+			fault: RwLock::new(None),
 			limit,
-		})
+		};
+		if !store.root.join(SCHEDULER).exists() {
+			let scheduler = store.scheduler.read().map_err(|_| lock_error())?.clone();
+			store.persist_scheduler(&scheduler)?;
+		}
+		Ok(store)
 	}
 
 	pub(crate) fn plan_session(
@@ -394,47 +331,6 @@ impl ReplicationIntentStore {
 	) -> Result<ReplicationIntentV1, ContentError> {
 		let input = input_from_session(session, peer_operation_id)?;
 		self.plan_input(&input)
-	}
-
-	/// Durably move an active transfer to another source at its current object boundary.
-	///
-	/// Completed objects retain their source-independent receipts and cursor. Any admitted page,
-	/// partial current object proof, or outstanding request is discarded so responses from two
-	/// source authorities can never contribute to the same admitted page. Streaming operation IDs
-	/// are derived from the stable intent key, making already-fsynced chunks safe to reverify when
-	/// the current object is requested again from the replacement source.
-	pub(crate) fn replan_source(
-		&self,
-		existing_intent_key: &str,
-		session: &ReplicationSessionV1,
-		peer_operation_id: [u8; 16],
-	) -> Result<ReplicationIntentV1, ContentError> {
-		let replacement = input_from_session(session, peer_operation_id)?;
-		self.mutate(existing_intent_key, |existing| {
-			if existing.intent_key != existing_intent_key
-				|| intent_key(&replacement) != existing_intent_key
-				|| !same_replan_scope(&existing.identity, &replacement)
-				|| existing.identity.source_provider == replacement.source_provider
-				|| !matches!(
-					existing.phase,
-					ReplicationPhase::Planned | ReplicationPhase::Receiving
-				) || existing.local_commitment.is_some()
-				|| existing.confirmation.is_some()
-			{
-				return Err(ContentError::IdempotencyConflict);
-			}
-			let mut next = existing.clone();
-			next.identity = replacement.clone();
-			next.phase = if next.next_sequence == next.identity.candidate_start {
-				ReplicationPhase::Planned
-			} else {
-				ReplicationPhase::Receiving
-			};
-			next.outstanding_request = None;
-			next.admitted_page = None;
-			next.attempts = 0;
-			Ok(next)
-		})
 	}
 
 	pub(crate) fn record(&self, intent_key: &str) -> Result<ReplicationIntentV1, ContentError> {
@@ -1125,8 +1021,7 @@ impl ReplicationIntentStore {
 	}
 
 	#[cfg(test)]
-	#[cfg(test)]
-	pub(crate) fn inject_fault_once(&self, fault: ReplicationFault) -> Result<(), ContentError> {
+	fn inject_fault_once(&self, fault: ReplicationFault) -> Result<(), ContentError> {
 		*self.fault.write().map_err(|_| lock_error())? = Some(fault);
 		Ok(())
 	}
@@ -1240,14 +1135,13 @@ struct ReadState {
 	records: Vec<RecordFile>,
 	scheduler: Option<Vec<u8>>,
 	durable_bytes: u64,
-	temp_artifacts: Vec<PathBuf>,
 }
 
 fn read_state(root: &Path, limit: usize) -> Result<ReadState, ContentError> {
 	let mut records = Vec::new();
 	let mut scheduler = None;
 	let mut visited = 0usize;
-	let mut temp_artifacts = Vec::new();
+	let mut temps = 0usize;
 	let mut durable_bytes = 0u64;
 	for item in fs::read_dir(root).map_err(io_error)? {
 		visited = visited.checked_add(1).ok_or(ContentError::IntegrityFailed)?;
@@ -1256,20 +1150,24 @@ fn read_state(root: &Path, limit: usize) -> Result<ReadState, ContentError> {
 		}
 		let item = item.map_err(io_error)?;
 		let name = item.file_name().into_string().map_err(|_| ContentError::IntegrityFailed)?;
-		if crate::bounded_io::is_json_temp_artifact(&name) {
+		if name.contains(".tmp-") {
 			if !item.file_type().map_err(io_error)?.is_file() {
 				return Err(ContentError::IntegrityFailed);
 			}
-			if temp_artifacts.len() >= MAX_TEMP_ARTIFACTS {
+			temps = temps.checked_add(1).ok_or(ContentError::IntegrityFailed)?;
+			if temps > MAX_TEMP_ARTIFACTS {
 				return Err(ContentError::IntegrityFailed);
 			}
-			temp_artifacts.push(item.path());
+			fs::remove_file(item.path()).map_err(io_error)?;
 			continue;
 		}
 		if !item.file_type().map_err(io_error)?.is_file() {
 			return Err(ContentError::IntegrityFailed);
 		}
-		let bytes = crate::bounded_io::read_regular_file(item.path(), MAX_RECORD_BYTES as u64)?;
+		let bytes = fs::read(item.path()).map_err(io_error)?;
+		if bytes.len() > MAX_RECORD_BYTES {
+			return Err(ContentError::IntegrityFailed);
+		}
 		durable_bytes = durable_bytes
 			.checked_add(bytes.len() as u64)
 			.ok_or(ContentError::IntegrityFailed)?;
@@ -1287,7 +1185,8 @@ fn read_state(root: &Path, limit: usize) -> Result<ReadState, ContentError> {
 			records.push(RecordFile { name, bytes });
 		}
 	}
-	Ok(ReadState { records, scheduler, durable_bytes, temp_artifacts })
+	sync_dir(root)?;
+	Ok(ReadState { records, scheduler, durable_bytes })
 }
 
 fn input_from_session(
@@ -1375,28 +1274,6 @@ fn validate_identity(input: &ReplicationIntentInputV1) -> Result<(), ContentErro
 		return Err(ContentError::IntegrityFailed);
 	}
 	Ok(())
-}
-
-fn same_replan_scope(
-	current: &ReplicationIntentInputV1,
-	replacement: &ReplicationIntentInputV1,
-) -> bool {
-	current.genesis_hash == replacement.genesis_hash
-		&& current.topology_snapshot_hash == replacement.topology_snapshot_hash
-		&& current.topology_finalized_hash == replacement.topology_finalized_hash
-		&& current.topology_finalized_number == replacement.topology_finalized_number
-		&& current.topology_governed_checkpoint == replacement.topology_governed_checkpoint
-		&& current.bucket_id == replacement.bucket_id
-		&& current.bucket_version == replacement.bucket_version
-		&& current.target_provider == replacement.target_provider
-		&& current.target_service_key == replacement.target_service_key
-		&& current.target_service_key_version == replacement.target_service_key_version
-		&& current.target_endpoint_hash == replacement.target_endpoint_hash
-		&& current.target_may_confirm == replacement.target_may_confirm
-		&& current.candidate_mmr_root == replacement.candidate_mmr_root
-		&& current.candidate_start == replacement.candidate_start
-		&& current.candidate_count == replacement.candidate_count
-		&& current.candidate_predecessor_total == replacement.candidate_predecessor_total
 }
 
 fn validate_record(record: &ReplicationIntentV1) -> Result<(), ContentError> {
@@ -2000,29 +1877,6 @@ fn validate_scheduler(state: &SchedulerStateV1) -> Result<(), ContentError> {
 	Ok(())
 }
 
-fn install_prepared_scheduler(root: &Path, bytes: &[u8]) -> Result<(), ContentError> {
-	let temp = root.join(format!("{SCHEDULER}.tmp-{}", std::process::id()));
-	let mut owns_temp = false;
-	let result = (|| {
-		let mut file = fs::OpenOptions::new()
-			.create_new(true)
-			.write(true)
-			.open(&temp)
-			.map_err(io_error)?;
-		owns_temp = true;
-		file.write_all(bytes).map_err(io_error)?;
-		file.sync_all().map_err(io_error)?;
-		fs::rename(&temp, root.join(SCHEDULER)).map_err(io_error)?;
-		owns_temp = false;
-		sync_dir(root)
-	})();
-	if result.is_err() && owns_temp {
-		let _ = fs::remove_file(&temp);
-		let _ = sync_dir(root);
-	}
-	result
-}
-
 fn sync_dir(path: &Path) -> Result<(), ContentError> {
 	File::open(path).and_then(|directory| directory.sync_all()).map_err(io_error)
 }
@@ -2048,44 +1902,6 @@ mod tests {
 		},
 		StreamingDescriptor,
 	};
-
-	#[test]
-	fn missing_scheduler_is_prepared_once_and_applied_as_validated_bytes() {
-		let temp = tempfile::tempdir().unwrap();
-		let root = temp.path().join(ROOT);
-		fs::create_dir(&root).unwrap();
-
-		let prepared = ReplicationIntentStore::prepare_open(temp.path()).unwrap();
-		let scheduler_bytes = prepared.scheduler_install.as_ref().unwrap().clone();
-		let durable_bytes = prepared.durable_bytes;
-		assert_eq!(durable_bytes, scheduler_bytes.len() as u64);
-		assert!(!root.join(SCHEDULER).exists());
-
-		let store = prepared.apply().unwrap();
-		assert_eq!(fs::read(root.join(SCHEDULER)).unwrap(), scheduler_bytes);
-		assert_eq!(*store.durable_bytes.read().unwrap(), durable_bytes);
-		drop(store);
-
-		let reopened = ReplicationIntentStore::prepare_open(temp.path()).unwrap();
-		assert!(reopened.scheduler_install.is_none());
-		assert_eq!(reopened.durable_bytes, durable_bytes);
-		drop(reopened.apply().unwrap());
-	}
-
-	#[test]
-	fn prepared_scheduler_install_preserves_create_new_collision() {
-		let temp = tempfile::tempdir().unwrap();
-		let root = temp.path().join(ROOT);
-		fs::create_dir(&root).unwrap();
-
-		let prepared = ReplicationIntentStore::prepare_open(temp.path()).unwrap();
-		let collision = root.join(format!("{SCHEDULER}.tmp-{}", std::process::id()));
-		fs::write(&collision, b"racing writer").unwrap();
-
-		assert!(matches!(prepared.apply(), Err(ContentError::Io(_))));
-		assert_eq!(fs::read(collision).unwrap(), b"racing writer");
-		assert!(!root.join(SCHEDULER).exists());
-	}
 
 	fn bytes32(value: u16, salt: u8) -> [u8; 32] {
 		let mut bytes = [salt; 32];
@@ -2461,63 +2277,6 @@ mod tests {
 				.0
 				.to_vec(),
 		}
-	}
-
-	#[test]
-	fn source_replan_preserves_completed_cursor_and_discards_inflight_source_proof() {
-		let temp = tempfile::tempdir().unwrap();
-		let store = ReplicationIntentStore::open(temp.path()).unwrap();
-		let streaming = StreamingStore::open(temp.path()).unwrap();
-		let candidate = input(19);
-		let initial_session = session_for_identity(&candidate, 19, false);
-		let initial_operation = [31; 16];
-		let planned = store.plan_session(&initial_session, initial_operation).unwrap();
-		let completed = complete_ready(
-			&store,
-			&streaming,
-			&planned,
-			planned.next_sequence,
-			b"completed before source partition".to_vec(),
-		);
-		let completed_cursor =
-			(completed.next_sequence, completed.cumulative_total, completed.last_completed.clone());
-		let admitted = with_verified_page(&store, completed, b"inflight source proof");
-		assert!(admitted.admitted_page.is_some());
-		assert!(admitted.outstanding_request.is_some());
-
-		let topology = initial_session.topology().clone();
-		let replacement_source = [250; 32];
-		let replacement_session = ReplicationSessionV1::from_topology(
-			topology,
-			candidate.target_provider,
-			target_pair(19).public().0,
-			replacement_source,
-			candidate.target_provider,
-			initial_session.context().candidate_commitment().clone(),
-		)
-		.unwrap();
-		let replacement_operation = [42; 16];
-		let replanned = store
-			.replan_source(&admitted.intent_key, &replacement_session, replacement_operation)
-			.unwrap();
-
-		assert_eq!(replanned.intent_key, admitted.intent_key);
-		assert_eq!(replanned.identity.source_provider, replacement_source);
-		assert_eq!(replanned.identity.peer_operation_id, replacement_operation);
-		assert_eq!(replanned.next_sequence, completed_cursor.0);
-		assert_eq!(replanned.cumulative_total, completed_cursor.1);
-		assert_eq!(replanned.last_completed, completed_cursor.2);
-		assert_eq!(replanned.phase, ReplicationPhase::Receiving);
-		assert!(replanned.admitted_page.is_none());
-		assert!(replanned.outstanding_request.is_none());
-		assert_eq!(replanned.attempts, 0);
-		assert!(store
-			.attach_page_response(&replanned.intent_key, b"stale source response")
-			.is_err());
-
-		drop(store);
-		let reopened = ReplicationIntentStore::open(temp.path()).unwrap();
-		assert_eq!(reopened.record(&replanned.intent_key).unwrap(), replanned);
 	}
 
 	#[test]
@@ -2934,23 +2693,6 @@ mod tests {
 			ReplicationIntentStore::open(temp.path()),
 			Err(ContentError::IntegrityFailed)
 		));
-	}
-
-	#[test]
-	fn recovery_temp_overflow_preserves_every_replication_artifact() {
-		let temp = tempfile::tempdir().unwrap();
-		let root = temp.path().join(ROOT);
-		fs::create_dir_all(&root).unwrap();
-		for index in 0..=MAX_TEMP_ARTIFACTS {
-			fs::write(root.join(format!("artifact-{index}.json.tmp-1")), b"partial").unwrap();
-		}
-		assert!(matches!(
-			ReplicationIntentStore::open(temp.path()),
-			Err(ContentError::IntegrityFailed)
-		));
-		for index in 0..=MAX_TEMP_ARTIFACTS {
-			assert!(root.join(format!("artifact-{index}.json.tmp-1")).exists());
-		}
 	}
 
 	#[test]

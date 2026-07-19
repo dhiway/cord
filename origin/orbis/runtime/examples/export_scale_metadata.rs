@@ -121,7 +121,7 @@ fn validate_logical_type(
 		.find_map(|(candidate, fields)| (*candidate == path).then_some(*fields))
 		.ok_or_else(|| format!("unknown logical type {path}"))?;
 	let TypeDef::Composite(composite) = &ty.type_def else {
-		return Err(format!("{path} is not a composite SCALE type"))
+		return Err(format!("{path} is not a composite SCALE type"));
 	};
 	let actual_fields = composite
 		.fields
@@ -131,7 +131,7 @@ fn validate_logical_type(
 	if actual_fields != expected_fields {
 		return Err(format!(
 			"{path} field drift: expected {expected_fields:?}, got {actual_fields:?}"
-		))
+		));
 	}
 	let expected = expected_shape(path).ok_or_else(|| format!("missing shape for {path}"))?;
 	let expected_types = expected["composite"]
@@ -194,8 +194,9 @@ fn portable_definition(ty: &Type<PortableForm>) -> Value {
 			"kind": "tuple",
 			"type_ids": value.fields.iter().map(|field| field.id).collect::<Vec<_>>(),
 		}),
-		TypeDef::Primitive(value) =>
-			json!({"kind": "primitive", "name": primitive_name(value.clone())}),
+		TypeDef::Primitive(value) => {
+			json!({"kind": "primitive", "name": primitive_name(value.clone())})
+		},
 		TypeDef::Compact(value) => json!({"kind": "compact", "type_id": value.type_param.id}),
 		TypeDef::BitSequence(value) => json!({
 			"kind": "bit_sequence",
@@ -237,7 +238,7 @@ fn export_registry(registry: &PortableRegistry, metadata_hash: &str) -> Result<V
 			"runtime metadata contains {logical_count}/{} required logical types; candidates: {:?}",
 			LOGICAL_TYPES.len(),
 			candidates,
-		))
+		));
 	}
 	Ok(json!({
 		"schema_version": 1,
@@ -253,7 +254,7 @@ fn run() -> Result<(), String> {
 	let metadata_path = PathBuf::from(args.next().ok_or("missing metadata SCALE output path")?);
 	let registry_path = PathBuf::from(args.next().ok_or("missing portable registry output path")?);
 	if args.next().is_some() {
-		return Err("expected exactly two output paths".into())
+		return Err("expected exactly two output paths".into());
 	}
 
 	// Some FRAME constants (for example ParachainInfo::ParachainId) are storage-backed. Build

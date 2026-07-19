@@ -343,7 +343,10 @@ pub mod pallet {
 
 			let mut labels = BoundedVec::<LabelOf<T>, T::MaxBootstrapReservations>::default();
 			for (label, beneficiary) in &self.root_reservations {
-				assert!(Pallet::<T>::ensure_valid_label(label).is_ok(), "invalid Orbis Names genesis label");
+				assert!(
+					Pallet::<T>::ensure_valid_label(label).is_ok(),
+					"invalid Orbis Names genesis label"
+				);
 				assert!(!labels.contains(label), "duplicate Orbis Names genesis reservation");
 				labels
 					.try_push(label.clone())

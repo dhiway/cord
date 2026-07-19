@@ -12,9 +12,7 @@ publish = false
 default = ["checkpoint-live"]
 checkpoint-consumer = ["dep:scale-decode", "dep:scale-value", "dep:subxt"]
 checkpoint-live = ["checkpoint-consumer", "outbox"]
-evidence = ["dep:frame-metadata", "dep:scale-info", "test-seams"]
 outbox = ["dep:origin-rs"]
-test-seams = []
 
 [[bin]]
 name = "origin-orbis-provider"
@@ -25,21 +23,6 @@ required-features = ["checkpoint-live"]
 name = "origin-orbis-provider-outbox"
 path = "src/bin/origin-orbis-provider-outbox.rs"
 required-features = ["outbox"]
-
-[[test]]
-name = "three_provider_recovery"
-path = "tests/three_provider_recovery.rs"
-required-features = ["evidence"]
-
-[[test]]
-name = "content_contract"
-path = "tests/content_contract.rs"
-required-features = ["test-seams"]
-
-[[test]]
-name = "integrity_contract"
-path = "tests/integrity_contract.rs"
-required-features = ["test-seams"]
 
 [lints]
 workspace = true
@@ -54,8 +37,6 @@ ciborium = { workspace = true }
 cid = { workspace = true, default-features = true }
 clap = { workspace = true, features = ["derive"] }
 codec = { workspace = true, default-features = true }
-frame-metadata = { version = "23.0.1", features = ["current"], optional = true }
-fs4 = { workspace = true }
 hex = { workspace = true, default-features = true }
 http-body-util = { workspace = true }
 hyper = { workspace = true, features = ["client", "http1", "server"] }
@@ -68,7 +49,6 @@ pallet-orbis-storage-provider = { workspace = true, default-features = true }
 serde = { workspace = true, features = ["derive"], default-features = true }
 serde_json = { workspace = true, default-features = true }
 scale-decode = { version = "0.16", default-features = false, optional = true }
-scale-info = { workspace = true, features = ["std"], optional = true }
 scale-value = { version = "0.18", default-features = false, optional = true }
 sha2 = { workspace = true, default-features = true }
 sp-core = { workspace = true, default-features = true }
@@ -78,15 +58,8 @@ subxt = { workspace = true, features = ["native"], optional = true }
 tokio = { workspace = true, features = ["fs", "macros", "net", "rt-multi-thread", "signal", "sync", "time"] }
 unicode-normalization = "0.1.24"
 
-[target.'cfg(unix)'.dependencies]
-rand = { workspace = true, features = ["std", "std_rng"] }
-rustix = { workspace = true, features = ["fs", "std"] }
-
 [dev-dependencies]
 chacha20poly1305 = "0.10.1"
 frame-metadata = { version = "23.0.1", features = ["current"] }
-origin-commons-runtime = { workspace = true, features = ["std"] }
-pallet-orbis-storage-control-primitives = { workspace = true, features = ["std"] }
 scale-info = { workspace = true, features = ["std"] }
-sp-io = { workspace = true, default-features = true }
 tempfile = { workspace = true }

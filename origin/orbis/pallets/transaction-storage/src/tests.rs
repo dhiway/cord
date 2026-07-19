@@ -19,8 +19,8 @@
 //! Tests for transaction-storage pallet.
 
 // Tests still call the deprecated `ValidateUnsigned::{validate_unsigned, pre_dispatch}` directly.
-// The `#[pallet::authorize]` API refactor is tracked separately; silence here so `-D warnings` in CI
-// does not block the SDK bump.
+// The `#[pallet::authorize]` API refactor is tracked separately; silence here so `-D warnings` in
+// CI does not block the SDK bump.
 #![allow(deprecated)]
 
 use super::{
@@ -40,8 +40,8 @@ use super::{
 };
 
 use crate::mock::RuntimeGenesisConfig;
-use orbis_transaction_storage_primitives::cids::{CidConfig, HashingAlgorithm, RAW_CODEC};
 use codec::Encode;
+use orbis_transaction_storage_primitives::cids::{CidConfig, HashingAlgorithm, RAW_CODEC};
 use polkadot_sdk_frame::{
 	deps::frame_support::{
 		storage::unhashed,
@@ -105,10 +105,8 @@ fn disable_auto_renew_via_extension(who: u64, content_hash: super::ContentHash) 
 
 #[test]
 fn reserved_store_and_renew_use_isolated_capacity_and_exact_refs() {
-	use orbis_transaction_storage_primitives::{
-		StorageRef, ResourceReservationView, StorageActor,
-	};
 	use indiv_support::traits::TwoPhaseStorage;
+	use orbis_transaction_storage_primitives::{ResourceReservationView, StorageActor, StorageRef};
 
 	new_test_ext().execute_with(|| {
 		System::set_block_number(1);
@@ -283,8 +281,8 @@ fn permanent_capacity_overflow_is_rejected_not_saturated() {
 
 #[test]
 fn expiry_is_numeric_bounded_and_tombstone_pruning_is_no_drop() {
-	use orbis_transaction_storage_primitives::{ResourceClosure, ResourceReservationView};
 	use indiv_support::traits::TwoPhaseStorage;
+	use orbis_transaction_storage_primitives::{ResourceClosure, ResourceReservationView};
 
 	new_test_ext().execute_with(|| {
 		System::set_block_number(1);
@@ -524,7 +522,7 @@ fn orbis_storage_clean_genesis_initializes_current_v8_state() {
 
 #[test]
 fn records_explicit_account_root_and_preimage_provenance() {
-	use orbis_transaction_storage_primitives::{StorageRef, StorageActor};
+	use orbis_transaction_storage_primitives::{StorageActor, StorageRef};
 
 	new_test_ext().execute_with(|| {
 		System::set_block_number(1);
@@ -564,7 +562,7 @@ fn records_explicit_account_root_and_preimage_provenance() {
 
 #[test]
 fn force_renew_records_explicit_account_provenance() {
-	use orbis_transaction_storage_primitives::{StorageRef, StorageActor};
+	use orbis_transaction_storage_primitives::{StorageActor, StorageRef};
 
 	new_test_ext().execute_with(|| {
 		run_to_block(1, || None);
@@ -592,7 +590,7 @@ fn force_renew_records_explicit_account_provenance() {
 
 #[test]
 fn signed_force_renew_is_charged_once_and_commits_before_host_boundary() {
-	use orbis_transaction_storage_primitives::{StorageRef, StorageActor};
+	use orbis_transaction_storage_primitives::{StorageActor, StorageRef};
 
 	new_test_ext().execute_with(|| {
 		run_to_block(1, || None);
@@ -648,7 +646,7 @@ fn root_force_renew_checks_reserved_capacity_and_charges_exactly_once() {
 
 #[test]
 fn auto_renew_records_explicit_auto_actor_provenance() {
-	use orbis_transaction_storage_primitives::{StorageRef, StorageActor};
+	use orbis_transaction_storage_primitives::{StorageActor, StorageRef};
 
 	new_test_ext().execute_with(|| {
 		run_to_block(1, || None);
@@ -681,7 +679,7 @@ fn auto_renew_records_explicit_auto_actor_provenance() {
 
 #[test]
 fn auto_renew_batch_commits_all_frame_state_before_first_host_call() {
-	use orbis_transaction_storage_primitives::{StorageRef, StorageActor};
+	use orbis_transaction_storage_primitives::{StorageActor, StorageRef};
 
 	new_test_ext().execute_with(|| {
 		run_to_block(1, || None);
@@ -4749,8 +4747,8 @@ fn store_records_extrinsic_index_in_transaction_info() {
 /// output times for the runtime API.
 #[test]
 fn transaction_info_projects_into_upstream_runtime_api_type() {
-	use orbis_transaction_storage_primitives::cids::HashingAlgorithm as PalletHashingAlgorithm;
 	use codec::{Decode, Encode};
+	use orbis_transaction_storage_primitives::cids::HashingAlgorithm as PalletHashingAlgorithm;
 	use polkadot_sdk_frame::deps::sp_runtime::traits::{BlakeTwo256, Hash};
 
 	type ContentHash = [u8; 32];

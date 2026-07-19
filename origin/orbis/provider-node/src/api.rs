@@ -21,7 +21,6 @@
 use std::{
 	convert::Infallible,
 	net::SocketAddr,
-	path::Path,
 	sync::Arc,
 	time::{SystemTime, UNIX_EPOCH},
 };
@@ -30,7 +29,7 @@ use base64::{engine::general_purpose::STANDARD as BASE64, Engine as _};
 use bytes::Bytes;
 use http_body_util::{BodyExt, Full};
 use hyper::{
-	body::{Body as HttpBody, Incoming},
+	body::{Body as _, Incoming},
 	header,
 	server::conn::http1,
 	service::service_fn,
@@ -42,30 +41,13 @@ use sp_core::{ed25519, Pair as _};
 use tokio::net::TcpListener;
 
 use crate::{
-	chain::ReplicationAuthority,
-	checkpoint_quorum_worker::CheckpointQuorumScheduler,
-	checkpoint_stack::CheckpointStack,
-	peer_http::serve_peer_http,
-	peer_responder::PeerResponder,
-	ChainAuthority, ContentError, DiskStore, FinalizedRuntimeAuthority,
-	JsonlManifestDeletionOutbox, ManifestDeletionSubmitter, NodeProfile, StoreError, PROTOCOL_VERSION,
+	chain::ReplicationAuthority, checkpoint_stack::CheckpointStack, peer_http::serve_peer_http,
+	peer_responder::PeerResponder, workers::flush_pending_submissions, ChainAuthority,
+	CheckpointSubmitter, CommitInput, ContentError, DiskStore, FinalizedRuntimeAuthority,
+	NodeProfile, RootObservation, SignedCheckpoint, StoreError, PROTOCOL_VERSION,
 };
 
 type Body = Full<Bytes>;
-
-/// Failure to validate or apply the co-located provider stores during startup.
-#[derive(Debug, thiserror::Error)]
-pub enum ProviderOpenError {
-	/// The public disk store rejected its persisted state or recovery plan.
-	#[error(transparent)]
-	Store(#[from] StoreError),
-	/// A private checkpoint kernel rejected its persisted state or recovery plan.
-	#[error(transparent)]
-	Content(#[from] ContentError),
-	/// The configured manifest-deletion submitter rejected its startup recovery view.
-	#[error("manifest-deletion submitter startup failed: {0}")]
-	Outbox(String),
-}
 
 /// HTTP listener limits and authentication policy.
 #[derive(Clone, Debug)]
@@ -84,136 +66,29 @@ pub struct ApiConfig {
 pub struct ProviderService<A: ChainAuthority> {
 	store: Arc<DiskStore>,
 	checkpoint_stack: Arc<CheckpointStack>,
-	checkpoint_quorum_scheduler: Arc<CheckpointQuorumScheduler>,
 	authority: Arc<A>,
 	service_key: ed25519::Pair,
-	outbox: Arc<dyn ManifestDeletionSubmitter>,
+	outbox: Arc<dyn CheckpointSubmitter>,
+	root_outbox_lock: tokio::sync::Mutex<()>,
 	started_unix_ms: u64,
 }
 
 impl<A: ChainAuthority> ProviderService<A> {
-	/// Validate the disk store and every private kernel before applying any startup recovery.
-	pub fn open(
-		root: impl AsRef<Path>,
-		profile: NodeProfile,
-		capacity_bytes: u64,
-		authority: Arc<A>,
-		service_key: ed25519::Pair,
-	) -> Result<Self, ProviderOpenError> {
-		let root = root.as_ref();
-		let outbox = Arc::new(JsonlManifestDeletionOutbox::for_provider_root(root));
-		Self::open_with_submitter(root, profile, capacity_bytes, authority, service_key, outbox)
-	}
-
-	fn open_with_submitter(
-		root: &Path,
-		profile: NodeProfile,
-		capacity_bytes: u64,
-		authority: Arc<A>,
-		service_key: ed25519::Pair,
-		outbox: Arc<dyn ManifestDeletionSubmitter>,
-	) -> Result<Self, ProviderOpenError> {
-		DiskStore::validate_root(root)?;
-		let store = DiskStore::prepare_open(root, profile, capacity_bytes)?;
-		let checkpoint_stack = CheckpointStack::prepare_open(root)?;
-		let checkpoint_quorum_scheduler = CheckpointQuorumScheduler::prepare_open(root)?;
-		let outbox_startup = outbox
-			.prepare_startup(root, store.prepared_root_directory().map(|root| root.file()))
-			.map_err(ProviderOpenError::Outbox)?;
-		let store = store.arm()?;
-		let outbox_startup = outbox_startup
-			.arm(store.root_directory()?)
-			.map_err(ProviderOpenError::Outbox)?;
-		let store = match store.apply() {
-			Ok(store) => Arc::new(store),
-			Err(error) => {
-				outbox_startup.rollback().map_err(ProviderOpenError::Outbox)?;
-				return Err(error.into())
-			},
-		};
-		let checkpoint_stack = match checkpoint_stack.apply() {
-			Ok(stack) => Arc::new(stack),
-			Err(error) => {
-				outbox_startup.rollback().map_err(ProviderOpenError::Outbox)?;
-				return Err(error.into())
-			},
-		};
-		let checkpoint_quorum_scheduler = match checkpoint_quorum_scheduler.apply() {
-			Ok(scheduler) => Arc::new(scheduler),
-			Err(error) => {
-				outbox_startup.rollback().map_err(ProviderOpenError::Outbox)?;
-				return Err(error.into())
-			},
-		};
-		outbox_startup.apply().map_err(ProviderOpenError::Outbox)?;
-		Ok(Self {
-			store,
-			checkpoint_stack,
-			checkpoint_quorum_scheduler,
-			authority,
-			service_key,
-			outbox,
-			started_unix_ms: now_ms(),
-		})
-	}
-
-	/// Construct with a crate-owned submitter for focused startup tests and evidence.
-	#[cfg(any(test, feature = "evidence"))]
-	pub(crate) fn open_injected(
-		root: impl AsRef<Path>,
-		profile: NodeProfile,
-		capacity_bytes: u64,
-		authority: Arc<A>,
-		service_key: ed25519::Pair,
-		outbox: Arc<dyn ManifestDeletionSubmitter>,
-	) -> Result<Self, ProviderOpenError> {
-		Self::open_with_submitter(
-			root.as_ref(),
-			profile,
-			capacity_bytes,
-			authority,
-			service_key,
-			outbox,
-		)
-	}
-
-	/// Construct around a store already opened by tests or the evidence harness.
-	#[cfg(any(test, feature = "evidence"))]
-	pub(crate) fn new_preopened(
+	/// Construct the service. The signing key must match the service key registered on Orbis.
+	pub fn new(
 		store: Arc<DiskStore>,
 		authority: Arc<A>,
 		service_key: ed25519::Pair,
-		outbox: Arc<dyn ManifestDeletionSubmitter>,
+		outbox: Arc<dyn CheckpointSubmitter>,
 	) -> Result<Self, ContentError> {
-		let checkpoint_stack = CheckpointStack::prepare_open(store.root())?;
-		let checkpoint_quorum_scheduler = CheckpointQuorumScheduler::prepare_open(store.root())?;
-		let root_directory = store.root_directory().map_err(|error| ContentError::Io(error.to_string()))?;
-		let outbox_startup = outbox
-			.prepare_startup(store.root(), Some(root_directory.file()))
-			.map_err(ContentError::Io)?;
-		let outbox_startup = outbox_startup.arm(root_directory).map_err(ContentError::Io)?;
-		let checkpoint_stack = match checkpoint_stack.apply() {
-			Ok(stack) => Arc::new(stack),
-			Err(error) => {
-				outbox_startup.rollback().map_err(ContentError::Io)?;
-				return Err(error)
-			},
-		};
-		let checkpoint_quorum_scheduler = match checkpoint_quorum_scheduler.apply() {
-			Ok(scheduler) => Arc::new(scheduler),
-			Err(error) => {
-				outbox_startup.rollback().map_err(ContentError::Io)?;
-				return Err(error)
-			},
-		};
-		outbox_startup.apply().map_err(ContentError::Io)?;
+		let checkpoint_stack = Arc::new(CheckpointStack::open(store.root())?);
 		Ok(Self {
 			store,
 			checkpoint_stack,
-			checkpoint_quorum_scheduler,
 			authority,
 			service_key,
 			outbox,
+			root_outbox_lock: tokio::sync::Mutex::new(()),
 			started_unix_ms: now_ms(),
 		})
 	}
@@ -233,22 +108,39 @@ impl<A: ChainAuthority> ProviderService<A> {
 		&self.checkpoint_stack
 	}
 
-	/// Access the startup-validated quorum scheduler for worker orchestration.
-	pub(crate) fn checkpoint_quorum_scheduler(&self) -> &Arc<CheckpointQuorumScheduler> {
-		&self.checkpoint_quorum_scheduler
-	}
-
-	pub(crate) fn sign_manifest_deletion_digest(&self, digest: [u8; 32]) -> ([u8; 32], [u8; 64]) {
-		(self.service_key.public().0, self.service_key.sign(&digest).0)
-	}
-
-	/// Audit the private byte plane and return only redacted readiness counts.
-	fn integrity_summary(&self) -> Result<crate::IntegritySummary, ContentError> {
-		self.checkpoint_stack.integrity_summary()
-	}
-
-	pub(crate) fn outbox(&self) -> &Arc<dyn ManifestDeletionSubmitter> {
+	pub(crate) fn outbox(&self) -> &Arc<dyn CheckpointSubmitter> {
 		&self.outbox
+	}
+
+	pub(crate) fn root_outbox_lock(&self) -> &tokio::sync::Mutex<()> {
+		&self.root_outbox_lock
+	}
+
+	/// Produce and persist a signed current-root checkpoint.
+	pub fn sign_checkpoint(&self) -> Result<SignedCheckpoint, StoreError> {
+		let stats = self.store.stats()?;
+		self.sign_root_checkpoint(RootObservation {
+			root: stats.root,
+			leaf_count: stats.proof_leaf_count,
+		})
+	}
+
+	pub(crate) fn sign_root_checkpoint(
+		&self,
+		observation: RootObservation,
+	) -> Result<SignedCheckpoint, StoreError> {
+		let created_unix_ms = now_ms();
+		let payload =
+			checkpoint_payload(&observation.root, observation.leaf_count, created_unix_ms);
+		let signature = self.service_key.sign(&payload);
+		let checkpoint = SignedCheckpoint {
+			root: observation.root,
+			leaves: observation.leaf_count,
+			created_unix_ms,
+			signature: hex::encode(signature.0),
+		};
+		self.store.append_checkpoint(checkpoint.clone())?;
+		Ok(checkpoint)
 	}
 }
 
@@ -293,12 +185,11 @@ pub async fn run_checkpoint_quorum_worker(
 	service: Arc<ProviderService<FinalizedRuntimeAuthority>>,
 	local_provider: [u8; 32],
 	cadence: std::time::Duration,
-) -> Result<(), ContentError> {
+) {
 	crate::checkpoint_quorum_worker::run(
 		Arc::clone(service.authority()),
 		Arc::clone(service.checkpoint_stack()),
 		Arc::clone(service.store()),
-		Arc::clone(service.checkpoint_quorum_scheduler()),
 		local_provider,
 		service.service_key.clone(),
 		cadence,
@@ -338,13 +229,11 @@ pub async fn run_checkpoint_live_worker(
 	crate::checkpoint_live_worker::run(
 		Arc::clone(service.authority()),
 		Arc::clone(service.checkpoint_stack()),
-		Arc::clone(service.store()),
 		lane,
-		local_provider,
-		service.service_key.clone(),
 		cadence,
 	)
-	.await
+	.await;
+	Ok(())
 }
 
 fn peer_responder_for_service<A>(
@@ -391,52 +280,41 @@ async fn route<A: ChainAuthority>(
 	service: Arc<ProviderService<A>>,
 	config: ApiConfig,
 ) -> Result<Response<Body>, Infallible> {
-	Ok(dispatch(request, service, &config).await)
-}
-
-async fn dispatch<A, B>(
-	request: Request<B>,
-	service: Arc<ProviderService<A>>,
-	config: &ApiConfig,
-) -> Response<Body>
-where
-	A: ChainAuthority,
-	B: HttpBody<Data = Bytes>,
-{
-	match handle(request, service, config).await {
+	let response = match handle(request, service, &config).await {
 		Ok(response) => response,
 		Err(error) => error_response(error),
-	}
+	};
+	Ok(response)
 }
 
-async fn handle<A, B>(
-	request: Request<B>,
+async fn handle<A: ChainAuthority>(
+	request: Request<Incoming>,
 	service: Arc<ProviderService<A>>,
 	config: &ApiConfig,
-) -> Result<Response<Body>, ApiError>
-where
-	A: ChainAuthority,
-	B: HttpBody<Data = Bytes>,
-{
+) -> Result<Response<Body>, ApiError> {
 	let method = request.method().clone();
 	let path = request.uri().path().to_owned();
 	let query = parse_query(request.uri().query());
-	let requires_auth = method != Method::GET ||
-		matches!(
+	let requires_auth =
+		method != Method::GET
+			|| matches!(
 				path.as_str(),
-			"/read" |
-				"/commitment" |
-				"/buckets" | "/mmr_proof" |
-				"/chunk_proof" |
-				"/mmr_peaks" | "/mmr_subtree" |
-				"/replica/sync_status" |
-				"/stats"
+				"/read"
+					| "/commitment" | "/buckets"
+					| "/checkpoint-signature"
+					| "/checkpoint/duty"
+					| "/mmr_proof" | "/chunk_proof"
+					| "/mmr_peaks" | "/mmr_subtree"
+					| "/replica/historical_roots"
+					| "/replica/sync_status"
 			);
 	if requires_auth && !authorized(&request, config.bearer_token_hash) {
 		return Err(ApiError::unauthorized());
 	}
 	match (method, path.as_str()) {
-		(Method::GET, "/health") => provider_health(&service),
+		(Method::GET, "/health") => {
+			json(StatusCode::OK, &serde_json::json!({"version": PROTOCOL_VERSION, "status": "ok"}))
+		},
 		(Method::GET, "/info") => json(
 			StatusCode::OK,
 			&serde_json::json!({"version": PROTOCOL_VERSION, "profile": service.store.profile()?, "service_key": hex::encode(service.service_key.public().0), "started_unix_ms": service.started_unix_ms}),
@@ -453,10 +331,42 @@ where
 			json(StatusCode::OK, &service.store.exists(&body.commitments)?)
 		},
 		(Method::POST, "/commit") => {
-			let _ = request;
-			Err(ApiError::service_unavailable(
-				"provider commit is reserved until the P4 atomic object-completion cutover",
-			))
+			let body: CommitRequest = read_json(
+				request,
+				config.max_content_bytes.saturating_mul(2).saturating_add(config.max_json_bytes),
+			)
+			.await?;
+			let bytes = BASE64
+				.decode(body.data.as_bytes())
+				.map_err(|_| ApiError::bad_request("data must be canonical base64"))?;
+			if bytes.len() > config.max_content_bytes {
+				return Err(ApiError::payload_too_large());
+			}
+			let commitment = decode_hash(&body.commitment)?;
+			if DiskStore::content_commitment(&bytes) != commitment {
+				return Err(ApiError::bad_request("commitment does not match content"));
+			}
+			let agreement_id = decode_hash(&body.agreement_id)?;
+			let authorization = service
+				.authority
+				.authorize_commit(agreement_id, commitment, bytes.len() as u64)
+				.await
+				.map_err(|error| ApiError::forbidden(error.to_string()))?;
+			let _root_order = service.root_outbox_lock.lock().await;
+			flush_pending_submissions(&service.store, service.outbox.as_ref())
+				.await
+				.map_err(ApiError::internal)?;
+			let record = service.store.commit(CommitInput {
+				commitment,
+				authorization,
+				bucket: body.bucket,
+				key: body.key,
+				bytes,
+			})?;
+			flush_pending_submissions(&service.store, service.outbox.as_ref())
+				.await
+				.map_err(ApiError::internal)?;
+			json(StatusCode::CREATED, &record)
 		},
 		(Method::GET, "/read") => {
 			let commitment = required_query(&query, "commitment")?;
@@ -470,6 +380,10 @@ where
 			let commitment = required_query(&query, "commitment")?;
 			json(StatusCode::OK, &service.store.record(commitment)?)
 		},
+		(Method::GET, "/checkpoint-signature") => {
+			json(StatusCode::OK, &service.store.latest_checkpoint()?)
+		},
+		(Method::POST, "/checkpoint/sign") => json(StatusCode::OK, &service.sign_checkpoint()?),
 		(Method::GET, "/mmr_proof") => {
 			let commitment = required_query(&query, "commitment")?;
 			json(
@@ -497,10 +411,38 @@ where
 			json(StatusCode::OK, &serde_json::json!({"items": items, "next_cursor": next_cursor}))
 		},
 		(Method::POST, "/delete") => {
-			let _ = request;
-			Err(ApiError::service_unavailable(
-				"provider delete is reserved until the P4 atomic object-completion cutover",
-			))
+			let body: DeleteRequest = read_json(request, config.max_json_bytes).await?;
+			let commitment = decode_hash(&body.commitment)?;
+			let agreement_id = decode_hash(&body.agreement_id)?;
+			let existing = service.store.record(&body.commitment)?;
+			if existing.agreement_id.trim_start_matches("0x") != hex::encode(agreement_id) {
+				return Err(ApiError::forbidden("agreement does not own commitment"));
+			}
+			if existing.deleted {
+				let _root_order = service.root_outbox_lock.lock().await;
+				flush_pending_submissions(&service.store, service.outbox.as_ref())
+					.await
+					.map_err(ApiError::internal)?;
+				return json(StatusCode::OK, &existing);
+			}
+			let authorization = service
+				.authority
+				.authorize_delete(agreement_id, commitment)
+				.await
+				.map_err(|error| ApiError::forbidden(error.to_string()))?;
+			let _root_order = service.root_outbox_lock.lock().await;
+			flush_pending_submissions(&service.store, service.outbox.as_ref())
+				.await
+				.map_err(ApiError::internal)?;
+			let (deleted, _pending) =
+				service.store.prepare_delete(&body.commitment, &authorization)?;
+			// Persist a signed observation too, but the runtime proof binds the exact tombstone
+			// root captured atomically in the pending-deletion journal.
+			let _checkpoint = service.sign_checkpoint()?;
+			flush_pending_submissions(&service.store, service.outbox.as_ref())
+				.await
+				.map_err(ApiError::internal)?;
+			json(StatusCode::OK, &deleted)
 		},
 		(Method::GET, "/mmr_peaks") => json(
 			StatusCode::OK,
@@ -518,71 +460,33 @@ where
 				&serde_json::json!({"start": start, "nodes": service.store.leaf_nodes(start, limit)?}),
 			)
 		},
-		(Method::GET, "/replica/sync_status") => replica_sync_status(&service),
+		(Method::GET, "/checkpoint/duty") => {
+			let after = query
+				.get("after")
+				.map(|value| {
+					value.parse::<u32>().map_err(|_| ApiError::bad_request("invalid after"))
+				})
+				.transpose()?;
+			let batch = service
+				.authority
+				.challenge_duties(after)
+				.await
+				.map_err(|error| ApiError::forbidden(error.to_string()))?;
+			json(StatusCode::OK, &batch)
+		},
+		(Method::GET, "/replica/historical_roots") => {
+			let limit = query_usize(&query, "limit", 100)?;
+			json(
+				StatusCode::OK,
+				&serde_json::json!({"checkpoints": service.store.checkpoints(limit)?}),
+			)
+		},
+		(Method::GET, "/replica/sync_status") => json(
+			StatusCode::OK,
+			&serde_json::json!({"root": service.store.stats()?.root, "peaks": service.store.peaks()?, "status": "ready"}),
+		),
 		_ => Err(ApiError::not_found()),
 	}
-}
-
-#[derive(Serialize)]
-struct ProviderHealth {
-	version: u16,
-	status: &'static str,
-	ready: bool,
-}
-
-#[derive(Serialize)]
-struct ReplicaSyncStatus {
-	version: u16,
-	status: &'static str,
-	ready: bool,
-	#[serde(skip_serializing_if = "Option::is_none")]
-	installed_objects: Option<u64>,
-	#[serde(skip_serializing_if = "Option::is_none")]
-	ready_objects: Option<u64>,
-	#[serde(skip_serializing_if = "Option::is_none")]
-	quarantined_objects: Option<u64>,
-}
-
-fn provider_health<A: ChainAuthority>(
-	service: &ProviderService<A>,
-) -> Result<Response<Body>, ApiError> {
-	let ready = service.integrity_summary().is_ok_and(|summary| summary.ready);
-	let status = if ready { StatusCode::OK } else { StatusCode::SERVICE_UNAVAILABLE };
-	json(
-		status,
-		&ProviderHealth {
-			version: PROTOCOL_VERSION,
-			status: if ready { "ready" } else { "degraded" },
-			ready,
-		},
-	)
-}
-
-fn replica_sync_status<A: ChainAuthority>(
-	service: &ProviderService<A>,
-) -> Result<Response<Body>, ApiError> {
-	let summary = service.integrity_summary();
-	let ready = summary.as_ref().is_ok_and(|summary| summary.ready);
-	let response = match summary {
-		Ok(summary) => ReplicaSyncStatus {
-			version: PROTOCOL_VERSION,
-			status: if ready { "ready" } else { "degraded" },
-			ready,
-			installed_objects: Some(summary.installed_objects),
-			ready_objects: Some(summary.ready_objects),
-			quarantined_objects: Some(summary.quarantined_objects),
-		},
-		Err(_) => ReplicaSyncStatus {
-			version: PROTOCOL_VERSION,
-			status: "degraded",
-			ready: false,
-			installed_objects: None,
-			ready_objects: None,
-			quarantined_objects: None,
-		},
-	};
-	let status = if ready { StatusCode::OK } else { StatusCode::SERVICE_UNAVAILABLE };
-	json(status, &response)
 }
 
 #[derive(Deserialize)]
@@ -598,6 +502,21 @@ struct ExistsRequest {
 }
 #[derive(Deserialize)]
 #[serde(deny_unknown_fields)]
+struct CommitRequest {
+	agreement_id: String,
+	commitment: String,
+	bucket: Option<String>,
+	key: Option<String>,
+	data: String,
+}
+#[derive(Deserialize)]
+#[serde(deny_unknown_fields)]
+struct DeleteRequest {
+	agreement_id: String,
+	commitment: String,
+}
+#[derive(Deserialize)]
+#[serde(deny_unknown_fields)]
 struct NodeRange {
 	start: usize,
 	limit: usize,
@@ -609,11 +528,14 @@ struct ApiError {
 	message: String,
 }
 impl ApiError {
+	fn internal(message: impl Into<String>) -> Self {
+		Self { status: StatusCode::INTERNAL_SERVER_ERROR, message: message.into() }
+	}
 	fn bad_request(message: impl Into<String>) -> Self {
 		Self { status: StatusCode::BAD_REQUEST, message: message.into() }
 	}
-	fn service_unavailable(message: impl Into<String>) -> Self {
-		Self { status: StatusCode::SERVICE_UNAVAILABLE, message: message.into() }
+	fn forbidden(message: impl Into<String>) -> Self {
+		Self { status: StatusCode::FORBIDDEN, message: message.into() }
 	}
 	fn unauthorized() -> Self {
 		Self { status: StatusCode::UNAUTHORIZED, message: "valid bearer token required".into() }
@@ -640,11 +562,10 @@ impl From<StoreError> for ApiError {
 	}
 }
 
-async fn read_json<T, B>(request: Request<B>, limit: usize) -> Result<T, ApiError>
-where
-	T: for<'de> Deserialize<'de>,
-	B: HttpBody<Data = Bytes>,
-{
+async fn read_json<T: for<'de> Deserialize<'de>>(
+	request: Request<Incoming>,
+	limit: usize,
+) -> Result<T, ApiError> {
 	if request.body().size_hint().upper().is_some_and(|size| size > limit as u64) {
 		return Err(ApiError::payload_too_large());
 	}
@@ -679,7 +600,7 @@ fn error_response(error: ApiError) -> Response<Body> {
 		.unwrap_or_else(|_| Response::new(Full::new(Bytes::new())))
 }
 
-fn authorized<B>(request: &Request<B>, expected: [u8; 32]) -> bool {
+fn authorized(request: &Request<Incoming>, expected: [u8; 32]) -> bool {
 	let token = request
 		.headers()
 		.get(header::AUTHORIZATION)
@@ -690,8 +611,8 @@ fn authorized<B>(request: &Request<B>, expected: [u8; 32]) -> bool {
 }
 
 fn constant_time_eq(left: &[u8], right: &[u8]) -> bool {
-	left.len() == right.len() &&
-		left.iter().zip(right).fold(0u8, |diff, (a, b)| diff | (a ^ b)) == 0
+	left.len() == right.len()
+		&& left.iter().zip(right).fold(0u8, |diff, (a, b)| diff | (a ^ b)) == 0
 }
 
 fn parse_query(query: Option<&str>) -> std::collections::BTreeMap<String, String> {
@@ -723,6 +644,21 @@ fn query_usize(
 		.map(|value| value.parse().map_err(|_| ApiError::bad_request(format!("invalid {key}"))))
 		.unwrap_or(Ok(default))
 }
+fn decode_hash(value: &str) -> Result<[u8; 32], ApiError> {
+	let raw = hex::decode(value.strip_prefix("0x").unwrap_or(value))
+		.map_err(|_| ApiError::bad_request("hash must be hex"))?;
+	raw.try_into()
+		.map_err(|_| ApiError::bad_request("hash must be exactly 32 bytes"))
+}
+fn checkpoint_payload(root: &str, leaves: u64, created: u64) -> Vec<u8> {
+	[
+		b"orbis/provider-checkpoint/v1".as_slice(),
+		root.as_bytes(),
+		&leaves.to_le_bytes(),
+		&created.to_le_bytes(),
+	]
+	.concat()
+}
 fn now_ms() -> u64 {
 	SystemTime::now()
 		.duration_since(UNIX_EPOCH)
@@ -731,11 +667,6 @@ fn now_ms() -> u64 {
 
 #[cfg(test)]
 mod lifecycle_tests {
-	use std::{
-		fs,
-		sync::atomic::{AtomicUsize, Ordering},
-	};
-
 	use async_trait::async_trait;
 	use sp_core::Pair as _;
 
@@ -749,313 +680,13 @@ mod lifecycle_tests {
 		replication_session::ReplicationSessionV1,
 		storage::{bucket_mmr::BucketMmrStore, StreamingDescriptor, StreamingStore},
 		AgreementAuthorization, BucketId, CanonicalCid, ChainError, ChallengeBatch,
-		CheckpointDutyBatch, CheckpointDutyPageRequest, JsonlManifestDeletionOutbox, OperationId,
+		CheckpointDutyBatch, CheckpointDutyPageRequest, JsonlCheckpointOutbox, OperationId,
 	};
 
 	struct Authority(ReplicationTopologySnapshot);
-	struct RouteAuthority;
-	struct StartupProbe {
-		prepares: AtomicUsize,
-	}
-
-	#[async_trait]
-	impl ManifestDeletionSubmitter for StartupProbe {
-		fn prepare_startup(
-			&self,
-			_provider_root: &Path,
-			_prepared_root: Option<&std::fs::File>,
-		) -> Result<crate::ManifestDeletionStartupPlan, String> {
-			self.prepares.fetch_add(1, Ordering::SeqCst);
-			Ok(crate::ManifestDeletionStartupPlan::default())
-		}
-	}
-
-	#[cfg(unix)]
-	#[test]
-	fn provider_service_rejects_symlink_root_before_any_child_prepare() {
-		use std::os::unix::fs::symlink;
-
-		let temp = tempfile::tempdir().unwrap();
-		let external = tempfile::tempdir().unwrap();
-		let marker = external.path().join("external-marker");
-		let marker_bytes = b"external-provider-tree";
-		fs::write(&marker, marker_bytes).unwrap();
-		let live = temp.path().join("live-root");
-		symlink(external.path(), &live).unwrap();
-		let missing = temp.path().join("missing-root");
-		let dangling = temp.path().join("dangling-root");
-		symlink(&missing, &dangling).unwrap();
-		let profile = || NodeProfile {
-			provider: hex::encode([0x23; 32]),
-			endpoint: "http://127.0.0.1:8080".into(),
-			service_key: hex::encode(ed25519::Pair::from_seed(&[0x33; 32]).public().0),
-			region: None,
-		};
-
-		for root in [&live, &dangling] {
-			let outbox = Arc::new(StartupProbe { prepares: AtomicUsize::new(0) });
-			assert!(matches!(
-				ProviderService::open_injected(
-					root,
-					profile(),
-					1024,
-					Arc::new(RouteAuthority),
-					ed25519::Pair::from_seed(&[0x33; 32]),
-					outbox.clone(),
-				),
-				Err(ProviderOpenError::Store(_))
-			));
-			assert_eq!(outbox.prepares.load(Ordering::SeqCst), 0);
-		}
-		assert_eq!(fs::read(marker).unwrap(), marker_bytes);
-		assert_eq!(fs::read_dir(external.path()).unwrap().count(), 1);
-		assert!(!missing.exists());
-	}
-
-	#[test]
-	fn production_open_preserves_all_prepared_cleanup_when_a_late_kernel_rejects() {
-		let temp = tempfile::tempdir().unwrap();
-		let profile = || NodeProfile {
-			provider: hex::encode([0x21; 32]),
-			endpoint: "http://127.0.0.1:8080".into(),
-			service_key: hex::encode(ed25519::Pair::from_seed(&[0x31; 32]).public().0),
-			region: None,
-		};
-		let store = Arc::new(DiskStore::open(temp.path(), profile(), 1024).unwrap());
-		drop(
-			ProviderService::new_preopened(
-				store,
-				Arc::new(RouteAuthority),
-				ed25519::Pair::from_seed(&[0x31; 32]),
-				Arc::new(JsonlManifestDeletionOutbox::for_provider_root(temp.path())),
-			)
-			.unwrap(),
-		);
-
-		let disk_temp = temp.path().join("provider-index-v6.tmp-777");
-		let disk_temp_bytes = b"stale-disk-index-evidence";
-		fs::write(&disk_temp, disk_temp_bytes).unwrap();
-		let streaming = temp.path().join("streaming-v1");
-		let journal_temp = streaming.join("journal.json.tmp-777");
-		let journal_temp_bytes = b"stale-streaming-journal-evidence";
-		fs::write(&journal_temp, journal_temp_bytes).unwrap();
-		let staging_orphan = streaming.join("staging").join("unowned-part");
-		let staging_bytes = b"unowned-staging-evidence";
-		fs::write(&staging_orphan, staging_bytes).unwrap();
-		let outbox_path = temp.path().join("provider-submissions-v3.jsonl");
-		let complete_outbox = b"complete-record\n";
-		let mut torn_outbox = complete_outbox.to_vec();
-		torn_outbox.extend_from_slice(b"torn-tail");
-		fs::write(&outbox_path, &torn_outbox).unwrap();
-		let invalid = temp.path().join("checkpoint-proposals-v2").join("invalid.json");
-		fs::write(&invalid, b"not-json").unwrap();
-
-		assert!(matches!(
-			ProviderService::open(
-				temp.path(),
-				profile(),
-				1024,
-				Arc::new(RouteAuthority),
-				ed25519::Pair::from_seed(&[0x31; 32]),
-			),
-			Err(ProviderOpenError::Content(ContentError::IntegrityFailed))
-		));
-		assert_eq!(fs::read(disk_temp).unwrap(), disk_temp_bytes);
-		assert_eq!(fs::read(journal_temp).unwrap(), journal_temp_bytes);
-		assert_eq!(fs::read(staging_orphan).unwrap(), staging_bytes);
-		assert_eq!(fs::read(&outbox_path).unwrap(), torn_outbox);
-
-		fs::remove_file(invalid).unwrap();
-		let service = ProviderService::open(
-			temp.path(),
-			profile(),
-			1024,
-			Arc::new(RouteAuthority),
-			ed25519::Pair::from_seed(&[0x31; 32]),
-		)
-		.unwrap();
-		drop(service);
-		assert_eq!(fs::read(outbox_path).unwrap(), complete_outbox);
-	}
-
-	#[cfg(unix)]
-	#[test]
-	fn production_open_rejects_symlink_outbox_before_prepared_cleanup() {
-		use std::os::unix::fs::symlink;
-
-		let temp = tempfile::tempdir().unwrap();
-		let profile = || NodeProfile {
-			provider: hex::encode([0x21; 32]),
-			endpoint: "http://127.0.0.1:8080".into(),
-			service_key: hex::encode(ed25519::Pair::from_seed(&[0x31; 32]).public().0),
-			region: None,
-		};
-		let store = Arc::new(DiskStore::open(temp.path(), profile(), 1024).unwrap());
-		drop(
-			ProviderService::new_preopened(
-				store,
-				Arc::new(RouteAuthority),
-				ed25519::Pair::from_seed(&[0x31; 32]),
-				Arc::new(JsonlManifestDeletionOutbox::for_provider_root(temp.path())),
-			)
-			.unwrap(),
-		);
-		let disk_temp = temp.path().join("provider-index-v6.tmp-777");
-		let evidence = b"preserved-disk-temp";
-		fs::write(&disk_temp, evidence).unwrap();
-		let target = temp.path().join("external.jsonl");
-		fs::write(&target, b"external\n").unwrap();
-		let outbox = temp.path().join("provider-submissions-v3.jsonl");
-		symlink(&target, &outbox).unwrap();
-
-		assert!(matches!(
-			ProviderService::open(
-				temp.path(),
-				profile(),
-				1024,
-				Arc::new(RouteAuthority),
-				ed25519::Pair::from_seed(&[0x31; 32]),
-			),
-			Err(ProviderOpenError::Outbox(_))
-		));
-		assert_eq!(fs::read(disk_temp).unwrap(), evidence);
-		assert_eq!(fs::read(target).unwrap(), b"external\n");
-	}
-
-	#[test]
-	fn corrupt_quorum_scheduler_preserves_every_earlier_prepared_cleanup() {
-		let temp = tempfile::tempdir().unwrap();
-		let profile = || NodeProfile {
-			provider: hex::encode([0x21; 32]),
-			endpoint: "http://127.0.0.1:8080".into(),
-			service_key: hex::encode(ed25519::Pair::from_seed(&[0x31; 32]).public().0),
-			region: None,
-		};
-		let store = Arc::new(DiskStore::open(temp.path(), profile(), 1024).unwrap());
-		drop(
-			ProviderService::new_preopened(
-				store,
-				Arc::new(RouteAuthority),
-				ed25519::Pair::from_seed(&[0x31; 32]),
-				Arc::new(JsonlManifestDeletionOutbox::for_provider_root(temp.path())),
-			)
-			.unwrap(),
-		);
-
-		let disk_temp = temp.path().join("provider-index-v6.tmp-778");
-		let disk_temp_bytes = b"stale-disk-index-evidence";
-		fs::write(&disk_temp, disk_temp_bytes).unwrap();
-		let streaming = temp.path().join("streaming-v1");
-		let journal_temp = streaming.join("journal.json.tmp-778");
-		let journal_temp_bytes = b"stale-streaming-journal-evidence";
-		fs::write(&journal_temp, journal_temp_bytes).unwrap();
-		let staging_orphan = streaming.join("staging").join("unowned-part");
-		let staging_bytes = b"unowned-staging-evidence";
-		fs::write(&staging_orphan, staging_bytes).unwrap();
-		let scheduler = temp.path().join("checkpoint-quorum-scheduler-v2");
-		let scheduler_temp = scheduler.join("cursor.json.tmp");
-		let scheduler_temp_bytes = b"partial-scheduler-evidence";
-		fs::write(&scheduler_temp, scheduler_temp_bytes).unwrap();
-		fs::write(scheduler.join("cursor.json"), b"not-json").unwrap();
-
-		assert!(matches!(
-			ProviderService::open(
-				temp.path(),
-				profile(),
-				1024,
-				Arc::new(RouteAuthority),
-				ed25519::Pair::from_seed(&[0x31; 32]),
-			),
-			Err(ProviderOpenError::Content(ContentError::IntegrityFailed))
-		));
-		assert_eq!(fs::read(disk_temp).unwrap(), disk_temp_bytes);
-		assert_eq!(fs::read(journal_temp).unwrap(), journal_temp_bytes);
-		assert_eq!(fs::read(staging_orphan).unwrap(), staging_bytes);
-		assert_eq!(fs::read(scheduler_temp).unwrap(), scheduler_temp_bytes);
-	}
-
-	#[cfg(unix)]
-	#[test]
-	fn production_open_rejects_late_dangling_namespace_before_earlier_cleanup() {
-		use std::os::unix::fs::symlink;
-
-		let temp = tempfile::tempdir().unwrap();
-		let profile = || NodeProfile {
-			provider: hex::encode([0x22; 32]),
-			endpoint: "http://127.0.0.1:8080".into(),
-			service_key: hex::encode(ed25519::Pair::from_seed(&[0x32; 32]).public().0),
-			region: None,
-		};
-		let store = Arc::new(DiskStore::open(temp.path(), profile(), 1024).unwrap());
-		drop(
-			ProviderService::new_preopened(
-				store,
-				Arc::new(RouteAuthority),
-				ed25519::Pair::from_seed(&[0x32; 32]),
-				Arc::new(JsonlManifestDeletionOutbox::for_provider_root(temp.path())),
-			)
-			.unwrap(),
-		);
-
-		let disk_temp = temp.path().join("provider-index-v6.tmp-778");
-		let disk_temp_bytes = b"dangling-late-disk-evidence";
-		fs::write(&disk_temp, disk_temp_bytes).unwrap();
-		let journal_temp = temp.path().join("streaming-v1").join("journal.json.tmp-778");
-		let journal_temp_bytes = b"dangling-late-streaming-evidence";
-		fs::write(&journal_temp, journal_temp_bytes).unwrap();
-		let replication = temp.path().join("replication-v3");
-		fs::remove_dir_all(&replication).unwrap();
-		let missing_target = temp.path().join("missing-replication-target");
-		symlink(&missing_target, &replication).unwrap();
-
-		assert!(matches!(
-			ProviderService::open(
-				temp.path(),
-				profile(),
-				1024,
-				Arc::new(RouteAuthority),
-				ed25519::Pair::from_seed(&[0x32; 32]),
-			),
-			Err(ProviderOpenError::Content(ContentError::IntegrityFailed))
-		));
-		assert_eq!(fs::read(disk_temp).unwrap(), disk_temp_bytes);
-		assert_eq!(fs::read(journal_temp).unwrap(), journal_temp_bytes);
-		assert!(!missing_target.exists());
-	}
 
 	#[async_trait]
 	impl ChainAuthority for Authority {
-		async fn authorize_commit(
-			&self,
-			_: [u8; 32],
-			_: [u8; 32],
-			_: u64,
-		) -> Result<AgreementAuthorization, ChainError> {
-			Err(ChainError::Rejected("unused".into()))
-		}
-
-		async fn authorize_delete(
-			&self,
-			_: [u8; 32],
-			_: [u8; 32],
-		) -> Result<AgreementAuthorization, ChainError> {
-			Err(ChainError::Rejected("unused".into()))
-		}
-
-		async fn challenge_duties(&self, _: Option<u32>) -> Result<ChallengeBatch, ChainError> {
-			Err(ChainError::Rejected("unused".into()))
-		}
-
-		async fn checkpoint_duties(
-			&self,
-			_: Option<CheckpointDutyPageRequest>,
-		) -> Result<CheckpointDutyBatch, ChainError> {
-			Err(ChainError::Rejected("unused".into()))
-		}
-	}
-
-	#[async_trait]
-	impl ChainAuthority for RouteAuthority {
 		async fn authorize_commit(
 			&self,
 			_: [u8; 32],
@@ -1178,11 +809,11 @@ mod lifecycle_tests {
 			.unwrap(),
 		);
 		let service = Arc::new(
-			ProviderService::new_preopened(
+			ProviderService::new(
 				store,
 				Arc::new(Authority(topology.clone())),
 				key,
-				Arc::new(JsonlManifestDeletionOutbox::for_provider_root(temp.path())),
+				Arc::new(JsonlCheckpointOutbox::new(temp.path().join("outbox.jsonl"))),
 			)
 			.unwrap(),
 		);
@@ -1209,228 +840,5 @@ mod lifecycle_tests {
 		let first = responder.page(&request).await.unwrap();
 		let replay = responder.page(&request).await.unwrap();
 		assert_eq!(replay, first);
-	}
-
-	fn route_fixture(
-		corrupt: bool,
-	) -> (tempfile::TempDir, Arc<ProviderService<RouteAuthority>>, ApiConfig, String) {
-		let temp = tempfile::tempdir().unwrap();
-		let key = ed25519::Pair::from_seed(&[0x31; 32]);
-		let bytes = b"private provider health fixture".to_vec();
-		let cid = CanonicalCid::from_digest(sp_crypto_hashing::blake2_256(&bytes));
-		let streaming = StreamingStore::open(temp.path()).unwrap();
-		let receipt = streaming
-			.put_chunks(
-				StreamingDescriptor {
-					operation_id: OperationId::from_bytes([0x41; 16]),
-					bucket_id: BucketId::from_bytes([0x51; 32]),
-					expected_cid: cid.to_string(),
-					object_len: bytes.len() as u64,
-				},
-				[bytes],
-			)
-			.unwrap();
-		drop(streaming);
-		let store = Arc::new(
-			DiskStore::open(
-				temp.path(),
-				NodeProfile {
-					provider: hex::encode([0x21; 32]),
-					endpoint: "http://127.0.0.1:8080".into(),
-					service_key: hex::encode(key.public().0),
-					region: None,
-				},
-				1024,
-			)
-			.unwrap(),
-		);
-		let service = Arc::new(
-			ProviderService::new_preopened(
-				store,
-				Arc::new(RouteAuthority),
-				key,
-				Arc::new(JsonlManifestDeletionOutbox::for_provider_root(temp.path())),
-			)
-			.unwrap(),
-		);
-		if corrupt {
-			fs::write(
-				temp.path().join("streaming-v1").join("objects").join(&receipt.cid),
-				b"corrupt",
-			)
-			.unwrap();
-		}
-		let token = "route-health-test-token";
-		let config = ApiConfig {
-			listen: "127.0.0.1:0".parse().unwrap(),
-			bearer_token_hash: *blake3::hash(token.as_bytes()).as_bytes(),
-			max_content_bytes: 1024,
-			max_json_bytes: 1024,
-		};
-		(temp, service, config, receipt.cid)
-	}
-
-	fn get(path: &str, token: Option<&str>) -> Request<Body> {
-		let mut builder = Request::builder().method(Method::GET).uri(path);
-		if let Some(token) = token {
-			builder = builder.header(header::AUTHORIZATION, format!("Bearer {token}"));
-		}
-		builder.body(Full::new(Bytes::new())).unwrap()
-	}
-
-	fn post(path: &str, token: &str, body: &'static [u8]) -> Request<Body> {
-		Request::builder()
-			.method(Method::POST)
-			.uri(path)
-			.header(header::AUTHORIZATION, format!("Bearer {token}"))
-			.body(Full::new(Bytes::from_static(body)))
-			.unwrap()
-	}
-
-	async fn response_json(response: Response<Body>) -> serde_json::Value {
-		let body = response.into_body().collect().await.unwrap().to_bytes();
-		serde_json::from_slice(&body).unwrap()
-	}
-
-	fn assert_integrity_response_is_redacted(value: &serde_json::Value, cid: &str) {
-		let private = [
-			cid.to_string(),
-			hex::encode([0x51; 32]),
-			hex::encode([0x41; 16]),
-			"proof".into(),
-			"fingerprint".into(),
-			"root".into(),
-			"error".into(),
-		];
-		let encoded = serde_json::to_string(value).unwrap();
-		for private in private {
-			assert!(!encoded.contains(&private), "integrity response leaked {private}");
-		}
-	}
-
-	#[tokio::test]
-	async fn healthy_routes_require_auth_for_details_and_redact_integrity_evidence() {
-		let (_temp, service, config, cid) = route_fixture(false);
-		let health = dispatch(get("/health", None), Arc::clone(&service), &config).await;
-		assert_eq!(health.status(), StatusCode::OK);
-		let health = response_json(health).await;
-		assert_eq!(
-			health,
-			serde_json::json!({"version": PROTOCOL_VERSION, "status": "ready", "ready": true})
-		);
-		assert_integrity_response_is_redacted(&health, &cid);
-
-		let unauthenticated =
-			dispatch(get("/replica/sync_status", None), Arc::clone(&service), &config).await;
-		assert_eq!(unauthenticated.status(), StatusCode::UNAUTHORIZED);
-		let sync = dispatch(
-			get("/replica/sync_status", Some("route-health-test-token")),
-			Arc::clone(&service),
-			&config,
-		)
-		.await;
-		assert_eq!(sync.status(), StatusCode::OK);
-		let sync = response_json(sync).await;
-		assert_eq!(
-			sync,
-			serde_json::json!({
-				"version": PROTOCOL_VERSION,
-				"status": "ready",
-				"ready": true,
-				"installed_objects": 1,
-				"ready_objects": 1,
-				"quarantined_objects": 0
-			})
-		);
-		assert_integrity_response_is_redacted(&sync, &cid);
-
-		let stats = dispatch(get("/stats", None), Arc::clone(&service), &config).await;
-		assert_eq!(stats.status(), StatusCode::UNAUTHORIZED);
-		let stats =
-			dispatch(get("/stats", Some("route-health-test-token")), Arc::clone(&service), &config)
-				.await;
-		assert_eq!(stats.status(), StatusCode::OK);
-		assert!(response_json(stats).await.get("root").is_some());
-	}
-
-	#[tokio::test]
-	async fn reserved_object_mutations_fail_before_store_or_journal_changes() {
-		let (temp, service, config, _cid) = route_fixture(false);
-		let before = service.store.stats().unwrap();
-
-		for (path, error) in [
-			(
-				"/commit",
-				"provider commit is reserved until the P4 atomic object-completion cutover",
-			),
-			(
-				"/delete",
-				"provider delete is reserved until the P4 atomic object-completion cutover",
-			),
-		] {
-			let response = dispatch(
-				post(path, "route-health-test-token", b"not parsed"),
-				Arc::clone(&service),
-				&config,
-			)
-			.await;
-			assert_eq!(response.status(), StatusCode::SERVICE_UNAVAILABLE);
-			assert_eq!(
-				response_json(response).await,
-				serde_json::json!({"error": error, "version": PROTOCOL_VERSION})
-			);
-			assert_eq!(service.store.stats().unwrap(), before);
-			assert!(service.store.pending_root_submissions().unwrap().is_empty());
-			assert!(service.store.pending_deletions().unwrap().is_empty());
-			assert!(!temp.path().join("outbox.jsonl").exists());
-		}
-	}
-
-	#[tokio::test]
-	async fn generic_checkpoint_http_routes_are_absent() {
-		let (_temp, service, config, _cid) = route_fixture(false);
-		for request in [
-			get("/checkpoint-signature", None),
-			get("/checkpoint/duty", None),
-			get("/replica/historical_roots", None),
-			post("/checkpoint/sign", "route-health-test-token", b"{}"),
-		] {
-			let response = dispatch(request, Arc::clone(&service), &config).await;
-			assert_eq!(response.status(), StatusCode::NOT_FOUND);
-		}
-	}
-
-	#[tokio::test]
-	async fn quarantine_degrades_health_and_reports_only_redacted_authenticated_counts() {
-		let (_temp, service, config, cid) = route_fixture(true);
-		let health = dispatch(get("/health", None), Arc::clone(&service), &config).await;
-		assert_eq!(health.status(), StatusCode::SERVICE_UNAVAILABLE);
-		let health = response_json(health).await;
-		assert_eq!(
-			health,
-			serde_json::json!({"version": PROTOCOL_VERSION, "status": "degraded", "ready": false})
-		);
-		assert_integrity_response_is_redacted(&health, &cid);
-
-		let sync = dispatch(
-			get("/replica/sync_status", Some("route-health-test-token")),
-			service,
-			&config,
-		)
-		.await;
-		assert_eq!(sync.status(), StatusCode::SERVICE_UNAVAILABLE);
-		let sync = response_json(sync).await;
-		assert_eq!(
-			sync,
-			serde_json::json!({
-				"version": PROTOCOL_VERSION,
-				"status": "degraded",
-				"ready": false,
-				"installed_objects": 1,
-				"ready_objects": 0,
-				"quarantined_objects": 1
-			})
-		);
-		assert_integrity_response_is_redacted(&sync, &cid);
 	}
 }

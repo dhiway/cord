@@ -18,12 +18,12 @@
 
 //! Type definitions for the transaction storage pallet.
 
+use codec::{Decode, Encode, MaxEncodedLen};
 pub use orbis_transaction_storage_primitives::TransactionRef;
 use orbis_transaction_storage_primitives::{
 	cids::{CidCodec, HashingAlgorithm},
 	ContentHash,
 };
-use codec::{Decode, Encode, MaxEncodedLen};
 #[cfg(feature = "runtime-benchmarks")]
 use polkadot_sdk_frame::deps::frame_benchmarking;
 use polkadot_sdk_frame::{

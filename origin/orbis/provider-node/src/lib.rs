@@ -25,12 +25,8 @@
 
 #![warn(missing_docs)]
 
-#[cfg(not(unix))]
-compile_error!("origin-orbis-provider requires Unix no-follow directory-handle semantics");
-
 mod api;
-mod bounded_io;
-// Deliberately private until the P4 route cutover removes the shared bearer atomically.
+// Deliberately compiled but not routed until durable RequestV2 recovery is implemented.
 #[allow(dead_code)]
 mod capability;
 mod chain;
@@ -61,21 +57,18 @@ mod replication_worker;
 // Private deterministic bridge from finalized topology evidence into authenticated peer context.
 mod replication_session;
 mod storage;
-#[cfg(feature = "evidence")]
-mod three_provider_evidence;
 mod workers;
 
 #[cfg(feature = "checkpoint-live")]
 pub use api::run_checkpoint_live_worker;
 pub use api::{
 	run_checkpoint_quorum_worker, run_replication_worker, serve, serve_provider_ingress, ApiConfig,
-	ProviderOpenError, ProviderService,
+	ProviderService,
 };
 pub use chain::{
 	AgreementAuthorization, CapabilityAuthoritySnapshot, ChainAuthority, ChainError,
 	ChallengeBatch, ChallengeDuty, CheckpointDuty, CheckpointDutyBatch, CheckpointDutyMode,
 	CheckpointDutyPageRequest, CheckpointDutyPhase, CheckpointDutyRole, CheckpointDutyScanCursor,
-	DeletionDuty, DeletionDutyBatch, DeletionDutyPageRequest, DeletionDutyScanCursor,
 	FinalizedRuntimeAuthority,
 };
 pub use content::{
@@ -84,25 +77,15 @@ pub use content::{
 	MAX_STREAMING_OPERATIONS, RAW_CODEC,
 };
 pub use storage::{
-	BeginStreaming, CheckpointDutyWatermark, ChunkProof, ContentRecord, DiskStore, IngressPermit,
-	IntegritySummary, NodeProfile, ProgressAck, ProviderStats, StoreError, StreamingDescriptor,
-	StreamingFault, StreamingReceipt,
+	BeginStreaming, CheckpointDutyWatermark, ChunkProof, CommitInput, ContentRecord, DiskStore,
+	IngressPermit, IntegritySummary, NodeProfile, PendingDeletion, PendingRootSubmission,
+	ProgressAck, ProviderStats, RootObservation, SignedCheckpoint, StoreError, StreamingDescriptor,
+	StreamingFault, StreamingReceipt, StreamingStore,
 };
-#[cfg(feature = "test-seams")]
-#[doc(hidden)]
-pub use storage::StreamingStore;
-#[cfg(feature = "evidence")]
-#[doc(hidden)]
-pub use three_provider_evidence::{
-	run_three_provider_recovery_evidence, CorruptReadObservation, EligibleSourceObservation,
-	ThreeProviderRecoveryEvidence,
-};
-pub(crate) use workers::{JsonlManifestDeletionOutbox, ManifestDeletionSubmitter};
-#[cfg(any(test, feature = "evidence"))]
-pub(crate) use workers::ManifestDeletionStartupPlan;
 pub use workers::{
-	poll_checkpoint_duties_once, poll_manifest_deletions_once, run_workers,
-	ManifestDeletionSubmission, ProviderSubmission, WorkerConfig,
+	poll_checkpoint_duties_once, run_workers, CheckpointSubmission, CheckpointSubmitter,
+	ContentDeletionSubmission, JsonlCheckpointOutbox, ProviderRootSubmission, ProviderSubmission,
+	WorkerConfig,
 };
 
 /// Protocol version shared by persisted records and HTTP responses.

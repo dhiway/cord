@@ -38,137 +38,14 @@ use crate::{
 };
 
 #[allow(dead_code)]
-pub(crate) mod private_query;
-#[allow(dead_code)]
 pub(crate) mod recovery;
-use private_query::{PrivateQueryRecord, PrivateQueryReplayRecord};
 use recovery::{CapabilityReplayRecord, RecoveryRecord};
 
-const STREAM_VERSION: u16 = 14;
+const STREAM_VERSION: u16 = 9;
 const STREAM_ROOT: &str = "streaming-v1";
 const JOURNAL: &str = "journal.json";
 const STAGING: &str = "staging";
 const OBJECTS: &str = "objects";
-const JOURNAL_TEMP_PREFIX: &str = "journal.json.tmp-";
-const MAX_JOURNAL_TEMP_ARTIFACTS: usize = 1;
-const MAX_STREAM_ROOT_ARTIFACTS: usize = 5;
-// A serialized transition can leave at most one renamed or newly-created file outside the last
-// durable journal. Recovery validates the complete directory before deleting that artifact.
-const MAX_UNOWNED_DIRECTORY_ARTIFACTS: usize = 1;
-// Large records are bounded by the maximum 256 chunk records at 128 compact-JSON bytes each.
-// Small records have tighter schema-derived bounds. The journal limit accounts independently for
-// every durable map plus its canonical key and JSON framing; private-query response bodies remain
-// in bounded external blob files.
-const MAX_ENCODED_DURABLE_SLOT_BYTES: u64 = MAX_CHUNKS as u64 * 128;
-const MAX_ENCODED_SMALL_RECORD_BYTES: u64 = 1024;
-const MAX_ENCODED_MAP_ENTRY_OVERHEAD_BYTES: u64 = 512;
-const MAX_ENCODED_JOURNAL_FIXED_BYTES: u64 = 64 * 1024;
-
-#[derive(Clone, Copy)]
-struct JournalCardinality {
-	operations: usize,
-	quarantine: usize,
-	repairs: usize,
-	recovery: usize,
-	capability_replay: usize,
-	private_queries: usize,
-	private_query_replay: usize,
-	manifest_tombstones: usize,
-}
-
-impl JournalCardinality {
-	fn from_state(state: &JournalState) -> Self {
-		Self {
-			operations: state.operations.len(),
-			quarantine: state.quarantine.len(),
-			repairs: state.repairs.len(),
-			recovery: state.recovery.len(),
-			capability_replay: state.capability_replay.len(),
-			private_queries: state.private_queries.len(),
-			private_query_replay: state.private_query_replay.len(),
-			manifest_tombstones: state.manifest_tombstones.len(),
-		}
-	}
-}
-
-fn validate_journal_cardinality(
-	counts: JournalCardinality,
-	operation_limit: usize,
-) -> Result<(), ContentError> {
-	if counts.operations > operation_limit ||
-		counts.quarantine > operation_limit ||
-		counts.repairs > operation_limit ||
-		counts.recovery > MAX_STREAMING_OPERATIONS ||
-		counts.capability_replay > MAX_STREAMING_OPERATIONS ||
-		counts.private_queries > MAX_STREAMING_OPERATIONS ||
-		counts.private_query_replay > MAX_STREAMING_OPERATIONS ||
-		counts.manifest_tombstones > operation_limit
-	{
-		return Err(ContentError::IntegrityFailed);
-	}
-	Ok(())
-}
-
-fn journal_byte_limit(operation_limit: usize) -> Result<u64, ContentError> {
-	fn map_limit(count: usize, record_bytes: u64) -> Result<u64, ContentError> {
-		(count as u64)
-			.checked_mul(
-				record_bytes
-					.checked_add(MAX_ENCODED_MAP_ENTRY_OVERHEAD_BYTES)
-					.ok_or(ContentError::IntegrityFailed)?,
-			)
-			.ok_or(ContentError::IntegrityFailed)
-	}
-	let maps = [
-		(operation_limit, MAX_ENCODED_DURABLE_SLOT_BYTES),
-		(operation_limit, MAX_ENCODED_SMALL_RECORD_BYTES),
-		(operation_limit, MAX_ENCODED_SMALL_RECORD_BYTES),
-		(MAX_STREAMING_OPERATIONS, MAX_ENCODED_DURABLE_SLOT_BYTES),
-		(MAX_STREAMING_OPERATIONS, MAX_ENCODED_SMALL_RECORD_BYTES),
-		(MAX_STREAMING_OPERATIONS, MAX_ENCODED_DURABLE_SLOT_BYTES),
-		(MAX_STREAMING_OPERATIONS, MAX_ENCODED_SMALL_RECORD_BYTES),
-		(operation_limit, MAX_ENCODED_SMALL_RECORD_BYTES),
-	];
-	maps.into_iter()
-		.try_fold(MAX_ENCODED_JOURNAL_FIXED_BYTES, |total, (count, bound)| {
-			total.checked_add(map_limit(count, bound)?).ok_or(ContentError::IntegrityFailed)
-		})
-}
-
-fn validate_encoded_journal_records(state: &JournalState) -> Result<(), ContentError> {
-	fn validate<T: Serialize>(record: &T, max_bytes: u64) -> Result<(), ContentError> {
-		let bytes = serde_json::to_vec(record).map_err(io_error)?;
-		if bytes.len() as u64 > max_bytes {
-			return Err(ContentError::IntegrityFailed);
-		}
-		Ok(())
-	}
-	for record in state.operations.values() {
-		validate(record, MAX_ENCODED_DURABLE_SLOT_BYTES)?;
-	}
-	for record in state.quarantine.values() {
-		validate(record, MAX_ENCODED_SMALL_RECORD_BYTES)?;
-	}
-	for record in state.repairs.values() {
-		validate(record, MAX_ENCODED_SMALL_RECORD_BYTES)?;
-	}
-	for record in state.recovery.values() {
-		validate(record, MAX_ENCODED_DURABLE_SLOT_BYTES)?;
-	}
-	for record in state.capability_replay.values() {
-		validate(record, MAX_ENCODED_SMALL_RECORD_BYTES)?;
-	}
-	for record in state.private_queries.values() {
-		validate(record, MAX_ENCODED_DURABLE_SLOT_BYTES)?;
-	}
-	for record in state.private_query_replay.values() {
-		validate(record, MAX_ENCODED_SMALL_RECORD_BYTES)?;
-	}
-	for record in state.manifest_tombstones.values() {
-		validate(record, MAX_ENCODED_SMALL_RECORD_BYTES)?;
-	}
-	Ok(())
-}
 
 /// Immutable descriptor for one stored-byte operation.
 #[derive(Clone, Debug, Eq, PartialEq, Serialize, Deserialize)]
@@ -294,30 +171,6 @@ pub enum StreamingFault {
 	BeforeRecoveryGcCommit,
 	/// The bounded GC transition is durable but staged-byte cleanup or completion is absent.
 	AfterRecoveryGcCommit,
-	/// A provider response acknowledgement is validated but not durable.
-	BeforeRecoveryAckCommit,
-	/// A provider response acknowledgement is durable but its reply was not delivered.
-	AfterRecoveryAckCommit,
-	/// Private query response is complete in memory but its cloned journal is not yet durable.
-	BeforePrivateQueryCommit,
-	/// Private query recovery entry is durable but its response has not been delivered.
-	AfterPrivateQueryCommit,
-	/// Private query acknowledgement is validated but not durable.
-	BeforePrivateQueryAckCommit,
-	/// Private query acknowledgement is durable but its reply has not been delivered.
-	AfterPrivateQueryAckCommit,
-	/// Private query cancellation is validated but not durable.
-	BeforePrivateQueryCancelCommit,
-	/// Private query cancellation is durable but its terminal response has not been delivered.
-	AfterPrivateQueryCancelCommit,
-	/// Expired private query records are selected but the bounded GC transition is absent.
-	BeforePrivateQueryGcCommit,
-	/// Bounded private query GC is durable but response-blob removal is incomplete.
-	AfterPrivateQueryGcCommit,
-	/// A manifest tombstone is durable but its object bytes may still be present.
-	AfterTombstoneJournal,
-	/// Tombstoned object bytes are absent but completion was not delivered.
-	AfterTombstoneRemoval,
 }
 
 #[derive(Clone, Copy, Debug, Eq, PartialEq, Serialize, Deserialize)]
@@ -346,7 +199,6 @@ struct OperationRecord {
 	received_bytes: u64,
 	chunks: Vec<ChunkRecord>,
 	receipt: Option<StreamingReceipt>,
-	provider_receipt: Option<String>,
 }
 
 #[derive(Clone, Debug, Serialize, Deserialize)]
@@ -360,139 +212,16 @@ struct JournalState {
 	detection_sequence: u64,
 	recovery: BTreeMap<String, RecoveryRecord>,
 	capability_replay: BTreeMap<String, CapabilityReplayRecord>,
-	private_queries: BTreeMap<String, PrivateQueryRecord>,
-	private_query_replay: BTreeMap<String, PrivateQueryReplayRecord>,
-	private_query_gc_cursor: Option<String>,
-	private_query_response_bytes: u64,
-	manifest_tombstones: BTreeMap<String, ManifestTombstoneRecord>,
-}
-
-struct RecoveryInstallAction {
-	object: PathBuf,
-}
-
-struct RecoveryTruncationAction {
-	target_length: u64,
-}
-
-struct StreamingRecoveryPlan {
-	next: JournalState,
-	journal_bytes: Vec<u8>,
-	persist: bool,
-	truncations: BTreeMap<PathBuf, RecoveryTruncationAction>,
-	installs: BTreeMap<PathBuf, RecoveryInstallAction>,
-	removals: BTreeSet<PathBuf>,
-	private_query_blobs: private_query::PrivateQueryBlobRecoveryPlan,
-}
-
-struct StreamingNamespacePlan {
-	root: PathBuf,
-	root_missing: bool,
-	journal_missing: bool,
-	staging_missing: bool,
-	objects_missing: bool,
-	journal_temps: Vec<PathBuf>,
-}
-
-/// Fully validated streaming open whose filesystem actions have not been applied.
-pub(crate) struct PreparedStreamingStore {
-	store: StreamingStore,
-	plan: StreamingRecoveryPlan,
-	namespace: StreamingNamespacePlan,
-}
-
-impl PreparedStreamingStore {
-	/// Return the virtual post-recovery installation sequence without applying recovery actions.
-	pub(crate) fn installation_records(&self) -> Result<Vec<VerifiedInstallation>, ContentError> {
-		installation_records_in(&self.plan.next)
-	}
-
-	/// Reverify one installation against its post-recovery object or planned install source.
-	pub(crate) fn verified_installation(
-		&self,
-		bucket_id: BucketId,
-		operation_id: OperationId,
-	) -> Result<VerifiedInstallation, ContentError> {
-		let key = operation_key_parts(bucket_id, operation_id);
-		let record = self.plan.next.operations.get(&key).cloned().ok_or(ContentError::NotFound)?;
-		if is_bucket_tombstoned(
-			&self.plan.next,
-			record.descriptor.bucket_id,
-			&record.descriptor.expected_cid,
-		) {
-			validate_installed_record(&record)?;
-			return verified_installation_from_record(&record);
-		}
-		if self.plan.next.quarantine.contains_key(&record.descriptor.expected_cid) {
-			return Err(ContentError::IntegrityFailed);
-		}
-		validate_installed_record(&record)?;
-		let object = self.store.object_path(&record.descriptor.expected_cid);
-		let path = self
-			.plan
-			.installs
-			.iter()
-			.find_map(|(part, install)| (install.object == object).then_some(part.as_path()))
-			.unwrap_or(object.as_path());
-		let receipt = record.receipt.as_ref().ok_or(ContentError::IntegrityFailed)?;
-		let (cid, fingerprint, length) = verify_file(path, &record.descriptor, &record.chunks)
-				.map_err(|_| ContentError::IntegrityFailed)?;
-		if fingerprint != receipt.fingerprint || length != receipt.stored_bytes {
-			return Err(ContentError::IntegrityFailed);
-		}
-		Ok(VerifiedInstallation {
-			install_sequence: record.install_sequence.ok_or(ContentError::IntegrityFailed)?,
-			operation_id: record.descriptor.operation_id,
-			bucket_id: record.descriptor.bucket_id,
-			cid,
-			stored_bytes: length,
-		})
-	}
-
-	/// Apply only the already validated, retry-safe recovery actions.
-	pub(crate) fn apply(self) -> Result<StreamingStore, ContentError> {
-		let initial_journal =
-			self.namespace.journal_missing && self.namespace.journal_temps.is_empty();
-		apply_streaming_namespace(&self.namespace)?;
-		apply_recovery_plan(&self.store.root, &self.plan)?;
-		if self.plan.persist || initial_journal {
-			persist_state_bytes(&self.store.root, &self.plan.journal_bytes)?;
-		}
-		*self.store.write_state()? = self.plan.next;
-		Ok(self.store)
-	}
-}
-
-#[derive(Clone, Debug, Eq, PartialEq, Serialize, Deserialize)]
-#[serde(deny_unknown_fields)]
-struct ManifestTombstoneRecord {
-	manifest: String,
-	bucket_id: String,
-	cid: String,
-	provider_commitment: String,
-	tombstoned_at: u32,
-	evidence_hash: String,
-}
-
-/// Durable local evidence that canonical stored bytes are no longer served.
-#[derive(Clone, Debug, Eq, PartialEq)]
-pub(crate) struct ManifestDeletionEvidence {
-	pub(crate) manifest: [u8; 32],
-	pub(crate) bucket_id: BucketId,
-	pub(crate) cid: CanonicalCid,
-	pub(crate) provider_commitment: [u8; 32],
-	pub(crate) tombstoned_at: u32,
-	pub(crate) evidence_hash: [u8; 32],
 }
 
 /// One immutable, fully reverified installed operation used by the private commitment store.
 #[derive(Clone, Debug, Eq, PartialEq)]
-pub(crate) struct VerifiedInstallation {
-	pub(crate) install_sequence: u64,
-	pub(crate) operation_id: OperationId,
-	pub(crate) bucket_id: BucketId,
-	pub(crate) cid: CanonicalCid,
-	pub(crate) stored_bytes: u64,
+pub(super) struct VerifiedInstallation {
+	pub(super) install_sequence: u64,
+	pub(super) operation_id: OperationId,
+	pub(super) bucket_id: BucketId,
+	pub(super) cid: CanonicalCid,
+	pub(super) stored_bytes: u64,
 }
 
 /// Fully reverified local readiness bound to one replication object identity.
@@ -612,12 +341,7 @@ pub struct StreamingStore {
 impl StreamingStore {
 	/// Open a staged store, recover durable transitions and remove unowned files.
 	pub fn open(root: impl AsRef<Path>) -> Result<Self, ContentError> {
-		Self::prepare(root)?.apply()
-	}
-
-	/// Validate the complete streaming recovery view without mutating its namespace.
-	pub(crate) fn prepare(root: impl AsRef<Path>) -> Result<PreparedStreamingStore, ContentError> {
-		Self::prepare_with_limit(root, MAX_STREAMING_OPERATIONS)
+		Self::open_with_limit(root, MAX_STREAMING_OPERATIONS)
 	}
 
 	/// Test seam for the durable operation-retention admission bound.
@@ -629,34 +353,28 @@ impl StreamingStore {
 		if operation_limit == 0 || operation_limit > MAX_STREAMING_OPERATIONS {
 			return Err(ContentError::SchemaInvalid);
 		}
-		Self::prepare_with_limit(root, operation_limit)?.apply()
+		Self::open_with_limit(root, operation_limit)
 	}
 
-	fn prepare_with_limit(
+	fn open_with_limit(
 		root: impl AsRef<Path>,
 		operation_limit: usize,
-	) -> Result<PreparedStreamingStore, ContentError> {
-		let namespace = validate_streaming_namespace(root.as_ref())?;
-		let root = namespace.root.clone();
+	) -> Result<Self, ContentError> {
+		let root = root.as_ref().join(STREAM_ROOT);
+		fs::create_dir_all(root.join(STAGING)).map_err(io_error)?;
+		fs::create_dir_all(root.join(OBJECTS)).map_err(io_error)?;
 		let journal = root.join(JOURNAL);
-		let journal_source = if namespace.journal_missing {
-			namespace.journal_temps.first().cloned()
-		} else {
-			Some(journal.clone())
-		};
-		let state = if let Some(journal_source) = journal_source {
-			let bytes = crate::bounded_io::read_regular_file(
-				&journal_source,
-				journal_byte_limit(MAX_STREAMING_OPERATIONS)?,
-			)?;
+		let state = if journal.exists() {
+			let bytes = fs::read(&journal).map_err(io_error)?;
 			let state: JournalState = serde_json::from_slice(&bytes).map_err(io_error)?;
-			if state.version != STREAM_VERSION {
+			if state.version != STREAM_VERSION
+				|| state.operations.len() > operation_limit
+				|| state.recovery.len() > MAX_STREAMING_OPERATIONS
+				|| state.repairs.len() > operation_limit
+			{
 				return Err(ContentError::IntegrityFailed);
 			}
-			validate_journal_cardinality(JournalCardinality::from_state(&state), operation_limit)?;
-			validate_encoded_journal_records(&state)?;
 			recovery::validate_recovery_state(&state)?;
-			private_query::validate_private_query_state(&state)?;
 			state
 		} else {
 			JournalState {
@@ -668,11 +386,6 @@ impl StreamingStore {
 				detection_sequence: 0,
 				recovery: BTreeMap::new(),
 				capability_replay: BTreeMap::new(),
-				private_queries: BTreeMap::new(),
-				private_query_replay: BTreeMap::new(),
-				private_query_gc_cursor: None,
-				private_query_response_bytes: 0,
-				manifest_tombstones: BTreeMap::new(),
 			}
 		};
 		let store = Self {
@@ -686,12 +399,11 @@ impl StreamingStore {
 			#[cfg(test)]
 			exact_quarantine_probes: AtomicUsize::new(0),
 		};
-		let private_query_blobs = private_query::validate_private_query_blobs(&store)?;
-		let plan = {
-			let state = store.read_state()?;
-			store.plan_recovery(&state, private_query_blobs)?
-		};
-		Ok(PreparedStreamingStore { store, plan, namespace })
+		store.recover()?;
+		if !journal.exists() {
+			store.persist()?;
+		}
+		Ok(store)
 	}
 
 	/// Arm one deterministic crash boundary for the next matching transition.
@@ -706,9 +418,6 @@ impl StreamingStore {
 		validate_descriptor(&descriptor)?;
 		let key = operation_key(&descriptor);
 		let mut state = self.write_state()?;
-		if is_bucket_tombstoned(&state, descriptor.bucket_id, &descriptor.expected_cid) {
-			return Err(ContentError::NotFound);
-		}
 		if state.recovery.values().any(|item| item.descriptor == descriptor) {
 			return Err(ContentError::IdempotencyConflict);
 		}
@@ -716,8 +425,8 @@ impl StreamingStore {
 			if existing.descriptor != descriptor {
 				return Err(ContentError::IdempotencyConflict);
 			}
-			if existing.phase == Phase::Installed &&
-				state.quarantine.contains_key(&existing.descriptor.expected_cid)
+			if existing.phase == Phase::Installed
+				&& state.quarantine.contains_key(&existing.descriptor.expected_cid)
 			{
 				return Err(ContentError::IntegrityFailed);
 			}
@@ -746,7 +455,6 @@ impl StreamingStore {
 				received_bytes: 0,
 				chunks: Vec::new(),
 				receipt: None,
-				provider_receipt: None,
 			},
 		);
 		persist_state(&self.root, &next)?;
@@ -781,8 +489,8 @@ impl StreamingStore {
 		validate_chunk_len(record.descriptor.object_len, index, bytes)?;
 		drop(state);
 		let mut window = self.window.window.lock().map_err(|_| lock_error())?;
-		if window.chunks >= INGRESS_WINDOW_CHUNKS ||
-			window.bytes.saturating_add(bytes) > INGRESS_WINDOW_BYTES
+		if window.chunks >= INGRESS_WINDOW_CHUNKS
+			|| window.bytes.saturating_add(bytes) > INGRESS_WINDOW_BYTES
 		{
 			return Ok(None);
 		}
@@ -883,8 +591,8 @@ impl StreamingStore {
 		validate_chunk_len(record.descriptor.object_len, index, bytes.len())?;
 		drop(state);
 		let mut window = self.window.window.lock().map_err(|_| lock_error())?;
-		while window.chunks >= INGRESS_WINDOW_CHUNKS ||
-			window.bytes.saturating_add(bytes.len()) > INGRESS_WINDOW_BYTES
+		while window.chunks >= INGRESS_WINDOW_CHUNKS
+			|| window.bytes.saturating_add(bytes.len()) > INGRESS_WINDOW_BYTES
 		{
 			window = self.window.available.wait(window).map_err(|_| lock_error())?;
 		}
@@ -908,15 +616,6 @@ impl StreamingStore {
 	) -> Result<StreamingReceipt, ContentError> {
 		let key = operation_key_parts(bucket_id, operation_id);
 		let mut state = self.write_state()?;
-		if state.operations.get(&key).is_some_and(|record| {
-				is_bucket_tombstoned(
-					&state,
-					record.descriptor.bucket_id,
-					&record.descriptor.expected_cid,
-				)
-		}) {
-			return Err(ContentError::NotFound);
-		}
 		validate_install_sequences(&state)?;
 		let record = state.operations.get(&key).cloned().ok_or(ContentError::NotFound)?;
 		if state.recovery.values().any(|item| item.descriptor == record.descriptor) {
@@ -931,9 +630,9 @@ impl StreamingStore {
 		if record.phase != Phase::Receiving {
 			return Err(ContentError::IntegrityFailed);
 		}
-		if record.received_bytes != record.descriptor.object_len ||
-			record.next_chunk as usize != chunk_count(record.descriptor.object_len)? ||
-			record.chunks.len() != record.next_chunk as usize
+		if record.received_bytes != record.descriptor.object_len
+			|| record.next_chunk as usize != chunk_count(record.descriptor.object_len)?
+			|| record.chunks.len() != record.next_chunk as usize
 		{
 			return Err(ContentError::ChunkMissing);
 		}
@@ -979,10 +678,10 @@ impl StreamingStore {
 			BeginStreaming::Installed(receipt) => {
 				let (cid, fingerprint, length, records) = verify_chunk_stream(&descriptor, chunks)
 					.map_err(|_| ContentError::IdempotencyConflict)?;
-				if cid.as_str() != receipt.cid ||
-					fingerprint != receipt.fingerprint ||
-					length != receipt.stored_bytes ||
-					records.len() != receipt.chunks as usize
+				if cid.as_str() != receipt.cid
+					|| fingerprint != receipt.fingerprint
+					|| length != receipt.stored_bytes
+					|| records.len() != receipt.chunks as usize
 				{
 					return Err(ContentError::IdempotencyConflict);
 				}
@@ -1003,87 +702,9 @@ impl StreamingStore {
 		}
 	}
 
-	/// Durably fail closed for one canonical manifest before removing its installed object bytes.
-	///
-	/// The manifest record and immutable installation metadata remain in the journal so bucket-MMR
-	/// history can still be reconstructed. Exact replay returns the original evidence; changed
-	/// replay is rejected. Once the tombstone journal is durable every read and peer-replication
-	/// surface rejects the CID, including after a crash before byte removal.
-	pub(crate) fn tombstone_manifest(
-		&self,
-		manifest: [u8; 32],
-		bucket_id: BucketId,
-		provider_commitment: [u8; 32],
-		tombstoned_at: u32,
-	) -> Result<ManifestDeletionEvidence, ContentError> {
-		let cid = CanonicalCid::from_digest(provider_commitment);
-		let manifest_key = hex::encode(manifest);
-		let key = manifest_tombstone_key(bucket_id, cid.as_str());
-		let evidence_hash = manifest_deletion_evidence_hash(
-			manifest,
-			bucket_id,
-			provider_commitment,
-			tombstoned_at,
-		);
-		let record = ManifestTombstoneRecord {
-			manifest: manifest_key,
-			bucket_id: bucket_id.to_string(),
-			cid: cid.to_string(),
-			provider_commitment: hex::encode(provider_commitment),
-			tombstoned_at,
-			evidence_hash: hex::encode(evidence_hash),
-		};
-		let mut state = self.write_state()?;
-		if let Some(existing) = state.manifest_tombstones.get(&key) {
-			if existing != &record {
-				return Err(ContentError::IdempotencyConflict);
-			}
-		} else {
-			if state.manifest_tombstones.len() >= self.operation_limit {
-				return Err(ContentError::ProviderRecoveryTableFull);
-			}
-			let exact_installation = state.operations.values().any(|operation| {
-				operation.phase == Phase::Installed &&
-					operation.descriptor.bucket_id == bucket_id &&
-					operation.descriptor.expected_cid == cid.as_str()
-			});
-			if !exact_installation {
-				return Err(ContentError::NotFound);
-			}
-			let mut next = state.clone();
-			next.manifest_tombstones.insert(key, record);
-			let invalidated_response_blobs =
-				private_query::invalidate_bucket_cid_queries(&mut next, bucket_id, cid.as_str())?;
-			if is_tombstoned(&next, cid.as_str()) {
-				next.quarantine.remove(cid.as_str());
-				next.repairs.retain(|_, repair| repair.cid != cid.as_str());
-			}
-			persist_state(&self.root, &next)?;
-			*state = next;
-			private_query::delete_response_blobs(&self.root, &invalidated_response_blobs)?;
-			self.trip_fault(StreamingFault::AfterTombstoneJournal)?;
-		}
-		let remove_shared_bytes = is_tombstoned(&state, cid.as_str());
-		let object = self.object_path(cid.as_str());
-		if remove_shared_bytes && object.exists() {
-			fs::remove_file(&object).map_err(io_error)?;
-			sync_dir(object.parent().expect("object path has parent"))?;
-		}
-		self.trip_fault(StreamingFault::AfterTombstoneRemoval)?;
-		Ok(ManifestDeletionEvidence {
-			manifest,
-			bucket_id,
-			cid,
-			provider_commitment,
-			tombstoned_at,
-			evidence_hash,
-		})
-	}
-
 	/// Verify an installed object completely without exposing a filesystem handle or bytes.
 	pub fn verify_installed(&self, cid: &str) -> Result<(), ContentError> {
 		let canonical = CanonicalCid::parse(cid)?;
-		self.reject_tombstoned(canonical.as_str())?;
 		let record = self.installed_record(canonical.as_str())?;
 		self.reject_quarantined(canonical.as_str())?;
 		let path = self.object_path(canonical.as_str());
@@ -1104,12 +725,11 @@ impl StreamingStore {
 		end: u64,
 	) -> Result<Vec<u8>, ContentError> {
 		let canonical = CanonicalCid::parse(cid)?;
-		self.reject_tombstoned(canonical.as_str())?;
 		let record = self.installed_record(canonical.as_str())?;
 		self.reject_quarantined(canonical.as_str())?;
-		if start > end ||
-			end > record.descriptor.object_len ||
-			end.saturating_sub(start) > MAX_RANGE_BYTES
+		if start > end
+			|| end > record.descriptor.object_len
+			|| end.saturating_sub(start) > MAX_RANGE_BYTES
 		{
 			return Err(ContentError::RangeInvalid);
 		}
@@ -1147,7 +767,6 @@ impl StreamingStore {
 	/// Return one chunk only after a full preflight and complete emitted-chunk re-hash.
 	pub fn read_chunk_verified(&self, cid: &str, index: u16) -> Result<Vec<u8>, ContentError> {
 		let canonical = CanonicalCid::parse(cid)?;
-		self.reject_tombstoned(canonical.as_str())?;
 		let record = self.installed_record(canonical.as_str())?;
 		self.reject_quarantined(canonical.as_str())?;
 		let expected = record.chunks.get(index as usize).ok_or(ContentError::ChunkOutOfOrder)?;
@@ -1208,8 +827,9 @@ impl StreamingStore {
 		let operation_id = full_repair_operation(canonical.as_str());
 		let progress = match self.begin_repair(canonical.as_str(), operation_id) {
 			Ok(progress) => progress,
-			Err(ContentError::IdempotencyConflict) =>
-				self.completed_repair_progress(canonical.as_str(), operation_id)?,
+			Err(ContentError::IdempotencyConflict) => {
+				self.completed_repair_progress(canonical.as_str(), operation_id)?
+			},
 			Err(error) => return Err(error),
 		};
 		for (index, expected) in record.chunks.iter().enumerate() {
@@ -1238,9 +858,6 @@ impl StreamingStore {
 	) -> Result<RepairProgress, ContentError> {
 		let canonical = CanonicalCid::parse(cid)?;
 		let mut state = self.write_state()?;
-		if is_tombstoned(&state, canonical.as_str()) {
-			return Err(ContentError::NotFound);
-		}
 		let record = installed_record_in(&state, canonical.as_str())?;
 		validate_installed_record(&record)?;
 		let key = repair_key(canonical.as_str(), operation_id)?;
@@ -1312,9 +929,6 @@ impl StreamingStore {
 		let canonical = CanonicalCid::parse(cid)?;
 		let key = repair_key(canonical.as_str(), operation_id)?;
 		let mut state = self.write_state()?;
-		if is_tombstoned(&state, canonical.as_str()) {
-			return Err(ContentError::NotFound);
-		}
 		let installed = installed_record_in(&state, canonical.as_str())?;
 		validate_installed_record(&installed)?;
 		let repair = state.repairs.get(&key).cloned().ok_or(ContentError::NotFound)?;
@@ -1378,24 +992,21 @@ impl StreamingStore {
 		let canonical = CanonicalCid::parse(cid)?;
 		let key = repair_key(canonical.as_str(), operation_id)?;
 		let mut state = self.write_state()?;
-		if is_tombstoned(&state, canonical.as_str()) {
-			return Err(ContentError::NotFound);
-		}
 		let installed = installed_record_in(&state, canonical.as_str())?;
 		validate_installed_record(&installed)?;
 		let repair = state.repairs.get(&key).cloned().ok_or(ContentError::NotFound)?;
 		validate_repair_record(&key, &repair, &installed)?;
 		let object = self.object_path(canonical.as_str());
-		if repair.phase == RepairPhase::Installed &&
-			!state.quarantine.contains_key(canonical.as_str())
+		if repair.phase == RepairPhase::Installed
+			&& !state.quarantine.contains_key(canonical.as_str())
 		{
 			return verify_file(&object, &installed.descriptor, &installed.chunks).map(|_| ());
 		}
 		if !state.quarantine.contains_key(canonical.as_str()) {
 			return Err(ContentError::IdempotencyConflict);
 		}
-		if repair.next_chunk as usize != installed.chunks.len() ||
-			repair.staged_bytes != installed.descriptor.object_len
+		if repair.next_chunk as usize != installed.chunks.len()
+			|| repair.staged_bytes != installed.descriptor.object_len
 		{
 			return Err(ContentError::ChunkMissing);
 		}
@@ -1430,9 +1041,6 @@ impl StreamingStore {
 		operation_id: OperationId,
 	) -> Result<RepairProgress, ContentError> {
 		let state = self.read_state()?;
-		if is_tombstoned(&state, cid) {
-			return Err(ContentError::NotFound);
-		}
 		if state.quarantine.contains_key(cid) {
 			return Err(ContentError::IdempotencyConflict);
 		}
@@ -1448,15 +1056,8 @@ impl StreamingStore {
 		repair_progress(repair, &installed)
 	}
 
-	fn plan_recovery(
-		&self,
-		state: &JournalState,
-		private_query_blobs: private_query::PrivateQueryBlobRecoveryPlan,
-	) -> Result<StreamingRecoveryPlan, ContentError> {
-		validate_journal_cardinality(JournalCardinality::from_state(state), self.operation_limit)?;
-		validate_encoded_journal_records(state)?;
-		recovery::validate_recovery_state(state)?;
-		private_query::validate_private_query_state(state)?;
+	fn recover(&self) -> Result<(), ContentError> {
+		let mut state = self.write_state()?;
 		if state
 			.operations
 			.iter()
@@ -1464,41 +1065,9 @@ impl StreamingStore {
 		{
 			return Err(ContentError::IntegrityFailed);
 		}
-		validate_install_sequences(state)?;
-
+		validate_install_sequences(&state)?;
 		let mut next = state.clone();
-		let mut state_changed = false;
-		let mut truncations = BTreeMap::new();
-		let mut installs = BTreeMap::new();
-		let mut removals = BTreeSet::new();
-		let mut planned_objects: BTreeMap<PathBuf, PathBuf> = BTreeMap::new();
-		for (key, tombstone) in &next.manifest_tombstones {
-			validate_manifest_tombstone(key, tombstone, &next)?;
-			let object = self.object_path(&tombstone.cid);
-			if is_tombstoned(&next, &tombstone.cid) && object.exists() {
-				removals.insert(object);
-			}
-		}
-		let tombstoned_cids = next
-			.manifest_tombstones
-			.values()
-			.filter(|record| is_tombstoned(&next, &record.cid))
-			.map(|record| record.cid.clone())
-			.collect::<BTreeSet<_>>();
-		let quarantine_len = next.quarantine.len();
-		next.quarantine.retain(|cid, _| !tombstoned_cids.contains(cid));
-		state_changed |= quarantine_len != next.quarantine.len();
-		let repair_len = next.repairs.len();
-		for (key, repair) in &next.repairs {
-			if tombstoned_cids.contains(&repair.cid) && repair.phase != RepairPhase::Installed {
-				let path = self.repair_path(key);
-				if path.exists() {
-					removals.insert(path);
-				}
-			}
-		}
-		next.repairs.retain(|_, repair| !tombstoned_cids.contains(&repair.cid));
-		state_changed |= repair_len != next.repairs.len();
+		let mut changed = false;
 		let installed_cids: BTreeSet<_> = next
 			.operations
 			.values()
@@ -1507,7 +1076,7 @@ impl StreamingStore {
 			.collect();
 		let previous_quarantines = next.quarantine.len();
 		next.quarantine.retain(|cid, _| installed_cids.contains(cid));
-		state_changed |= previous_quarantines != next.quarantine.len();
+		changed |= previous_quarantines != next.quarantine.len();
 		let mut quarantine_sequences = BTreeSet::new();
 		for (cid, quarantine) in &next.quarantine {
 			let descriptor = next
@@ -1518,10 +1087,10 @@ impl StreamingStore {
 				})
 				.map(|record| &record.descriptor)
 				.ok_or(ContentError::IntegrityFailed)?;
-			if quarantine.expected_bytes != descriptor.object_len ||
-				quarantine.detection_sequence == 0 ||
-				quarantine.detection_sequence > next.detection_sequence ||
-				!quarantine_sequences.insert(quarantine.detection_sequence)
+			if quarantine.expected_bytes != descriptor.object_len
+				|| quarantine.detection_sequence == 0
+				|| quarantine.detection_sequence > next.detection_sequence
+				|| !quarantine_sequences.insert(quarantine.detection_sequence)
 			{
 				return Err(ContentError::IntegrityFailed);
 			}
@@ -1540,15 +1109,20 @@ impl StreamingStore {
 					if !next.quarantine.contains_key(&repair.cid) {
 						return Err(ContentError::IntegrityFailed);
 					}
-					let length =
-						fs::metadata(&path).map_err(|_| ContentError::IntegrityFailed)?.len();
+					let file = OpenOptions::new()
+						.read(true)
+						.write(true)
+						.open(&path)
+						.map_err(|_| ContentError::IntegrityFailed)?;
+					let length = file.metadata().map_err(io_error)?.len();
 					if length < repair.staged_bytes {
 						return Err(ContentError::IntegrityFailed);
 					}
-					verify_repair_prefix_for_recovery(&path, repair, &installed)?;
 					if length > repair.staged_bytes {
-						insert_truncation(&mut truncations, path, repair.staged_bytes)?;
+						file.set_len(repair.staged_bytes).map_err(io_error)?;
+						file.sync_all().map_err(io_error)?;
 					}
+					verify_repair_prefix(&path, repair, &installed)?;
 				},
 				RepairPhase::Finalizing => {
 					if !next.quarantine.contains_key(&repair.cid) {
@@ -1585,65 +1159,39 @@ impl StreamingStore {
 						return Err(ContentError::IntegrityFailed);
 					}
 					let path = self.part_path(&key);
-					let length =
-						fs::metadata(&path).map_err(|_| ContentError::IntegrityFailed)?.len();
+					let file = OpenOptions::new()
+						.read(true)
+						.write(true)
+						.open(&path)
+						.map_err(|_| ContentError::IntegrityFailed)?;
+					let length = file.metadata().map_err(io_error)?.len();
 					if length < record.received_bytes {
 						return Err(ContentError::IntegrityFailed);
 					}
-					verify_persisted_chunks(&path, &record.chunks, record.received_bytes)?;
 					if length > record.received_bytes {
-						insert_truncation(&mut truncations, path, record.received_bytes)?;
+						file.set_len(record.received_bytes).map_err(io_error)?;
+						file.sync_all().map_err(io_error)?;
 					}
+					verify_persisted_chunks(&path, &record.chunks, record.received_bytes)?;
 				},
 				Phase::Finalizing => {
-					if record.install_sequence.is_some() ||
-						record.receipt.is_some() ||
-						record.provider_receipt.is_some()
-					{
+					if record.install_sequence.is_some() {
 						return Err(ContentError::IntegrityFailed);
 					}
 					let part = self.part_path(&key);
-					if tombstoned_cids.contains(&record.descriptor.expected_cid) {
-						if next.recovery.values().any(|item| item.descriptor == record.descriptor) {
-							return Err(ContentError::IntegrityFailed);
-						}
-						if part.exists() {
-							verify_file(&part, &record.descriptor, &record.chunks)?;
-							removals.insert(part);
-						}
-						next.operations.get_mut(&key).expect("key exists").phase = Phase::Cancelled;
-						state_changed = true;
-						continue;
-					}
 					let object = self.object_path(&record.descriptor.expected_cid);
-					let (_, fingerprint, _) = if object.exists() {
-						let verified = verify_file(&object, &record.descriptor, &record.chunks)?;
-						if part.exists() {
-							verify_file(&part, &record.descriptor, &record.chunks)?;
-							removals.insert(part.clone());
-						}
-						verified
-					} else if let Some(source) = planned_objects.get(&object) {
-						let verified = verify_file(source, &record.descriptor, &record.chunks)?;
-						if part.exists() {
-							verify_file(&part, &record.descriptor, &record.chunks)?;
-							removals.insert(part.clone());
-						}
-						verified
+					if !object.exists() {
+						verify_file(&part, &record.descriptor, &record.chunks)?;
+						install_file(&part, &object, &record.descriptor, &record.chunks)?;
 					} else {
-						let verified = verify_file(&part, &record.descriptor, &record.chunks)?;
-						if installs
-							.insert(part.clone(), RecoveryInstallAction { object: object.clone() })
-							.is_some()
-						{
-							return Err(ContentError::IntegrityFailed);
+						verify_file(&object, &record.descriptor, &record.chunks)?;
+						if part.exists() {
+							fs::remove_file(&part).map_err(io_error)?;
+							sync_dir(part.parent().expect("staging path has parent"))?;
 						}
-						planned_objects.insert(object, part);
-						verified
-					};
-					if next.recovery.values().any(|item| item.descriptor == record.descriptor) {
-						continue;
 					}
+					let (_, fingerprint, _) =
+						verify_file(&object, &record.descriptor, &record.chunks)?;
 					let install_sequence = next.next_install_sequence;
 					next.next_install_sequence =
 						install_sequence.checked_add(1).ok_or(ContentError::IntegrityFailed)?;
@@ -1652,14 +1200,19 @@ impl StreamingStore {
 					let recovered = next.operations.get_mut(&key).expect("key exists");
 					recovered.phase = Phase::Installed;
 					recovered.install_sequence = Some(install_sequence);
-					recovered.receipt = Some(recovered_receipt);
-					state_changed = true;
+					recovered.receipt = Some(recovered_receipt.clone());
+					if next.recovery.values().any(|item| item.descriptor == record.descriptor) {
+						recovery::append_installed_terminal(
+							&mut next,
+							&key,
+							recovered_receipt,
+							install_sequence,
+						)?;
+					}
+					changed = true;
 				},
 				Phase::Installed => {
 					validate_installed_record(&record)?;
-					if tombstoned_cids.contains(&record.descriptor.expected_cid) {
-						continue;
-					}
 					let expected_receipt =
 						record.receipt.as_ref().expect("validated installed record has a receipt");
 					if next.quarantine.contains_key(&record.descriptor.expected_cid) {
@@ -1668,15 +1221,15 @@ impl StreamingStore {
 					let path = self.object_path(&record.descriptor.expected_cid);
 					match verify_file(&path, &record.descriptor, &record.chunks) {
 						Ok((_, fingerprint, length)) => {
-							if fingerprint != expected_receipt.fingerprint ||
-								expected_receipt.stored_bytes != length
+							if fingerprint != expected_receipt.fingerprint
+								|| expected_receipt.stored_bytes != length
 							{
 								return Err(ContentError::IntegrityFailed);
 							}
 						},
 						Err(error) => {
 							let (reason, observed_bytes) = diagnose_failure(&path, &record, &error);
-							state_changed |= insert_quarantine(
+							changed |= insert_quarantine(
 								&mut next,
 								&record.descriptor,
 								reason,
@@ -1691,12 +1244,14 @@ impl StreamingStore {
 					}
 					let path = self.part_path(&key);
 					if path.exists() {
-						removals.insert(path);
+						fs::remove_file(&path).map_err(io_error)?;
+						sync_dir(path.parent().expect("staging path has parent"))?;
+						changed = true;
 					}
 				},
 			}
 		}
-		let mut referenced_staging: BTreeSet<_> = next
+		let referenced_staging: BTreeSet<_> = next
 			.operations
 			.iter()
 			.filter(|(_, record)| matches!(record.phase, Phase::Receiving | Phase::Finalizing))
@@ -1705,70 +1260,46 @@ impl StreamingStore {
 				(repair.phase != RepairPhase::Installed).then(|| format!("repair-{key}.part"))
 			}))
 			.collect();
-		for path in truncations
-			.keys()
-			.chain(installs.keys())
-			.chain(removals.iter())
-			.filter(|path| path.parent() == Some(self.root.join(STAGING).as_path()))
-		{
-			let name = path
-				.file_name()
-				.and_then(|name| name.to_str())
-				.ok_or(ContentError::IntegrityFailed)?;
-			referenced_staging.insert(name.to_owned());
-		}
-		removals.extend(scan_unowned(&self.root.join(STAGING), &referenced_staging)?);
-		let mut referenced_objects: BTreeSet<_> = next
+		changed |= remove_unowned(&self.root.join(STAGING), &referenced_staging)?;
+		let referenced_objects: BTreeSet<_> = next
 			.operations
 			.values()
 			.filter(|record| matches!(record.phase, Phase::Finalizing | Phase::Installed))
-			.filter(|record| !tombstoned_cids.contains(&record.descriptor.expected_cid))
 			.map(|record| record.descriptor.expected_cid.clone())
 			.collect();
-		for path in removals
-			.iter()
-			.filter(|path| path.parent() == Some(self.root.join(OBJECTS).as_path()))
-		{
-			let name = path
-				.file_name()
-				.and_then(|name| name.to_str())
-				.ok_or(ContentError::IntegrityFailed)?;
-			referenced_objects.insert(name.to_owned());
+		changed |= remove_unowned(&self.root.join(OBJECTS), &referenced_objects)?;
+		if changed {
+			validate_install_sequences(&next)?;
+			recovery::validate_recovery_state(&next)?;
+			persist_state(&self.root, &next)?;
+			*state = next;
 		}
-		removals.extend(scan_unowned(&self.root.join(OBJECTS), &referenced_objects)?);
-		if truncations.keys().any(|path| removals.contains(path)) ||
-			installs.iter().any(|(part, install)| {
-				removals.contains(part) || removals.contains(&install.object)
-			}) {
-			return Err(ContentError::IntegrityFailed);
-		}
-
-		validate_install_sequences(&next)?;
-		recovery::validate_recovery_state(&next)?;
-		private_query::validate_private_query_state(&next)?;
-		validate_journal_cardinality(JournalCardinality::from_state(&next), self.operation_limit)?;
-		validate_encoded_journal_records(&next)?;
-		let journal_bytes = encode_state(&next, self.operation_limit)?;
-		let persist = state_changed ||
-			!truncations.is_empty() ||
-			!installs.is_empty() ||
-			!removals.is_empty() ||
-			!private_query_blobs.orphans.is_empty();
-		Ok(StreamingRecoveryPlan {
-			next,
-			journal_bytes,
-			persist,
-			truncations,
-			installs,
-			removals,
-			private_query_blobs,
-		})
+		Ok(())
 	}
 
 	/// Return immutable installed descriptors in sequence order without admitting their bytes.
 	pub(super) fn installation_records(&self) -> Result<Vec<VerifiedInstallation>, ContentError> {
 		let state = self.read_state()?;
-		installation_records_in(&state)
+		validate_install_sequences(&state)?;
+		let mut installations = state
+			.operations
+			.values()
+			.filter(|record| record.phase == Phase::Installed)
+			.map(|record| {
+				validate_installed_record(record)?;
+				Ok(VerifiedInstallation {
+					install_sequence: record
+						.install_sequence
+						.ok_or(ContentError::IntegrityFailed)?,
+					operation_id: record.descriptor.operation_id,
+					bucket_id: record.descriptor.bucket_id,
+					cid: CanonicalCid::parse(&record.descriptor.expected_cid)?,
+					stored_bytes: record.descriptor.object_len,
+				})
+			})
+			.collect::<Result<Vec<_>, ContentError>>()?;
+		installations.sort_by_key(|installation| installation.install_sequence);
+		Ok(installations)
 	}
 
 	/// Reverify one exact installed operation without accepting a CID-only alias.
@@ -1782,25 +1313,10 @@ impl StreamingStore {
 		#[cfg(test)]
 		self.exact_record_probes.fetch_add(1, Ordering::Relaxed);
 		let record = state.operations.get(&key).cloned().ok_or(ContentError::NotFound)?;
-		let tombstoned = is_bucket_tombstoned(
-			&state,
-			record.descriptor.bucket_id,
-			&record.descriptor.expected_cid,
-		);
 		#[cfg(test)]
 		self.exact_quarantine_probes.fetch_add(1, Ordering::Relaxed);
 		let quarantined = state.quarantine.contains_key(&record.descriptor.expected_cid);
 		drop(state);
-		if tombstoned {
-			validate_installed_record(&record)?;
-			return Ok(VerifiedInstallation {
-				install_sequence: record.install_sequence.ok_or(ContentError::IntegrityFailed)?,
-				operation_id: record.descriptor.operation_id,
-				bucket_id: record.descriptor.bucket_id,
-				cid: CanonicalCid::parse(&record.descriptor.expected_cid)?,
-				stored_bytes: record.descriptor.object_len,
-			});
-		}
 		self.verify_installation_record(record, quarantined)
 	}
 
@@ -1815,15 +1331,12 @@ impl StreamingStore {
 	) -> Result<VerifiedReplicationReady, ContentError> {
 		let canonical = CanonicalCid::parse(cid)?;
 		let state = self.read_state()?;
-		if is_bucket_tombstoned(&state, bucket_id, canonical.as_str()) {
-			return Err(ContentError::NotFound);
-		}
 		let install_key = operation_key_parts(bucket_id, install_operation_id);
 		let exact_install = state.operations.get(&install_key).cloned().filter(|record| {
-			record.phase == Phase::Installed &&
-				record.descriptor.bucket_id == bucket_id &&
-				record.descriptor.expected_cid == canonical.as_str() &&
-				record.descriptor.object_len == object_len
+			record.phase == Phase::Installed
+				&& record.descriptor.bucket_id == bucket_id
+				&& record.descriptor.expected_cid == canonical.as_str()
+				&& record.descriptor.object_len == object_len
 		});
 		let (record, exact_installation) = if let Some(record) = exact_install {
 			(record, true)
@@ -1832,10 +1345,10 @@ impl StreamingStore {
 				.operations
 				.values()
 				.find(|record| {
-					record.phase == Phase::Installed &&
-						record.descriptor.bucket_id == bucket_id &&
-						record.descriptor.expected_cid == canonical.as_str() &&
-						record.descriptor.object_len == object_len
+					record.phase == Phase::Installed
+						&& record.descriptor.bucket_id == bucket_id
+						&& record.descriptor.expected_cid == canonical.as_str()
+						&& record.descriptor.object_len == object_len
 				})
 				.cloned()
 				.ok_or(ContentError::NotFound)?;
@@ -1854,10 +1367,10 @@ impl StreamingStore {
 		let receipt = record.receipt.clone().ok_or(ContentError::IntegrityFailed)?;
 		drop(state);
 		let verified = self.verify_installation_record(record, false)?;
-		if verified.bucket_id != bucket_id ||
-			verified.cid.as_str() != canonical.as_str() ||
-			verified.stored_bytes != object_len ||
-			(exact_installation && verified.operation_id != install_operation_id)
+		if verified.bucket_id != bucket_id
+			|| verified.cid.as_str() != canonical.as_str()
+			|| verified.stored_bytes != object_len
+			|| (exact_installation && verified.operation_id != install_operation_id)
 		{
 			return Err(ContentError::IntegrityFailed);
 		}
@@ -1877,14 +1390,11 @@ impl StreamingStore {
 	) -> Result<ReplicationIngressState, ContentError> {
 		let canonical = CanonicalCid::parse(cid)?;
 		let state = self.read_state()?;
-		if is_bucket_tombstoned(&state, bucket_id, canonical.as_str()) {
-			return Err(ContentError::NotFound);
-		}
 		let install_key = operation_key_parts(bucket_id, install_operation_id);
 		if let Some(exact) = state.operations.get(&install_key).cloned() {
-			if exact.descriptor.bucket_id != bucket_id ||
-				exact.descriptor.expected_cid != canonical.as_str() ||
-				exact.descriptor.object_len != object_len
+			if exact.descriptor.bucket_id != bucket_id
+				|| exact.descriptor.expected_cid != canonical.as_str()
+				|| exact.descriptor.object_len != object_len
 			{
 				return Err(ContentError::IdempotencyConflict);
 			}
@@ -1894,8 +1404,8 @@ impl StreamingStore {
 					if let Some(repair) = state.repairs.get(&repair_key) {
 						let repaired = installed_record_for_repair(&state, repair)?;
 						validate_repair_record(&repair_key, repair, &repaired)?;
-						if repair.phase == RepairPhase::Installed &&
-							!state.quarantine.contains_key(canonical.as_str())
+						if repair.phase == RepairPhase::Installed
+							&& !state.quarantine.contains_key(canonical.as_str())
 						{
 							Ok(ReplicationIngressState::MaterializeRepaired)
 						} else {
@@ -1925,14 +1435,14 @@ impl StreamingStore {
 			.operations
 			.values()
 			.filter(|record| {
-				record.phase == Phase::Installed &&
-					record.descriptor.bucket_id == bucket_id &&
-					record.descriptor.expected_cid == canonical.as_str()
+				record.phase == Phase::Installed
+					&& record.descriptor.bucket_id == bucket_id
+					&& record.descriptor.expected_cid == canonical.as_str()
 			})
 			.cloned()
 			.collect::<Vec<_>>();
-		if matching.iter().any(|record| record.descriptor.object_len != object_len) ||
-			matching
+		if matching.iter().any(|record| record.descriptor.object_len != object_len)
+			|| matching
 				.first()
 				.is_some_and(|first| matching.iter().any(|record| record.chunks != first.chunks))
 		{
@@ -1980,17 +1490,14 @@ impl StreamingStore {
 	) -> Result<(), ContentError> {
 		let canonical = CanonicalCid::parse(cid)?;
 		let mut state = self.write_state()?;
-		if is_bucket_tombstoned(&state, bucket_id, canonical.as_str()) {
-			return Err(ContentError::NotFound);
-		}
 		let install = state
 			.operations
 			.get(&operation_key_parts(bucket_id, install_operation_id))
 			.cloned()
 			.ok_or(ContentError::NotFound)?;
-		if install.phase != Phase::Installed ||
-			install.descriptor.expected_cid != canonical.as_str() ||
-			state.quarantine.contains_key(canonical.as_str())
+		if install.phase != Phase::Installed
+			|| install.descriptor.expected_cid != canonical.as_str()
+			|| state.quarantine.contains_key(canonical.as_str())
 		{
 			return Err(ContentError::IdempotencyConflict);
 		}
@@ -1998,9 +1505,9 @@ impl StreamingStore {
 		let Some(repair) = state.repairs.get(&key) else {
 			return Ok(());
 		};
-		if repair.operation_id != repair_operation_id ||
-			repair.cid != canonical.as_str() ||
-			repair.phase != RepairPhase::Installed
+		if repair.operation_id != repair_operation_id
+			|| repair.cid != canonical.as_str()
+			|| repair.phase != RepairPhase::Installed
 		{
 			return Err(ContentError::IdempotencyConflict);
 		}
@@ -2020,13 +1527,6 @@ impl StreamingStore {
 		let key = operation_key_parts(bucket_id, operation_id);
 		let state = self.read_state()?;
 		let record = state.operations.get(&key).cloned().ok_or(ContentError::NotFound)?;
-		if is_bucket_tombstoned(
-			&state,
-			record.descriptor.bucket_id,
-			&record.descriptor.expected_cid,
-		) {
-			return Err(ContentError::NotFound);
-		}
 		let quarantined = state.quarantine.contains_key(&record.descriptor.expected_cid);
 		drop(state);
 		let installation = self.verify_installation_record(record.clone(), quarantined)?;
@@ -2076,11 +1576,7 @@ impl StreamingStore {
 	}
 
 	fn installed_record(&self, cid: &str) -> Result<OperationRecord, ContentError> {
-		let state = self.read_state()?;
-		if is_tombstoned(&state, cid) {
-			return Err(ContentError::NotFound);
-		}
-		state
+		self.read_state()?
 			.operations
 			.values()
 			.find(|record| {
@@ -2091,14 +1587,11 @@ impl StreamingStore {
 	}
 
 	fn installed_records(&self) -> Result<BTreeMap<String, OperationRecord>, ContentError> {
-		let state = self.read_state()?;
-		Ok(state
+		Ok(self
+			.read_state()?
 			.operations
 			.values()
-			.filter(|record| {
-				record.phase == Phase::Installed &&
-					!is_tombstoned(&state, &record.descriptor.expected_cid)
-			})
+			.filter(|record| record.phase == Phase::Installed)
 			.map(|record| (record.descriptor.expected_cid.clone(), record.clone()))
 			.collect())
 	}
@@ -2106,15 +1599,6 @@ impl StreamingStore {
 	fn reject_quarantined(&self, cid: &str) -> Result<(), ContentError> {
 		if self.is_quarantined(cid)? {
 			Err(ContentError::IntegrityFailed)
-		} else {
-			Ok(())
-		}
-	}
-
-	fn reject_tombstoned(&self, cid: &str) -> Result<(), ContentError> {
-		let state = self.read_state()?;
-		if is_tombstoned(&state, cid) {
-			Err(ContentError::NotFound)
 		} else {
 			Ok(())
 		}
@@ -2180,6 +1664,11 @@ impl StreamingStore {
 		self.root.join(STAGING).join(format!("repair-{cid}.part"))
 	}
 
+	fn persist(&self) -> Result<(), ContentError> {
+		let state = self.read_state()?;
+		persist_state(&self.root, &state)
+	}
+
 	fn read_state(&self) -> Result<std::sync::RwLockReadGuard<'_, JournalState>, ContentError> {
 		self.state.read().map_err(|_| lock_error())
 	}
@@ -2193,10 +1682,7 @@ fn integrity_summary(state: &JournalState) -> IntegritySummary {
 	let installed: BTreeSet<_> = state
 		.operations
 		.values()
-		.filter(|record| {
-			record.phase == Phase::Installed &&
-				!is_tombstoned(state, &record.descriptor.expected_cid)
-		})
+		.filter(|record| record.phase == Phase::Installed)
 		.map(|record| record.descriptor.expected_cid.as_str())
 		.collect();
 	let installed_objects = installed.len() as u64;
@@ -2210,75 +1696,6 @@ fn integrity_summary(state: &JournalState) -> IntegritySummary {
 		ready: quarantined_objects == 0,
 		last_detection_sequence: state.detection_sequence,
 	}
-}
-
-fn is_tombstoned(state: &JournalState, cid: &str) -> bool {
-	let mut installed = state
-		.operations
-		.values()
-		.filter(|record| record.phase == Phase::Installed && record.descriptor.expected_cid == cid);
-	let Some(first) = installed.next() else { return false };
-	is_bucket_tombstoned(state, first.descriptor.bucket_id, cid) &&
-		installed.all(|record| is_bucket_tombstoned(state, record.descriptor.bucket_id, cid))
-}
-
-fn is_bucket_tombstoned(state: &JournalState, bucket_id: BucketId, cid: &str) -> bool {
-	state.manifest_tombstones.contains_key(&manifest_tombstone_key(bucket_id, cid))
-}
-
-fn manifest_tombstone_key(bucket_id: BucketId, cid: &str) -> String {
-	format!("{}:{cid}", bucket_id)
-}
-
-fn manifest_deletion_evidence_hash(
-	manifest: [u8; 32],
-	bucket_id: BucketId,
-	provider_commitment: [u8; 32],
-	tombstoned_at: u32,
-) -> [u8; 32] {
-	let mut preimage = Vec::with_capacity(32 + 32 + 32 + 32 + 4);
-	preimage.extend_from_slice(b"cord/storage/deletion-evidence/v1");
-	preimage.extend_from_slice(&manifest);
-	preimage.extend_from_slice(bucket_id.as_bytes());
-	preimage.extend_from_slice(&provider_commitment);
-	preimage.extend_from_slice(&tombstoned_at.to_le_bytes());
-	sp_crypto_hashing::blake2_256(&preimage)
-}
-
-fn validate_manifest_tombstone(
-	key: &str,
-	record: &ManifestTombstoneRecord,
-	state: &JournalState,
-) -> Result<(), ContentError> {
-	let manifest: [u8; 32] = hex::decode(&record.manifest)
-		.map_err(|_| ContentError::IntegrityFailed)?
-		.try_into()
-		.map_err(|_| ContentError::IntegrityFailed)?;
-	if record.manifest != hex::encode(manifest) {
-		return Err(ContentError::IntegrityFailed);
-	}
-	let bucket_id = BucketId::parse(&record.bucket_id)?;
-	let provider_commitment: [u8; 32] = hex::decode(&record.provider_commitment)
-		.map_err(|_| ContentError::IntegrityFailed)?
-		.try_into()
-		.map_err(|_| ContentError::IntegrityFailed)?;
-	let cid = CanonicalCid::parse(&record.cid)?;
-	if key != manifest_tombstone_key(bucket_id, cid.as_str()) ||
-		cid.digest() != provider_commitment ||
-		record.evidence_hash !=
-			hex::encode(manifest_deletion_evidence_hash(
-				manifest,
-				bucket_id,
-				provider_commitment,
-				record.tombstoned_at,
-			)) || !state.operations.values().any(|operation| {
-		operation.phase == Phase::Installed &&
-			operation.descriptor.bucket_id == bucket_id &&
-			operation.descriptor.expected_cid == cid.as_str()
-	}) {
-		return Err(ContentError::IntegrityFailed);
-	}
-	Ok(())
 }
 
 fn insert_quarantine(
@@ -2349,9 +1766,9 @@ fn installed_record_for_repair(
 		.operations
 		.values()
 		.find(|record| {
-			record.phase == Phase::Installed &&
-				record.descriptor.expected_cid == repair.cid &&
-				repair_descriptor_hash(&record.descriptor) == repair.descriptor_hash
+			record.phase == Phase::Installed
+				&& record.descriptor.expected_cid == repair.cid
+				&& repair_descriptor_hash(&record.descriptor) == repair.descriptor_hash
 		})
 		.cloned()
 		.ok_or(ContentError::IntegrityFailed)
@@ -2397,11 +1814,11 @@ fn validate_repair_record(
 	repair: &RepairRecord,
 	installed: &OperationRecord,
 ) -> Result<(), ContentError> {
-	if repair_key(&repair.cid, repair.operation_id).map_err(|_| ContentError::IntegrityFailed)? !=
-		key || repair.cid != installed.descriptor.expected_cid ||
-		repair.descriptor_hash != repair_descriptor_hash(&installed.descriptor) ||
-		repair.manifest_hash != repair_manifest_hash(&installed.chunks) ||
-		repair.next_chunk as usize > installed.chunks.len()
+	if repair_key(&repair.cid, repair.operation_id).map_err(|_| ContentError::IntegrityFailed)?
+		!= key || repair.cid != installed.descriptor.expected_cid
+		|| repair.descriptor_hash != repair_descriptor_hash(&installed.descriptor)
+		|| repair.manifest_hash != repair_manifest_hash(&installed.chunks)
+		|| repair.next_chunk as usize > installed.chunks.len()
 	{
 		return Err(ContentError::IntegrityFailed);
 	}
@@ -2411,16 +1828,16 @@ fn validate_repair_record(
 		.take(repair.next_chunk as usize)
 		.try_fold(0u64, |total, chunk| total.checked_add(chunk.length as u64))
 		.ok_or(ContentError::IntegrityFailed)?;
-	if repair.staged_bytes != staged_bytes ||
-		(matches!(repair.phase, RepairPhase::Finalizing | RepairPhase::Installed) &&
-			repair.next_chunk as usize != installed.chunks.len())
+	if repair.staged_bytes != staged_bytes
+		|| (matches!(repair.phase, RepairPhase::Finalizing | RepairPhase::Installed)
+			&& repair.next_chunk as usize != installed.chunks.len())
 	{
 		return Err(ContentError::IntegrityFailed);
 	}
 	Ok(())
 }
 
-fn verify_repair_prefix_for_recovery(
+fn verify_repair_prefix(
 	path: &Path,
 	repair: &RepairRecord,
 	installed: &OperationRecord,
@@ -2433,7 +1850,7 @@ fn verify_repair_prefix_for_recovery(
 			return Err(ContentError::IntegrityFailed);
 		}
 	}
-	if file.metadata().map_err(io_error)?.len() < repair.staged_bytes {
+	if file.metadata().map_err(io_error)?.len() != repair.staged_bytes {
 		return Err(ContentError::IntegrityFailed);
 	}
 	Ok(())
@@ -2458,8 +1875,9 @@ fn diagnose_failure(
 ) -> (QuarantineReason, Option<u64>) {
 	let metadata = match fs::metadata(path) {
 		Ok(metadata) => metadata,
-		Err(error) if error.kind() == std::io::ErrorKind::NotFound =>
-			return (QuarantineReason::Missing, None),
+		Err(error) if error.kind() == std::io::ErrorKind::NotFound => {
+			return (QuarantineReason::Missing, None)
+		},
 		Err(_) => return (QuarantineReason::Unreadable, None),
 	};
 	let observed = Some(metadata.len());
@@ -2513,10 +1931,10 @@ fn expected_receipt(record: &OperationRecord) -> Result<StreamingReceipt, Conten
 }
 
 fn validate_installed_record(record: &OperationRecord) -> Result<(), ContentError> {
-	if record.phase != Phase::Installed ||
-		record.install_sequence.is_none() ||
-		validate_descriptor(&record.descriptor).is_err() ||
-		record.received_bytes != record.descriptor.object_len
+	if record.phase != Phase::Installed
+		|| record.install_sequence.is_none()
+		|| validate_descriptor(&record.descriptor).is_err()
+		|| record.received_bytes != record.descriptor.object_len
 	{
 		return Err(ContentError::IntegrityFailed);
 	}
@@ -2548,39 +1966,12 @@ fn validate_install_sequences(state: &JournalState) -> Result<(), ContentError> 
 			(_, Some(_)) => return Err(ContentError::IntegrityFailed),
 		}
 	}
-	if state.next_install_sequence != sequences.len() as u64 ||
-		sequences.iter().copied().ne(0..state.next_install_sequence)
+	if state.next_install_sequence != sequences.len() as u64
+		|| sequences.iter().copied().ne(0..state.next_install_sequence)
 	{
 		return Err(ContentError::IntegrityFailed);
 	}
 	Ok(())
-}
-
-fn installation_records_in(
-	state: &JournalState,
-) -> Result<Vec<VerifiedInstallation>, ContentError> {
-	validate_install_sequences(state)?;
-	let mut installations = state
-		.operations
-		.values()
-		.filter(|record| record.phase == Phase::Installed)
-		.map(verified_installation_from_record)
-		.collect::<Result<Vec<_>, ContentError>>()?;
-	installations.sort_by_key(|installation| installation.install_sequence);
-	Ok(installations)
-}
-
-fn verified_installation_from_record(
-	record: &OperationRecord,
-) -> Result<VerifiedInstallation, ContentError> {
-	validate_installed_record(record)?;
-	Ok(VerifiedInstallation {
-		install_sequence: record.install_sequence.ok_or(ContentError::IntegrityFailed)?,
-		operation_id: record.descriptor.operation_id,
-		bucket_id: record.descriptor.bucket_id,
-		cid: CanonicalCid::parse(&record.descriptor.expected_cid)?,
-		stored_bytes: record.descriptor.object_len,
-	})
 }
 
 fn validate_descriptor(descriptor: &StreamingDescriptor) -> Result<(), ContentError> {
@@ -2823,217 +2214,31 @@ fn install_file(
 	sync_dir(objects)
 }
 
-fn insert_truncation(
-	truncations: &mut BTreeMap<PathBuf, RecoveryTruncationAction>,
-	path: PathBuf,
-	target_length: u64,
-) -> Result<(), ContentError> {
-	if truncations.insert(path, RecoveryTruncationAction { target_length }).is_some() {
-		return Err(ContentError::IntegrityFailed);
-	}
-	Ok(())
-}
-
-fn validate_streaming_namespace(
-	provider_root: &Path,
-) -> Result<StreamingNamespacePlan, ContentError> {
-	let root = provider_root.join(STREAM_ROOT);
-	if !crate::bounded_io::optional_directory_exists(&root)? {
-		return Ok(StreamingNamespacePlan {
-			root,
-			root_missing: true,
-			journal_missing: true,
-			staging_missing: true,
-			objects_missing: true,
-			journal_temps: Vec::new(),
-		});
-	}
-	let mut journal = false;
-	let mut staging = false;
-	let mut objects = false;
-	let mut responses = false;
-	let mut journal_temps = Vec::new();
-	let mut visited = 0usize;
-	for entry in fs::read_dir(&root).map_err(io_error)? {
-		visited = visited.checked_add(1).ok_or(ContentError::IntegrityFailed)?;
-		if visited > MAX_STREAM_ROOT_ARTIFACTS {
-			return Err(ContentError::IntegrityFailed);
-		}
-		let entry = entry.map_err(io_error)?;
-		let name = entry.file_name().to_string_lossy().into_owned();
-		let file_type = entry.file_type().map_err(io_error)?;
-		match name.as_str() {
-			JOURNAL if file_type.is_file() => journal = true,
-			STAGING if file_type.is_dir() => staging = true,
-			OBJECTS if file_type.is_dir() => objects = true,
-			name if name == private_query::response_directory_name() && file_type.is_dir() => {
-				responses = true;
-			},
-			name if name.starts_with(JOURNAL_TEMP_PREFIX) && file_type.is_file() => {
-				let process_id = &name[JOURNAL_TEMP_PREFIX.len()..];
-				if process_id.is_empty() || !process_id.bytes().all(|byte| byte.is_ascii_digit()) {
-					return Err(ContentError::IntegrityFailed);
-				}
-				journal_temps.push(entry.path());
-				if journal_temps.len() > MAX_JOURNAL_TEMP_ARTIFACTS {
-					return Err(ContentError::IntegrityFailed);
-				}
-			},
-			_ => return Err(ContentError::IntegrityFailed),
-		}
-	}
-	let expected = usize::from(journal) +
-		usize::from(staging) +
-		usize::from(objects) +
-		usize::from(responses) +
-		journal_temps.len();
-	if expected != visited {
-		return Err(ContentError::IntegrityFailed);
-	}
-	if !journal && journal_temps.is_empty() {
-		for (present, path) in [
-			(staging, root.join(STAGING)),
-			(objects, root.join(OBJECTS)),
-			(responses, root.join(private_query::response_directory_name())),
-		] {
-			if present && fs::read_dir(path).map_err(io_error)?.next().is_some() {
-				return Err(ContentError::IntegrityFailed);
-			}
-		}
-	}
-	Ok(StreamingNamespacePlan {
-		root,
-		root_missing: false,
-		journal_missing: !journal,
-		staging_missing: !staging,
-		objects_missing: !objects,
-		journal_temps,
-	})
-}
-
-fn apply_streaming_namespace(plan: &StreamingNamespacePlan) -> Result<(), ContentError> {
-	if plan.root_missing {
-		fs::create_dir(&plan.root).map_err(io_error)?;
-		let parent = plan.root.parent().ok_or(ContentError::IntegrityFailed)?;
-		sync_dir(parent)?;
-	}
-	let mut created_directory = false;
-	for (missing, name) in [(plan.staging_missing, STAGING), (plan.objects_missing, OBJECTS)] {
-		if missing {
-			fs::create_dir(plan.root.join(name)).map_err(io_error)?;
-			created_directory = true;
-		}
-	}
-	if created_directory {
-		sync_dir(&plan.root)?;
-	}
-	if plan.journal_missing {
-		if let Some(source) = plan.journal_temps.first() {
-			fs::rename(source, plan.root.join(JOURNAL)).map_err(io_error)?;
-			sync_dir(&plan.root)?;
-		}
-		Ok(())
-	} else {
-		crate::bounded_io::remove_validated_temp_artifacts(&plan.root, &plan.journal_temps)
-	}
-}
-
-fn apply_recovery_plan(root: &Path, plan: &StreamingRecoveryPlan) -> Result<(), ContentError> {
-	for (path, action) in &plan.truncations {
-		let file = OpenOptions::new().write(true).open(path).map_err(io_error)?;
-			file.set_len(action.target_length).map_err(io_error)?;
-			file.sync_all().map_err(io_error)?;
-		}
-	for (part, install) in &plan.installs {
-		fs::rename(part, &install.object).map_err(io_error)?;
-		File::open(&install.object).and_then(|file| file.sync_all()).map_err(io_error)?;
-		sync_dir(part.parent().ok_or(ContentError::IntegrityFailed)?)?;
-		sync_dir(install.object.parent().ok_or(ContentError::IntegrityFailed)?)?;
-	}
-	let mut synced_directories = BTreeSet::new();
-	for path in &plan.removals {
-		match fs::remove_file(path) {
-			Ok(()) => {
-				synced_directories
-					.insert(path.parent().ok_or(ContentError::IntegrityFailed)?.to_path_buf());
-			},
-			Err(error) if error.kind() == std::io::ErrorKind::NotFound => {},
-			Err(error) => return Err(io_error(error)),
-		}
-	}
-	for directory in synced_directories {
-		sync_dir(&directory)?;
-	}
-	private_query::apply_private_query_blob_recovery_plan(root, &plan.private_query_blobs)?;
-	Ok(())
-}
-
-fn scan_unowned(directory: &Path, owned: &BTreeSet<String>) -> Result<Vec<PathBuf>, ContentError> {
-	if !directory.try_exists().map_err(io_error)? {
-		return Ok(Vec::new());
-	}
-	let max_entries = owned
-		.len()
-		.checked_add(MAX_UNOWNED_DIRECTORY_ARTIFACTS)
-		.ok_or(ContentError::IntegrityFailed)?;
-	let mut visited = 0usize;
-	let mut unowned = Vec::new();
+fn remove_unowned(directory: &Path, owned: &BTreeSet<String>) -> Result<bool, ContentError> {
+	let mut changed = false;
 	for entry in fs::read_dir(directory).map_err(io_error)? {
-		visited = visited.checked_add(1).ok_or(ContentError::IntegrityFailed)?;
-		if visited > max_entries {
-			return Err(ContentError::IntegrityFailed);
-		}
 		let entry = entry.map_err(io_error)?;
-		if !entry.file_type().map_err(io_error)?.is_file() {
-			return Err(ContentError::IntegrityFailed);
-		}
 		let name = entry.file_name().to_string_lossy().into_owned();
 		if !owned.contains(&name) {
-			unowned.push(entry.path());
-			if unowned.len() > MAX_UNOWNED_DIRECTORY_ARTIFACTS {
-				return Err(ContentError::IntegrityFailed);
-			}
+			fs::remove_file(entry.path()).map_err(io_error)?;
+			changed = true;
 		}
 	}
-	Ok(unowned)
+	if changed {
+		sync_dir(directory)?;
+	}
+	Ok(changed)
 }
 
 fn persist_state(root: &Path, state: &JournalState) -> Result<(), ContentError> {
-	let bytes = encode_state(state, MAX_STREAMING_OPERATIONS)?;
-	persist_state_bytes(root, &bytes)
-}
-
-fn encode_state(state: &JournalState, operation_limit: usize) -> Result<Vec<u8>, ContentError> {
-	validate_journal_cardinality(JournalCardinality::from_state(state), operation_limit)
-		.map_err(|_| ContentError::ProviderRecoveryTableFull)?;
-	validate_encoded_journal_records(state).map_err(|_| ContentError::ProviderRecoveryTableFull)?;
-	let bytes = serde_json::to_vec(state).map_err(io_error)?;
-	if bytes.len() as u64 > journal_byte_limit(operation_limit)? {
-		return Err(ContentError::ProviderRecoveryTableFull);
-	}
-	Ok(bytes)
-}
-
-fn persist_state_bytes(root: &Path, bytes: &[u8]) -> Result<(), ContentError> {
+	let bytes = serde_json::to_vec_pretty(state).map_err(io_error)?;
 	let path = root.join(JOURNAL);
 	let temporary = root.join(format!("{JOURNAL}.tmp-{}", std::process::id()));
-	let mut file = OpenOptions::new()
-		.create_new(true)
-		.write(true)
-		.open(&temporary)
-		.map_err(io_error)?;
-	let result = (|| {
-		file.write_all(bytes).map_err(io_error)?;
-		file.sync_all().map_err(io_error)?;
-		drop(file);
-		fs::rename(&temporary, path).map_err(io_error)?;
-		sync_dir(root)
-	})();
-	if result.is_err() {
-		let _ = fs::remove_file(&temporary);
-		let _ = sync_dir(root);
-	}
-	result
+	let mut file = File::create(&temporary).map_err(io_error)?;
+	file.write_all(&bytes).map_err(io_error)?;
+	file.sync_all().map_err(io_error)?;
+	fs::rename(temporary, path).map_err(io_error)?;
+	sync_dir(root)
 }
 
 fn sync_dir(path: &Path) -> Result<(), ContentError> {
@@ -3051,549 +2256,7 @@ fn lock_error() -> ContentError {
 #[cfg(test)]
 mod exact_lookup_tests {
 	use super::*;
-	use crate::{
-		capability::ProviderCapabilityV1, storage::bucket_mmr::BucketMmrStore,
-		CapabilityAuthoritySnapshot,
-	};
-
-	#[test]
-	fn journal_bound_covers_every_independent_runtime_table_and_rejects_one_over() {
-		let maximum = JournalCardinality {
-			operations: MAX_STREAMING_OPERATIONS,
-			quarantine: MAX_STREAMING_OPERATIONS,
-			repairs: MAX_STREAMING_OPERATIONS,
-			recovery: MAX_STREAMING_OPERATIONS,
-			capability_replay: MAX_STREAMING_OPERATIONS,
-			private_queries: MAX_STREAMING_OPERATIONS,
-			private_query_replay: MAX_STREAMING_OPERATIONS,
-			manifest_tombstones: MAX_STREAMING_OPERATIONS,
-		};
-		validate_journal_cardinality(maximum, MAX_STREAMING_OPERATIONS).unwrap();
-		assert!(
-			journal_byte_limit(MAX_STREAMING_OPERATIONS).unwrap() >
-				MAX_STREAMING_OPERATIONS as u64 * MAX_ENCODED_DURABLE_SLOT_BYTES
-		);
-
-		let one_over =
-			JournalCardinality { private_query_replay: MAX_STREAMING_OPERATIONS + 1, ..maximum };
-		assert_eq!(
-			validate_journal_cardinality(one_over, MAX_STREAMING_OPERATIONS),
-			Err(ContentError::IntegrityFailed)
-		);
-	}
-
-	#[test]
-	fn corrupt_or_missing_journal_never_creates_or_scrubs_stream_namespaces() {
-		let corrupt = tempfile::tempdir().unwrap();
-		let corrupt_root = corrupt.path().join(STREAM_ROOT);
-		fs::create_dir(&corrupt_root).unwrap();
-		fs::write(corrupt_root.join(JOURNAL), b"not-json").unwrap();
-		assert!(StreamingStore::open(corrupt.path()).is_err());
-		assert_eq!(fs::read_dir(&corrupt_root).unwrap().count(), 1);
-		assert!(!corrupt_root.join(STAGING).exists());
-		assert!(!corrupt_root.join(OBJECTS).exists());
-
-		let missing = tempfile::tempdir().unwrap();
-		let missing_root = missing.path().join(STREAM_ROOT);
-		fs::create_dir(&missing_root).unwrap();
-		fs::create_dir(missing_root.join(STAGING)).unwrap();
-		fs::create_dir(missing_root.join(OBJECTS)).unwrap();
-		fs::create_dir(missing_root.join(private_query::response_directory_name())).unwrap();
-		let orphan = missing_root.join(OBJECTS).join("must-survive");
-		fs::write(&orphan, b"unbound-object-evidence").unwrap();
-		assert!(matches!(StreamingStore::open(missing.path()), Err(ContentError::IntegrityFailed)));
-		assert_eq!(fs::read(orphan).unwrap(), b"unbound-object-evidence");
-		assert!(!missing_root.join(JOURNAL).exists());
-	}
-
-	#[cfg(unix)]
-	#[test]
-	fn streaming_namespace_symlink_is_rejected_without_external_writes() {
-		use std::os::unix::fs::symlink;
-
-		let temp = tempfile::tempdir().unwrap();
-		let external = tempfile::tempdir().unwrap();
-		symlink(external.path(), temp.path().join(STREAM_ROOT)).unwrap();
-
-		assert!(matches!(StreamingStore::open(temp.path()), Err(ContentError::IntegrityFailed)));
-		assert_eq!(fs::read_dir(external.path()).unwrap().count(), 0);
-	}
-
-	#[test]
-	fn sole_valid_journal_temp_is_promoted_and_temp_flood_is_preserved() {
-		let recovered = tempfile::tempdir().unwrap();
-		drop(StreamingStore::open(recovered.path()).unwrap());
-		let root = recovered.path().join(STREAM_ROOT);
-		let journal = root.join(JOURNAL);
-		let bytes = fs::read(&journal).unwrap();
-		fs::remove_file(&journal).unwrap();
-		let crash_temp = root.join(format!("{JOURNAL_TEMP_PREFIX}{}", std::process::id()));
-		fs::write(&crash_temp, &bytes).unwrap();
-		drop(StreamingStore::open(recovered.path()).unwrap());
-		assert_eq!(fs::read(&journal).unwrap(), bytes);
-		assert!(!crash_temp.exists());
-
-		let flooded = tempfile::tempdir().unwrap();
-		drop(StreamingStore::open(flooded.path()).unwrap());
-		let root = flooded.path().join(STREAM_ROOT);
-		let first = root.join(format!("{JOURNAL_TEMP_PREFIX}71"));
-		let second = root.join(format!("{JOURNAL_TEMP_PREFIX}72"));
-		fs::write(&first, b"first").unwrap();
-		fs::write(&second, b"second").unwrap();
-		assert!(matches!(StreamingStore::open(flooded.path()), Err(ContentError::IntegrityFailed)));
-		assert_eq!(fs::read(first).unwrap(), b"first");
-		assert_eq!(fs::read(second).unwrap(), b"second");
-	}
-
-	#[test]
-	fn returned_journal_write_error_releases_only_its_created_retry_slot() {
-		let temp = tempfile::tempdir().unwrap();
-		let root = temp.path().join(STREAM_ROOT);
-		fs::create_dir(&root).unwrap();
-		fs::create_dir(root.join(JOURNAL)).unwrap();
-		let state = JournalState {
-			version: STREAM_VERSION,
-			operations: BTreeMap::new(),
-			next_install_sequence: 0,
-			quarantine: BTreeMap::new(),
-			repairs: BTreeMap::new(),
-			detection_sequence: 0,
-			recovery: BTreeMap::new(),
-			capability_replay: BTreeMap::new(),
-			private_queries: BTreeMap::new(),
-			private_query_replay: BTreeMap::new(),
-			private_query_gc_cursor: None,
-			private_query_response_bytes: 0,
-			manifest_tombstones: BTreeMap::new(),
-		};
-		let bytes = encode_state(&state, MAX_STREAMING_OPERATIONS).unwrap();
-		assert!(persist_state_bytes(&root, &bytes).is_err());
-		let retry_slot = root.join(format!("{JOURNAL}.tmp-{}", std::process::id()));
-		assert!(!retry_slot.exists());
-		fs::remove_dir(root.join(JOURNAL)).unwrap();
-		persist_state_bytes(&root, &bytes).unwrap();
-		assert_eq!(fs::read(root.join(JOURNAL)).unwrap(), bytes);
-	}
-
-	#[test]
-	fn tombstoned_cid_cancels_duplicate_finalizing_recovery_in_one_open() {
-		let temp = tempfile::tempdir().unwrap();
-		let store = StreamingStore::open(temp.path()).unwrap();
-		let bytes = b"tombstoned-shared-finalizing";
-		let commitment = sp_crypto_hashing::blake2_256(bytes);
-		let cid = CanonicalCid::from_digest(commitment);
-		let installed_bucket = BucketId::from_bytes([0x81; 32]);
-		store
-			.put_chunks(
-				StreamingDescriptor {
-					operation_id: OperationId::from_bytes([0x82; 16]),
-					bucket_id: installed_bucket,
-					expected_cid: cid.to_string(),
-					object_len: bytes.len() as u64,
-				},
-				[bytes.to_vec()],
-			)
-			.unwrap();
-		let duplicate = StreamingDescriptor {
-			operation_id: OperationId::from_bytes([0x83; 16]),
-			bucket_id: BucketId::from_bytes([0x84; 32]),
-			expected_cid: cid.to_string(),
-			object_len: bytes.len() as u64,
-		};
-		store.begin(duplicate.clone()).unwrap();
-		store
-			.push_chunk_sync(duplicate.bucket_id, duplicate.operation_id, 0, bytes)
-			.unwrap();
-		store.inject_fault_once(StreamingFault::AfterFinalizingJournal).unwrap();
-		assert!(matches!(
-			store.finalize(duplicate.bucket_id, duplicate.operation_id),
-			Err(ContentError::Io(_))
-		));
-		let duplicate_part = store.part_path(&operation_key(&duplicate));
-		assert!(duplicate_part.exists());
-		store.inject_fault_once(StreamingFault::AfterTombstoneJournal).unwrap();
-		assert!(matches!(
-			store.tombstone_manifest([0x85; 32], installed_bucket, commitment, 99),
-			Err(ContentError::Io(_))
-		));
-		let object = store.object_path(cid.as_str());
-		assert!(object.exists());
-		drop(store);
-
-		let reopened = StreamingStore::open(temp.path()).unwrap();
-		assert!(!object.exists());
-		assert!(!duplicate_part.exists());
-		assert_eq!(
-			reopened
-				.read_state()
-				.unwrap()
-				.operations
-				.get(&operation_key(&duplicate))
-				.unwrap()
-				.phase,
-			Phase::Cancelled
-		);
-		drop(reopened);
-		drop(StreamingStore::open(temp.path()).unwrap());
-		assert!(!object.exists());
-	}
-
-	#[test]
-	fn recovery_scrubs_one_unowned_file_and_rejects_staging_or_object_floods() {
-		for directory in [STAGING, OBJECTS] {
-			let exact = tempfile::tempdir().unwrap();
-			drop(StreamingStore::open(exact.path()).unwrap());
-			let target = exact.path().join(STREAM_ROOT).join(directory);
-			let orphan = target.join("orphan");
-			fs::write(&orphan, b"partial").unwrap();
-			drop(StreamingStore::open(exact.path()).unwrap());
-			assert!(!orphan.exists(), "{directory}");
-
-			let flooded = tempfile::tempdir().unwrap();
-			drop(StreamingStore::open(flooded.path()).unwrap());
-			let target = flooded.path().join(STREAM_ROOT).join(directory);
-			fs::write(target.join("orphan-a"), b"partial").unwrap();
-			fs::write(target.join("orphan-b"), b"partial").unwrap();
-			assert!(matches!(
-				StreamingStore::open(flooded.path()),
-				Err(ContentError::IntegrityFailed)
-			));
-			assert_eq!(fs::read_dir(target).unwrap().count(), 2, "{directory}");
-		}
-	}
-
-	#[test]
-	fn tombstone_removals_do_not_consume_the_true_object_orphan_budget() {
-		for orphan_count in [1usize, 2] {
-			let temp = tempfile::tempdir().unwrap();
-			let store = StreamingStore::open(temp.path()).unwrap();
-			let mut objects = Vec::new();
-			for value in [0x71u8, 0x72] {
-				let bytes = vec![value; 9];
-				let commitment = sp_crypto_hashing::blake2_256(&bytes);
-				let cid = CanonicalCid::from_digest(commitment);
-				let bucket = BucketId::from_bytes([value; 32]);
-				store
-					.put_chunks(
-						StreamingDescriptor {
-							operation_id: OperationId::from_bytes([value; 16]),
-							bucket_id: bucket,
-							expected_cid: cid.to_string(),
-							object_len: bytes.len() as u64,
-						},
-						[bytes.clone()],
-					)
-					.unwrap();
-				let path = store.object_path(cid.as_str());
-				store.inject_fault_once(StreamingFault::AfterTombstoneJournal).unwrap();
-				assert!(matches!(
-					store.tombstone_manifest([value; 32], bucket, commitment, value as u32),
-					Err(ContentError::Io(_))
-				));
-				assert_eq!(fs::read(&path).unwrap(), bytes);
-				objects.push(path);
-			}
-			let objects_directory = store.root.join(OBJECTS);
-			let orphans = (0..orphan_count)
-				.map(|index| {
-					let path = objects_directory.join(format!("true-orphan-{index}"));
-					fs::write(&path, format!("orphan-{index}")).unwrap();
-					path
-				})
-				.collect::<Vec<_>>();
-			let journal = store.root.join(JOURNAL);
-			let journal_before = fs::read(&journal).unwrap();
-			drop(store);
-
-			if orphan_count == 1 {
-				drop(StreamingStore::open(temp.path()).unwrap());
-				assert!(objects.iter().chain(&orphans).all(|path| !path.exists()));
-			} else {
-				assert!(matches!(
-					StreamingStore::open(temp.path()),
-					Err(ContentError::IntegrityFailed)
-				));
-				assert!(objects.iter().chain(&orphans).all(|path| path.exists()));
-				assert_eq!(fs::read(journal).unwrap(), journal_before);
-			}
-		}
-	}
-
-	#[test]
-	fn recovery_validation_failure_preserves_earlier_tombstone_action_and_journal() {
-		let temp = tempfile::tempdir().unwrap();
-		let store = StreamingStore::open(temp.path()).unwrap();
-		let tombstoned_bytes = b"tombstoned-but-not-yet-removed";
-		let commitment = sp_crypto_hashing::blake2_256(tombstoned_bytes);
-		let cid = CanonicalCid::from_digest(commitment);
-		let tombstoned_bucket = BucketId::from_bytes([0x11; 32]);
-		store
-			.put_chunks(
-				StreamingDescriptor {
-					operation_id: OperationId::from_bytes([0x12; 16]),
-					bucket_id: tombstoned_bucket,
-					expected_cid: cid.to_string(),
-					object_len: tombstoned_bytes.len() as u64,
-				},
-				[tombstoned_bytes.to_vec()],
-			)
-			.unwrap();
-		let late_descriptor = StreamingDescriptor {
-			operation_id: OperationId::from_bytes([0xfe; 16]),
-			bucket_id: BucketId::from_bytes([0xfd; 32]),
-			expected_cid: CanonicalCid::from_digest(sp_crypto_hashing::blake2_256(b"late"))
-				.to_string(),
-			object_len: 4,
-		};
-		store.begin(late_descriptor.clone()).unwrap();
-		store.inject_fault_once(StreamingFault::AfterTombstoneJournal).unwrap();
-		assert!(matches!(
-			store.tombstone_manifest([0x13; 32], tombstoned_bucket, commitment, 77),
-			Err(ContentError::Io(_))
-		));
-		let object = store.object_path(cid.as_str());
-		let late_part = store.part_path(&operation_key(&late_descriptor));
-		fs::remove_file(&late_part).unwrap();
-		let journal = store.root.join(JOURNAL);
-		let journal_before = fs::read(&journal).unwrap();
-		drop(store);
-
-		assert!(matches!(StreamingStore::open(temp.path()), Err(ContentError::IntegrityFailed)));
-		assert_eq!(fs::read(object).unwrap(), tombstoned_bytes);
-		assert_eq!(fs::read(journal).unwrap(), journal_before);
-	}
-
-	#[test]
-	fn recovery_validation_failure_preserves_overlong_receiving_file_and_journal() {
-		let temp = tempfile::tempdir().unwrap();
-		let store = StreamingStore::open(temp.path()).unwrap();
-		let descriptor = StreamingDescriptor {
-			operation_id: OperationId::from_bytes([0x21; 16]),
-			bucket_id: BucketId::from_bytes([0x22; 32]),
-			expected_cid: CanonicalCid::from_digest(sp_crypto_hashing::blake2_256(b"abc"))
-				.to_string(),
-			object_len: 3,
-		};
-		store.begin(descriptor.clone()).unwrap();
-		store
-			.push_chunk_sync(descriptor.bucket_id, descriptor.operation_id, 0, b"abc")
-			.unwrap();
-		let overlong = store.part_path(&operation_key(&descriptor));
-		OpenOptions::new()
-			.append(true)
-			.open(&overlong)
-			.unwrap()
-			.write_all(b"suffix")
-			.unwrap();
-		let later = StreamingDescriptor {
-			operation_id: OperationId::from_bytes([0xff; 16]),
-			bucket_id: BucketId::from_bytes([0xff; 32]),
-			expected_cid: CanonicalCid::from_digest(sp_crypto_hashing::blake2_256(b"later"))
-				.to_string(),
-			object_len: 5,
-		};
-		store.begin(later.clone()).unwrap();
-		fs::remove_file(store.part_path(&operation_key(&later))).unwrap();
-		let overlong_before = fs::read(&overlong).unwrap();
-		let journal = store.root.join(JOURNAL);
-		let journal_before = fs::read(&journal).unwrap();
-		drop(store);
-
-		assert!(matches!(StreamingStore::open(temp.path()), Err(ContentError::IntegrityFailed)));
-		assert_eq!(fs::read(overlong).unwrap(), overlong_before);
-		assert_eq!(fs::read(journal).unwrap(), journal_before);
-	}
-
-	#[test]
-	fn recovery_validation_failure_preserves_overlong_repair_file_and_journal() {
-		let bytes: Vec<_> = (0..CHUNK_BYTES + 17).map(|index| (index % 251) as u8).collect();
-		let (temp, store, cid) = repair_fixture(&bytes, 0x23);
-		let mut damaged = bytes.clone();
-		damaged[CHUNK_BYTES] ^= 1;
-		fs::write(store.object_path(&cid), damaged).unwrap();
-		assert_eq!(store.verify_installed(&cid), Err(ContentError::IntegrityFailed));
-		let repair_operation = OperationId::from_bytes([0x24; 16]);
-		let progress = store.begin_repair(&cid, repair_operation).unwrap();
-		assert_eq!(progress.next_chunk, 1);
-		let repair = store.repair_path(&repair_key(&cid, repair_operation).unwrap());
-		OpenOptions::new()
-			.append(true)
-			.open(&repair)
-			.unwrap()
-			.write_all(b"suffix")
-			.unwrap();
-		let later = StreamingDescriptor {
-			operation_id: OperationId::from_bytes([0xff; 16]),
-			bucket_id: BucketId::from_bytes([0xfe; 32]),
-			expected_cid: CanonicalCid::from_digest(sp_crypto_hashing::blake2_256(b"later"))
-				.to_string(),
-			object_len: 5,
-		};
-		store.begin(later.clone()).unwrap();
-		fs::remove_file(store.part_path(&operation_key(&later))).unwrap();
-		let repair_before = fs::read(&repair).unwrap();
-		let journal = store.root.join(JOURNAL);
-		let journal_before = fs::read(&journal).unwrap();
-		drop(store);
-
-		assert!(matches!(StreamingStore::open(temp.path()), Err(ContentError::IntegrityFailed)));
-		assert_eq!(fs::read(repair).unwrap(), repair_before);
-		assert_eq!(fs::read(journal).unwrap(), journal_before);
-	}
-
-	#[test]
-	fn invalid_finalizing_receipt_preserves_part_object_absence_and_journal() {
-		let temp = tempfile::tempdir().unwrap();
-		let store = StreamingStore::open(temp.path()).unwrap();
-		let bytes = b"finalizing";
-		let descriptor = StreamingDescriptor {
-			operation_id: OperationId::from_bytes([0x31; 16]),
-			bucket_id: BucketId::from_bytes([0x32; 32]),
-			expected_cid: CanonicalCid::from_digest(sp_crypto_hashing::blake2_256(bytes))
-				.to_string(),
-			object_len: bytes.len() as u64,
-		};
-		store.begin(descriptor.clone()).unwrap();
-		store
-			.push_chunk_sync(descriptor.bucket_id, descriptor.operation_id, 0, bytes)
-			.unwrap();
-		store.inject_fault_once(StreamingFault::AfterFinalizingJournal).unwrap();
-		assert!(matches!(
-			store.finalize(descriptor.bucket_id, descriptor.operation_id),
-			Err(ContentError::Io(_))
-		));
-		let part = store.part_path(&operation_key(&descriptor));
-		let part_before = fs::read(&part).unwrap();
-		let object = store.object_path(&descriptor.expected_cid);
-		assert!(!object.exists());
-		{
-			let mut state = store.write_state().unwrap();
-			state.operations.get_mut(&operation_key(&descriptor)).unwrap().provider_receipt =
-				Some("illegal-before-install".into());
-			persist_state(&store.root, &state).unwrap();
-		}
-		let journal = store.root.join(JOURNAL);
-		let journal_before = fs::read(&journal).unwrap();
-		drop(store);
-
-		assert!(matches!(StreamingStore::open(temp.path()), Err(ContentError::IntegrityFailed)));
-		assert_eq!(fs::read(part).unwrap(), part_before);
-		assert!(!object.exists());
-		assert_eq!(fs::read(journal).unwrap(), journal_before);
-	}
-
-	#[test]
-	fn valid_recovery_plan_is_idempotent_across_reopen() {
-		let temp = tempfile::tempdir().unwrap();
-		let store = StreamingStore::open(temp.path()).unwrap();
-		let bytes = b"durable-prefix";
-		let descriptor = StreamingDescriptor {
-			operation_id: OperationId::from_bytes([0x41; 16]),
-			bucket_id: BucketId::from_bytes([0x42; 32]),
-			expected_cid: CanonicalCid::from_digest(sp_crypto_hashing::blake2_256(bytes))
-				.to_string(),
-			object_len: bytes.len() as u64,
-		};
-		store.begin(descriptor.clone()).unwrap();
-		store
-			.push_chunk_sync(descriptor.bucket_id, descriptor.operation_id, 0, bytes)
-			.unwrap();
-		let part = store.part_path(&operation_key(&descriptor));
-		OpenOptions::new()
-			.append(true)
-			.open(&part)
-			.unwrap()
-			.write_all(b"suffix")
-			.unwrap();
-		drop(store);
-
-		drop(StreamingStore::open(temp.path()).unwrap());
-		assert_eq!(fs::read(&part).unwrap(), bytes);
-		let journal_after_first = fs::read(temp.path().join(STREAM_ROOT).join(JOURNAL)).unwrap();
-		drop(StreamingStore::open(temp.path()).unwrap());
-		assert_eq!(fs::read(part).unwrap(), bytes);
-		assert_eq!(
-			fs::read(temp.path().join(STREAM_ROOT).join(JOURNAL)).unwrap(),
-			journal_after_first
-		);
-	}
-
-	#[test]
-	fn shared_cid_finalizing_records_install_once_remove_redundant_part_and_converge() {
-		let temp = tempfile::tempdir().unwrap();
-		let store = StreamingStore::open(temp.path()).unwrap();
-		let bytes = b"shared-finalizing-object";
-		let cid = CanonicalCid::from_digest(sp_crypto_hashing::blake2_256(bytes));
-		let descriptors = [
-			StreamingDescriptor {
-				operation_id: OperationId::from_bytes([0x51; 16]),
-				bucket_id: BucketId::from_bytes([0x52; 32]),
-				expected_cid: cid.to_string(),
-				object_len: bytes.len() as u64,
-			},
-			StreamingDescriptor {
-				operation_id: OperationId::from_bytes([0x61; 16]),
-				bucket_id: BucketId::from_bytes([0x62; 32]),
-				expected_cid: cid.to_string(),
-				object_len: bytes.len() as u64,
-			},
-		];
-		for descriptor in &descriptors {
-			store.begin(descriptor.clone()).unwrap();
-			store
-				.push_chunk_sync(descriptor.bucket_id, descriptor.operation_id, 0, bytes)
-				.unwrap();
-			store.inject_fault_once(StreamingFault::AfterFinalizingJournal).unwrap();
-			assert!(matches!(
-				store.finalize(descriptor.bucket_id, descriptor.operation_id),
-				Err(ContentError::Io(_))
-			));
-		}
-		let parts = descriptors
-			.iter()
-			.map(|descriptor| store.part_path(&operation_key(descriptor)))
-			.collect::<Vec<_>>();
-		assert!(parts.iter().all(|path| path.exists()));
-		drop(store);
-
-		let reopened = StreamingStore::open(temp.path()).unwrap();
-		assert_eq!(fs::read(reopened.object_path(cid.as_str())).unwrap(), bytes);
-		assert!(parts.iter().all(|path| !path.exists()));
-		let state = reopened.read_state().unwrap();
-		let recovered = descriptors
-			.iter()
-			.map(|descriptor| state.operations.get(&operation_key(descriptor)).unwrap())
-			.collect::<Vec<_>>();
-		assert!(recovered.iter().all(|record| record.phase == Phase::Installed));
-		assert!(recovered.iter().all(|record| record.receipt.is_some()));
-		let mut sequences = recovered
-			.iter()
-			.map(|record| record.install_sequence.unwrap())
-			.collect::<Vec<_>>();
-		sequences.sort_unstable();
-		assert_eq!(sequences, vec![0, 1]);
-		drop(state);
-		let journal = reopened.root.join(JOURNAL);
-		let journal_after_first = fs::read(&journal).unwrap();
-		drop(reopened);
-
-		drop(StreamingStore::open(temp.path()).unwrap());
-		assert_eq!(fs::read(journal).unwrap(), journal_after_first);
-		assert!(parts.iter().all(|path| !path.exists()));
-	}
-
-	#[test]
-	fn sparse_oversized_journal_fails_closed_before_decode() {
-		let temp = tempfile::tempdir().unwrap();
-		let root = temp.path().join(STREAM_ROOT);
-		fs::create_dir_all(root.join(STAGING)).unwrap();
-		fs::create_dir_all(root.join(OBJECTS)).unwrap();
-		let journal = File::create(root.join(JOURNAL)).unwrap();
-		journal
-			.set_len(journal_byte_limit(MAX_STREAMING_OPERATIONS).unwrap() + 1)
-			.unwrap();
-		assert!(matches!(StreamingStore::open(temp.path()), Err(ContentError::IntegrityFailed)));
-	}
+	use crate::{capability::ProviderCapabilityV1, CapabilityAuthoritySnapshot};
 	use orbis_storage_runtime_api::{
 		AgreementInfo, AgreementStatus, BucketGrantInfo, BucketRole, ControlBucketInfo,
 		HostDelegationInfo,
@@ -3690,109 +2353,6 @@ mod exact_lookup_tests {
 			}),
 		};
 		(request, capability, snapshot, service)
-	}
-
-	#[test]
-	fn manifest_tombstone_fails_closed_across_crash_and_preserves_bucket_mmr_history() {
-		let temp = tempfile::tempdir().unwrap();
-		let bucket_id = BucketId::from_bytes([0x21; 32]);
-		let operation_id = OperationId::from_bytes([0x31; 16]);
-		let manifest = [0x41; 32];
-		let bytes = b"canonical manifest bytes";
-		let provider_commitment = sp_crypto_hashing::blake2_256(bytes);
-		let cid = CanonicalCid::from_digest(provider_commitment);
-		let store = StreamingStore::open(temp.path()).unwrap();
-		store
-			.put_chunks(
-				StreamingDescriptor {
-					operation_id,
-					bucket_id,
-					expected_cid: cid.to_string(),
-					object_len: bytes.len() as u64,
-				},
-				[bytes.to_vec()],
-			)
-			.unwrap();
-		let mmr = BucketMmrStore::open(temp.path(), &store).unwrap();
-		mmr.append_verified(&store, bucket_id, operation_id).unwrap();
-		let before = mmr.commitment_candidate(&store, bucket_id, 0).unwrap();
-
-		store.inject_fault_once(StreamingFault::AfterTombstoneJournal).unwrap();
-		assert!(store.tombstone_manifest(manifest, bucket_id, provider_commitment, 77).is_err());
-		assert_eq!(
-			store.read_range_verified(cid.as_str(), 0, bytes.len() as u64),
-			Err(ContentError::NotFound)
-		);
-		assert_eq!(
-			store.verified_replication_object(bucket_id, operation_id),
-			Err(ContentError::NotFound),
-		);
-		drop(mmr);
-		drop(store);
-
-		let reopened = StreamingStore::open(temp.path()).unwrap();
-		assert!(!reopened.object_path(cid.as_str()).exists());
-		let evidence = reopened
-			.tombstone_manifest(manifest, bucket_id, provider_commitment, 77)
-			.unwrap();
-		assert_eq!(evidence.manifest, manifest);
-		assert_eq!(evidence.bucket_id, bucket_id);
-		assert_eq!(evidence.cid, cid);
-		assert_eq!(evidence.provider_commitment, provider_commitment);
-		assert_eq!(evidence.tombstoned_at, 77);
-		assert_eq!(
-			evidence.evidence_hash,
-			manifest_deletion_evidence_hash(manifest, bucket_id, provider_commitment, 77),
-		);
-		assert_eq!(
-			reopened.tombstone_manifest(manifest, bucket_id, provider_commitment, 78),
-			Err(ContentError::IdempotencyConflict),
-		);
-		let reopened_mmr = BucketMmrStore::open(temp.path(), &reopened).unwrap();
-		assert_eq!(reopened_mmr.commitment_candidate(&reopened, bucket_id, 0).unwrap(), before);
-	}
-
-	#[test]
-	fn manifest_tombstone_is_bucket_scoped_for_shared_cid_until_last_reference() {
-		let temp = tempfile::tempdir().unwrap();
-		let bucket_a = BucketId::from_bytes([0x61; 32]);
-		let bucket_b = BucketId::from_bytes([0x62; 32]);
-		let operation_a = OperationId::from_bytes([0x71; 16]);
-		let operation_b = OperationId::from_bytes([0x72; 16]);
-		let bytes = b"shared canonical bytes";
-		let commitment = sp_crypto_hashing::blake2_256(bytes);
-		let cid = CanonicalCid::from_digest(commitment);
-		let store = StreamingStore::open(temp.path()).unwrap();
-		for (bucket_id, operation_id) in [(bucket_a, operation_a), (bucket_b, operation_b)] {
-			store
-				.put_chunks(
-					StreamingDescriptor {
-						operation_id,
-						bucket_id,
-						expected_cid: cid.to_string(),
-						object_len: bytes.len() as u64,
-					},
-					[bytes.to_vec()],
-				)
-				.unwrap();
-		}
-		store.tombstone_manifest([0x81; 32], bucket_a, commitment, 90).unwrap();
-		assert_eq!(
-			store.verified_replication_object(bucket_a, operation_a),
-			Err(ContentError::NotFound),
-		);
-		assert!(store.verified_replication_object(bucket_b, operation_b).is_ok());
-		assert_eq!(store.read_range_verified(cid.as_str(), 0, bytes.len() as u64).unwrap(), bytes,);
-		drop(store);
-
-		let reopened = StreamingStore::open(temp.path()).unwrap();
-		assert!(reopened.verified_replication_object(bucket_b, operation_b).is_ok());
-		reopened.tombstone_manifest([0x82; 32], bucket_b, commitment, 91).unwrap();
-		assert_eq!(
-			reopened.read_range_verified(cid.as_str(), 0, bytes.len() as u64),
-			Err(ContentError::NotFound),
-		);
-		assert!(!reopened.object_path(cid.as_str()).exists());
 	}
 
 	#[test]

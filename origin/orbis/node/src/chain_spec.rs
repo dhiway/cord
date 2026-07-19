@@ -385,7 +385,8 @@ mod tests {
 		development.root_key = format!(
 			"0x{}",
 			hex::encode(
-				<origin_commons_runtime::AccountId>::from(sp_keyring::Sr25519Keyring::Alice).as_ref()
+				<origin_commons_runtime::AccountId>::from(sp_keyring::Sr25519Keyring::Alice)
+					.as_ref()
 			)
 		);
 		development.endowed_accounts[0] = development.root_key.clone();

@@ -43,7 +43,6 @@ substrate-build-script-utils.workspace = true
 substrate-build-script-utils.default-features = true
 
 [features]
-on-chain-release-build = ["origin-node-cli/on-chain-release-build"]
 jemalloc-allocator = [
 	"dep:tikv-jemallocator",
 	"polkadot-node-core-pvf-prepare-worker/jemalloc-allocator",

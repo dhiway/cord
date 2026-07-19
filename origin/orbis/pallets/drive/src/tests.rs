@@ -233,12 +233,12 @@ fn metadata_must_be_unique_and_raw_byte_sorted() {
 fn weights_are_monotonic_at_contract_boundaries() {
 	use crate::WeightInfo;
 	assert!(
-		<() as WeightInfo>::create_drive(256).ref_time() >
-			<() as WeightInfo>::create_drive(255).ref_time()
+		<() as WeightInfo>::create_drive(256).ref_time()
+			> <() as WeightInfo>::create_drive(255).ref_time()
 	);
 	assert!(
-		<() as WeightInfo>::update_root(64).ref_time() >
-			<() as WeightInfo>::update_root(63).ref_time()
+		<() as WeightInfo>::update_root(64).ref_time()
+			> <() as WeightInfo>::update_root(63).ref_time()
 	);
 	assert!(Pallet::<Test>::write_node_weight(4096, 64)
 		.all_gte(Pallet::<Test>::write_node_weight(4095, 64)));

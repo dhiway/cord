@@ -67,12 +67,12 @@ pub mod pallet {
 	use super::signing_payload;
 	use crate::WeightInfo;
 	use alloc::vec::Vec;
+	use frame_support::pallet_prelude::*;
+	use frame_system::pallet_prelude::*;
 	use orbis_transaction_storage_primitives::{
 		cids::{HashingAlgorithm, RAW_CODEC},
 		ContentHash,
 	};
-	use frame_support::pallet_prelude::*;
-	use frame_system::pallet_prelude::*;
 	use pallet_orbis_transaction_storage::WeightInfo as _;
 	use sp_runtime::{
 		traits::{IdentifyAccount, Verify},

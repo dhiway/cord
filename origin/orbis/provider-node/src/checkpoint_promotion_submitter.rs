@@ -101,8 +101,8 @@ fn prepare_intent(
 	intent: &FallbackPromotionIntentV2,
 ) -> Result<(String, subxt::tx::DynamicPayload), ContentError> {
 	validate_intent(intent)?;
-	if decode_fixed_hex::<32>(&intent.provider)? != lane.signer_account()
-		|| decode_fixed_hex::<32>(&intent.service_key)? != lane.service_key()
+	if decode_fixed_hex::<32>(&intent.provider)? != lane.signer_account() ||
+		decode_fixed_hex::<32>(&intent.service_key)? != lane.service_key()
 	{
 		return Err(ContentError::IntegrityFailed);
 	}
@@ -119,8 +119,8 @@ pub(crate) fn promotion_payload(
 	let args = decode_canonical_hex(&intent.call_args_scale)?;
 	let pallet = metadata.pallet_by_name(PALLET).ok_or(ContentError::IntegrityFailed)?;
 	let call = pallet.call_variant_by_name(CALL).ok_or(ContentError::IntegrityFailed)?;
-	if call.fields.len() != CALL_FIELDS.len()
-		|| !call
+	if call.fields.len() != CALL_FIELDS.len() ||
+		!call
 			.fields
 			.iter()
 			.zip(CALL_FIELDS)
@@ -140,8 +140,8 @@ pub(crate) fn promotion_payload(
 	let mut prefix = Vec::with_capacity(2);
 	pallet.index().encode_to(&mut prefix);
 	call.index.encode_to(&mut prefix);
-	if encoded.get(..prefix.len()) != Some(prefix.as_slice())
-		|| encoded.get(prefix.len()..) != Some(args.as_slice())
+	if encoded.get(..prefix.len()) != Some(prefix.as_slice()) ||
+		encoded.get(prefix.len()..) != Some(args.as_slice())
 	{
 		return Err(ContentError::IntegrityFailed);
 	}
@@ -184,9 +184,7 @@ mod tests {
 	use super::*;
 	use crate::checkpoint::{
 		checkpoint_outbox::{FINALITY_ATTESTATION_VERSION, FINALIZED_STATE},
-		checkpoint_promotion::{
-			promotion_finality_attestation_digest, CheckpointPromotionFault,
-		},
+		checkpoint_promotion::{promotion_finality_attestation_digest, CheckpointPromotionFault},
 	};
 
 	type Duty = CheckpointDutyInfo<AccountId32, H256, u32>;
@@ -348,10 +346,7 @@ mod tests {
 		}
 	}
 
-	fn authorize(
-		store: &CheckpointPromotionStoreV2,
-		seed: u8,
-	) -> FallbackPromotionIntentV2 {
+	fn authorize(store: &CheckpointPromotionStoreV2, seed: u8) -> FallbackPromotionIntentV2 {
 		store.authorize(&account(2), &duty(seed).encode(), &pair(2)).unwrap()
 	}
 
@@ -439,7 +434,10 @@ mod tests {
 			Err(ContentError::IntegrityFailed)
 		));
 		assert!(matches!(
-			promotion_payload(&metadata_with_pallet::<ExactCall>("RenamedStorageProvider"), &intent),
+			promotion_payload(
+				&metadata_with_pallet::<ExactCall>("RenamedStorageProvider"),
+				&intent
+			),
 			Err(ContentError::IntegrityFailed)
 		));
 		assert!(matches!(
@@ -455,10 +453,7 @@ mod tests {
 			Err(ContentError::IntegrityFailed)
 		));
 		intent.call_args_scale.push_str("00");
-		assert!(matches!(
-			promotion_payload(&exact, &intent),
-			Err(ContentError::IntegrityFailed)
-		));
+		assert!(matches!(promotion_payload(&exact, &intent), Err(ContentError::IntegrityFailed)));
 	}
 
 	#[tokio::test]
@@ -494,10 +489,7 @@ mod tests {
 		assert_eq!(lane.calls.load(Ordering::SeqCst), 2);
 		assert_eq!(
 			lane.intents.lock().unwrap().as_slice(),
-			[
-				first_native,
-				format!("{NATIVE_INTENT_PREFIX}{}", pending[1].intent_id)
-			]
+			[first_native, format!("{NATIVE_INTENT_PREFIX}{}", pending[1].intent_id)]
 		);
 		assert_eq!(receipt.intent_id, pending[1].intent_id);
 		assert_eq!(store.reserve_pending_intents(8).unwrap().len(), 2);
@@ -538,10 +530,7 @@ mod tests {
 		drop(store);
 
 		let reopened = CheckpointPromotionStoreV2::open(temp.path()).unwrap();
-		let receipt = consume_one_with_lane_bounded(&reopened, &lane, 1)
-			.await
-			.unwrap()
-			.unwrap();
+		let receipt = consume_one_with_lane_bounded(&reopened, &lane, 1).await.unwrap().unwrap();
 		let native = format!("{NATIVE_INTENT_PREFIX}{}", intent.intent_id);
 		assert_eq!(lane.calls.load(Ordering::SeqCst), 2);
 		assert_eq!(lane.intents.lock().unwrap().as_slice(), [native.clone(), native]);
@@ -576,10 +565,8 @@ mod tests {
 			drop(store);
 
 			let reopened = CheckpointPromotionStoreV2::open(temp.path()).unwrap();
-			let receipt = consume_one_with_lane_bounded(&reopened, &lane, 2)
-				.await
-				.unwrap()
-				.unwrap();
+			let receipt =
+				consume_one_with_lane_bounded(&reopened, &lane, 2).await.unwrap().unwrap();
 			let expected = match fault {
 				CheckpointPromotionFault::BeforeTempFsync |
 				CheckpointPromotionFault::AfterTempFsync => &pending[0],

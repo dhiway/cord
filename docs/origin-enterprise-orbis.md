@@ -43,11 +43,10 @@ genesis head and validation code are supplied from the exact Orbis build being d
 
 The `origin-omni-node` system-chain binary resolves only the Commons runtime. Development and local
 Orbis specs are selected with `--chain orbis-dev` and `--chain orbis-local`, respectively.
-The metadata-hash-enabled on-chain release runtime is the default. Keep the explicit feature in
-production build commands to document that intent:
+Build the production-shaped binary and materialize a raw development spec with:
 
 ```text
-cargo build --release -p origin-omni-node --features on-chain-release-build
+cargo build --release -p origin-omni-node
 target/release/origin-omni-node build-spec --chain orbis-dev --raw \
   --disable-default-bootnode > orbis-dev-raw.json
 ```

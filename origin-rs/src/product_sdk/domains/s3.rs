@@ -148,7 +148,7 @@ impl Validate for ObjectListRequest {
 		self.prefix.as_ref().map_or(Ok(()), Validate::validate)?;
 		self.cursor.as_ref().map_or(Ok(()), Validate::validate)?;
 		if !(1..=100).contains(&self.limit) {
-			return Err(invalid("S3 object page limit must be between 1 and 100"))
+			return Err(invalid("S3 object page limit must be between 1 and 100"));
 		}
 		Ok(())
 	}

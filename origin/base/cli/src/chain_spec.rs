@@ -19,8 +19,7 @@
 use sc_chain_spec::{ChainSpec as _, ChainSpecExtension, ChainType};
 use sc_telemetry::TelemetryEndpoints;
 use serde::{Deserialize, Serialize};
-use std::collections::BTreeSet;
-use std::path::PathBuf;
+use std::{collections::BTreeSet, path::PathBuf};
 
 #[path = "../../../common/launch_authorization.rs"]
 mod launch_authorization;

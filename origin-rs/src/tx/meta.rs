@@ -464,8 +464,8 @@ fn find_type(metadata: &Metadata, path: &[&str]) -> Option<scale_info::PortableT
 		.iter()
 		.find(|ty| {
 			let segments = &ty.ty.path.segments;
-			segments.len() == path.len() &&
-				segments.iter().map(|seg| seg.as_str()).zip(path.iter()).all(|(a, b)| a == *b)
+			segments.len() == path.len()
+				&& segments.iter().map(|seg| seg.as_str()).zip(path.iter()).all(|(a, b)| a == *b)
 		})
 		.cloned()
 }
@@ -740,8 +740,9 @@ mod sponsored_tests {
 
 	#[test]
 	fn current_intent_preimage_fixture_matches_wire_shape() {
-		let fixture =
-			include_bytes!("../../../origin/orbis/runtime/vectors/transaction-policy-v8/intent-preimage.scale");
+		let fixture = include_bytes!(
+			"../../../origin/orbis/runtime/vectors/transaction-policy-v8/intent-preimage.scale"
+		);
 		let mut cursor = &fixture[..];
 		let decoded = raw::IntentPreimageV7::decode(&mut cursor).expect("current intent fixture");
 		assert!(cursor.is_empty());

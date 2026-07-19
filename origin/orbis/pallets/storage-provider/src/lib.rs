@@ -101,13 +101,12 @@ impl<T: pallet::Config> pallet_orbis_storage_control_primitives::CanonicalStorag
 						});
 					let required = pallet::ManifestDeletionRequirements::<T>::get(manifest);
 					window_elapsed
-						&& (record.provider_commitment.is_none()
-							|| (!required.is_empty()
-								&& required.iter().all(|provider| {
-									pallet::ManifestDeletionAcknowledgements::<T>::contains_key(
-										manifest, provider,
-									)
-								})))
+						&& !required.is_empty()
+						&& required.iter().all(|provider| {
+							pallet::ManifestDeletionAcknowledgements::<T>::contains_key(
+								manifest, provider,
+							)
+						})
 				})
 		})
 	}
@@ -906,17 +905,6 @@ pub mod pallet {
 	#[pallet::storage]
 	pub type ManifestDeletionRequirements<T: Config> =
 		StorageMap<_, Blake2_128Concat, CanonicalCommitment, AssignedProvidersOf<T>, ValueQuery>;
-	/// Provider-first bounded-page index of unacknowledged canonical manifest deletion duties.
-	#[pallet::storage]
-	pub type ManifestDeletionDuties<T: Config> = StorageDoubleMap<
-		_,
-		Blake2_128Concat,
-		T::AccountId,
-		Blake2_128Concat,
-		CanonicalCommitment,
-		(),
-		OptionQuery,
-	>;
 	#[pallet::storage]
 	pub type GovernedFinalizedCheckpoint<T: Config> =
 		StorageValue<_, BlockNumberFor<T>, OptionQuery>;
@@ -2354,7 +2342,7 @@ pub mod pallet {
 		}
 
 		#[pallet::call_index(21)]
-		#[pallet::weight(T::WeightInfo::tombstone_manifest(replicas_bound::<T>()))]
+		#[pallet::weight(T::WeightInfo::tombstone_manifest())]
 		pub fn tombstone_manifest(
 			origin: OriginFor<T>,
 			manifest: CanonicalCommitment,
@@ -2371,20 +2359,15 @@ pub mod pallet {
 			record.state = CommitmentState::Tombstoned;
 			record.tombstoned_at = Some(Self::finalized_checkpoint()?);
 			let mut required: AssignedProvidersOf<T> = Default::default();
-			if record.provider_commitment.is_some() {
-				required
-					.try_push(bucket.primary.clone())
-					.map_err(|_| Error::<T>::InvalidReplicaCount)?;
-				for provider in bucket.replicas.iter() {
-					if !required.contains(provider) {
-						required
-							.try_push(provider.clone())
-							.map_err(|_| Error::<T>::InvalidReplicaCount)?;
-					}
+			required
+				.try_push(bucket.primary.clone())
+				.map_err(|_| Error::<T>::InvalidReplicaCount)?;
+			for provider in bucket.replicas.iter() {
+				if !required.contains(provider) {
+					required
+						.try_push(provider.clone())
+						.map_err(|_| Error::<T>::InvalidReplicaCount)?;
 				}
-			}
-			for provider in required.iter() {
-				ManifestDeletionDuties::<T>::insert(provider, manifest, ());
 			}
 			ManifestDeletionRequirements::<T>::insert(manifest, required);
 			CanonicalManifests::<T>::insert(manifest, &record);
@@ -2415,27 +2398,15 @@ pub mod pallet {
 				ManifestDeletionRequirements::<T>::get(manifest).contains(&provider),
 				Error::<T>::DeletionProviderNotRequired
 			);
-			if let Some(existing) =
-				ManifestDeletionAcknowledgements::<T>::get(manifest, &provider)
-			{
-				if existing.provider == provider &&
-					existing.bucket_id == record.bucket_id &&
-					existing.manifest == manifest &&
-					existing.evidence_hash == evidence_hash &&
-					existing.service_key == service_key &&
-					existing.signature == signature
-				{
-					return Ok(())
-				}
-				return Err(Error::<T>::DeletionAlreadyAcknowledged.into())
-			}
-			let finalized = Self::finalized_checkpoint()?;
-			let mut provider_record =
-				Providers::<T>::get(&provider).ok_or(Error::<T>::ProviderNotFound)?;
-			Self::activate_pending_key(&provider, &mut provider_record, finalized);
-			Providers::<T>::insert(&provider, &provider_record);
 			ensure!(
-				provider_record.service_key.active == service_key,
+				!ManifestDeletionAcknowledgements::<T>::contains_key(manifest, &provider),
+				Error::<T>::DeletionAlreadyAcknowledged
+			);
+			let provider_record =
+				Providers::<T>::get(&provider).ok_or(Error::<T>::ProviderNotFound)?;
+			ensure!(
+				provider_record.service_key.active == service_key
+					|| provider_record.service_key.previous == Some(service_key),
 				Error::<T>::DeletionEvidenceInvalid
 			);
 			let tombstoned_at = record.tombstoned_at.ok_or(Error::<T>::ManifestInvalidState)?;
@@ -2454,7 +2425,7 @@ pub mod pallet {
 				sp_io::crypto::ed25519_verify(&signature, &digest_array, &service_key),
 				Error::<T>::DeletionEvidenceInvalid
 			);
-			let acknowledged_at = finalized;
+			let acknowledged_at = Self::finalized_checkpoint()?;
 			ManifestDeletionAcknowledgements::<T>::insert(
 				manifest,
 				&provider,
@@ -2468,7 +2439,6 @@ pub mod pallet {
 					acknowledged_at,
 				},
 			);
-			ManifestDeletionDuties::<T>::remove(&provider, manifest);
 			Self::deposit_event(Event::ManifestDeletionAcknowledged {
 				manifest,
 				bucket_id: record.bucket_id,

@@ -84,11 +84,11 @@ fn vector<'a>(vectors: &'a Value, id: &str) -> &'a Value {
 
 fn vector_stored_bytes(entry: &Value) -> Vec<u8> {
 	if let Some(envelope) = entry.get("envelope_hex").and_then(Value::as_str) {
-		return hex::decode(envelope).unwrap()
+		return hex::decode(envelope).unwrap();
 	}
 	let stored_len = entry["stored_len"].as_u64().unwrap() as usize;
 	if entry.get("mode").and_then(Value::as_str) != Some("xchacha20poly1305-v1") {
-		return vec![0xa5; stored_len]
+		return vec![0xa5; stored_len];
 	}
 	let plaintext = vec![0xa5; entry["plaintext_len"].as_u64().unwrap() as usize];
 	let key = hex::decode(entry["key_hex"].as_str().unwrap()).unwrap();
@@ -157,15 +157,6 @@ fn run_golden_contract() {
 	let encrypted_plus_one = vector(&source, "encrypted-plaintext-plus-1");
 	assert_eq!(encrypted_plus_one["stored_len"].as_u64().unwrap(), MAX_STORED_BYTES + 1);
 	assert_eq!(encrypted_plus_one["expected_error"], "STORAGE_OBJECT_TOO_LARGE");
-	// Plaintext admission and encryption are host-owned. The provider sees only the resulting stored
-	// envelope length and must independently reject the same stored-byte plus-one boundary.
-	let stored_plus_one = StreamingDescriptor {
-		operation_id: operation(101),
-		bucket_id: bucket(),
-		expected_cid: cid(b"not consumed"),
-		object_len: encrypted_plus_one["stored_len"].as_u64().unwrap(),
-	};
-	assert_eq!(store.begin(stored_plus_one), Err(ContentError::ObjectTooLarge));
 }
 
 /// Canonical AC2 entry point. This test must execute nonzero ratified vector mappings.

@@ -3752,93 +3752,6 @@ fn checkpoint_duty_page(
 	})
 }
 
-fn deletion_duty_page(
-	provider: AccountId,
-	cursor: Option<storage_api::DeletionDutyCursor<BlockNumber>>,
-	limit: u32,
-) -> Result<
-	storage_api::DeletionDutyPage<
-		storage_api::DeletionDutyInfo<AccountId, Hash, BlockNumber>,
-		BlockNumber,
-	>,
-	storage_api::DeletionDutyPageError,
-> {
-	if limit == 0 || limit > storage_api::MAX_DELETION_DUTY_PAGE_SIZE {
-		return Err(storage_api::DeletionDutyPageError::PageLimitInvalid);
-	}
-	let snapshot_checkpoint =
-		pallet_orbis_storage_provider::GovernedFinalizedCheckpoint::<Runtime>::get()
-			.ok_or(storage_api::DeletionDutyPageError::FinalizedCheckpointUnavailable)?;
-	let manifests = match cursor {
-		None => pallet_orbis_storage_provider::ManifestDeletionDuties::<Runtime>::iter_key_prefix(
-			&provider,
-		)
-		.take(limit.saturating_add(1) as usize)
-		.collect::<Vec<_>>(),
-		Some(cursor) => {
-			if cursor.snapshot_checkpoint != snapshot_checkpoint {
-				return Err(storage_api::DeletionDutyPageError::CursorSnapshotStale);
-			}
-			if !pallet_orbis_storage_provider::ManifestDeletionDuties::<Runtime>::contains_key(
-				&provider,
-				cursor.last_manifest,
-			) {
-				return Err(storage_api::DeletionDutyPageError::CursorKeyInvalid);
-			}
-			let raw_key =
-				pallet_orbis_storage_provider::ManifestDeletionDuties::<Runtime>::hashed_key_for(
-					&provider,
-					cursor.last_manifest,
-				);
-			pallet_orbis_storage_provider::ManifestDeletionDuties::<Runtime>::iter_key_prefix_from(
-				&provider, raw_key,
-			)
-			.take(limit.saturating_add(1) as usize)
-			.collect::<Vec<_>>()
-		},
-	};
-	let has_more = manifests.len() > limit as usize;
-	let items = manifests
-		.into_iter()
-		.take(limit as usize)
-		.map(|manifest| {
-			let record =
-				pallet_orbis_storage_provider::CanonicalManifests::<Runtime>::get(manifest)
-					.ok_or(storage_api::DeletionDutyPageError::CursorKeyInvalid)?;
-			let provider_commitment = record
-				.provider_commitment
-				.ok_or(storage_api::DeletionDutyPageError::CursorKeyInvalid)?;
-			let tombstoned_at = record
-				.tombstoned_at
-				.ok_or(storage_api::DeletionDutyPageError::CursorKeyInvalid)?;
-			Ok(storage_api::DeletionDutyInfo {
-				provider: provider.clone(),
-				manifest,
-				bucket_id: record.bucket_id,
-				provider_commitment,
-				tombstoned_at,
-			})
-		})
-		.collect::<Result<Vec<_>, storage_api::DeletionDutyPageError>>()?;
-	let next_cursor = if has_more {
-		Some(storage_api::DeletionDutyCursor {
-			snapshot_checkpoint,
-			last_manifest: items
-				.last()
-				.ok_or(storage_api::DeletionDutyPageError::CursorKeyInvalid)?
-				.manifest,
-		})
-	} else {
-		None
-	};
-	Ok(storage_api::DeletionDutyPage {
-		version: storage_api::RESPONSE_VERSION,
-		items,
-		next_cursor,
-		snapshot_checkpoint,
-	})
-}
-
 fn attestation_id_page(
 	ids: &[Hash],
 	cursor: Option<u32>,
@@ -4560,20 +4473,6 @@ pallet_revive::impl_runtime_apis_plus_revive_traits!(
 			storage_api::CheckpointDutyPageError,
 		> {
 			checkpoint_duty_page(provider, cursor, limit)
-		}
-
-		fn deletion_duties(
-			provider: AccountId,
-			cursor: Option<storage_api::DeletionDutyCursor<BlockNumber>>,
-			limit: u32,
-		) -> Result<
-			storage_api::DeletionDutyPage<
-				storage_api::DeletionDutyInfo<AccountId, Hash, BlockNumber>,
-				BlockNumber,
-			>,
-			storage_api::DeletionDutyPageError,
-		> {
-			deletion_duty_page(provider, cursor, limit)
 		}
 
 		fn replica_checkpoint(bucket_id: Hash, provider: AccountId) -> Option<BlockNumber> {

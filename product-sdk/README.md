@@ -82,7 +82,7 @@ activation envelope derives `production-approved`.
 native host contract manifest bound to the checked-in runtime metadata-hash
 record and SDK manifests. The checked-in Commons V14 SCALE metadata generates a byte-reproducible
 PAPI descriptor with `polkadot-api@2.1.6`; `check:papi` rejects metadata or generated-output drift.
-The authoritative 136-method inventory is generated from `docs/sdk/native-route-contract.json`;
+The authoritative 138-method inventory is generated from `docs/sdk/native-route-contract.json`;
 Rust and TypeScript execute every canonical route sample. The network-bound descriptor and host
 schema are regenerated only from a reconciled live metadata identity. The descriptor binds the canonical P5 signing-payload hash while
 the signing payload binds a canonical descriptor-contract digest that excludes

@@ -81,20 +81,20 @@ pub(crate) async fn consume_one_with_lane_bounded(
 	max_attempts: usize,
 ) -> Result<Option<CheckpointFinalizedReceiptV2>, ContentError> {
 	if max_attempts == 0 {
-		return Err(ContentError::IntegrityFailed)
+		return Err(ContentError::IntegrityFailed);
 	}
 	let heads = outbox.pending_submission_heads()?;
 	if heads.is_empty() {
-		return Ok(None)
+		return Ok(None);
 	}
 	let mut first_lane_error = None;
 	for submission in heads.into_iter().take(max_attempts) {
 		validate_submission(&submission)?;
 		if decode_fixed_hex::<32>(&submission.primary)? != lane.signer_account() {
-			return Err(ContentError::IntegrityFailed)
+			return Err(ContentError::IntegrityFailed);
 		}
 		if decode_fixed_hex::<32>(&submission.service_key)? != lane.service_key() {
-			return Err(ContentError::IntegrityFailed)
+			return Err(ContentError::IntegrityFailed);
 		}
 		let payload = checkpoint_payload(lane.metadata(), &submission)?;
 		outbox.record_bucket_attempt(&submission)?;
@@ -105,7 +105,7 @@ pub(crate) async fn consume_one_with_lane_bounded(
 				if first_lane_error.is_none() {
 					first_lane_error = Some(error);
 				}
-				continue
+				continue;
 			},
 		};
 		let receipt = outbox.record_finalized(
@@ -116,7 +116,7 @@ pub(crate) async fn consume_one_with_lane_bounded(
 			evidence.finality_attestation_version,
 			evidence.finality_signature,
 		)?;
-		return Ok(Some(receipt))
+		return Ok(Some(receipt));
 	}
 	Err(first_lane_error.unwrap_or(ContentError::IntegrityFailed))
 }
@@ -136,14 +136,14 @@ pub(crate) fn checkpoint_payload(
 			.zip(CALL_FIELDS)
 			.all(|(field, expected)| field.name.as_deref() == Some(expected))
 	{
-		return Err(ContentError::IntegrityFailed)
+		return Err(ContentError::IntegrityFailed);
 	}
 	let mut fields = call.fields.iter().map(|field| Field::new(field.ty.id, field.name.as_deref()));
 	let mut input = &args[..];
 	let composite = Composite::<()>::decode_as_fields(&mut input, &mut fields, metadata.types())
 		.map_err(|_| ContentError::IntegrityFailed)?;
 	if !input.is_empty() || fields.next().is_some() {
-		return Err(ContentError::IntegrityFailed)
+		return Err(ContentError::IntegrityFailed);
 	}
 	let payload = subxt::dynamic::tx(PALLET, CALL, composite);
 	let encoded = payload.encode_call_data(metadata).map_err(|_| ContentError::IntegrityFailed)?;
@@ -153,7 +153,7 @@ pub(crate) fn checkpoint_payload(
 	if encoded.get(..prefix.len()) != Some(prefix.as_slice()) ||
 		encoded.get(prefix.len()..) != Some(args.as_slice())
 	{
-		return Err(ContentError::IntegrityFailed)
+		return Err(ContentError::IntegrityFailed);
 	}
 	Ok(payload)
 }
@@ -166,7 +166,7 @@ fn decode_fixed_hex<const N: usize>(value: &str) -> Result<[u8; N], ContentError
 
 fn decode_canonical_hex(value: &str) -> Result<Vec<u8>, ContentError> {
 	if value.bytes().any(|byte| byte.is_ascii_uppercase()) {
-		return Err(ContentError::IntegrityFailed)
+		return Err(ContentError::IntegrityFailed);
 	}
 	hex::decode(value).map_err(|_| ContentError::IntegrityFailed)
 }
@@ -456,7 +456,7 @@ mod tests {
 			self.calls.fetch_add(1, Ordering::SeqCst);
 			self.intents.lock().unwrap().push(intent_id.into());
 			if self.reject_intents.iter().any(|rejected| rejected == intent_id) {
-				return Err(ContentError::Io(format!("checkpoint rejected: {intent_id}")))
+				return Err(ContentError::Io(format!("checkpoint rejected: {intent_id}")));
 			}
 			let mut evidence = self.result.lock().unwrap().clone()?;
 			let submission_id = intent_id
@@ -558,8 +558,7 @@ mod tests {
 		let outbox = CheckpointOutboxV2::open(temp.path()).unwrap();
 		let first = enqueue_checkpoint(&outbox, 4, 103, 7);
 		let second = enqueue_checkpoint(&outbox, 5, 99, 2);
-		let wrong_service_key =
-			MockLane { attestation_seed: 99, ..MockLane::successful([1; 32]) };
+		let wrong_service_key = MockLane { attestation_seed: 99, ..MockLane::successful([1; 32]) };
 
 		assert!(matches!(
 			consume_one_with_lane(&outbox, &wrong_service_key).await,

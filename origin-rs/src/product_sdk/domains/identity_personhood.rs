@@ -45,9 +45,9 @@ pub enum IdentityPersonhoodQuery {
 impl Validate for IdentityPersonhoodQuery {
 	fn validate(&self) -> DomainResult<()> {
 		match self {
-			Self::IdentityStatus { account } |
-			Self::PersonhoodStatus { account } |
-			Self::AttestationAllowance { account } => account.validate(),
+			Self::IdentityStatus { account }
+			| Self::PersonhoodStatus { account }
+			| Self::AttestationAllowance { account } => account.validate(),
 		}
 	}
 }
@@ -156,12 +156,13 @@ impl Validate for IdentityData {
 	fn validate(&self) -> DomainResult<()> {
 		match self {
 			Self::None => Ok(()),
-			Self::Raw { value } =>
-				ensure_bytes(value.as_bytes(), 1, MAX_IDENTITY_RAW_BYTES, "identity data"),
-			Self::BlakeTwo256 { hash } |
-			Self::Sha256 { hash } |
-			Self::Keccak256 { hash } |
-			Self::ShaThree256 { hash } => hash.validate(),
+			Self::Raw { value } => {
+				ensure_bytes(value.as_bytes(), 1, MAX_IDENTITY_RAW_BYTES, "identity data")
+			},
+			Self::BlakeTwo256 { hash }
+			| Self::Sha256 { hash }
+			| Self::Keccak256 { hash }
+			| Self::ShaThree256 { hash } => hash.validate(),
 		}
 	}
 }
@@ -231,9 +232,9 @@ impl RingVrfSignature {
 impl Validate for RingVrfSignature {
 	fn validate(&self) -> DomainResult<()> {
 		let raw = self.0.as_bytes();
-		if raw.len() != 2 + RING_VRF_SIGNATURE_BYTES * 2 ||
-			!self.0.starts_with("0x") ||
-			!raw[2..]
+		if raw.len() != 2 + RING_VRF_SIGNATURE_BYTES * 2
+			|| !self.0.starts_with("0x")
+			|| !raw[2..]
 				.iter()
 				.all(|byte| byte.is_ascii_digit() || (b'a'..=b'f').contains(byte))
 		{
@@ -274,8 +275,9 @@ impl Validate for IdentityPersonhoodCommand {
 		match self {
 			Self::SetIdentity { info } => info.validate(),
 			Self::ClearIdentity => Ok(()),
-			Self::RequestJudgement { registrar } | Self::CancelJudgement { registrar } =>
-				registrar.validate(),
+			Self::RequestJudgement { registrar } | Self::CancelJudgement { registrar } => {
+				registrar.validate()
+			},
 			Self::ProvideJudgement { target, identity_hash, .. } => {
 				target.validate()?;
 				identity_hash.validate()

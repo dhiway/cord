@@ -21,12 +21,14 @@ use std::collections::{BTreeMap, BTreeSet};
 use serde::{Deserialize, Serialize};
 use serde_json::Value;
 
-use super::contract::{
-	NativeError, NativeErrorCode, NATIVE_SDK_RATIFICATION_PAYLOAD_SHA256,
-	ORBIS_CANDIDATE_GENESIS_HEADER_HASH, ORBIS_DESCRIPTOR_CONTRACT_SHA256, ORBIS_METADATA_HASH,
-	ORBIS_PARA_ID, ORBIS_SPEC_VERSION, ORBIS_TRANSACTION_VERSION,
+use super::{
+	contract::{
+		NativeError, NativeErrorCode, NATIVE_SDK_RATIFICATION_PAYLOAD_SHA256,
+		ORBIS_CANDIDATE_GENESIS_HEADER_HASH, ORBIS_DESCRIPTOR_CONTRACT_SHA256, ORBIS_METADATA_HASH,
+		ORBIS_PARA_ID, ORBIS_SPEC_VERSION, ORBIS_TRANSACTION_VERSION,
+	},
+	version::ORBIS_COMPACT_WASM_SHA256,
 };
-use super::version::ORBIS_COMPACT_WASM_SHA256;
 
 #[derive(Clone, Debug, Deserialize, PartialEq, Serialize)]
 #[serde(deny_unknown_fields)]

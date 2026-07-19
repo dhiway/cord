@@ -625,7 +625,7 @@ pub mod pallet {
 					applied.request_fingerprint == request_fingerprint,
 					Error::<T>::OperationIdConflict
 				);
-				return Ok(())
+				return Ok(());
 			}
 			Self::validate_commitment(&content_hash, &provider_commitment)?;
 			let current = Objects::<T>::get(bucket, &key);
@@ -663,8 +663,9 @@ pub mod pallet {
 				ids.try_push(operation_id).map_err(|_| Error::<T>::OperationHistoryFull)
 			})?;
 			let version = match current.as_ref() {
-				Some(record) =>
-					record.version.checked_add(1).ok_or(Error::<T>::ObjectVersionOverflow)?,
+				Some(record) => {
+					record.version.checked_add(1).ok_or(Error::<T>::ObjectVersionOverflow)?
+				},
 				None => 1,
 			};
 			if current.is_none() {
@@ -747,7 +748,7 @@ pub mod pallet {
 					applied.request_fingerprint == request_fingerprint,
 					Error::<T>::OperationIdConflict
 				);
-				return Ok(())
+				return Ok(());
 			}
 			let current = Objects::<T>::get(bucket, &key).ok_or(Error::<T>::ObjectNotFound)?;
 			if let Some(expected_etag) = if_match {

@@ -154,8 +154,8 @@ impl<A: ReplicationAuthority> PeerResponder<A> {
 		&self,
 		claimed: &crate::peer::PeerContextV1,
 	) -> Result<(), ContentError> {
-		if claimed.source_provider() != self.local_provider ||
-			self.local_service.public().0 == [0; 32]
+		if claimed.source_provider() != self.local_provider
+			|| self.local_service.public().0 == [0; 32]
 		{
 			return Err(ContentError::IntegrityFailed);
 		}
@@ -197,17 +197,17 @@ impl<A: ReplicationAuthority> PeerResponder<A> {
 			claimed.candidate_commitment(),
 		)
 		.map_err(|_| ContentError::IntegrityFailed)?;
-		if current_session.topology().bucket_version != pinned_session.topology().bucket_version ||
-			current_session.source().order() != pinned_session.source().order() ||
-			current_session.target().order() != pinned_session.target().order() ||
-			current_session.source().endpoint_hash() != pinned_session.source().endpoint_hash() ||
-			current_session.target().endpoint_hash() != pinned_session.target().endpoint_hash() ||
-			current_session.source().service_key() != pinned_session.source().service_key() ||
-			current_session.source().service_key_version() !=
-				pinned_session.source().service_key_version() ||
-			current_session.target().service_key() != pinned_session.target().service_key() ||
-			current_session.target().service_key_version() !=
-				pinned_session.target().service_key_version()
+		if current_session.topology().bucket_version != pinned_session.topology().bucket_version
+			|| current_session.source().order() != pinned_session.source().order()
+			|| current_session.target().order() != pinned_session.target().order()
+			|| current_session.source().endpoint_hash() != pinned_session.source().endpoint_hash()
+			|| current_session.target().endpoint_hash() != pinned_session.target().endpoint_hash()
+			|| current_session.source().service_key() != pinned_session.source().service_key()
+			|| current_session.source().service_key_version()
+				!= pinned_session.source().service_key_version()
+			|| current_session.target().service_key() != pinned_session.target().service_key()
+			|| current_session.target().service_key_version()
+				!= pinned_session.target().service_key_version()
 		{
 			return Err(ContentError::IntegrityFailed);
 		}
@@ -334,9 +334,9 @@ mod tests {
 			finalized_hash: [u8; 32],
 			finalized_number: u32,
 		) -> Result<ReplicationTopologySnapshot, ChainError> {
-			if bucket_id != self.topology.bucket_id ||
-				finalized_hash != self.topology.finalized_hash ||
-				finalized_number != self.topology.finalized_number
+			if bucket_id != self.topology.bucket_id
+				|| finalized_hash != self.topology.finalized_hash
+				|| finalized_number != self.topology.finalized_number
 			{
 				return Err(ChainError::Rejected("wrong pinned topology".into()));
 			}
@@ -369,9 +369,9 @@ mod tests {
 			finalized_hash: [u8; 32],
 			finalized_number: u32,
 		) -> Result<ReplicationTopologySnapshot, ChainError> {
-			if bucket_id != self.pinned.bucket_id ||
-				finalized_hash != self.pinned.finalized_hash ||
-				finalized_number != self.pinned.finalized_number
+			if bucket_id != self.pinned.bucket_id
+				|| finalized_hash != self.pinned.finalized_hash
+				|| finalized_number != self.pinned.finalized_number
 			{
 				return Err(ChainError::Rejected("wrong pinned topology".into()));
 			}

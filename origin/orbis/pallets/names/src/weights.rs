@@ -121,7 +121,8 @@ impl<T: frame_system::Config> WeightInfo for SubstrateWeight<T> {
 	fn resolver_write() -> Weight {
 		Weight::from_parts(30_000_000, 4_500)
 			// Attestation references add an attestation, schema, and current-block read before
-			// the authorized Orbis Names record mutation. Keep one conservative shared resolver weight.
+			// the authorized Orbis Names record mutation. Keep one conservative shared resolver
+			// weight.
 			.saturating_add(T::DbWeight::get().reads(6))
 			.saturating_add(T::DbWeight::get().writes(1))
 	}

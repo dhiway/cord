@@ -1126,7 +1126,6 @@ impl<T: Config> Pallet<T> {
 		))
 	}
 
-
 	/// Get the subs of an account.
 	pub fn subs(who: &T::AccountId) -> Vec<(T::AccountId, Data)> {
 		SubsOf::<T>::get(who)

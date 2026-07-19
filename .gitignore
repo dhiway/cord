@@ -38,3 +38,4 @@ runtime/wasm/target/
 runtimes/wasm/target/
 target/
 data/
+docs/

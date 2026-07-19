@@ -679,7 +679,7 @@ pub mod pallet {
 			ensure!(bytes.len() <= 4096, Error::<T>::PathTooLong);
 			ensure!(bytes[0] == b'/', Error::<T>::PathInvalid);
 			if bytes == b"/" {
-				return Ok(())
+				return Ok(());
 			}
 			ensure!(bytes.last() != Some(&b'/'), Error::<T>::PathInvalid);
 			let mut depth = 0usize;
@@ -749,11 +749,11 @@ pub mod pallet {
 			caller: &T::AccountId,
 		) -> DispatchResult {
 			if caller == owner {
-				return Ok(())
+				return Ok(());
 			}
 			let authorized = DriveGrants::<T>::get(drive_id).iter().any(|grant| {
-				grant.subject == *caller &&
-					matches!(grant.role, DriveRole::Writer | DriveRole::Admin)
+				grant.subject == *caller
+					&& matches!(grant.role, DriveRole::Writer | DriveRole::Admin)
 			});
 			ensure!(authorized, Error::<T>::NotDriveWriter);
 			Ok(())
@@ -761,7 +761,7 @@ pub mod pallet {
 
 		fn parent_path(path: &DrivePath) -> Option<DrivePath> {
 			if path.as_slice() == b"/" {
-				return None
+				return None;
 			}
 			let last = path.iter().rposition(|byte| *byte == b'/').unwrap_or(0);
 			if last == 0 {
@@ -774,7 +774,7 @@ pub mod pallet {
 		fn ensure_parent(drive_id: T::Hash, path: &DrivePath) -> DispatchResult {
 			if let Some(parent) = Self::parent_path(path) {
 				if parent.as_slice() == b"/" && !DriveNodes::<T>::contains_key(drive_id, &parent) {
-					return Ok(())
+					return Ok(());
 				}
 				let node =
 					DriveNodes::<T>::get(drive_id, parent).ok_or(Error::<T>::ParentNotFound)?;

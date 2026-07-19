@@ -429,9 +429,9 @@ mod benchmarks {
 
 		#[block]
 		{
-			// This is the worst-case full scan: direct Orbis Storage setup has no matching Resources
-			// claim, so every synchronous cross-pallet callback reports a mismatch and every
-			// tombstone remains queued for a later repair/retry.
+			// This is the worst-case full scan: direct Orbis Storage setup has no matching
+			// Resources claim, so every synchronous cross-pallet callback reports a mismatch and
+			// every tombstone remains queued for a later repair/retry.
 			let _ =
 				TransactionStorage::<T>::prune_resource_tombstones(now, T::MaxReservations::get());
 		}

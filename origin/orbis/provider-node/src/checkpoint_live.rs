@@ -30,9 +30,7 @@ use super::{
 	checkpoint_outbox::{
 		finality_attestation_digest, FINALITY_ATTESTATION_VERSION, FINALIZED_STATE,
 	},
-	checkpoint_promotion::{
-		promotion_finality_attestation_digest, FallbackPromotionIntentV2,
-	},
+	checkpoint_promotion::{promotion_finality_attestation_digest, FallbackPromotionIntentV2},
 	checkpoint_promotion_submitter::{PromotionFinalityLane, NATIVE_INTENT_PREFIX},
 	checkpoint_submitter::{CheckpointFinalityLane, FinalizedEvidence},
 };
@@ -165,8 +163,8 @@ fn finalized_hashes(
 	lifecycle: &NativeLifecycle,
 ) -> Result<([u8; 32], [u8; 32]), ContentError> {
 	lifecycle.validate().map_err(|_| ContentError::IntegrityFailed)?;
-	if lifecycle.state != NativeLifecycleState::Finalized
-		|| lifecycle.intent_id != expected_intent_id
+	if lifecycle.state != NativeLifecycleState::Finalized ||
+		lifecycle.intent_id != expected_intent_id
 	{
 		return Err(ContentError::IntegrityFailed);
 	}
@@ -184,13 +182,10 @@ fn promotion_intent_id(intent_id: &str) -> Result<&str, ContentError> {
 	canonical_intent_suffix(intent_id, NATIVE_INTENT_PREFIX)
 }
 
-fn canonical_intent_suffix<'a>(
-	intent_id: &'a str,
-	prefix: &str,
-) -> Result<&'a str, ContentError> {
+fn canonical_intent_suffix<'a>(intent_id: &'a str, prefix: &str) -> Result<&'a str, ContentError> {
 	let value = intent_id.strip_prefix(prefix).ok_or(ContentError::IntegrityFailed)?;
-	if value.len() != 64
-		|| value.bytes().any(|byte| !byte.is_ascii_hexdigit() || byte.is_ascii_uppercase())
+	if value.len() != 64 ||
+		value.bytes().any(|byte| !byte.is_ascii_hexdigit() || byte.is_ascii_uppercase())
 	{
 		return Err(ContentError::IntegrityFailed);
 	}
@@ -223,8 +218,8 @@ fn signed_promotion_evidence(
 
 fn parse_hash(value: &str) -> Result<[u8; 32], ContentError> {
 	let encoded = value.strip_prefix("0x").ok_or(ContentError::IntegrityFailed)?;
-	if encoded.len() != 64
-		|| encoded
+	if encoded.len() != 64 ||
+		encoded
 			.bytes()
 			.any(|byte| !byte.is_ascii_hexdigit() || byte.is_ascii_uppercase())
 	{

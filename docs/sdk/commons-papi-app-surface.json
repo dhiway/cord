@@ -2,7 +2,7 @@
   "schema": "cord.commons-papi-app-surface.v1",
   "metadata_scale_sha256": "2785e1e501df231ea313a7613c7cadcdad550c79ecf87bb3797b61c64be462fe",
   "generated_declaration_sha256": "c07c6e3d35f0bc72a583442c88bcbad315d5f315ac738b9aa05d0d3bf68d9e0e",
-  "policy_route_count": 136,
+  "policy_route_count": 138,
   "policy_routes_by_capability": {
     "attestation": [
       "attestation:schema_by_id",
@@ -115,9 +115,11 @@
       "storage:accept_agreement",
       "storage:cancel_agreement",
       "storage:issue_challenge",
-      "storage:acknowledge_manifest_deletion",
+      "storage:submit_checkpoint",
       "storage:timeout_challenge",
       "storage:request_renewal",
+      "storage:acknowledge_deletion",
+      "storage:commit_provider_root",
       "storage:accept_renewal",
       "storage:expire_agreement",
       "storage:prune_agreement",

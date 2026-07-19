@@ -70,7 +70,6 @@ pub struct LiteConsumerRegistrationParams<AccountId, Signature> {
 
 impl<AccountId: Encode, Signature: Encode> LiteConsumerRegistrationParams<AccountId, Signature> {
 	/// Creates a payload to be signed by the user for a consumer registration request.
-	///
 	pub fn signing_payload(&self, verifier: &AccountId) -> alloc::vec::Vec<u8> {
 		(&self.account, verifier, &self.identifier_key).encode()
 	}

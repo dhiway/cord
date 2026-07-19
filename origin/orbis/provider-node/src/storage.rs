@@ -30,43 +30,32 @@ pub use streaming::{
 use std::{
 	collections::BTreeMap,
 	fs,
-	io::Read,
+	io::Write,
 	path::{Path, PathBuf},
 	sync::RwLock,
 	time::{SystemTime, UNIX_EPOCH},
 };
 
-use blake2::{digest::consts::U32, Blake2b, Digest as _};
 use codec::{Decode, Encode};
-use orbis_storage_runtime_api::{
-	CheckpointDutyInfo, DeletionDutyInfo, MAX_CHECKPOINT_DUTY_PAGE_SIZE,
-};
+use orbis_storage_runtime_api::CheckpointDutyInfo;
 use serde::{Deserialize, Serialize};
 use sp_core::{crypto::AccountId32, H256};
 
 use crate::{
 	merkle, AgreementAuthorization, CheckpointDuty, CheckpointDutyBatch, CheckpointDutyPageRequest,
-	CheckpointDutyRole, CheckpointDutyScanCursor, DeletionDuty, DeletionDutyBatch,
-	DeletionDutyPageRequest, DeletionDutyScanCursor, MAX_STREAMING_OPERATIONS, PROTOCOL_VERSION,
+	CheckpointDutyRole, CheckpointDutyScanCursor, PROTOCOL_VERSION,
 };
 
 const INDEX_FILE: &str = "provider-index-v6.json";
-const INDEX_TEMP_PREFIX: &str = "provider-index-v6.tmp-";
 const LEGACY_INDEX_FILE: &str = "provider-index-v5.json";
 const BLOBS_DIR: &str = "blobs";
 const MAX_BUCKET_BYTES: usize = 255;
 const MAX_KEY_BYTES: usize = 1024;
 const CHUNK_BYTES: usize = 256 * 1024;
-const MAX_PROVIDER_INDEX_BYTES: u64 = 128 * 1024 * 1024;
-const MAX_PROVIDER_INDEX_RECORDS: usize = MAX_STREAMING_OPERATIONS;
-const MAX_PROVIDER_INDEX_LEAVES: usize = MAX_PROVIDER_INDEX_RECORDS * 2;
-const MAX_PROVIDER_ROOT_ARTIFACTS: usize = 64;
-const MAX_PROVIDER_INDEX_TEMP_ARTIFACTS: usize = 1;
-const MAX_PROVIDER_BLOB_TEMP_ARTIFACTS: usize = 1;
 
 /// A validated content write ready for persistence.
 #[derive(Clone, Debug)]
-pub(crate) struct CommitInput {
+pub struct CommitInput {
 	/// Canonical raw-content commitment (`blake2b-256(bytes)`).
 	pub commitment: [u8; 32],
 	/// Agreement authorization from finalized Orbis state.
@@ -141,7 +130,7 @@ struct ContentLeaf<'a> {
 /// Crash-recoverable deletion transition retained until its acknowledgement is fsynced.
 #[derive(Clone, Debug, Eq, PartialEq, Serialize, Deserialize)]
 #[serde(deny_unknown_fields)]
-pub(crate) struct PendingDeletion {
+pub struct PendingDeletion {
 	/// Normalized raw-content commitment.
 	pub commitment: String,
 	/// Canonical runtime agreement id.
@@ -165,7 +154,7 @@ pub(crate) struct PendingDeletion {
 /// Crash-recoverable append-only root update retained until it is durably queued.
 #[derive(Clone, Debug, Eq, PartialEq, Serialize, Deserialize)]
 #[serde(deny_unknown_fields)]
-pub(crate) struct PendingRootSubmission {
+pub struct PendingRootSubmission {
 	/// Exact next provider root sequence.
 	pub sequence: u64,
 	/// Exact leaf values appended by this update (one per local atomic transition).
@@ -228,27 +217,6 @@ struct CheckpointDutyIntake {
 	duties: Vec<CheckpointDuty>,
 }
 
-#[derive(Clone, Debug, Eq, PartialEq, Serialize, Deserialize)]
-#[serde(deny_unknown_fields)]
-struct DeletionDutyIntake {
-	finalized_hash: String,
-	finalized_number: u32,
-	provider: String,
-	snapshot_checkpoint: u32,
-	requested_cursor: Option<DeletionDutyScanCursor>,
-	next_cursor: Option<DeletionDutyScanCursor>,
-	page_tail: Option<String>,
-}
-
-#[derive(Clone, Debug, Eq, PartialEq, Serialize, Deserialize)]
-#[serde(deny_unknown_fields)]
-struct DeletionDutyWatermark {
-	finalized_hash: String,
-	finalized_number: u32,
-	snapshot_checkpoint: u32,
-	last_manifest: Option<String>,
-}
-
 /// Bounded provider statistics.
 #[derive(Clone, Debug, Eq, PartialEq, Serialize)]
 pub struct ProviderStats {
@@ -266,6 +234,29 @@ pub struct ProviderStats {
 	pub root: String,
 	/// Exact append-log leaf count covered by `root`.
 	pub proof_leaf_count: u64,
+}
+
+/// One authenticated root observation from the append log.
+#[derive(Clone, Debug, Eq, PartialEq, Serialize)]
+pub struct RootObservation {
+	/// Canonical root hash.
+	pub root: String,
+	/// Exact append-log leaf count covered by the root.
+	pub leaf_count: u64,
+}
+
+/// Signed append-only provider root used by checkpoint and replica surfaces.
+#[derive(Clone, Debug, Eq, PartialEq, Serialize, Deserialize)]
+#[serde(deny_unknown_fields)]
+pub struct SignedCheckpoint {
+	/// Current append-only proof root.
+	pub root: String,
+	/// Number of proof leaves covered.
+	pub leaves: u64,
+	/// Creation time for operator ordering.
+	pub created_unix_ms: u64,
+	/// Service-key signature over the domain-separated checkpoint payload.
+	pub signature: String,
 }
 
 /// Verifiable fixed-size content chunk and its content-local Merkle proof.
@@ -305,11 +296,7 @@ struct PersistedState {
 	checkpoint_duty_inventory: Option<CheckpointDutyInventory>,
 	checkpoint_duty_discovery_cursor: Option<CheckpointDutyDiscoveryCursor>,
 	#[serde(default)]
-	deletion_duty_intake: Option<DeletionDutyIntake>,
-	#[serde(default)]
-	deletion_duty_watermark: Option<DeletionDutyWatermark>,
-	#[serde(default)]
-	pending_manifest_deletions: BTreeMap<String, DeletionDuty>,
+	checkpoints: Vec<SignedCheckpoint>,
 }
 
 /// Storage failures. Callers map these to stable HTTP status codes.
@@ -336,321 +323,30 @@ pub enum StoreError {
 pub struct DiskStore {
 	root: PathBuf,
 	state: RwLock<PersistedState>,
-	_root_guard: Option<ProviderRootGuard>,
-	blob_directory: Option<fs::File>,
-}
-
-pub(crate) struct PreparedDiskStore {
-	root: PathBuf,
-	state: PersistedState,
-	initial_index: Option<Vec<u8>>,
-	index_temps: Vec<crate::bounded_io::PreparedRegularFile>,
-	blob_temps: Vec<crate::bounded_io::PreparedRegularFile>,
-	canonical_blobs: Vec<PreparedBlobGuard>,
-	blobs_missing: bool,
-	blobs_identity: Option<crate::bounded_io::FileIdentity>,
-	root_guard: PreparedProviderRootGuard,
-	index_guard: PreparedProviderIndexGuard,
-}
-
-struct PreparedBlobGuard {
-	file: crate::bounded_io::PreparedRegularFile,
-	commitment: String,
-	expected_bytes: u64,
-}
-
-pub(crate) struct ArmedDiskStore {
-	prepared: Option<PreparedDiskStore>,
-	root_guard: Option<ProviderRootGuard>,
-}
-
-struct ProviderRootGuard {
-	directory: crate::bounded_io::LockedDirectory,
-}
-
-enum PreparedProviderRootGuard {
-	Missing(crate::bounded_io::PreparedDirectoryPath),
-	Existing(ProviderRootGuard),
-	Consumed,
-}
-
-enum PreparedProviderIndexGuard {
-	Missing,
-	Present {
-		identity: crate::bounded_io::FileIdentity,
-		length: u64,
-		bytes: Vec<u8>,
-	},
-}
-
-impl ProviderRootGuard {
-	fn validate(&self) -> Result<(), StoreError> {
-		self.directory.validate_path_identity().map_err(io_error)
-	}
-}
-
-impl PreparedProviderIndexGuard {
-	fn validate(&self, directory: &fs::File) -> Result<(), StoreError> {
-		match self {
-			Self::Missing => {
-				if crate::bounded_io::entry_missing_at(directory, INDEX_FILE.as_ref())
-					.map_err(io_error)?
-				{
-					Ok(())
-				} else {
-					Err(StoreError::Io(
-					"provider index appeared after startup validation".into(),
-					))
-				}
-			},
-			Self::Present { identity, length, bytes } => {
-				let current = crate::bounded_io::read_regular_file_snapshot_at(
-					directory,
-					INDEX_FILE.as_ref(),
-					MAX_PROVIDER_INDEX_BYTES,
-				)
-				.map_err(io_error)?;
-				if current.identity != *identity
-					|| current.length != *length
-					|| current.bytes != *bytes
-				{
-					return Err(StoreError::Io(
-						"provider index changed after startup validation".into(),
-					));
-				}
-				Ok(())
-			},
-		}
-	}
-}
-
-impl PreparedDiskStore {
-	pub(crate) fn prepared_root_directory(&self) -> Option<&crate::bounded_io::LockedDirectory> {
-		match &self.root_guard {
-			PreparedProviderRootGuard::Existing(guard) => Some(&guard.directory),
-			PreparedProviderRootGuard::Missing(_) | PreparedProviderRootGuard::Consumed => None,
-		}
-	}
-
-	pub(crate) fn arm(mut self) -> Result<ArmedDiskStore, StoreError> {
-		let prepared_root = std::mem::replace(
-			&mut self.root_guard,
-			PreparedProviderRootGuard::Consumed,
-		);
-		let root_guard = match prepared_root {
-			PreparedProviderRootGuard::Existing(guard) => {
-				guard.validate()?;
-				guard
-			},
-			PreparedProviderRootGuard::Missing(path) => {
-				let directory = path.create_and_lock().map_err(io_error)?;
-				ProviderRootGuard { directory }
-			},
-			PreparedProviderRootGuard::Consumed =>
-				return Err(StoreError::Io("provider root plan was already armed".into())),
-		};
-		let armed = ArmedDiskStore {
-			prepared: Some(self),
-			root_guard: Some(root_guard),
-		};
-		let prepared = armed.prepared.as_ref().expect("armed plan contains prepared state");
-		let root_guard = armed.root_guard.as_ref().expect("armed plan contains root guard");
-		root_guard.validate()?;
-		prepared.index_guard.validate(root_guard.directory.file())?;
-		Ok(armed)
-	}
-}
-
-impl ArmedDiskStore {
-	#[allow(dead_code)]
-	pub(crate) fn root_directory(&self) -> Result<&crate::bounded_io::LockedDirectory, StoreError> {
-		self.root_guard
-			.as_ref()
-			.map(|guard| &guard.directory)
-			.ok_or_else(|| StoreError::Io("provider root guard is not armed".into()))
-	}
-
-	pub(crate) fn apply(mut self) -> Result<DiskStore, StoreError> {
-		let prepared = self
-			.prepared
-			.take()
-			.ok_or_else(|| StoreError::Io("provider disk plan was already applied".into()))?;
-		let root_guard = self
-			.root_guard
-			.take()
-			.ok_or_else(|| StoreError::Io("provider root guard is not armed".into()))?;
-		root_guard.validate()?;
-		prepared.index_guard.validate(root_guard.directory.file())?;
-		crate::bounded_io::validate_prepared_regular_files_at(
-			root_guard.directory.file(),
-			&prepared.index_temps,
-		)
-		.map_err(io_error)?;
-		let prepared_blob_directory = if prepared.blobs_missing {
-			None
-		} else {
-			let directory = crate::bounded_io::open_directory_at(
-				root_guard.directory.file(),
-				BLOBS_DIR.as_ref(),
-			)
-			.map_err(io_error)?;
-			let identity = crate::bounded_io::file_identity(
-				&directory.metadata().map_err(io_error)?,
-			);
-			if prepared.blobs_identity != Some(identity) {
-				return Err(StoreError::Io(
-					"provider blob directory changed after startup validation".into(),
-				))
-			}
-			crate::bounded_io::validate_prepared_regular_files_at(
-				&directory,
-				&prepared.blob_temps,
-			)
-			.map_err(io_error)?;
-			validate_prepared_blobs(&directory, &prepared.canonical_blobs)?;
-			Some(directory)
-		};
-		let blob_directory = match prepared_blob_directory {
-			Some(directory) => directory,
-			None => crate::bounded_io::create_directory_at(
-				root_guard.directory.file(),
-				BLOBS_DIR.as_ref(),
-			)
-			.map_err(io_error)?,
-		};
-		crate::bounded_io::remove_validated_temp_artifacts_at(
-			root_guard.directory.file(),
-			&prepared.index_temps,
-		)
-		.map_err(io_error)?;
-		crate::bounded_io::remove_validated_temp_artifacts_at(
-			&blob_directory,
-			&prepared.blob_temps,
-		)
-			.map_err(io_error)?;
-		let mut store = DiskStore {
-			root: prepared.root,
-			state: RwLock::new(prepared.state),
-			_root_guard: Some(root_guard),
-			blob_directory: Some(blob_directory),
-		};
-		if let Some(bytes) = prepared.initial_index {
-			let temporary = atomic_temp_path(Path::new(INDEX_FILE));
-			crate::bounded_io::write_atomic_at(
-				store._root_guard.as_ref().expect("root guard transferred").directory.file(),
-				INDEX_FILE.as_ref(),
-				temporary.file_name().ok_or_else(|| {
-					StoreError::Io("provider index temp name is invalid".into())
-				})?,
-				&bytes,
-			)
-			.map_err(io_error)?;
-		}
-		store
-			._root_guard
-			.as_mut()
-			.expect("root guard transferred")
-			.directory
-			.preserve_owned();
-		Ok(store)
-	}
 }
 
 impl DiskStore {
-	pub(crate) fn root_directory(&self) -> Result<&crate::bounded_io::LockedDirectory, StoreError> {
-		self._root_guard
-			.as_ref()
-			.map(|guard| &guard.directory)
-			.ok_or_else(|| StoreError::Io("provider root guard is unavailable".into()))
-	}
-
-	fn root_file(&self) -> Result<&fs::File, StoreError> {
-		Ok(self.root_directory()?.file())
-	}
-
-	fn blob_file(&self) -> Result<&fs::File, StoreError> {
-		self.blob_directory
-			.as_ref()
-			.ok_or_else(|| StoreError::Io("provider blob directory capability is unavailable".into()))
-	}
-
-	fn persist_state(&self, state: &PersistedState) -> Result<(), StoreError> {
-		persist_state_at(self.root_file()?, state)
-	}
-
-	/// Reject non-directory and symlink provider roots before any child startup validation.
-	pub(crate) fn validate_root(root: &Path) -> Result<(), StoreError> {
-		optional_owned_directory_exists(root).map(|_| ())
-	}
-
 	/// Open or create a provider store. Existing protocol/capacity/provider identity must match.
-	#[cfg(any(test, feature = "evidence", feature = "test-seams"))]
 	pub fn open(
 		root: impl AsRef<Path>,
 		profile: NodeProfile,
 		capacity_bytes: u64,
 	) -> Result<Self, StoreError> {
-		Self::prepare_open(root, profile, capacity_bytes)?.arm()?.apply()
-	}
-
-	pub(crate) fn prepare_open(
-		root: impl AsRef<Path>,
-		profile: NodeProfile,
-		capacity_bytes: u64,
-	) -> Result<PreparedDiskStore, StoreError> {
 		if capacity_bytes == 0 {
 			return Err(StoreError::Invalid("capacity must be non-zero".into()));
 		}
 		validate_profile(&profile)?;
 		let root = root.as_ref().to_path_buf();
-		let root_path = crate::bounded_io::prepare_directory_path(&root).map_err(io_error)?;
-		let root_exists = !root_path.is_missing().map_err(io_error)?;
-		let root_guard = if root_exists {
-			PreparedProviderRootGuard::Existing(ProviderRootGuard {
-				directory: root_path.lock_existing().map_err(io_error)?,
-			})
-		} else {
-			PreparedProviderRootGuard::Missing(root_path)
-		};
-		let root_directory = match &root_guard {
-			PreparedProviderRootGuard::Existing(guard) => Some(guard.directory.file()),
-			_ => None,
-		};
-		let (index_temps, root_artifacts) =
-			if let Some(directory) = root_directory {
-				collect_index_temps_at(directory)?
-			} else {
-				(Vec::new(), 0)
-			};
-		let index_exists = root_directory
-			.map(|directory| {
-				crate::bounded_io::regular_file_exists_at(directory, INDEX_FILE.as_ref())
-					.map_err(io_error)
-			})
-			.transpose()?
-			.unwrap_or(false);
-		let legacy_exists = root_directory
-			.map(|directory| {
-				crate::bounded_io::regular_file_exists_at(directory, LEGACY_INDEX_FILE.as_ref())
-					.map_err(io_error)
-			})
-			.transpose()?
-			.unwrap_or(false);
-		if !index_exists && legacy_exists {
+		fs::create_dir_all(root.join(BLOBS_DIR)).map_err(io_error)?;
+		let path = root.join(INDEX_FILE);
+		if !path.exists() && root.join(LEGACY_INDEX_FILE).exists() {
 			return Err(StoreError::Invalid(
 				"provider protocol v5 state is unsupported; initialize a clean data path".into(),
 			));
 		}
-		let (state, index_guard) = if index_exists {
-			let snapshot = crate::bounded_io::read_regular_file_snapshot_at(
-				root_directory.expect("existing index has root directory"),
-				INDEX_FILE.as_ref(),
-				MAX_PROVIDER_INDEX_BYTES,
-			)
-			.map_err(io_error)?;
-			let existing: PersistedState =
-				serde_json::from_slice(&snapshot.bytes).map_err(io_error)?;
-			validate_persisted_state_bounds(&existing)?;
+		let state = if path.exists() {
+			let data = fs::read(&path).map_err(io_error)?;
+			let existing: PersistedState = serde_json::from_slice(&data).map_err(io_error)?;
 			if existing.version != PROTOCOL_VERSION {
 				return Err(StoreError::Invalid(format!(
 					"unsupported persisted protocol version {}",
@@ -669,16 +365,9 @@ impl DiskStore {
 					"capacity changes require authenticated PUT /node".into(),
 				));
 			}
-			(
-				existing,
-				PreparedProviderIndexGuard::Present {
-					identity: snapshot.identity,
-					length: snapshot.length,
-					bytes: snapshot.bytes,
-				},
-			)
+			existing
 		} else {
-			(PersistedState {
+			PersistedState {
 				version: PROTOCOL_VERSION,
 				profile,
 				capacity_bytes,
@@ -695,51 +384,15 @@ impl DiskStore {
 				pending_checkpoint_duties: BTreeMap::new(),
 				checkpoint_duty_inventory: None,
 				checkpoint_duty_discovery_cursor: None,
-				deletion_duty_intake: None,
-				deletion_duty_watermark: None,
-				pending_manifest_deletions: BTreeMap::new(),
-			}, PreparedProviderIndexGuard::Missing)
+				checkpoints: Vec::new(),
+			}
 		};
-			let store = Self {
-				root: root.clone(),
-				state: RwLock::new(state),
-				_root_guard: None,
-				blob_directory: None,
-			};
+		let store = Self { root, state: RwLock::new(state) };
+		if !path.exists() {
+			store.persist()?;
+		}
 		store.verify_index()?;
-		let state = store
-			.state
-			.into_inner()
-			.map_err(|_| StoreError::Io("provider index validation lock was poisoned".into()))?;
-		let (blobs_exists, blobs_identity, blob_temps, canonical_blobs) = validate_blob_namespace_at(
-			root_directory,
-			&state,
-			index_exists,
-		)?;
-		let recovered_artifacts = root_artifacts
-			.checked_sub(index_temps.len())
-			.and_then(|count| count.checked_add(usize::from(!blobs_exists)))
-			.and_then(|count| count.checked_add(usize::from(!index_exists)))
-			.ok_or_else(|| StoreError::Io("provider root artifact count overflow".into()))?;
-		if recovered_artifacts > MAX_PROVIDER_ROOT_ARTIFACTS {
-			return Err(StoreError::Io("provider root contains too many durable artifacts".into()));
-		}
-		let initial_index = (!index_exists).then(|| encode_persisted_state(&state)).transpose()?;
-		if let PreparedProviderRootGuard::Existing(guard) = &root_guard {
-			guard.validate()?;
-		}
-		Ok(PreparedDiskStore {
-			root,
-			state,
-			initial_index,
-			index_temps,
-			blob_temps,
-			canonical_blobs,
-			blobs_missing: !blobs_exists,
-			blobs_identity,
-			root_guard,
-			index_guard,
-		})
+		Ok(store)
 	}
 
 	/// Return the provider data root for co-located private durable kernels.
@@ -772,20 +425,20 @@ impl DiskStore {
 				"provider and service_key are immutable for an initialized store".into(),
 			));
 		}
-		let stored = retained_blob_bytes(&state)?;
+		let stored = stored_bytes(&state);
 		if capacity_bytes < stored || capacity_bytes == 0 {
 			return Err(StoreError::Invalid("capacity is below stored bytes".into()));
 		}
 		let mut next = state.clone();
 		next.profile = profile;
 		next.capacity_bytes = capacity_bytes;
-		self.persist_state(&next)?;
+		persist_state(&self.root, &next)?;
 		*state = next;
 		Ok(())
 	}
 
 	/// Atomically commit a finalized-authorized object.
-	pub(crate) fn commit(&self, input: CommitInput) -> Result<ContentRecord, StoreError> {
+	pub fn commit(&self, input: CommitInput) -> Result<ContentRecord, StoreError> {
 		validate_locator(input.bucket.as_deref(), input.key.as_deref())?;
 		if Self::content_commitment(&input.bytes) != input.commitment {
 			return Err(StoreError::Invalid("content commitment mismatch".into()));
@@ -806,11 +459,7 @@ impl DiskStore {
 			}
 			return Ok(record.clone());
 		}
-		if retained_blob_bytes(&state)?
-			.checked_add(input.bytes.len() as u64)
-			.filter(|total| *total <= state.capacity_bytes)
-			.is_none()
-		{
+		if stored_bytes(&state).saturating_add(input.bytes.len() as u64) > state.capacity_bytes {
 			return Err(StoreError::Capacity);
 		}
 		let mut next = state.clone();
@@ -829,29 +478,13 @@ impl DiskStore {
 			deleted: false,
 		};
 		let leaf = record_leaf(&record, false)?;
-		let blob_directory = self.blob_file()?;
-		let temporary_path = atomic_temp_path(Path::new(&commitment));
-		let temporary = temporary_path
-			.file_name()
-			.ok_or_else(|| StoreError::Io("durable blob temp name is invalid".into()))?;
-		crate::bounded_io::remove_optional_regular_file_at(blob_directory, temporary)
-			.map_err(io_error)?;
-		crate::bounded_io::write_atomic_at(
-			blob_directory,
-			commitment.as_ref(),
-			temporary,
-			&input.bytes,
-		)
-		.map_err(io_error)?;
+		write_atomic(&self.root.join(BLOBS_DIR).join(&commitment), &input.bytes)?;
 		let encoded_leaf = hex::encode(leaf);
 		next.leaf_hashes.push(encoded_leaf.clone());
 		journal_root_append(&mut next, encoded_leaf)?;
 		next.records.insert(commitment, record.clone());
-		if let Err(error) = self.persist_state(&next) {
-			let _ = crate::bounded_io::remove_optional_regular_file_at(
-				blob_directory,
-				record.commitment.as_ref(),
-			);
+		if let Err(error) = persist_state(&self.root, &next) {
+			let _ = fs::remove_file(self.root.join(BLOBS_DIR).join(&record.commitment));
 			return Err(error);
 		}
 		*state = next;
@@ -867,12 +500,7 @@ impl DiskStore {
 			.get(&normalized)
 			.filter(|record| !record.deleted)
 			.ok_or(StoreError::NotFound)?;
-		let bytes = crate::bounded_io::read_regular_file_at(
-			self.blob_file()?,
-			normalized.as_ref(),
-			record.bytes,
-		)
-		.map_err(io_error)?;
+		let bytes = fs::read(self.root.join(BLOBS_DIR).join(&normalized)).map_err(io_error)?;
 		if bytes.len() as u64 != record.bytes
 			|| hex::encode(Self::content_commitment(&bytes)) != normalized
 		{
@@ -904,7 +532,7 @@ impl DiskStore {
 	}
 
 	/// Persist a tombstone and pending-deletion journal before any content bytes are removed.
-	pub(crate) fn prepare_delete(
+	pub fn prepare_delete(
 		&self,
 		commitment: &str,
 		authorization: &AgreementAuthorization,
@@ -960,39 +588,37 @@ impl DiskStore {
 			inclusion_proof,
 		};
 		next.pending_deletions.insert(normalized, pending.clone());
-		self.persist_state(&next)?;
+		persist_state(&self.root, &next)?;
 		*state = next;
 		Ok((result, pending))
 	}
 
 	/// Remove bytes only after the deletion submission has been durably appended to the outbox.
-	pub(crate) fn complete_delete(&self, commitment: &str) -> Result<(), StoreError> {
+	pub fn complete_delete(&self, commitment: &str) -> Result<(), StoreError> {
 		let normalized = normalize_hash(commitment)?;
 		let mut state = self.write_state()?;
 		if !state.pending_deletions.contains_key(&normalized) {
 			return Ok(());
 		}
-		crate::bounded_io::remove_optional_regular_file_at(
-			self.blob_file()?,
-			normalized.as_ref(),
-		)
-		.map_err(io_error)?;
+		match fs::remove_file(self.root.join(BLOBS_DIR).join(&normalized)) {
+			Ok(()) => {},
+			Err(error) if error.kind() == std::io::ErrorKind::NotFound => {},
+			Err(error) => return Err(io_error(error)),
+		}
 		let mut next = state.clone();
 		next.pending_deletions.remove(&normalized);
-		self.persist_state(&next)?;
+		persist_state(&self.root, &next)?;
 		*state = next;
 		Ok(())
 	}
 
 	/// Return deletion journal entries which must be re-enqueued after a crash.
-	pub(crate) fn pending_deletions(&self) -> Result<Vec<PendingDeletion>, StoreError> {
+	pub fn pending_deletions(&self) -> Result<Vec<PendingDeletion>, StoreError> {
 		Ok(self.read_state()?.pending_deletions.values().cloned().collect())
 	}
 
 	/// Return root append journal entries in exact sequence order.
-	pub(crate) fn pending_root_submissions(
-		&self,
-	) -> Result<Vec<PendingRootSubmission>, StoreError> {
+	pub fn pending_root_submissions(&self) -> Result<Vec<PendingRootSubmission>, StoreError> {
 		Ok(self.read_state()?.pending_roots.values().cloned().collect())
 	}
 
@@ -1008,24 +634,14 @@ impl DiskStore {
 	) -> Result<bool, StoreError> {
 		let mut state = self.write_state()?;
 		validate_checkpoint_duty_page(&batch, &state.profile)?;
-		let accumulated_duties = state
-			.checkpoint_duty_intake
-			.as_ref()
-			.map_or(0, |intake| intake.duties.len())
-			.checked_add(batch.duties.len())
-			.ok_or(StoreError::Capacity)?;
-		if accumulated_duties > MAX_PROVIDER_INDEX_RECORDS {
-			return Err(StoreError::Capacity);
-		}
-		if checkpoint_duty_coordinates_regress(
-			batch.snapshot_checkpoint,
-			batch.finalized_number,
-			state.checkpoint_duty_watermark.as_ref(),
-			state.checkpoint_duty_inventory.as_ref(),
-		) {
-			return Err(StoreError::Invalid(
-				"checkpoint duty snapshot or finalized height regressed".into(),
-			));
+		if let Some(previous) = &state.checkpoint_duty_watermark {
+			if batch.snapshot_checkpoint < previous.snapshot_checkpoint
+				|| batch.finalized_number < previous.finalized_number
+			{
+				return Err(StoreError::Invalid(
+					"checkpoint duty snapshot or finalized height regressed".into(),
+				));
+			}
 		}
 		let mut next = state.clone();
 		let mut accumulated = match next.checkpoint_duty_intake.take() {
@@ -1059,13 +675,6 @@ impl DiskStore {
 			}
 		}
 		accumulated.extend(batch.duties);
-		validate_checkpoint_duty_collection(
-			&batch.finalized_hash,
-			&batch.provider,
-			batch.snapshot_checkpoint,
-			&accumulated,
-			&state.profile,
-		)?;
 		if let Some(next_cursor) = batch.next_cursor {
 			next.checkpoint_duty_intake = Some(CheckpointDutyIntake {
 				finalized_hash: batch.finalized_hash,
@@ -1075,7 +684,7 @@ impl DiskStore {
 				next_cursor,
 				duties: accumulated,
 			});
-			self.persist_state(&next)?;
+			persist_state(&self.root, &next)?;
 			*state = next;
 			return Ok(false);
 		}
@@ -1136,7 +745,7 @@ impl DiskStore {
 			next.checkpoint_duty_discovery_cursor = None;
 		}
 		next.checkpoint_duty_intake = None;
-		self.persist_state(&next)?;
+		persist_state(&self.root, &next)?;
 		*state = next;
 		Ok(true)
 	}
@@ -1219,7 +828,7 @@ impl DiskStore {
 		};
 		let mut next = state.clone();
 		next.checkpoint_duty_discovery_cursor = Some(next_cursor);
-		self.persist_state(&next)?;
+		persist_state(&self.root, &next)?;
 		*state = next;
 		Ok(selected.into_iter().map(|(_, duty)| duty).collect())
 	}
@@ -1229,166 +838,15 @@ impl DiskStore {
 		Ok(self.read_state()?.pending_checkpoint_duties.values().cloned().collect())
 	}
 
-	/// Atomically stage one bounded page without accumulating the complete runtime snapshot.
-	pub fn stage_deletion_duty_page(&self, batch: DeletionDutyBatch) -> Result<bool, StoreError> {
-		let mut state = self.write_state()?;
-		validate_deletion_duty_page(&batch, &state.profile)?;
-		if !state.pending_manifest_deletions.is_empty() {
-			return Err(StoreError::Invalid(
-				"manifest deletion page cannot advance before its staged duties are handed off"
-					.into(),
-			));
-		}
-		if let Some(previous) = &state.deletion_duty_watermark {
-			if batch.snapshot_checkpoint < previous.snapshot_checkpoint
-				|| batch.finalized_number < previous.finalized_number
-			{
-				return Err(StoreError::Invalid(
-					"manifest deletion duty snapshot or finalized height regressed".into(),
-				));
-			}
-		}
-		match &state.deletion_duty_intake {
-			Some(intake) => {
-				if batch.finalized_hash != intake.finalized_hash
-					|| batch.finalized_number != intake.finalized_number
-					|| batch.provider != intake.provider
-					|| batch.snapshot_checkpoint != intake.snapshot_checkpoint
-					|| batch.requested_cursor != intake.next_cursor
-				{
-					return Err(StoreError::Invalid(
-						"manifest deletion page does not resume the durable fixed snapshot".into(),
-					));
-				}
-			},
-			None => {
-				if batch.requested_cursor.is_some() {
-					return Err(StoreError::Invalid(
-						"manifest deletion resume cursor has no durable staging record".into(),
-					));
-				}
-			},
-		}
-		let page_tail = batch.duties.last().map(|duty| duty.manifest.clone());
-		let last_manifest = page_tail
-			.clone()
-			.or_else(|| batch.requested_cursor.as_ref().map(|cursor| cursor.last_manifest.clone()));
-		let mut next = state.clone();
-		for duty in &batch.duties {
-			next.pending_manifest_deletions
-				.insert(normalize_hash(&duty.manifest)?, duty.clone());
-		}
-		let terminal = batch.next_cursor.is_none();
-		if terminal && batch.duties.is_empty() {
-			next.deletion_duty_watermark = Some(DeletionDutyWatermark {
-				finalized_hash: batch.finalized_hash,
-				finalized_number: batch.finalized_number,
-				snapshot_checkpoint: batch.snapshot_checkpoint,
-				last_manifest,
-			});
-			next.deletion_duty_intake = None;
-			self.persist_state(&next)?;
-			*state = next;
-			return Ok(true);
-		}
-		next.deletion_duty_intake = Some(DeletionDutyIntake {
-			finalized_hash: batch.finalized_hash.clone(),
-			finalized_number: batch.finalized_number,
-			provider: batch.provider,
-			snapshot_checkpoint: batch.snapshot_checkpoint,
-			requested_cursor: batch.requested_cursor,
-			next_cursor: batch.next_cursor,
-			page_tail,
-		});
-		/* The watermark advances only after every duty in the terminal page is durable in the
-		 * acknowledgement outbox. */
-		self.persist_state(&next)?;
-		*state = next;
-		Ok(terminal)
-	}
-
-	fn finalize_manifest_deletion_page(next: &mut PersistedState) {
-		let Some(intake) = next.deletion_duty_intake.clone() else { return };
-		if intake.next_cursor.is_some() {
-			return;
-		}
-		next.deletion_duty_watermark = Some(DeletionDutyWatermark {
-			finalized_hash: intake.finalized_hash.clone(),
-			finalized_number: intake.finalized_number,
-			snapshot_checkpoint: intake.snapshot_checkpoint,
-			last_manifest: intake.page_tail.clone().or_else(|| {
-				intake.requested_cursor.as_ref().map(|cursor| cursor.last_manifest.clone())
-			}),
-		});
-		next.deletion_duty_intake = None;
-	}
-
-	/// Return the exact fixed-hash request needed to resume deletion intake after restart.
-	pub fn deletion_duty_resume_request(
-		&self,
-	) -> Result<Option<DeletionDutyPageRequest>, StoreError> {
-		let state = self.read_state()?;
-		if !state.pending_manifest_deletions.is_empty() {
-			return Ok(None);
-		}
-		Ok(state.deletion_duty_intake.as_ref().and_then(|intake| {
-			intake.next_cursor.clone().map(|cursor| DeletionDutyPageRequest {
-				finalized_hash: intake.finalized_hash.clone(),
-				finalized_number: intake.finalized_number,
-				provider: intake.provider.clone(),
-				snapshot_checkpoint: intake.snapshot_checkpoint,
-				cursor,
-			})
-		}))
-	}
-
-	/// Return the bounded staged-page work slice in deterministic manifest-key order.
-	pub fn pending_manifest_deletions(
-		&self,
-		limit: usize,
-	) -> Result<Vec<DeletionDuty>, StoreError> {
-		Ok(self
-			.read_state()?
-			.pending_manifest_deletions
-			.values()
-			.take(limit)
-			.cloned()
-			.collect())
-	}
-
-	/// Complete exact work only after its acknowledgement is durable in the signer outbox.
-	pub fn complete_manifest_deletion(
-		&self,
-		manifest: &str,
-		duty_fingerprint: &str,
-	) -> Result<(), StoreError> {
-		let key = normalize_hash(manifest)?;
-		let mut state = self.write_state()?;
-		let Some(existing) = state.pending_manifest_deletions.get(&key) else { return Ok(()) };
-		if normalize_hash(&existing.duty_fingerprint)? != normalize_hash(duty_fingerprint)? {
-			return Err(StoreError::Invalid(
-				"manifest deletion completion changed its duty fingerprint".into(),
-			));
-		}
-		let mut next = state.clone();
-		next.pending_manifest_deletions.remove(&key);
-		if next.pending_manifest_deletions.is_empty() {
-			Self::finalize_manifest_deletion_page(&mut next);
-		}
-		self.persist_state(&next)?;
-		*state = next;
-		Ok(())
-	}
-
 	/// Remove a root journal entry only after it has been durably appended to the outbox.
-	pub(crate) fn complete_root_submission(&self, sequence: u64) -> Result<(), StoreError> {
+	pub fn complete_root_submission(&self, sequence: u64) -> Result<(), StoreError> {
 		let mut state = self.write_state()?;
 		if !state.pending_roots.contains_key(&sequence) {
 			return Ok(());
 		}
 		let mut next = state.clone();
 		next.pending_roots.remove(&sequence);
-		self.persist_state(&next)?;
+		persist_state(&self.root, &next)?;
 		*state = next;
 		Ok(())
 	}
@@ -1433,6 +891,14 @@ impl DiskStore {
 			root: current_root(&state)?,
 			proof_leaf_count: state.leaf_hashes.len() as u64,
 		})
+	}
+
+	/// Resolve an exact historical append-log root without requiring equality with the current
+	/// root.
+	pub fn root_observation(&self, root: &str) -> Result<RootObservation, StoreError> {
+		let normalized = normalize_hash(root)?;
+		let state = self.read_state()?;
+		root_observation(&state, &normalized)
 	}
 
 	/// Return a Merkle inclusion proof for a content record.
@@ -1491,10 +957,49 @@ impl DiskStore {
 		Ok(self.read_state()?.leaf_hashes.iter().skip(start).take(limit).cloned().collect())
 	}
 
+	/// Persist a signed checkpoint if it advances the covered leaf count or root.
+	pub fn append_checkpoint(&self, checkpoint: SignedCheckpoint) -> Result<(), StoreError> {
+		let mut state = self.write_state()?;
+		let observation = root_observation(&state, &normalize_hash(&checkpoint.root)?)?;
+		if checkpoint.leaves != observation.leaf_count {
+			return Err(StoreError::Invalid(
+				"checkpoint leaf count does not match root history".into(),
+			));
+		}
+		if state
+			.checkpoints
+			.last()
+			.is_some_and(|last| last.root == checkpoint.root && last.leaves == checkpoint.leaves)
+		{
+			return Ok(());
+		}
+		let mut next = state.clone();
+		next.checkpoints.push(checkpoint);
+		if next.checkpoints.len() > 1024 {
+			next.checkpoints.remove(0);
+		}
+		persist_state(&self.root, &next)?;
+		*state = next;
+		Ok(())
+	}
+
+	/// Return bounded checkpoint history for replica catch-up.
+	pub fn checkpoints(&self, limit: usize) -> Result<Vec<SignedCheckpoint>, StoreError> {
+		if limit == 0 || limit > 100 {
+			return Err(StoreError::Invalid("limit must be in 1..=100".into()));
+		}
+		let state = self.read_state()?;
+		Ok(state.checkpoints.iter().rev().take(limit).cloned().collect())
+	}
+
+	/// Return the latest signed checkpoint without creating a new one.
+	pub fn latest_checkpoint(&self) -> Result<SignedCheckpoint, StoreError> {
+		self.read_state()?.checkpoints.last().cloned().ok_or(StoreError::NotFound)
+	}
+
 	fn verify_index(&self) -> Result<(), StoreError> {
 		let state = self.read_state()?;
 		verify_checkpoint_duty_state(&state)?;
-		verify_deletion_duty_state(&state)?;
 		if state.root_sequence != state.leaf_hashes.len() as u64 {
 			return Err(StoreError::Io("root sequence and proof-leaf counts differ".into()));
 		}
@@ -1572,6 +1077,11 @@ impl DiskStore {
 			}
 		}
 		Ok(())
+	}
+
+	fn persist(&self) -> Result<(), StoreError> {
+		let state = self.read_state()?;
+		persist_state(&self.root, &state)
 	}
 
 	fn read_state(&self) -> Result<std::sync::RwLockReadGuard<'_, PersistedState>, StoreError> {
@@ -1731,6 +1241,18 @@ fn current_root(state: &PersistedState) -> Result<String, StoreError> {
 		.ok_or_else(|| StoreError::Io("proof root is unavailable".into()))
 }
 
+fn root_observation(state: &PersistedState, root: &str) -> Result<RootObservation, StoreError> {
+	if state.leaf_hashes.is_empty() && root == hex::encode(merkle::root(&[])) {
+		return Ok(RootObservation { root: root.to_owned(), leaf_count: 0 });
+	}
+	let leaf_count = state
+		.root_index
+		.get(root)
+		.copied()
+		.ok_or_else(|| StoreError::Invalid("root is not present in append history".into()))?;
+	Ok(RootObservation { root: root.to_owned(), leaf_count })
+}
+
 fn stored_bytes(state: &PersistedState) -> u64 {
 	state
 		.records
@@ -1739,25 +1261,11 @@ fn stored_bytes(state: &PersistedState) -> u64 {
 		.fold(0u64, |total, record| total.saturating_add(record.bytes))
 }
 
-fn retained_blob_bytes(state: &PersistedState) -> Result<u64, StoreError> {
-	state.records.iter().try_fold(0u64, |total, (commitment, record)| {
-		if !record.deleted || state.pending_deletions.contains_key(commitment) {
-			total
-				.checked_add(record.bytes)
-				.ok_or_else(|| StoreError::Io("provider retained-byte total overflow".into()))
-		} else {
-			Ok(total)
-		}
-	})
-}
-
 fn validate_checkpoint_duty_page(
 	batch: &CheckpointDutyBatch,
 	profile: &NodeProfile,
 ) -> Result<(), StoreError> {
-	if batch.duties.len() > MAX_CHECKPOINT_DUTY_PAGE_SIZE as usize {
-		return Err(StoreError::Invalid("checkpoint duty page exceeds the runtime bound".into()));
-	}
+	normalize_hash(&batch.finalized_hash)?;
 	if let Some(cursor) = &batch.requested_cursor {
 		if cursor.snapshot_checkpoint != batch.snapshot_checkpoint {
 			return Err(StoreError::Invalid(
@@ -1784,34 +1292,17 @@ fn validate_checkpoint_duty_page(
 			return Err(StoreError::Invalid("checkpoint duty page advanced an empty cursor".into()))
 		},
 	}
-	validate_checkpoint_duty_collection(
-		&batch.finalized_hash,
-		&batch.provider,
-		batch.snapshot_checkpoint,
-		&batch.duties,
-		profile,
-	)
-}
-
-fn validate_checkpoint_duty_collection(
-	finalized_hash: &str,
-	provider: &str,
-	snapshot_checkpoint: u32,
-	duties: &[CheckpointDuty],
-	profile: &NodeProfile,
-) -> Result<(), StoreError> {
-	normalize_hash(finalized_hash)?;
 	let expected_provider = normalize_hash(&profile.provider)?;
 	let expected_key = normalize_hash(&profile.service_key)?;
-	if normalize_hash(provider)? != expected_provider {
+	if normalize_hash(&batch.provider)? != expected_provider {
 		return Err(StoreError::Invalid("checkpoint duty page belongs to another provider".into()));
 	}
 	let mut previous_bucket = None;
 	let mut ids = BTreeMap::new();
-	for duty in duties {
+	for duty in &batch.duties {
 		let duty_id = normalize_hash(&duty.duty_id)?;
 		let bucket = normalize_hash(&duty.bucket_id)?;
-		if duty.snapshot_checkpoint != snapshot_checkpoint {
+		if duty.snapshot_checkpoint != batch.snapshot_checkpoint {
 			return Err(StoreError::Invalid(
 				"checkpoint duty does not belong to the installed snapshot".into(),
 			));
@@ -1855,7 +1346,7 @@ fn validate_checkpoint_duty_collection(
 			decoded,
 			&provider,
 			service_key,
-			snapshot_checkpoint,
+			batch.snapshot_checkpoint,
 		)
 		.map_err(|error| StoreError::Invalid(error.to_string()))?;
 		if &projected != duty {
@@ -1876,163 +1367,6 @@ fn validate_checkpoint_duty_collection(
 	Ok(())
 }
 
-fn validate_deletion_duty_page(
-	batch: &DeletionDutyBatch,
-	profile: &NodeProfile,
-) -> Result<(), StoreError> {
-	if batch.duties.len() > orbis_storage_runtime_api::MAX_DELETION_DUTY_PAGE_SIZE as usize {
-		return Err(StoreError::Invalid("manifest deletion page exceeds the runtime bound".into()));
-	}
-	normalize_hash(&batch.finalized_hash)?;
-	let expected_provider = normalize_hash(&profile.provider)?;
-	if normalize_hash(&batch.provider)? != expected_provider {
-		return Err(StoreError::Invalid(
-			"manifest deletion page belongs to another provider".into(),
-		));
-	}
-	if let Some(cursor) = &batch.requested_cursor {
-		if cursor.snapshot_checkpoint != batch.snapshot_checkpoint {
-			return Err(StoreError::Invalid(
-				"manifest deletion request cursor belongs to another snapshot".into(),
-			));
-		}
-		normalize_hash(&cursor.last_manifest)?;
-	}
-	if batch.next_cursor.is_some() && batch.next_cursor == batch.requested_cursor {
-		return Err(StoreError::Invalid("manifest deletion cursor did not advance".into()));
-	}
-	match (&batch.next_cursor, batch.duties.last()) {
-		(None, _) => {},
-		(Some(cursor), Some(last)) => {
-			if cursor.snapshot_checkpoint != batch.snapshot_checkpoint
-				|| normalize_hash(&cursor.last_manifest)? != normalize_hash(&last.manifest)?
-			{
-				return Err(StoreError::Invalid(
-					"manifest deletion cursor does not bind the page tail".into(),
-				));
-			}
-		},
-		(Some(_), None) => {
-			return Err(StoreError::Invalid(
-				"manifest deletion page advanced an empty cursor".into(),
-			))
-		},
-	}
-	let provider_raw: [u8; 32] = hex::decode(&expected_provider)
-		.map_err(io_error)?
-		.try_into()
-		.map_err(|_| StoreError::Invalid("provider profile is not 32 bytes".into()))?;
-	let provider = AccountId32::new(provider_raw);
-	let mut manifests = std::collections::BTreeSet::new();
-	for duty in &batch.duties {
-		let manifest = normalize_hash(&duty.manifest)?;
-		if !manifests.insert(manifest) {
-			return Err(StoreError::Invalid(
-				"manifest deletion duties contain a duplicate manifest".into(),
-			));
-		}
-		if duty.snapshot_checkpoint != batch.snapshot_checkpoint
-			|| normalize_hash(&duty.provider)? != expected_provider
-		{
-			return Err(StoreError::Invalid(
-				"manifest deletion duty has the wrong snapshot or provider".into(),
-			));
-		}
-		normalize_hash(&duty.bucket_id)?;
-		normalize_hash(&duty.provider_commitment)?;
-		let encoded = hex::decode(duty.encoded_duty.strip_prefix("0x").ok_or_else(|| {
-			StoreError::Invalid("manifest deletion SCALE is not prefixed".into())
-		})?)
-		.map_err(|error| {
-			StoreError::Invalid(format!("invalid manifest deletion SCALE: {error}"))
-		})?;
-		if normalize_hash(&duty.duty_fingerprint)?
-			!= hex::encode(sp_crypto_hashing::blake2_256(&encoded))
-		{
-			return Err(StoreError::Invalid("manifest deletion duty fingerprint mismatch".into()));
-		}
-		let mut input = &encoded[..];
-		let decoded =
-			DeletionDutyInfo::<AccountId32, H256, u32>::decode(&mut input).map_err(|error| {
-				StoreError::Invalid(format!("invalid manifest deletion SCALE: {error}"))
-			})?;
-		if !input.is_empty() {
-			return Err(StoreError::Invalid("manifest deletion SCALE has trailing bytes".into()));
-		}
-		let projected =
-			crate::chain::validate_deletion_duty(decoded, &provider, batch.snapshot_checkpoint)
-				.map_err(|error| StoreError::Invalid(error.to_string()))?;
-		if &projected != duty {
-			return Err(StoreError::Invalid(
-				"manifest deletion typed projection does not match runtime SCALE".into(),
-			));
-		}
-	}
-	Ok(())
-}
-
-fn verify_deletion_duty_state(state: &PersistedState) -> Result<(), StoreError> {
-	if state.pending_manifest_deletions.len()
-		> orbis_storage_runtime_api::MAX_DELETION_DUTY_PAGE_SIZE as usize
-	{
-		return Err(StoreError::Io("manifest deletion pending page exceeds its bound".into()));
-	}
-	if let Some(intake) = &state.deletion_duty_intake {
-		normalize_hash(&intake.finalized_hash)?;
-		if normalize_hash(&intake.provider)? != normalize_hash(&state.profile.provider)? {
-			return Err(StoreError::Io("manifest deletion intake provider is invalid".into()));
-		}
-		for cursor in intake.requested_cursor.iter().chain(intake.next_cursor.iter()) {
-			if cursor.snapshot_checkpoint != intake.snapshot_checkpoint {
-				return Err(StoreError::Io("manifest deletion intake cursor is invalid".into()));
-			}
-			normalize_hash(&cursor.last_manifest)?;
-		}
-		if let Some(tail) = &intake.page_tail {
-			normalize_hash(tail)?;
-		}
-		if state
-			.pending_manifest_deletions
-			.values()
-			.any(|duty| duty.snapshot_checkpoint != intake.snapshot_checkpoint)
-		{
-			return Err(StoreError::Io(
-				"manifest deletion pending duty belongs to another intake snapshot".into(),
-			));
-		}
-	}
-	if state.deletion_duty_intake.is_none() && !state.pending_manifest_deletions.is_empty() {
-		return Err(StoreError::Io("manifest deletion duties have no page intake".into()));
-	}
-	if let Some(watermark) = &state.deletion_duty_watermark {
-		normalize_hash(&watermark.finalized_hash)?;
-		if let Some(last_manifest) = &watermark.last_manifest {
-			normalize_hash(last_manifest)?;
-		}
-	}
-	for (key, duty) in &state.pending_manifest_deletions {
-		if key != &normalize_hash(&duty.manifest)? {
-			return Err(StoreError::Io(
-				"manifest deletion pending key does not match its duty".into(),
-			));
-		}
-		validate_deletion_duty_page(
-			&DeletionDutyBatch {
-				finalized_hash: format!("0x{}", "00".repeat(32)),
-				finalized_number: 0,
-				provider: state.profile.provider.clone(),
-				snapshot_checkpoint: duty.snapshot_checkpoint,
-				requested_cursor: None,
-				next_cursor: None,
-				duties: vec![duty.clone()],
-			},
-			&state.profile,
-		)
-		.map_err(|_| StoreError::Io("pending manifest deletion duty is invalid".into()))?;
-	}
-	Ok(())
-}
-
 fn terminal_cursor_key(
 	cursor: &Option<CheckpointDutyScanCursor>,
 ) -> Result<Option<String>, StoreError> {
@@ -2043,53 +1377,7 @@ fn checkpoint_duty_order_key(duty: &CheckpointDuty) -> Result<String, StoreError
 	Ok(format!("{}:{}", normalize_hash(&duty.bucket_id)?, normalize_hash(&duty.duty_id)?))
 }
 
-fn checkpoint_duty_coordinates_regress(
-	snapshot_checkpoint: u32,
-	finalized_number: u32,
-	watermark: Option<&CheckpointDutyWatermark>,
-	inventory: Option<&CheckpointDutyInventory>,
-) -> bool {
-	watermark.is_some_and(|installed| {
-		snapshot_checkpoint < installed.snapshot_checkpoint
-			|| finalized_number < installed.finalized_number
-	}) || inventory.is_some_and(|installed| {
-		snapshot_checkpoint < installed.snapshot_checkpoint
-			|| finalized_number < installed.finalized_number
-	})
-}
-
 fn verify_checkpoint_duty_state(state: &PersistedState) -> Result<(), StoreError> {
-	if let Some(intake) = &state.checkpoint_duty_intake {
-		validate_checkpoint_duty_collection(
-			&intake.finalized_hash,
-			&intake.provider,
-			intake.snapshot_checkpoint,
-			&intake.duties,
-			&state.profile,
-		)
-		.map_err(|_| StoreError::Io("checkpoint duty intake is invalid".into()))?;
-		let tail = intake
-			.duties
-			.last()
-			.ok_or_else(|| StoreError::Io("checkpoint duty intake has no page tail".into()))?;
-		if intake.next_cursor.snapshot_checkpoint != intake.snapshot_checkpoint
-			|| normalize_hash(&intake.next_cursor.last_key)? != normalize_hash(&tail.bucket_id)?
-		{
-			return Err(StoreError::Io(
-				"checkpoint duty intake cursor does not match its tail".into(),
-			));
-		}
-		if checkpoint_duty_coordinates_regress(
-			intake.snapshot_checkpoint,
-			intake.finalized_number,
-			state.checkpoint_duty_watermark.as_ref(),
-			state.checkpoint_duty_inventory.as_ref(),
-		) {
-			return Err(StoreError::Io(
-				"checkpoint duty intake regresses behind its installed inventory".into(),
-			));
-		}
-	}
 	match (&state.checkpoint_duty_watermark, &state.checkpoint_duty_inventory) {
 		(None, None) => {},
 		(Some(watermark), Some(inventory)) => {
@@ -2111,11 +1399,16 @@ fn verify_checkpoint_duty_state(state: &PersistedState) -> Result<(), StoreError
 					"checkpoint duty inventory tail does not match its watermark".into(),
 				));
 			}
-			validate_checkpoint_duty_collection(
-				&inventory.finalized_hash,
-				&state.profile.provider,
-				inventory.snapshot_checkpoint,
-				&inventory.duties,
+			validate_checkpoint_duty_page(
+				&CheckpointDutyBatch {
+					finalized_hash: inventory.finalized_hash.clone(),
+					finalized_number: inventory.finalized_number,
+					provider: state.profile.provider.clone(),
+					snapshot_checkpoint: inventory.snapshot_checkpoint,
+					requested_cursor: None,
+					next_cursor: None,
+					duties: inventory.duties.clone(),
+				},
 				&state.profile,
 			)
 			.map_err(|_| StoreError::Io("checkpoint duty inventory is invalid".into()))?;
@@ -2161,262 +1454,24 @@ fn now_ms() -> Result<u64, StoreError> {
 		.as_millis() as u64)
 }
 
-fn persist_state_at(root: &fs::File, state: &PersistedState) -> Result<(), StoreError> {
-	let bytes = encode_persisted_state(state)?;
-	let temporary = atomic_temp_path(Path::new(INDEX_FILE));
-	crate::bounded_io::write_atomic_at(
-		root,
-		INDEX_FILE.as_ref(),
-		temporary
-			.file_name()
-			.ok_or_else(|| StoreError::Io("provider index temp name is invalid".into()))?,
-		&bytes,
-	)
-	.map_err(io_error)
+fn persist_state(root: &Path, state: &PersistedState) -> Result<(), StoreError> {
+	let bytes = serde_json::to_vec_pretty(state).map_err(io_error)?;
+	write_atomic(&root.join(INDEX_FILE), &bytes)
 }
 
-fn encode_persisted_state(state: &PersistedState) -> Result<Vec<u8>, StoreError> {
-	validate_persisted_state_bounds(state)?;
-	let bytes = serde_json::to_vec(state).map_err(io_error)?;
-	if bytes.len() as u64 > MAX_PROVIDER_INDEX_BYTES {
-		return Err(StoreError::Capacity);
-	}
-	Ok(bytes)
-}
-
-fn validate_persisted_state_bounds(state: &PersistedState) -> Result<(), StoreError> {
-	if state.records.len() > MAX_PROVIDER_INDEX_RECORDS ||
-		state.leaf_hashes.len() > MAX_PROVIDER_INDEX_LEAVES ||
-		state.root_history.len() > MAX_PROVIDER_INDEX_LEAVES ||
-		state.root_index.len() > MAX_PROVIDER_INDEX_LEAVES ||
-		state.pending_roots.len() > MAX_PROVIDER_INDEX_LEAVES ||
-		state.pending_deletions.len() > MAX_PROVIDER_INDEX_RECORDS ||
-		state.pending_checkpoint_duties.len() > MAX_PROVIDER_INDEX_RECORDS ||
-		state
-			.checkpoint_duty_intake
-			.as_ref()
-			.is_some_and(|intake| intake.duties.len() > MAX_PROVIDER_INDEX_RECORDS) ||
-		state
-			.checkpoint_duty_inventory
-			.as_ref()
-			.is_some_and(|inventory| inventory.duties.len() > MAX_PROVIDER_INDEX_RECORDS) ||
-		state.pending_manifest_deletions.len() > MAX_PROVIDER_INDEX_RECORDS
-	{
-		return Err(StoreError::Capacity);
-	}
-	if retained_blob_bytes(state)? > state.capacity_bytes {
-		return Err(StoreError::Capacity);
-	}
-	Ok(())
-}
-
-fn collect_index_temps_at(
-	directory: &fs::File,
-) -> Result<(Vec<crate::bounded_io::PreparedRegularFile>, usize), StoreError> {
-	let mut visited = 0usize;
-	let mut temps = Vec::new();
-	for item in crate::bounded_io::list_directory(directory).map_err(io_error)? {
-		visited = visited
-			.checked_add(1)
-			.ok_or_else(|| StoreError::Io("provider root artifact count overflow".into()))?;
-		if visited > MAX_PROVIDER_ROOT_ARTIFACTS {
-			return Err(StoreError::Io("provider root contains too many durable artifacts".into()));
+fn write_atomic(path: &Path, bytes: &[u8]) -> Result<(), StoreError> {
+	let temporary = path.with_extension(format!("tmp-{}", std::process::id()));
+	let mut file = fs::File::create(&temporary).map_err(io_error)?;
+	file.write_all(bytes).map_err(io_error)?;
+	file.sync_all().map_err(io_error)?;
+	fs::rename(&temporary, path).map_err(io_error).and_then(|()| {
+		if let Some(parent) = path.parent() {
+			fs::File::open(parent)
+				.and_then(|directory| directory.sync_all())
+				.map_err(io_error)?;
 		}
-		let name = item.name.to_string_lossy().into_owned();
-		if let Some(process_id) = name.strip_prefix(INDEX_TEMP_PREFIX) {
-			if item.file_type != rustix::fs::FileType::RegularFile {
-				return Err(StoreError::Io("provider index temp artifact set is invalid".into()));
-			}
-			if process_id.is_empty() || !process_id.bytes().all(|byte| byte.is_ascii_digit()) {
-				return Err(StoreError::Io("provider index temp artifact set is invalid".into()));
-			}
-			temps.push(item.into_regular_guard().map_err(io_error)?);
-			if temps.len() > MAX_PROVIDER_INDEX_TEMP_ARTIFACTS {
-				return Err(StoreError::Io("provider index temp artifact set is invalid".into()));
-			}
-		}
-	}
-	Ok((temps, visited))
-}
-
-fn validate_blob_namespace_at(
-	root_directory: Option<&fs::File>,
-	state: &PersistedState,
-	index_exists: bool,
-) -> Result<(
-	bool,
-	Option<crate::bounded_io::FileIdentity>,
-	Vec<crate::bounded_io::PreparedRegularFile>,
-	Vec<PreparedBlobGuard>,
-), StoreError> {
-	for (key, record) in &state.records {
-		if normalize_hash(key)? != *key || record.commitment != *key {
-			return Err(StoreError::Io("provider blob record key is not canonical".into()));
-		}
-	}
-	if retained_blob_bytes(state)? > state.capacity_bytes {
-		return Err(StoreError::Io("provider retained blob bytes exceed configured capacity".into()));
-	}
-	let exists = root_directory
-		.map(|root| crate::bounded_io::entry_missing_at(root, BLOBS_DIR.as_ref()).map(|missing| !missing))
-		.transpose()
-		.map_err(io_error)?
-		.unwrap_or(false);
-	if !exists {
-		if state.records.values().any(|record| !record.deleted) {
-			return Err(StoreError::Io("provider live blob directory is missing".into()));
-		}
-		return Ok((false, None, Vec::new(), Vec::new()));
-	}
-	let directory_handle = crate::bounded_io::open_directory_at(
-		root_directory.expect("existing blob directory has provider root"),
-		BLOBS_DIR.as_ref(),
-	)
-	.map_err(io_error)?;
-	let directory_identity = crate::bounded_io::file_identity(
-		&directory_handle.metadata().map_err(io_error)?,
-	);
-	let entries = crate::bounded_io::list_directory(&directory_handle).map_err(io_error)?;
-	if !index_exists {
-		if !entries.is_empty() {
-			return Err(StoreError::Io(
-				"provider blobs exist without a canonical provider index".into(),
-			));
-		}
-		return Ok((true, Some(directory_identity), Vec::new(), Vec::new()));
-	}
-	let max_entries = state
-		.records
-		.len()
-		.checked_add(MAX_PROVIDER_BLOB_TEMP_ARTIFACTS)
-		.ok_or_else(|| StoreError::Io("provider blob artifact count overflow".into()))?;
-	let mut visited = 0usize;
-	let mut temps = Vec::new();
-	let mut canonical = Vec::new();
-	let mut seen = BTreeMap::new();
-	for item in entries {
-		visited = visited
-			.checked_add(1)
-			.ok_or_else(|| StoreError::Io("provider blob artifact count overflow".into()))?;
-		if visited > max_entries {
-			return Err(StoreError::Io(
-				"provider blob namespace contains too many artifacts".into(),
-			));
-		}
-		if item.file_type != rustix::fs::FileType::RegularFile {
-			return Err(StoreError::Io("provider blob artifact is not a regular file".into()));
-		}
-		let name = item.name.to_string_lossy().into_owned();
-		if let Some((commitment, process_id)) = name.rsplit_once(".tmp-") {
-			if normalize_hash(commitment).ok().as_deref() != Some(commitment)
-				|| process_id.is_empty()
-				|| !process_id.bytes().all(|byte| byte.is_ascii_digit())
-			{
-				return Err(StoreError::Io("provider blob temp artifact name is invalid".into()));
-			}
-			temps.push(item.into_regular_guard().map_err(io_error)?);
-			if temps.len() > MAX_PROVIDER_BLOB_TEMP_ARTIFACTS {
-				return Err(StoreError::Io("provider blob temp artifact set is invalid".into()));
-			}
-			continue;
-		}
-		if normalize_hash(&name)? != name {
-			return Err(StoreError::Io("provider blob artifact name is invalid".into()));
-		}
-		let record = state
-			.records
-			.get(&name)
-			.ok_or_else(|| StoreError::Io("provider blob has no canonical index record".into()))?;
-		if record.deleted && !state.pending_deletions.contains_key(&name) {
-			return Err(StoreError::Io("completed deletion retained provider blob bytes".into()));
-		}
-		let guard = prepare_blob_guard(&directory_handle, item, record)?;
-		canonical.push(guard);
-		if seen.insert(name, ()).is_some() {
-			return Err(StoreError::Io("provider blob namespace contains a duplicate".into()));
-		}
-	}
-	for record in state.records.values().filter(|record| !record.deleted) {
-		if !seen.contains_key(&record.commitment) {
-			return Err(StoreError::Io("provider live blob is missing".into()));
-		}
-	}
-	Ok((true, Some(directory_identity), temps, canonical))
-}
-
-fn prepare_blob_guard(
-	directory: &fs::File,
-	entry: crate::bounded_io::DirectoryEntry,
-	record: &ContentRecord,
-) -> Result<PreparedBlobGuard, StoreError> {
-	let guard = entry.into_regular_guard().map_err(io_error)?;
-	let file = crate::bounded_io::open_prepared_regular_file_at(directory, &guard)
-		.map_err(io_error)?;
-	verify_blob_contents(file, record.bytes, &record.commitment)?;
-	Ok(PreparedBlobGuard {
-		file: guard,
-		commitment: record.commitment.clone(),
-		expected_bytes: record.bytes,
+		Ok(())
 	})
-}
-
-fn validate_prepared_blobs(
-	directory: &fs::File,
-	blobs: &[PreparedBlobGuard],
-) -> Result<(), StoreError> {
-	for blob in blobs {
-		let file = crate::bounded_io::open_prepared_regular_file_at(directory, &blob.file)
-			.map_err(io_error)?;
-		verify_blob_contents(file, blob.expected_bytes, &blob.commitment)?;
-	}
-	Ok(())
-}
-
-fn verify_blob_contents(
-	file: fs::File,
-	expected_bytes: u64,
-	expected_commitment: &str,
-) -> Result<(), StoreError> {
-	let metadata = file.metadata().map_err(io_error)?;
-	if !metadata.is_file() || metadata.len() != expected_bytes {
-		return Err(StoreError::Io("provider blob length does not match its record".into()));
-	}
-	let limit = expected_bytes
-		.checked_add(1)
-		.ok_or_else(|| StoreError::Io("provider blob read bound overflow".into()))?;
-	let mut reader = file.take(limit);
-	let mut hash = Blake2b::<U32>::new();
-	let mut total = 0u64;
-	let mut buffer = [0u8; 64 * 1024];
-	loop {
-		let read = reader.read(&mut buffer).map_err(io_error)?;
-		if read == 0 {
-			break;
-		}
-		total = total
-			.checked_add(read as u64)
-			.ok_or_else(|| StoreError::Io("provider blob length overflow".into()))?;
-		hash.update(&buffer[..read]);
-	}
-	if total != expected_bytes || hex::encode(hash.finalize()) != expected_commitment {
-		return Err(StoreError::Io("provider blob failed commitment verification".into()));
-	}
-	Ok(())
-}
-
-fn optional_owned_directory_exists(path: &Path) -> Result<bool, StoreError> {
-	match fs::symlink_metadata(path) {
-		Ok(metadata) if metadata.file_type().is_symlink() || !metadata.is_dir() => {
-			Err(StoreError::Io("provider owned namespace is not a directory".into()))
-		},
-		Ok(_) => Ok(true),
-		Err(error) if error.kind() == std::io::ErrorKind::NotFound => Ok(false),
-		Err(error) => Err(io_error(error)),
-	}
-}
-
-fn atomic_temp_path(path: &Path) -> PathBuf {
-	path.with_extension(format!("tmp-{}", std::process::id()))
 }
 
 fn io_error(error: impl std::fmt::Display) -> StoreError {
@@ -2428,8 +1483,8 @@ mod tests {
 	use super::*;
 	use orbis_storage_runtime_api::{
 		CheckpointDutyMode as RuntimeCheckpointDutyMode,
-		CheckpointDutyPhase as RuntimeCheckpointDutyPhase, DeletionDutyInfo, ProviderDutyAuthority,
-		ProviderDutyRole, RESPONSE_VERSION,
+		CheckpointDutyPhase as RuntimeCheckpointDutyPhase, ProviderDutyAuthority, ProviderDutyRole,
+		RESPONSE_VERSION,
 	};
 
 	fn profile() -> NodeProfile {
@@ -2562,166 +1617,6 @@ mod tests {
 		}
 	}
 
-	fn checkpoint_duties(count: usize, snapshot: u32) -> Vec<CheckpointDuty> {
-		(0..count)
-			.map(|index| duty(index as u8, index as u8, snapshot))
-			.collect()
-	}
-
-	fn deletion_duty(manifest: u8, snapshot: u32) -> DeletionDuty {
-		crate::chain::validate_deletion_duty(
-			DeletionDutyInfo {
-				provider: AccountId32::new([1; 32]),
-				manifest: [manifest; 32],
-				bucket_id: H256::repeat_byte(manifest.saturating_add(1)),
-				provider_commitment: [manifest.saturating_add(2); 32],
-				tombstoned_at: snapshot.saturating_sub(1),
-			},
-			&AccountId32::new([1; 32]),
-			snapshot,
-		)
-		.unwrap()
-	}
-
-	fn deletion_cursor(snapshot: u32, manifest: u8) -> DeletionDutyScanCursor {
-		DeletionDutyScanCursor {
-			snapshot_checkpoint: snapshot,
-			last_manifest: format!("0x{}", hex::encode([manifest; 32])),
-		}
-	}
-
-	fn deletion_page(
-		snapshot: u32,
-		requested_cursor: Option<DeletionDutyScanCursor>,
-		next_cursor: Option<DeletionDutyScanCursor>,
-		duties: Vec<DeletionDuty>,
-	) -> DeletionDutyBatch {
-		DeletionDutyBatch {
-			finalized_hash: format!("0x{}", "20".repeat(32)),
-			finalized_number: snapshot + 1,
-			provider: format!("0x{}", "01".repeat(32)),
-			snapshot_checkpoint: snapshot,
-			requested_cursor,
-			next_cursor,
-			duties,
-		}
-	}
-
-	#[test]
-	fn manifest_deletion_pages_resume_after_restart_and_complete_idempotently() {
-		let temp = tempfile::tempdir().unwrap();
-		let store = DiskStore::open(temp.path(), profile(), 1024).unwrap();
-		// Runtime double-map iteration follows hashed storage-key order, not manifest order.
-		let first = deletion_duty(2, 70);
-		let second = deletion_duty(1, 70);
-		let cursor = deletion_cursor(70, 2);
-		assert!(!store
-			.stage_deletion_duty_page(deletion_page(
-				70,
-				None,
-				Some(cursor.clone()),
-				vec![first.clone()],
-			))
-			.unwrap());
-		assert_eq!(store.pending_manifest_deletions(8).unwrap(), vec![first.clone()]);
-		assert!(store.deletion_duty_resume_request().unwrap().is_none());
-		assert!(store
-			.stage_deletion_duty_page(deletion_page(
-				70,
-				Some(cursor.clone()),
-				None,
-				vec![second.clone()],
-			))
-			.is_err());
-		drop(store);
-
-		let reopened = DiskStore::open(temp.path(), profile(), 1024).unwrap();
-		assert_eq!(reopened.pending_manifest_deletions(8).unwrap(), vec![first.clone()]);
-		assert!(reopened.deletion_duty_resume_request().unwrap().is_none());
-		reopened
-			.complete_manifest_deletion(&first.manifest, &first.duty_fingerprint)
-			.unwrap();
-		drop(reopened);
-		let reopened = DiskStore::open(temp.path(), profile(), 1024).unwrap();
-		let resume = reopened.deletion_duty_resume_request().unwrap().unwrap();
-		assert_eq!(resume.cursor, cursor);
-		assert!(reopened
-			.stage_deletion_duty_page(deletion_page(70, Some(cursor), None, vec![second.clone()],))
-			.unwrap());
-		assert_eq!(reopened.pending_manifest_deletions(8).unwrap(), vec![second.clone()]);
-		reopened
-			.complete_manifest_deletion(&second.manifest, &second.duty_fingerprint)
-			.unwrap();
-		reopened
-			.complete_manifest_deletion(&second.manifest, &second.duty_fingerprint)
-			.unwrap();
-		assert!(reopened.pending_manifest_deletions(8).unwrap().is_empty());
-		assert!(reopened.deletion_duty_resume_request().unwrap().is_none());
-	}
-
-	#[test]
-	fn manifest_deletion_intake_stays_one_page_bounded_across_restarts() {
-		let temp = tempfile::tempdir().unwrap();
-		let mut requested = None;
-		let mut processed = std::collections::BTreeSet::new();
-		let mut largest_journal = 0;
-		for manifest in 1..=32u8 {
-			let store = DiskStore::open(temp.path(), profile(), 1024).unwrap();
-			let duty = deletion_duty(manifest, 70);
-			let next = (manifest < 32).then(|| deletion_cursor(70, manifest));
-			store
-				.stage_deletion_duty_page(deletion_page(
-					70,
-					requested.clone(),
-					next.clone(),
-					vec![duty.clone()],
-				))
-				.unwrap();
-			assert_eq!(store.pending_manifest_deletions(2).unwrap(), vec![duty.clone()]);
-			largest_journal =
-				largest_journal.max(std::fs::metadata(temp.path().join(INDEX_FILE)).unwrap().len());
-			assert!(processed.insert(duty.manifest.clone()));
-			store
-				.complete_manifest_deletion(&duty.manifest, &duty.duty_fingerprint)
-				.unwrap();
-			requested = next;
-			drop(store);
-		}
-		assert_eq!(processed.len(), 32);
-		// A page contains one duty here; traversing 32 pages must not grow a snapshot-sized journal.
-		assert!(largest_journal < 64 * 1024, "deletion intake journal grew to {largest_journal}");
-		let reopened = DiskStore::open(temp.path(), profile(), 1024).unwrap();
-		assert!(reopened.pending_manifest_deletions(2).unwrap().is_empty());
-		assert!(reopened.deletion_duty_resume_request().unwrap().is_none());
-	}
-
-	#[test]
-	fn manifest_deletion_restart_allows_runtime_tail_to_finish_before_other_page_duties() {
-		let temp = tempfile::tempdir().unwrap();
-		let store = DiskStore::open(temp.path(), profile(), 1024).unwrap();
-		let lexical_later = deletion_duty(2, 70);
-		let runtime_tail = deletion_duty(1, 70);
-		assert!(store
-			.stage_deletion_duty_page(deletion_page(
-				70,
-				None,
-				None,
-				vec![lexical_later.clone(), runtime_tail.clone()],
-			))
-			.unwrap());
-		store
-			.complete_manifest_deletion(&runtime_tail.manifest, &runtime_tail.duty_fingerprint)
-			.unwrap();
-		drop(store);
-
-		let reopened = DiskStore::open(temp.path(), profile(), 1024).unwrap();
-		assert_eq!(reopened.pending_manifest_deletions(8).unwrap(), vec![lexical_later.clone()],);
-		reopened
-			.complete_manifest_deletion(&lexical_later.manifest, &lexical_later.duty_fingerprint)
-			.unwrap();
-		assert!(reopened.pending_manifest_deletions(8).unwrap().is_empty());
-	}
-
 	#[test]
 	fn commit_read_proof_delete_and_reopen() {
 		let temp = tempfile::tempdir().unwrap();
@@ -2757,74 +1652,6 @@ mod tests {
 	}
 
 	#[test]
-	fn pending_deletion_retains_capacity_across_reopen_until_bytes_are_removed() {
-		let temp = tempfile::tempdir().unwrap();
-		let store = DiskStore::open(temp.path(), profile(), 16).unwrap();
-		let retained = b"twelve-bytes".to_vec();
-		let retained_commitment = DiskStore::content_commitment(&retained);
-		let retained_record = store
-			.commit(CommitInput {
-				commitment: retained_commitment,
-				authorization: authorization(retained_commitment, retained.len() as u64),
-				bucket: None,
-				key: None,
-				bytes: retained.clone(),
-			})
-			.unwrap();
-		store
-			.prepare_delete(
-				&retained_record.commitment,
-				&authorization(retained_commitment, retained.len() as u64),
-			)
-			.unwrap();
-		let replacement = b"12345".to_vec();
-		let replacement_commitment = DiskStore::content_commitment(&replacement);
-		let replacement_input = || CommitInput {
-			commitment: replacement_commitment,
-			authorization: authorization(replacement_commitment, replacement.len() as u64),
-			bucket: None,
-			key: None,
-			bytes: replacement.clone(),
-		};
-		assert!(matches!(store.commit(replacement_input()), Err(StoreError::Capacity)));
-		drop(store);
-
-		let reopened = DiskStore::open(temp.path(), profile(), 16).unwrap();
-		assert!(matches!(reopened.commit(replacement_input()), Err(StoreError::Capacity)));
-		reopened.complete_delete(&retained_record.commitment).unwrap();
-		reopened.commit(replacement_input()).unwrap();
-		drop(reopened);
-
-		let invalid = tempfile::tempdir().unwrap();
-		let store = DiskStore::open(invalid.path(), profile(), 16).unwrap();
-		let commitment = DiskStore::content_commitment(&retained);
-		let record = store
-			.commit(CommitInput {
-				commitment,
-				authorization: authorization(commitment, retained.len() as u64),
-				bucket: None,
-				key: None,
-				bytes: retained.clone(),
-			})
-			.unwrap();
-		store
-			.prepare_delete(
-				&record.commitment,
-				&authorization(commitment, retained.len() as u64),
-			)
-			.unwrap();
-		drop(store);
-		let index = invalid.path().join(INDEX_FILE);
-		let mut state: PersistedState = serde_json::from_slice(&fs::read(&index).unwrap()).unwrap();
-		state.capacity_bytes = retained.len() as u64 - 1;
-		fs::write(&index, serde_json::to_vec(&state).unwrap()).unwrap();
-		assert!(matches!(
-			DiskStore::open(invalid.path(), profile(), retained.len() as u64 - 1),
-			Err(StoreError::Capacity)
-		));
-	}
-
-	#[test]
 	fn canonical_deletion_vector_matches_runtime_scale_contract() {
 		let record = ContentRecord {
 			commitment: "02".repeat(32),
@@ -2844,90 +1671,6 @@ mod tests {
 			hex::encode(deletion_leaf(&record, &"07".repeat(32)).unwrap()),
 			"0ff8e8e8049774a562cf153e0361c2efa34a0f3c888ca4f9e4efaa7f510e11f4",
 		);
-	}
-
-	#[test]
-	fn checkpoint_duty_page_accepts_128_and_rejects_129_without_state_change() {
-		let accepted = tempfile::tempdir().unwrap();
-		let store = DiskStore::open(accepted.path(), profile(), 1024).unwrap();
-		let duties = checkpoint_duties(MAX_CHECKPOINT_DUTY_PAGE_SIZE as usize, 40);
-		assert!(store.stage_checkpoint_duty_page(page(40, None, None, duties)).unwrap());
-		assert_eq!(
-			store.checkpoint_duty_inventory().unwrap().unwrap().duties.len(),
-			MAX_CHECKPOINT_DUTY_PAGE_SIZE as usize,
-		);
-		drop(store);
-		assert!(DiskStore::open(accepted.path(), profile(), 1024).is_ok());
-
-		let rejected = tempfile::tempdir().unwrap();
-		let store = DiskStore::open(rejected.path(), profile(), 1024).unwrap();
-		let index_before = fs::read(rejected.path().join(INDEX_FILE)).unwrap();
-		let oversized = checkpoint_duties(MAX_CHECKPOINT_DUTY_PAGE_SIZE as usize + 1, 40);
-		assert!(matches!(
-			store.stage_checkpoint_duty_page(page(40, None, None, oversized)),
-			Err(StoreError::Invalid(_)),
-		));
-		assert!(store.checkpoint_duty_watermark().unwrap().is_none());
-		assert!(store.checkpoint_duty_inventory().unwrap().is_none());
-		assert!(store.pending_checkpoint_duties().unwrap().is_empty());
-		assert_eq!(fs::read(rejected.path().join(INDEX_FILE)).unwrap(), index_before);
-	}
-
-	#[test]
-	fn oversized_persisted_checkpoint_intake_and_inventory_fail_on_reopen() {
-		for intake in [true, false] {
-			let temp = tempfile::tempdir().unwrap();
-			let store = DiskStore::open(temp.path(), profile(), 1024).unwrap();
-			let mut state = store.read_state().unwrap().clone();
-			drop(store);
-			let duties = vec![duty(1, 1, 70); MAX_PROVIDER_INDEX_RECORDS + 1];
-			if intake {
-				state.checkpoint_duty_intake = Some(CheckpointDutyIntake {
-					finalized_hash: format!("0x{}", "10".repeat(32)),
-					finalized_number: 71,
-					provider: format!("0x{}", "01".repeat(32)),
-					snapshot_checkpoint: 70,
-					next_cursor: cursor(70, 1),
-					duties,
-				});
-			} else {
-				state.checkpoint_duty_inventory = Some(CheckpointDutyInventory {
-					finalized_hash: format!("0x{}", "10".repeat(32)),
-					finalized_number: 71,
-					snapshot_checkpoint: 70,
-					duties,
-				});
-			}
-			let encoded = serde_json::to_vec(&state).unwrap();
-			assert!(encoded.len() as u64 <= MAX_PROVIDER_INDEX_BYTES);
-			fs::write(temp.path().join(INDEX_FILE), encoded).unwrap();
-			assert!(matches!(
-				DiskStore::open(temp.path(), profile(), 1024),
-				Err(StoreError::Capacity),
-			), "intake {intake}");
-		}
-	}
-
-	#[test]
-	fn duplicated_persisted_checkpoint_intake_fails_on_reopen() {
-		let temp = tempfile::tempdir().unwrap();
-		let store = DiskStore::open(temp.path(), profile(), 1024).unwrap();
-		assert!(!store
-			.stage_checkpoint_duty_page(page(
-				70,
-				None,
-				Some(cursor(70, 1)),
-				vec![duty(1, 1, 70)],
-			))
-			.unwrap());
-		drop(store);
-		let bytes = fs::read(temp.path().join(INDEX_FILE)).unwrap();
-		let mut state: PersistedState = serde_json::from_slice(&bytes).unwrap();
-		let intake = state.checkpoint_duty_intake.as_mut().unwrap();
-		let duplicate = intake.duties[0].clone();
-		intake.duties.push(duplicate);
-		fs::write(temp.path().join(INDEX_FILE), serde_json::to_vec(&state).unwrap()).unwrap();
-		assert!(DiskStore::open(temp.path(), profile(), 1024).is_err());
 	}
 
 	#[test]
@@ -2966,87 +1709,6 @@ mod tests {
 			reopened.checkpoint_duty_watermark().unwrap().unwrap().cursor,
 			Some(cursor(snapshot, 2)),
 		);
-	}
-
-	#[test]
-	fn cross_page_duplicate_duty_fails_without_changing_durable_intake() {
-		let temp = tempfile::tempdir().unwrap();
-		let snapshot = 41;
-		let first_cursor = cursor(snapshot, 1);
-		let store = DiskStore::open(temp.path(), profile(), 1024).unwrap();
-		assert!(!store
-			.stage_checkpoint_duty_page(page(
-				snapshot,
-				None,
-				Some(first_cursor.clone()),
-				vec![duty(1, 1, snapshot)],
-			))
-			.unwrap());
-		let resume = store.checkpoint_duty_resume_request().unwrap().unwrap();
-		let index_before = fs::read(temp.path().join(INDEX_FILE)).unwrap();
-
-		assert!(store
-			.stage_checkpoint_duty_page(page(
-				snapshot,
-				Some(first_cursor),
-				Some(cursor(snapshot, 2)),
-				vec![duty(1, 2, snapshot)],
-			))
-			.is_err());
-		assert_eq!(store.checkpoint_duty_resume_request().unwrap().unwrap(), resume);
-		assert!(store.pending_checkpoint_duties().unwrap().is_empty());
-		assert!(store.checkpoint_duty_inventory().unwrap().is_none());
-		assert_eq!(fs::read(temp.path().join(INDEX_FILE)).unwrap(), index_before);
-		drop(store);
-
-		let reopened = DiskStore::open(temp.path(), profile(), 1024).unwrap();
-		assert_eq!(reopened.checkpoint_duty_resume_request().unwrap().unwrap(), resume);
-	}
-
-	#[test]
-	fn checkpoint_duty_intake_cannot_regress_on_admission_or_reopen() {
-		let temp = tempfile::tempdir().unwrap();
-		let store = DiskStore::open(temp.path(), profile(), 1024).unwrap();
-		assert!(store
-			.stage_checkpoint_duty_page(page(80, None, None, vec![duty(1, 1, 80)]))
-			.unwrap());
-		let index_before = fs::read(temp.path().join(INDEX_FILE)).unwrap();
-
-		let mut snapshot_regression =
-			page(79, None, Some(cursor(79, 2)), vec![duty(2, 2, 79)]);
-		snapshot_regression.finalized_number = 82;
-		let mut finalized_regression =
-			page(81, None, Some(cursor(81, 2)), vec![duty(2, 2, 81)]);
-		finalized_regression.finalized_number = 80;
-		for batch in [snapshot_regression, finalized_regression] {
-			assert!(store.stage_checkpoint_duty_page(batch).is_err());
-			assert!(store.checkpoint_duty_resume_request().unwrap().is_none());
-			assert_eq!(fs::read(temp.path().join(INDEX_FILE)).unwrap(), index_before);
-		}
-		drop(store);
-		assert!(DiskStore::open(temp.path(), profile(), 1024).is_ok());
-
-		for regress_snapshot in [true, false] {
-			let temp = tempfile::tempdir().unwrap();
-			let store = DiskStore::open(temp.path(), profile(), 1024).unwrap();
-			assert!(store
-				.stage_checkpoint_duty_page(page(80, None, None, vec![duty(1, 1, 80)]))
-				.unwrap());
-			let mut state = store.read_state().unwrap().clone();
-			drop(store);
-			let (snapshot_checkpoint, finalized_number) =
-				if regress_snapshot { (79, 82) } else { (81, 80) };
-			state.checkpoint_duty_intake = Some(CheckpointDutyIntake {
-				finalized_hash: format!("0x{}", "20".repeat(32)),
-				finalized_number,
-				provider: format!("0x{}", "01".repeat(32)),
-				snapshot_checkpoint,
-				next_cursor: cursor(snapshot_checkpoint, 2),
-				duties: vec![duty(2, 2, snapshot_checkpoint)],
-			});
-			fs::write(temp.path().join(INDEX_FILE), serde_json::to_vec(&state).unwrap()).unwrap();
-			assert!(DiskStore::open(temp.path(), profile(), 1024).is_err());
-		}
 	}
 
 	#[test]
@@ -3151,22 +1813,8 @@ mod tests {
 		let store = DiskStore::open(temp.path(), profile(), 1024).unwrap();
 		let duties =
 			(1..=200).map(|value| replica_duty(value, value, snapshot)).collect::<Vec<_>>();
-		let first_cursor = cursor(snapshot, 128);
-		assert!(!store
-			.stage_checkpoint_duty_page(page(
-				snapshot,
-				None,
-				Some(first_cursor.clone()),
-				duties[..128].to_vec(),
-			))
-			.unwrap());
 		assert!(store
-			.stage_checkpoint_duty_page(page(
-				snapshot,
-				Some(first_cursor),
-				None,
-				duties[128..].to_vec(),
-			))
+			.stage_checkpoint_duty_page(page(snapshot, None, None, duties.clone()))
 			.unwrap());
 		let inventory = store.checkpoint_duty_inventory().unwrap().unwrap();
 		let first = store.reserve_checkpoint_replica_duties(&inventory, 64).unwrap();
@@ -3267,555 +1915,5 @@ mod tests {
 			.is_err());
 		assert!(store.checkpoint_duty_resume_request().unwrap().is_none());
 		assert!(store.checkpoint_duty_watermark().unwrap().is_none());
-	}
-
-	#[test]
-	fn provider_index_recovery_is_metadata_and_count_bounded() {
-		let oversized = tempfile::tempdir().unwrap();
-		let index = fs::File::create(oversized.path().join(INDEX_FILE)).unwrap();
-		index.set_len(MAX_PROVIDER_INDEX_BYTES + 1).unwrap();
-		assert!(DiskStore::open(oversized.path(), profile(), 1024).is_err());
-
-		let counted = tempfile::tempdir().unwrap();
-		let store = DiskStore::open(counted.path(), profile(), 1024).unwrap();
-		let mut state = store.read_state().unwrap().clone();
-		state.leaf_hashes = vec!["00".repeat(32); MAX_PROVIDER_INDEX_LEAVES];
-		validate_persisted_state_bounds(&state).unwrap();
-		state.leaf_hashes.push("00".repeat(32));
-		assert!(matches!(validate_persisted_state_bounds(&state), Err(StoreError::Capacity)));
-	}
-
-	#[test]
-	fn provider_index_recovery_cleans_one_temp_and_rejects_a_temp_flood() {
-		let recovered = tempfile::tempdir().unwrap();
-		let temp_path = recovered.path().join(format!("{INDEX_TEMP_PREFIX}11"));
-		fs::write(&temp_path, b"partial").unwrap();
-		DiskStore::open(recovered.path(), profile(), 1024).unwrap();
-		assert!(!temp_path.exists());
-
-		let flooded = tempfile::tempdir().unwrap();
-		fs::write(flooded.path().join(format!("{INDEX_TEMP_PREFIX}11")), b"partial").unwrap();
-		fs::write(flooded.path().join(format!("{INDEX_TEMP_PREFIX}12")), b"partial").unwrap();
-		assert!(DiskStore::open(flooded.path(), profile(), 1024).is_err());
-		assert_eq!(
-			fs::read_dir(flooded.path())
-				.unwrap()
-				.filter(|item| {
-					item.as_ref()
-						.unwrap()
-						.file_name()
-						.to_string_lossy()
-						.starts_with(INDEX_TEMP_PREFIX)
-				})
-				.count(),
-			2
-		);
-	}
-
-	#[test]
-	fn invalid_provider_index_preserves_legal_temp_byte_for_byte() {
-		for case in 0..3 {
-			let temp = tempfile::tempdir().unwrap();
-			DiskStore::open(temp.path(), profile(), 1024).unwrap();
-			let crash_temp = temp.path().join(format!("{INDEX_TEMP_PREFIX}77"));
-			let crash_bytes = b"exact-index-crash-artifact";
-			fs::write(&crash_temp, crash_bytes).unwrap();
-			let index = temp.path().join(INDEX_FILE);
-			let result = match case {
-				0 => {
-					fs::write(&index, b"not-json").unwrap();
-					DiskStore::open(temp.path(), profile(), 1024)
-				},
-				1 => {
-					fs::OpenOptions::new()
-						.write(true)
-						.open(&index)
-						.unwrap()
-						.set_len(MAX_PROVIDER_INDEX_BYTES + 1)
-						.unwrap();
-					DiskStore::open(temp.path(), profile(), 1024)
-				},
-				_ => {
-					let mut wrong = profile();
-					wrong.provider = "03".repeat(32);
-					DiskStore::open(temp.path(), wrong, 1024)
-				},
-			};
-			assert!(result.is_err(), "case {case}");
-			assert_eq!(fs::read(&crash_temp).unwrap(), crash_bytes, "case {case}");
-		}
-	}
-
-	#[test]
-	fn blob_temp_recovery_is_retryable_bounded_and_validation_gated() {
-		let retry = tempfile::tempdir().unwrap();
-		let store = DiskStore::open(retry.path(), profile(), 1024).unwrap();
-		let bytes = b"same-process-blob-retry".to_vec();
-		let commitment = DiskStore::content_commitment(&bytes);
-		let commitment_hex = hex::encode(commitment);
-		let blob = retry.path().join(BLOBS_DIR).join(&commitment_hex);
-		let same_process_temp = atomic_temp_path(&blob);
-		fs::write(&same_process_temp, b"partial").unwrap();
-		store
-			.commit(CommitInput {
-				commitment,
-				authorization: authorization(commitment, bytes.len() as u64),
-				bucket: None,
-				key: None,
-				bytes: bytes.clone(),
-			})
-			.unwrap();
-		assert!(!same_process_temp.exists());
-		assert_eq!(store.read(&commitment_hex).unwrap(), bytes);
-		drop(store);
-
-		let flooded = tempfile::tempdir().unwrap();
-		drop(DiskStore::open(flooded.path(), profile(), 1024).unwrap());
-		let blobs = flooded.path().join(BLOBS_DIR);
-		let first = blobs.join(format!("{}.tmp-77", "11".repeat(32)));
-		let second = blobs.join(format!("{}.tmp-78", "22".repeat(32)));
-		fs::write(&first, b"first-exact-temp").unwrap();
-		fs::write(&second, b"second-exact-temp").unwrap();
-		assert!(DiskStore::open(flooded.path(), profile(), 1024).is_err());
-		assert_eq!(fs::read(first).unwrap(), b"first-exact-temp");
-		assert_eq!(fs::read(second).unwrap(), b"second-exact-temp");
-
-		let collision = tempfile::tempdir().unwrap();
-		let target = collision.path().join("collision");
-		let collision_temp = atomic_temp_path(&target);
-		fs::write(&collision_temp, b"unowned-collision-evidence").unwrap();
-		let directory = fs::File::open(collision.path()).unwrap();
-		assert!(crate::bounded_io::write_atomic_at(
-			&directory,
-			target.file_name().unwrap(),
-			collision_temp.file_name().unwrap(),
-			b"new-bytes",
-		)
-		.is_err());
-		assert_eq!(fs::read(collision_temp).unwrap(), b"unowned-collision-evidence");
-
-		let invalid = tempfile::tempdir().unwrap();
-		let store = DiskStore::open(invalid.path(), profile(), 1024).unwrap();
-		let bytes = b"validation-before-cleanup".to_vec();
-		let commitment = DiskStore::content_commitment(&bytes);
-		let record = store
-			.commit(CommitInput {
-				commitment,
-				authorization: authorization(commitment, bytes.len() as u64),
-				bucket: None,
-				key: None,
-				bytes,
-			})
-			.unwrap();
-		drop(store);
-		fs::write(
-			invalid.path().join(BLOBS_DIR).join(&record.commitment),
-			b"same-length-corruption",
-		)
-		.unwrap();
-		let preserved = invalid.path().join(BLOBS_DIR).join(format!("{}.tmp-79", "33".repeat(32)));
-		fs::write(&preserved, b"preserve-until-valid").unwrap();
-		assert!(DiskStore::open(invalid.path(), profile(), 1024).is_err());
-		assert_eq!(fs::read(preserved).unwrap(), b"preserve-until-valid");
-	}
-
-	#[test]
-	fn prepared_disk_open_is_read_only_until_apply() {
-		let temp = tempfile::tempdir().unwrap();
-		let index = temp.path().join(INDEX_FILE);
-		let blobs = temp.path().join(BLOBS_DIR);
-
-		let prepared = DiskStore::prepare_open(temp.path(), profile(), 1024).unwrap();
-
-		assert!(!index.exists());
-		assert!(!blobs.exists());
-		let _store = prepared.arm().unwrap().apply().unwrap();
-		assert!(index.is_file());
-		assert!(blobs.is_dir());
-	}
-
-	#[test]
-	fn provider_root_lock_rolls_from_prepared_plan_into_live_store() {
-		let temp = tempfile::tempdir().unwrap();
-		drop(DiskStore::open(temp.path(), profile(), 1024).unwrap());
-
-		let prepared = DiskStore::prepare_open(temp.path(), profile(), 1024).unwrap();
-		assert!(DiskStore::prepare_open(temp.path(), profile(), 1024).is_err());
-		let store = prepared.arm().unwrap().apply().unwrap();
-		assert!(DiskStore::prepare_open(temp.path(), profile(), 1024).is_err());
-		drop(store);
-
-		let retry = DiskStore::prepare_open(temp.path(), profile(), 1024).unwrap();
-		drop(retry);
-	}
-
-	#[test]
-	fn dropping_armed_missing_root_plan_removes_only_its_empty_root() {
-		let parent = tempfile::tempdir().unwrap();
-		let root = parent.path().join("provider");
-		let prepared = DiskStore::prepare_open(&root, profile(), 1024).unwrap();
-		let armed = prepared.arm().unwrap();
-		assert!(root.is_dir());
-		drop(armed);
-		assert!(!root.exists());
-	}
-
-	#[cfg(unix)]
-	#[test]
-	fn missing_provider_root_collision_is_rejected_without_following_symlink() {
-		use std::os::unix::fs::symlink;
-
-		let parent = tempfile::tempdir().unwrap();
-		let root = parent.path().join("provider");
-		let prepared = DiskStore::prepare_open(&root, profile(), 1024).unwrap();
-		let external = tempfile::tempdir().unwrap();
-		let marker = external.path().join("marker");
-		fs::write(&marker, b"external-must-remain-exact").unwrap();
-		symlink(external.path(), &root).unwrap();
-
-		assert!(prepared.arm().is_err());
-		assert_eq!(fs::read(marker).unwrap(), b"external-must-remain-exact");
-		assert!(fs::symlink_metadata(root).unwrap().file_type().is_symlink());
-		assert!(fs::read_dir(parent.path()).unwrap().all(|entry| {
-			!entry.unwrap().file_name().to_string_lossy().starts_with(".provider-root.create-")
-		}));
-	}
-
-	#[cfg(unix)]
-	#[test]
-	fn provider_root_ancestor_symlink_is_rejected_without_external_creation() {
-		use std::os::unix::fs::symlink;
-
-		let parent = tempfile::tempdir().unwrap();
-		let external = tempfile::tempdir().unwrap();
-		let alias = parent.path().join("alias");
-		symlink(external.path(), &alias).unwrap();
-		let root = alias.join("provider");
-
-		assert!(DiskStore::prepare_open(&root, profile(), 1024).is_err());
-		assert!(!external.path().join("provider").exists());
-	}
-
-	#[test]
-	fn existing_provider_root_substitution_is_rejected_without_touching_the_replacement() {
-		let parent = tempfile::tempdir().unwrap();
-		let root = parent.path().join("provider");
-		drop(DiskStore::open(&root, profile(), 1024).unwrap());
-		let prepared = DiskStore::prepare_open(&root, profile(), 1024).unwrap();
-		let displaced = parent.path().join("displaced");
-		fs::rename(&root, &displaced).unwrap();
-		fs::create_dir(&root).unwrap();
-		let marker = root.join("replacement-marker");
-		fs::write(&marker, b"replacement-must-remain-exact").unwrap();
-
-		assert!(prepared.arm().is_err());
-		assert_eq!(fs::read(marker).unwrap(), b"replacement-must-remain-exact");
-		assert!(displaced.join(INDEX_FILE).is_file());
-	}
-
-	#[test]
-	fn live_store_io_remains_bound_to_retained_root_and_blob_capabilities() {
-		let parent = tempfile::tempdir().unwrap();
-		let root = parent.path().join("provider");
-		let store = DiskStore::open(&root, profile(), 4096).unwrap();
-		let first = b"capability-bound-first-blob".to_vec();
-		let first_commitment = DiskStore::content_commitment(&first);
-		let first_record = store
-			.commit(CommitInput {
-				commitment: first_commitment,
-				authorization: authorization(first_commitment, first.len() as u64),
-				bucket: None,
-				key: None,
-				bytes: first.clone(),
-			})
-			.unwrap();
-		let displaced = parent.path().join("provider-displaced");
-		fs::rename(&root, &displaced).unwrap();
-		fs::create_dir(&root).unwrap();
-		fs::create_dir(root.join(BLOBS_DIR)).unwrap();
-		let replacement_marker = root.join("replacement-marker");
-		fs::write(&replacement_marker, b"replacement-must-remain-exact").unwrap();
-
-		assert_eq!(store.read(&first_record.commitment).unwrap(), first);
-		let mut updated = profile();
-		updated.endpoint = "http://127.0.0.1:9090".into();
-		store.update_profile(updated, 4096).unwrap();
-		let second = b"capability-bound-second-blob".to_vec();
-		let second_commitment = DiskStore::content_commitment(&second);
-		let second_record = store
-			.commit(CommitInput {
-				commitment: second_commitment,
-				authorization: authorization(second_commitment, second.len() as u64),
-				bucket: None,
-				key: None,
-				bytes: second,
-			})
-			.unwrap();
-
-		assert!(displaced.join(INDEX_FILE).is_file());
-		assert!(displaced.join(BLOBS_DIR).join(second_record.commitment).is_file());
-		assert!(!root.join(INDEX_FILE).exists());
-		assert_eq!(fs::read(replacement_marker).unwrap(), b"replacement-must-remain-exact");
-		assert_eq!(fs::read_dir(root.join(BLOBS_DIR)).unwrap().count(), 0);
-	}
-
-	#[test]
-	fn canonical_index_replacement_after_arm_preserves_replacement_and_recovery_temp() {
-		let temp = tempfile::tempdir().unwrap();
-		drop(DiskStore::open(temp.path(), profile(), 1024).unwrap());
-		let canonical = temp.path().join(INDEX_FILE);
-		let mut replacement: serde_json::Value =
-			serde_json::from_slice(&fs::read(&canonical).unwrap()).unwrap();
-		replacement["profile"]["endpoint"] = "http://replacement.invalid".into();
-		let replacement_bytes = serde_json::to_vec(&replacement).unwrap();
-		let crash_temp = temp.path().join(format!("{INDEX_TEMP_PREFIX}904"));
-		let crash_bytes = b"preserve-planned-index-recovery-temp";
-		fs::write(&crash_temp, crash_bytes).unwrap();
-		let armed = DiskStore::prepare_open(temp.path(), profile(), 1024)
-			.unwrap()
-			.arm()
-			.unwrap();
-		let replacement_path = temp.path().join("replacement-index");
-		fs::write(&replacement_path, &replacement_bytes).unwrap();
-		fs::rename(replacement_path, &canonical).unwrap();
-
-		assert!(armed.apply().is_err());
-		assert_eq!(fs::read(canonical).unwrap(), replacement_bytes);
-		assert_eq!(fs::read(crash_temp).unwrap(), crash_bytes);
-	}
-
-	#[test]
-	fn missing_canonical_index_appearance_after_arm_is_preserved() {
-		let temp = tempfile::tempdir().unwrap();
-		drop(DiskStore::open(temp.path(), profile(), 1024).unwrap());
-		let canonical = temp.path().join(INDEX_FILE);
-		let unexpected = fs::read(&canonical).unwrap();
-		fs::remove_file(&canonical).unwrap();
-		let crash_temp = temp.path().join(format!("{INDEX_TEMP_PREFIX}905"));
-		let crash_bytes = b"preserve-missing-index-recovery-temp";
-		fs::write(&crash_temp, crash_bytes).unwrap();
-		let armed = DiskStore::prepare_open(temp.path(), profile(), 1024)
-			.unwrap()
-			.arm()
-			.unwrap();
-		fs::write(&canonical, &unexpected).unwrap();
-
-		assert!(armed.apply().is_err());
-		assert_eq!(fs::read(canonical).unwrap(), unexpected);
-		assert_eq!(fs::read(crash_temp).unwrap(), crash_bytes);
-	}
-
-	#[test]
-	fn blob_directory_replacement_after_arm_is_preserved() {
-		let temp = tempfile::tempdir().unwrap();
-		drop(DiskStore::open(temp.path(), profile(), 1024).unwrap());
-		let armed = DiskStore::prepare_open(temp.path(), profile(), 1024)
-			.unwrap()
-			.arm()
-			.unwrap();
-		let blobs = temp.path().join(BLOBS_DIR);
-		let displaced = temp.path().join("displaced-blobs");
-		fs::rename(&blobs, &displaced).unwrap();
-		fs::create_dir(&blobs).unwrap();
-		let marker = blobs.join("replacement-marker");
-		fs::write(&marker, b"replacement-must-remain-exact").unwrap();
-
-		assert!(armed.apply().is_err());
-		assert_eq!(fs::read(marker).unwrap(), b"replacement-must-remain-exact");
-	}
-
-	#[test]
-	fn prepared_index_temp_replacement_is_preserved() {
-		let temp = tempfile::tempdir().unwrap();
-		drop(DiskStore::open(temp.path(), profile(), 1024).unwrap());
-		let artifact = temp.path().join(format!("{INDEX_TEMP_PREFIX}906"));
-		fs::write(&artifact, b"prepared-index-temp").unwrap();
-		let armed = DiskStore::prepare_open(temp.path(), profile(), 1024)
-			.unwrap()
-			.arm()
-			.unwrap();
-		let replacement = temp.path().join("replacement-index-temp");
-		fs::write(&replacement, b"replacement-temp--").unwrap();
-		fs::rename(&replacement, &artifact).unwrap();
-
-		assert!(armed.apply().is_err());
-		assert_eq!(fs::read(artifact).unwrap(), b"replacement-temp--");
-	}
-
-	#[test]
-	fn prepared_blob_temp_replacement_is_preserved() {
-		let temp = tempfile::tempdir().unwrap();
-		drop(DiskStore::open(temp.path(), profile(), 1024).unwrap());
-		let artifact = temp
-			.path()
-			.join(BLOBS_DIR)
-			.join(format!("{}.tmp-906", "11".repeat(32)));
-		fs::write(&artifact, b"prepared-blob-temp").unwrap();
-		let armed = DiskStore::prepare_open(temp.path(), profile(), 1024)
-			.unwrap()
-			.arm()
-			.unwrap();
-		let replacement = temp.path().join(BLOBS_DIR).join("replacement-blob-temp");
-		fs::write(&replacement, b"replacement-temp-").unwrap();
-		fs::rename(&replacement, &artifact).unwrap();
-
-		assert!(armed.apply().is_err());
-		assert_eq!(fs::read(artifact).unwrap(), b"replacement-temp-");
-	}
-
-	#[test]
-	fn same_inode_blob_mutation_fails_before_prepared_temp_cleanup() {
-		let temp = tempfile::tempdir().unwrap();
-		let store = DiskStore::open(temp.path(), profile(), 1024).unwrap();
-		let bytes = b"prepared-blob-exact".to_vec();
-		let commitment = DiskStore::content_commitment(&bytes);
-		let record = store
-			.commit(CommitInput {
-				commitment,
-				authorization: authorization(commitment, bytes.len() as u64),
-				bucket: None,
-				key: None,
-				bytes: bytes.clone(),
-			})
-			.unwrap();
-		drop(store);
-		let preserved = temp.path().join(format!("{INDEX_TEMP_PREFIX}907"));
-		fs::write(&preserved, b"preserve-before-mutation-reject").unwrap();
-		let armed = DiskStore::prepare_open(temp.path(), profile(), 1024)
-			.unwrap()
-			.arm()
-			.unwrap();
-		let blob = temp.path().join(BLOBS_DIR).join(record.commitment);
-		let metadata_before = fs::metadata(&blob).unwrap();
-		let mut mutated = bytes;
-		mutated[0] ^= 0x20;
-		fs::write(&blob, &mutated).unwrap();
-		let metadata_after = fs::metadata(&blob).unwrap();
-		assert_eq!(
-			crate::bounded_io::file_identity(&metadata_before),
-			crate::bounded_io::file_identity(&metadata_after),
-		);
-
-		assert!(armed.apply().is_err());
-		assert_eq!(fs::read(preserved).unwrap(), b"preserve-before-mutation-reject");
-	}
-
-	#[cfg(unix)]
-	#[test]
-	fn blob_namespace_symlink_is_rejected_without_external_writes() {
-		use std::os::unix::fs::symlink;
-
-		let temp = tempfile::tempdir().unwrap();
-		drop(DiskStore::open(temp.path(), profile(), 1024).unwrap());
-		let blobs = temp.path().join(BLOBS_DIR);
-		fs::remove_dir(&blobs).unwrap();
-		let external = tempfile::tempdir().unwrap();
-		symlink(external.path(), &blobs).unwrap();
-
-		assert!(DiskStore::open(temp.path(), profile(), 1024).is_err());
-		assert_eq!(fs::read_dir(external.path()).unwrap().count(), 0);
-	}
-
-	#[cfg(unix)]
-	#[test]
-	fn provider_root_rejects_live_and_dangling_symlinks_without_external_mutation() {
-		use std::os::unix::fs::symlink;
-
-		let temp = tempfile::tempdir().unwrap();
-		let external = tempfile::tempdir().unwrap();
-		let marker = external.path().join("external-marker");
-		let marker_bytes = b"external-tree-must-not-change";
-		fs::write(&marker, marker_bytes).unwrap();
-		let live = temp.path().join("live-root");
-		symlink(external.path(), &live).unwrap();
-		let missing = temp.path().join("missing-root");
-		let dangling = temp.path().join("dangling-root");
-		symlink(&missing, &dangling).unwrap();
-
-		assert!(DiskStore::prepare_open(&live, profile(), 1024).is_err());
-		assert!(DiskStore::prepare_open(&dangling, profile(), 1024).is_err());
-		assert_eq!(fs::read(marker).unwrap(), marker_bytes);
-		assert_eq!(fs::read_dir(external.path()).unwrap().count(), 1);
-		assert!(!missing.exists());
-	}
-
-	#[cfg(unix)]
-	#[test]
-	fn canonical_index_rejects_live_and_dangling_symlinks_without_external_mutation() {
-		use std::os::unix::fs::symlink;
-
-		let live = tempfile::tempdir().unwrap();
-		drop(DiskStore::open(live.path(), profile(), 1024).unwrap());
-		let canonical = live.path().join(INDEX_FILE);
-		let index_bytes = fs::read(&canonical).unwrap();
-		fs::remove_file(&canonical).unwrap();
-		let external = tempfile::tempdir().unwrap();
-		let external_index = external.path().join("external-index.json");
-		fs::write(&external_index, &index_bytes).unwrap();
-		let external_marker = external.path().join("marker");
-		fs::write(&external_marker, b"external-tree-marker").unwrap();
-		symlink(&external_index, &canonical).unwrap();
-		let local_temp = live.path().join(format!("{INDEX_TEMP_PREFIX}779"));
-		let local_temp_bytes = b"local-recovery-evidence";
-		fs::write(&local_temp, local_temp_bytes).unwrap();
-
-		assert!(DiskStore::prepare_open(live.path(), profile(), 1024).is_err());
-		assert_eq!(fs::read(&external_index).unwrap(), index_bytes);
-		assert_eq!(fs::read(&external_marker).unwrap(), b"external-tree-marker");
-		assert_eq!(fs::read(&local_temp).unwrap(), local_temp_bytes);
-		assert_eq!(fs::read_dir(external.path()).unwrap().count(), 2);
-
-		let dangling = tempfile::tempdir().unwrap();
-		drop(DiskStore::open(dangling.path(), profile(), 1024).unwrap());
-		let canonical = dangling.path().join(INDEX_FILE);
-		fs::remove_file(&canonical).unwrap();
-		let missing = dangling.path().join("missing-index.json");
-		symlink(&missing, &canonical).unwrap();
-		assert!(DiskStore::prepare_open(dangling.path(), profile(), 1024).is_err());
-		assert!(!missing.exists());
-	}
-
-	#[test]
-	fn missing_provider_index_rejects_existing_blob_namespace_without_mutation() {
-		for temporary in [false, true] {
-			let temp = tempfile::tempdir().unwrap();
-			let blobs = temp.path().join(BLOBS_DIR);
-			fs::create_dir(&blobs).unwrap();
-			let name =
-				if temporary { format!("{}.tmp-77", "44".repeat(32)) } else { "44".repeat(32) };
-			let artifact = blobs.join(name);
-			let bytes = b"orphaned-without-index";
-			fs::write(&artifact, bytes).unwrap();
-
-			assert!(DiskStore::open(temp.path(), profile(), 1024).is_err());
-
-			assert_eq!(fs::read(&artifact).unwrap(), bytes);
-			assert!(!temp.path().join(INDEX_FILE).exists());
-		}
-	}
-
-	#[test]
-	fn invalid_provider_index_does_not_create_blob_directory() {
-		let temp = tempfile::tempdir().unwrap();
-		fs::write(temp.path().join(INDEX_FILE), b"not-json").unwrap();
-
-		assert!(DiskStore::open(temp.path(), profile(), 1024).is_err());
-
-		assert!(!temp.path().join(BLOBS_DIR).exists());
-	}
-
-	#[test]
-	fn missing_provider_index_recovers_around_same_process_temp() {
-		let temp = tempfile::tempdir().unwrap();
-		DiskStore::open(temp.path(), profile(), 1024).unwrap();
-		fs::remove_file(temp.path().join(INDEX_FILE)).unwrap();
-		let crash_temp =
-			temp.path().join(format!("{INDEX_TEMP_PREFIX}{}", std::process::id()));
-		fs::write(&crash_temp, b"same-process-crash-artifact").unwrap();
-
-		DiskStore::open(temp.path(), profile(), 1024).unwrap();
-
-		assert!(temp.path().join(INDEX_FILE).is_file());
-		assert!(!crash_temp.exists());
 	}
 }

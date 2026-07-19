@@ -39,15 +39,15 @@ mod tests;
 mod types;
 
 use alloc::vec::Vec;
-use orbis_transaction_storage_primitives::{
-	cids::{calculate_cid, Cid, CidCodec, CidConfig, HashingAlgorithm, RAW_CODEC},
-	StorageRef, ContentHash, ReservationId, ResourceClosure, ResourceExpiryCursor,
-	ResourceReservation, ResourceReservationLink, ResourceReservationTombstone,
-	ResourceReservationView, StorageActor,
-};
 use codec::{Decode, Encode, MaxEncodedLen};
 use core::fmt::Debug;
 use indiv_support::traits::{ResourceClaimLifecycle, TwoPhaseStorage};
+use orbis_transaction_storage_primitives::{
+	cids::{calculate_cid, Cid, CidCodec, CidConfig, HashingAlgorithm, RAW_CODEC},
+	ContentHash, ReservationId, ResourceClosure, ResourceExpiryCursor, ResourceReservation,
+	ResourceReservationLink, ResourceReservationTombstone, ResourceReservationView, StorageActor,
+	StorageRef,
+};
 use pallet_orbis_transaction_storage_runtime_api::AccountAuthorization;
 use polkadot_sdk_frame::{
 	deps::*,
@@ -1599,8 +1599,8 @@ pub mod pallet {
 	}
 
 	// `ValidateUnsigned` is deprecated upstream (will be removed after April 2027) in favour of
-	// `#[pallet::authorize]` + `frame_system::AuthorizeCall`. That API refactor is tracked separately;
-	// silence the deprecation here so `-D warnings` in CI does not block the SDK bump.
+	// `#[pallet::authorize]` + `frame_system::AuthorizeCall`. That API refactor is tracked
+	// separately; silence the deprecation here so `-D warnings` in CI does not block the SDK bump.
 	#[allow(deprecated)]
 	#[pallet::validate_unsigned]
 	impl<T: Config> ValidateUnsigned for Pallet<T> {

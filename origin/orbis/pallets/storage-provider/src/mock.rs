@@ -104,9 +104,9 @@ impl ProviderAuthority<u64, OrganizationRefOf<Test>, ed25519::Public, u64> for A
 		if finalized_at < organization.valid_from || finalized_at > organization.valid_until {
 			return Err(ProviderAuthorityError::AttestationExpired);
 		}
-		if organization.schema_id == H256::zero() ||
-			organization.sla_commitment == H256::zero() ||
-			organization.sla_version == 0
+		if organization.schema_id == H256::zero()
+			|| organization.sla_commitment == H256::zero()
+			|| organization.sla_version == 0
 		{
 			return Err(ProviderAuthorityError::SlaInvalid);
 		}

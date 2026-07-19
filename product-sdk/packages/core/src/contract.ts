@@ -76,7 +76,6 @@ const oneOf = (...choices: Rule[]): Rule => ({ kind: "oneOf", choices });
 const literal = (value: string): Rule => ({ kind: "literal", value });
 
 const hash32 = string({ pattern: /^0x[0-9a-f]{64}$/i });
-const signature64 = string({ pattern: /^0x[0-9a-f]{128}$/i });
 const account = string({ min: 1, max: 128 });
 const decimalU64 = string({ pattern: /^(0|[1-9][0-9]{0,19})$/ });
 const decimalU32 = string({ pattern: /^(0|[1-9][0-9]{0,9})$/, maxDecimal: 0xffff_ffffn });
@@ -351,13 +350,21 @@ write("storage", "issue_challenge", {
   expected_commitment: hash32,
   due_at: blockNumber,
 });
+write("storage", "submit_checkpoint", { challenge_id: hash32, proof_commitment: hash32 });
 write("storage", "timeout_challenge", { challenge_id: hash32 });
 write("storage", "request_renewal", { agreement_id: hash32, expires_at: blockNumber });
-write("storage", "acknowledge_manifest_deletion", {
-  manifest: hash32,
-  evidence_hash: hash32,
-  service_key: hash32,
-  signature: signature64,
+write("storage", "acknowledge_deletion", {
+  agreement_id: hash32,
+  content_commitment: hash32,
+  tombstone_root: hash32,
+  root_sequence: decimalU64,
+  leaf_index: decimalU64,
+  leaf_count: decimalU64,
+  inclusion_proof: array(hash32, 0, 64),
+});
+write("storage", "commit_provider_root", {
+  sequence: decimalU64,
+  appended_leaves: array(hash32, 1, 256),
 });
 
 // Drive finalized views and pallet calls.

@@ -86,8 +86,8 @@ impl CanonicalStorageControl for CanonicalContent {
 				let requirements = requirements.borrow();
 				let acknowledgements = acknowledgements.borrow();
 				let Some(required) = requirements.get(manifest) else { return false };
-				!required.is_empty() &&
-					acknowledgements.get(manifest).is_some_and(|acked| {
+				!required.is_empty()
+					&& acknowledgements.get(manifest).is_some_and(|acked| {
 						required.iter().all(|provider| acked.contains(provider))
 					})
 			})

@@ -90,8 +90,8 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
 	}
 
 	// A partial multi-core assignment leaves the parachain in a surprising intermediate state.
-	// Match the upstream Orbis Storage/storage operator flow by applying every Coretime call atomically
-	// under one Sudo dispatch.
+	// Match the upstream Orbis Storage/storage operator flow by applying every Coretime call
+	// atomically under one Sudo dispatch.
 	let batch =
 		subxt::dynamic::tx("Utility", "batch_all", vec![Value::unnamed_composite(assignments)]);
 	let sudo = subxt::dynamic::tx("Sudo", "sudo", vec![batch.into_value()]);

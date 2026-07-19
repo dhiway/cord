@@ -120,39 +120,9 @@ pub(crate) struct PeerReplyStore {
 	byte_limit: u64,
 }
 
-pub(crate) struct PreparedPeerReplyStore {
-	root: PathBuf,
-	root_missing: bool,
-	state: PeerReplyState,
-	temp_artifacts: Vec<PathBuf>,
-	record_limit: usize,
-	byte_limit: u64,
-}
-
-impl PreparedPeerReplyStore {
-	pub(crate) fn apply(self) -> Result<PeerReplyStore, ContentError> {
-		crate::bounded_io::create_prepared_directory(&self.root, self.root_missing)?;
-		crate::bounded_io::remove_validated_temp_artifacts(&self.root, &self.temp_artifacts)?;
-		Ok(PeerReplyStore {
-			root: self.root,
-			state: RwLock::new(self.state),
-			poisoned: RwLock::new(false),
-			fault: RwLock::new(None),
-			record_limit: self.record_limit,
-			byte_limit: self.byte_limit,
-		})
-	}
-}
-
 impl PeerReplyStore {
 	pub(crate) fn open(root: impl AsRef<Path>) -> Result<Self, ContentError> {
 		Self::open_with_limits(root, MAX_RECORDS, MAX_TOTAL_BYTES)
-	}
-
-	pub(crate) fn prepare_open(
-		root: impl AsRef<Path>,
-	) -> Result<PreparedPeerReplyStore, ContentError> {
-		Self::prepare_open_with_limits(root, MAX_RECORDS, MAX_TOTAL_BYTES)
 	}
 
 	fn open_with_limits(
@@ -160,14 +130,6 @@ impl PeerReplyStore {
 		record_limit: usize,
 		byte_limit: u64,
 	) -> Result<Self, ContentError> {
-		Self::prepare_open_with_limits(root, record_limit, byte_limit)?.apply()
-	}
-
-	fn prepare_open_with_limits(
-		root: impl AsRef<Path>,
-		record_limit: usize,
-		byte_limit: u64,
-	) -> Result<PreparedPeerReplyStore, ContentError> {
 		if record_limit == 0
 			|| record_limit > MAX_RECORDS
 			|| byte_limit == 0
@@ -176,17 +138,13 @@ impl PeerReplyStore {
 			return Err(ContentError::SchemaInvalid);
 		}
 		let root = root.as_ref().join(ROOT);
-		let root_missing = !crate::bounded_io::optional_directory_exists(&root)?;
-		let loaded = if root_missing {
-			LoadedPeerReplies { state: PeerReplyState::default(), temp_artifacts: Vec::new() }
-		} else {
-			load_records(&root, record_limit, byte_limit)?
-		};
-		Ok(PreparedPeerReplyStore {
+		fs::create_dir_all(&root).map_err(io_error)?;
+		let state = load_records(&root, record_limit, byte_limit)?;
+		Ok(Self {
 			root,
-			root_missing,
-			state: loaded.state,
-			temp_artifacts: loaded.temp_artifacts,
+			state: RwLock::new(state),
+			poisoned: RwLock::new(false),
+			fault: RwLock::new(None),
 			record_limit,
 			byte_limit,
 		})
@@ -456,16 +414,11 @@ fn record_hash(record: &PeerReplyRecordV1) -> [u8; 32] {
 	sp_crypto_hashing::blake2_256(&input)
 }
 
-struct LoadedPeerReplies {
-	state: PeerReplyState,
-	temp_artifacts: Vec<PathBuf>,
-}
-
 fn load_records(
 	root: &Path,
 	record_limit: usize,
 	byte_limit: u64,
-) -> Result<LoadedPeerReplies, ContentError> {
+) -> Result<PeerReplyState, ContentError> {
 	let mut state = PeerReplyState::default();
 	let mut visited = 0usize;
 	let mut temps = Vec::new();
@@ -489,8 +442,8 @@ fn load_records(
 		if !item.file_type().map_err(io_error)?.is_file() || !name.ends_with(EXTENSION) {
 			return Err(ContentError::IntegrityFailed);
 		}
-		let bytes = crate::bounded_io::read_regular_file(item.path(), MAX_RECORD_BYTES as u64)?;
-		if bytes.is_empty() {
+		let bytes = fs::read(item.path()).map_err(io_error)?;
+		if bytes.is_empty() || bytes.len() > MAX_RECORD_BYTES {
 			return Err(ContentError::IntegrityFailed);
 		}
 		let record: PeerReplyRecordV1 = decode_canonical(&bytes)?;
@@ -507,7 +460,11 @@ fn load_records(
 			return Err(ContentError::IntegrityFailed);
 		}
 	}
-	Ok(LoadedPeerReplies { state, temp_artifacts: temps })
+	for temp in temps {
+		fs::remove_file(temp).map_err(io_error)?;
+	}
+	sync_dir(root)?;
+	Ok(state)
 }
 
 fn is_temp_name(name: &str) -> bool {

@@ -111,8 +111,8 @@ pub fn new_test_ext_with_names(
 		system: Default::default(),
 		names: pallet_orbis_names::GenesisConfig { registrars, root_reservations },
 	}
-		.build_storage()
-		.expect("test genesis builds");
+	.build_storage()
+	.expect("test genesis builds");
 	let mut ext: sp_io::TestExternalities = storage.into();
 	ext.execute_with(|| System::set_block_number(1));
 	ext

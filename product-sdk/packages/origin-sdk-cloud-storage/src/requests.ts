@@ -196,6 +196,16 @@ export const providerRequests = {
     return writeRequest("provider", "cancel_agreement", { agreement_id });
   },
 
+  submitCheckpoint(
+    challenge_id: ChallengeId,
+    proof_commitment: ContentCommitment,
+  ) {
+    return writeRequest("provider", "submit_checkpoint", {
+      challenge_id,
+      proof_commitment,
+    });
+  },
+
   timeoutChallenge(challenge_id: ChallengeId) {
     return writeRequest("provider", "timeout_challenge", { challenge_id });
   },
@@ -205,20 +215,6 @@ export const providerRequests = {
       agreement_id,
       expires_at,
     });
-  },
-
-  acknowledgeManifestDeletion(
-	manifest: ContentCommitment,
-	evidence_hash: ContentCommitment,
-	service_key: ProviderServiceKey,
-	signature: string,
-  ) {
-	return writeRequest("provider", "acknowledge_manifest_deletion", {
-	  manifest,
-	  evidence_hash,
-	  service_key,
-	  signature,
-	});
   },
 
   acceptRenewal(agreement_id: AgreementId) {
@@ -233,6 +229,35 @@ export const providerRequests = {
     return writeRequest("provider", "prune_agreement", { agreement_id });
   },
 
+  acknowledgeDeletion(
+    agreement_id: AgreementId,
+    content_commitment: ContentCommitment,
+    tombstone_root: ContentCommitment,
+    root_sequence: DecimalU64,
+    leaf_index: DecimalU64,
+    leaf_count: DecimalU64,
+    inclusion_proof: readonly ContentCommitment[],
+  ) {
+    return writeRequest("provider", "acknowledge_deletion", {
+      agreement_id,
+      content_commitment,
+      tombstone_root,
+      root_sequence,
+      leaf_index,
+      leaf_count,
+      inclusion_proof: [...inclusion_proof],
+    });
+  },
+
+  commitProviderRoot(
+    sequence: DecimalU64,
+    appended_leaves: readonly ContentCommitment[],
+  ) {
+    return writeRequest("provider", "commit_provider_root", {
+      sequence,
+      appended_leaves: [...appended_leaves],
+    });
+  },
 } as const;
 
 export const driveRequests = {

@@ -22,8 +22,8 @@ use crate::{
 	self as pallet_orbis_transaction_storage, AsAuthorizer, EnsureAllowedAuthorizers,
 	TransactionStorageProof, DEFAULT_MAX_BLOCK_TRANSACTIONS, DEFAULT_MAX_TRANSACTION_SIZE,
 };
-use orbis_pallets_common::NoCurrency;
 use indiv_support::traits::{ClaimCleanupOutcome, ResourceClaimLifecycle};
+use orbis_pallets_common::NoCurrency;
 use polkadot_sdk_frame::{
 	deps::{frame_support, frame_system},
 	prelude::*,

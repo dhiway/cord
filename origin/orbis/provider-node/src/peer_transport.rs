@@ -420,7 +420,10 @@ mod tests {
 							assert_eq!(request.uri().path(), PAGE_PATH);
 							assert!(request.uri().query().is_none());
 							assert_eq!(
-								request.headers().get(CONTENT_TYPE).and_then(|value| value.to_str().ok()),
+								request
+									.headers()
+									.get(CONTENT_TYPE)
+									.and_then(|value| value.to_str().ok()),
 								Some(PEER_CONTENT_TYPE)
 							);
 							assert!(request
@@ -574,10 +577,9 @@ mod tests {
 		.await;
 		assert_eq!(response.status(), StatusCode::PAYLOAD_TOO_LARGE);
 		assert!(response.into_body().collect().await.unwrap().to_bytes().is_empty());
-		for (header, value) in [
-			(TRANSFER_ENCODING, "chunked"),
-			(AUTHORIZATION, "Bearer must-not-be-used"),
-		] {
+		for (header, value) in
+			[(TRANSFER_ENCODING, "chunked"), (AUTHORIZATION, "Bearer must-not-be-used")]
+		{
 			let request = Request::builder()
 				.method(Method::POST)
 				.uri(format!("{endpoint}{PAGE_PATH}"))

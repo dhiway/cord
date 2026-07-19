@@ -162,15 +162,15 @@ sha256 = "2c98ac57532a9ef6d142c86bc3b5932a0faf22ef4d13ba8ee6ac505a7c23daad"
 
 [[gate.input]]
 path = "Cargo.lock"
-sha256 = "477ec7d420d84df33075395a5b883a37f7af65e63da13f2e2c49bcaa16618020"
+sha256 = "221cc014cc30091f61ed3b80009ccffd520fe65ba74816c111f9f9cfbcbd08b2"
 
 [[gate.input]]
 path = "Cargo.toml"
-sha256 = "e0e58f314ffc82529b1f81a23e93799a5f2931ff3a2927f95d964bc5a70e8b4b"
+sha256 = "03039a1422e9d3294983b9248bf74636ec30fe41dee74dbff6aefe78d2e24747"
 
 [[gate.input]]
 path = "product-sdk"
-sha256 = "dfa9723ca19426d9fd80646bb91fafb32b2623cd25783106cbbdbf0415356675"
+sha256 = "0242db16952fddf0c4201ff2847e280fd297dc80f5c319aed4b4075fa7d5e63f"
 
 [[gate.input]]
 path = "product-sdk/package-lock.json"
@@ -178,26 +178,21 @@ sha256 = "af3df09e588712027030a05815bbe75a1e5282f38fad9da97e14d80eda39a518"
 
 [[gate.input]]
 path = "product-sdk/package.json"
-sha256 = "7ed8207ac300bc2fc0c609316d3c4a567fac340e209c52c24aabd88ed0698242"
+sha256 = "a66d8315ab531cd4644e5e5a1dd1f4e99c90b7abf3760e070488ac3b5e6dded8"
 
 [[gate.input]]
 path = "scripts/validate-storage-content-vectors.py"
-sha256 = "077b4079e86f515c3d714e2fd8123a29c3f8a7e04251062823a0200c8a2101b8"
-
-[[gate.input]]
-path = "docs/specs/storage-v1.vectors.json"
-sha256 = "8458f96e635568ae84e4234a26378f6fb2133d5ce9877ae1aa985970752899c9"
-
-[[gate.input]]
-path = "docs/specs/storage-bounds-v1.toml"
-sha256 = "0dd0a38e5a064e23501f0f446bbef9bd6015fdbaef953bdf0e515f92bb1a2b2c"
+sha256 = "record"
+input_class = "generated"
+producer_gate = "AC2-implementation"
+producer_output = "scripts/validate-storage-content-vectors.py"
 
 [[gate.command]]
 cwd = "."
-argv = ["cargo", "test", "-p", "origin-orbis-provider", "--features", "test-seams", "--test", "content_contract", "--", "--exact", "golden_contract"]
+argv = ["cargo", "test", "-p", "origin-orbis-provider", "--test", "content_contract", "--", "--exact", "golden_contract"]
 test_count = 1
 outputs = []
-inputs = ["Cargo.toml", "Cargo.lock", "docs/specs/storage-v1.vectors.json"]
+inputs = ["Cargo.toml", "Cargo.lock"]
 allowed_writes = ["target/debug/**", "target/.rustc_info.json"]
 
 [[gate.command]]
@@ -205,7 +200,7 @@ cwd = "."
 argv = ["npm", "--prefix", "product-sdk", "run", "test:storage-vectors"]
 test_count = 1
 outputs = []
-inputs = ["product-sdk", "product-sdk/package.json", "product-sdk/package-lock.json", "docs/specs/storage-v1.vectors.json", "docs/specs/storage-bounds-v1.toml"]
+inputs = ["product-sdk", "product-sdk/package.json", "product-sdk/package-lock.json"]
 allowed_writes = ["product-sdk/node_modules/.cache/**"]
 
 [[gate.command]]
@@ -213,7 +208,7 @@ cwd = "."
 argv = ["python3", "scripts/validate-storage-content-vectors.py", "--out", "target/evidence/ac2-assertions.json"]
 test_count = 0
 outputs = ["target/evidence/ac2-assertions.json"]
-inputs = ["scripts/validate-storage-content-vectors.py", "docs/specs/storage-v1.vectors.json", "docs/specs/storage-bounds-v1.toml"]
+inputs = ["scripts/validate-storage-content-vectors.py"]
 allowed_writes = []
 
 [[gate.artifact]]
@@ -263,15 +258,15 @@ sha256 = "2c98ac57532a9ef6d142c86bc3b5932a0faf22ef4d13ba8ee6ac505a7c23daad"
 
 [[gate.input]]
 path = "Cargo.lock"
-sha256 = "477ec7d420d84df33075395a5b883a37f7af65e63da13f2e2c49bcaa16618020"
+sha256 = "221cc014cc30091f61ed3b80009ccffd520fe65ba74816c111f9f9cfbcbd08b2"
 
 [[gate.input]]
 path = "Cargo.toml"
-sha256 = "e0e58f314ffc82529b1f81a23e93799a5f2931ff3a2927f95d964bc5a70e8b4b"
+sha256 = "03039a1422e9d3294983b9248bf74636ec30fe41dee74dbff6aefe78d2e24747"
 
 [[gate.input]]
 path = "product-sdk"
-sha256 = "dfa9723ca19426d9fd80646bb91fafb32b2623cd25783106cbbdbf0415356675"
+sha256 = "0242db16952fddf0c4201ff2847e280fd297dc80f5c319aed4b4075fa7d5e63f"
 
 [[gate.input]]
 path = "product-sdk/package-lock.json"
@@ -279,15 +274,14 @@ sha256 = "af3df09e588712027030a05815bbe75a1e5282f38fad9da97e14d80eda39a518"
 
 [[gate.input]]
 path = "product-sdk/package.json"
-sha256 = "7ed8207ac300bc2fc0c609316d3c4a567fac340e209c52c24aabd88ed0698242"
+sha256 = "a66d8315ab531cd4644e5e5a1dd1f4e99c90b7abf3760e070488ac3b5e6dded8"
 
 [[gate.input]]
 path = "scripts/validate-storage-proof-vectors.py"
-sha256 = "61fca5d7b0fcbf644e64c5d40eefa5a90613d07dbf448f27a7827ed99188d599"
-
-[[gate.input]]
-path = "docs/specs/checkpoint-v2.vectors.json"
-sha256 = "16a68a1c7032c542ae5c5d01e7ae723ad3bf99f025c6586ae0d9e8a53c99ca8d"
+sha256 = "record"
+input_class = "generated"
+producer_gate = "AC3-implementation"
+producer_output = "scripts/validate-storage-proof-vectors.py"
 
 [[gate.command]]
 cwd = "."
@@ -302,7 +296,7 @@ cwd = "."
 argv = ["npm", "--prefix", "product-sdk", "run", "test:proof-vectors"]
 test_count = 1
 outputs = []
-inputs = ["product-sdk", "product-sdk/package.json", "product-sdk/package-lock.json", "docs/specs/checkpoint-v2.vectors.json"]
+inputs = ["product-sdk", "product-sdk/package.json", "product-sdk/package-lock.json"]
 allowed_writes = ["product-sdk/node_modules/.cache/**"]
 
 [[gate.command]]
@@ -310,7 +304,7 @@ cwd = "."
 argv = ["python3", "scripts/validate-storage-proof-vectors.py", "--out", "target/evidence/ac3-assertions.json"]
 test_count = 0
 outputs = ["target/evidence/ac3-assertions.json"]
-inputs = ["scripts/validate-storage-proof-vectors.py", "docs/specs/checkpoint-v2.vectors.json"]
+inputs = ["scripts/validate-storage-proof-vectors.py"]
 allowed_writes = []
 
 [[gate.artifact]]
@@ -428,7 +422,7 @@ output = "../.omx/evidence/origin-orbis-web3-storage/ac5.json"
 decidability = "mechanical"
 clauses = ["root", "tie-break", "corrupt-reads", "convergence"]
 enforce_write_set = true
-write_paths = ["target/debug/ac5-three-provider-recovery-v1.json", "target/evidence/ac5-assertions.json", "target/debug/**", "target/.rustc_info.json"]
+write_paths = ["target/evidence/ac5-assertions.json", "target/debug/**", "target/.rustc_info.json"]
 
 [[gate.input]]
 path = "docs/specs/evidence-report-v1.schema.json"
@@ -436,48 +430,34 @@ sha256 = "2c98ac57532a9ef6d142c86bc3b5932a0faf22ef4d13ba8ee6ac505a7c23daad"
 
 [[gate.input]]
 path = "Cargo.lock"
-sha256 = "477ec7d420d84df33075395a5b883a37f7af65e63da13f2e2c49bcaa16618020"
+sha256 = "221cc014cc30091f61ed3b80009ccffd520fe65ba74816c111f9f9cfbcbd08b2"
 
 [[gate.input]]
 path = "Cargo.toml"
-sha256 = "e0e58f314ffc82529b1f81a23e93799a5f2931ff3a2927f95d964bc5a70e8b4b"
-
-[[gate.input]]
-path = "origin/orbis/provider-node"
-sha256 = "1178080c6dfd593112c72935aa4cf180d6f2af056d6421a0c4c58cdede3cd734"
+sha256 = "03039a1422e9d3294983b9248bf74636ec30fe41dee74dbff6aefe78d2e24747"
 
 [[gate.input]]
 path = "scripts/validate-three-provider-recovery.py"
-sha256 = "22a6a9121cd48f6d629ce5a1acef9b06414f64d669eefbdd694bd6ab9b55d6d9"
+sha256 = "record"
+input_class = "generated"
+producer_gate = "AC5-implementation"
+producer_output = "scripts/validate-three-provider-recovery.py"
 
 [[gate.command]]
 cwd = "."
-argv = ["cargo", "test", "-p", "origin-orbis-provider", "--features", "evidence", "--test", "three_provider_recovery", "--", "--exact", "deterministic_failover"]
+argv = ["cargo", "test", "-p", "origin-orbis-provider", "--test", "three_provider_recovery", "--", "--exact", "deterministic_failover"]
 test_count = 1
-outputs = ["target/debug/ac5-three-provider-recovery-v1.json"]
-inputs = ["Cargo.toml", "Cargo.lock", "origin/orbis/provider-node"]
-allowed_writes = ["target/debug/**", "target/.rustc_info.json"]
-
-[[gate.command]]
-cwd = "."
-argv = ["cargo", "test", "-p", "origin-orbis-provider", "--features", "test-seams", "--test", "integrity_contract"]
-test_count = 7
 outputs = []
-inputs = ["Cargo.toml", "Cargo.lock", "origin/orbis/provider-node"]
+inputs = ["Cargo.toml", "Cargo.lock"]
 allowed_writes = ["target/debug/**", "target/.rustc_info.json"]
 
 [[gate.command]]
 cwd = "."
-argv = ["python3", "scripts/validate-three-provider-recovery.py", "--source", "target/debug/ac5-three-provider-recovery-v1.json", "--out", "target/evidence/ac5-assertions.json"]
+argv = ["python3", "scripts/validate-three-provider-recovery.py", "--out", "target/evidence/ac5-assertions.json"]
 test_count = 0
 outputs = ["target/evidence/ac5-assertions.json"]
-inputs = ["scripts/validate-three-provider-recovery.py", "target/debug/ac5-three-provider-recovery-v1.json"]
+inputs = ["scripts/validate-three-provider-recovery.py"]
 allowed_writes = []
-
-[[gate.artifact]]
-path = "target/debug/ac5-three-provider-recovery-v1.json"
-sha256 = "record"
-schema = "unversioned-three-provider-recovery-observations-v2"
 
 [[gate.artifact]]
 path = "target/evidence/ac5-assertions.json"
@@ -630,19 +610,19 @@ sha256 = "2c98ac57532a9ef6d142c86bc3b5932a0faf22ef4d13ba8ee6ac505a7c23daad"
 
 [[gate.input]]
 path = "Cargo.lock"
-sha256 = "477ec7d420d84df33075395a5b883a37f7af65e63da13f2e2c49bcaa16618020"
+sha256 = "221cc014cc30091f61ed3b80009ccffd520fe65ba74816c111f9f9cfbcbd08b2"
 
 [[gate.input]]
 path = "Cargo.toml"
-sha256 = "e0e58f314ffc82529b1f81a23e93799a5f2931ff3a2927f95d964bc5a70e8b4b"
+sha256 = "03039a1422e9d3294983b9248bf74636ec30fe41dee74dbff6aefe78d2e24747"
 
 [[gate.input]]
 path = "origin-rs"
-sha256 = "182cb5444249836f771c76dc0b998ba84acd6f15c7b55fbad85ae3e20bdc364f"
+sha256 = "13fddab325b92fd8683c53e407de92dc0652fb6697ad6fbc3ba97b53de58b324"
 
 [[gate.input]]
 path = "product-sdk"
-sha256 = "dfa9723ca19426d9fd80646bb91fafb32b2623cd25783106cbbdbf0415356675"
+sha256 = "0242db16952fddf0c4201ff2847e280fd297dc80f5c319aed4b4075fa7d5e63f"
 
 [[gate.input]]
 path = "product-sdk/package-lock.json"
@@ -650,114 +630,21 @@ sha256 = "af3df09e588712027030a05815bbe75a1e5282f38fad9da97e14d80eda39a518"
 
 [[gate.input]]
 path = "product-sdk/package.json"
-sha256 = "7ed8207ac300bc2fc0c609316d3c4a567fac340e209c52c24aabd88ed0698242"
+sha256 = "a66d8315ab531cd4644e5e5a1dd1f4e99c90b7abf3760e070488ac3b5e6dded8"
 
 [[gate.input]]
 path = "scripts/validate-host-provider-wire.py"
-sha256 = "57ccf9526aee209063c673214cc4bec77ebea16bdc9e8762b3b64d5eed61b048"
-
-[[gate.input]]
-path = "docs/specs/host-provider-wire-v2.toml"
-sha256 = "8793d5689ed7b25cd8ee0cb18ccfc869c97be17c75e1a81e5dbe59a29a043fe4"
-
-[[gate.input]]
-path = "docs/specs/host-provider-protocol-v2.md"
-sha256 = "de8116cb44b3b8f5a0a6d5bc135588edbb85366f1865db737c449f257deb99cf"
-
-[[gate.input]]
-path = "docs/specs/origin-host-registry-v2.cddl"
-sha256 = "d17c24596fbae30c300d57ae8e51bc0c7b149ab2e91c2b9c751bedd3fbc1eeba"
-
-[[gate.input]]
-path = "docs/specs/origin-host-registry-v2.operations.json"
-sha256 = "a50a80ec2f4ab36785fcfbbc38b6512ca4e355e5a48a4cbe9b5083968db15aca"
-
-[[gate.input]]
-path = "docs/specs/origin-host-registry-v2.errors.json"
-sha256 = "f9734782c6ade5eb8c0cbea5ad93a9808a6cc6a88363fec6f7bfc023de58d8ca"
-
-[[gate.input]]
-path = "docs/specs/origin-host-registry-v2.schema.json"
-sha256 = "f6ce027cb6b4f93038f96d045e8abbeee751c901015d3e9bd58e2833beedc18b"
-
-[[gate.input]]
-path = "docs/specs/origin-host-registry-v2.vectors.json"
-sha256 = "6a2be09c04d1cf006c72eeaddfe66915381bfc849216c9d91746151687afc03b"
-
-[[gate.input]]
-path = "docs/specs/origin-host-registry-v2.vectors.cbor"
-sha256 = "9ef6624ba14275b9e30cca8ff786255011962e05986a12aac0071c85427be71c"
-
-[[gate.input]]
-path = "docs/specs/protocol-executable-v2.vectors.json"
-sha256 = "1b1da4bbc870dec61f9f85e0f2f06c80f54ddb6802f793287af7382ff9b27c64"
-
-[[gate.input]]
-path = "docs/specs/provider-protocol-v1.registry.json"
-sha256 = "645bb0749f35e2f3f71c932ceca413c7d9351b3c3976a10d6ff96c1aceba8f9c"
-
-[[gate.input]]
-path = "docs/specs/provider-protocol-v1.vectors.json"
-sha256 = "cd9967f183b10632bd5036f897fba8f22391900158586c9a5af6d83c683f6ec6"
-
-[[gate.input]]
-path = "docs/specs/host-outbox-v1.state-machine.json"
-sha256 = "bf9ba9ee5ab22dd537600bc0677950a655a4f0624e2f459715d9e4c06a54e8ef"
-
-[[gate.input]]
-path = "docs/specs/host-outbox-v1.vectors.json"
-sha256 = "97086f7e8a84ba32108968b8f27babc7832bcb08573914773eb9ca3b7f92899a"
-
-[[gate.input]]
-path = "origin-rs/tests/generated/origin_host_registry_v2.rs"
-sha256 = "d569ecce7cb08cc50d1ba151f4f1bbe9d93542840071c92699e2bca0a6c7a6a7"
-
-[[gate.input]]
-path = "origin/orbis/provider-node"
-sha256 = "1178080c6dfd593112c72935aa4cf180d6f2af056d6421a0c4c58cdede3cd734"
-
-[[gate.input]]
-path = "origin/orbis/provider-node/src/capability.rs"
-sha256 = "9aa355f7e80df9cfd1810c5e3e42e511de74441ecec20ca01e3794577d6e9c93"
-
-[[gate.input]]
-path = "origin/orbis/provider-node/src/storage/streaming/recovery.rs"
-sha256 = "2acc221ecaca306d8c23ea0ccdfe1a646b055f5f440b33e9213a5011f53d4dd5"
-
-[[gate.input]]
-path = "origin/orbis/runtime/vectors/transaction-policy-v8/intent-preimage.scale"
-sha256 = "4c8546f3911947ee310b210b418fc2762c5560c670b71d7f7dcd7dcee685eedd"
-
-[[gate.input]]
-path = "docs/sdk/native-route-contract.json"
-sha256 = "ec85931fb3249f27f64130346b665778cc7aea78f3090b01b7c3d38c279425f4"
-
-[[gate.input]]
-path = "docs/sdk/native-version-matrix.json"
-sha256 = "b7dbdee725a56d6d5b5d36c4c33a157c31a31973b2a5a86ac058ceee36b1a6d3"
-
-[[gate.input]]
-path = "docs/sdk/vectors/storage-provider-deletion-v1.json"
-sha256 = "83181b0efee4197e6c10f6c629025b32dc88c0ab696c918ca9147342bfe279f8"
-
-[[gate.input]]
-path = "docs/sdk/vectors/names-v1.json"
-sha256 = "1a543ac96e7212854fb6e2105e8b0d1c947a19a65fe3f0d50f91fbe0b77bd700"
-
-[[gate.input]]
-path = "docs/sdk/vectors/attestation-v1.json"
-sha256 = "40b91520308ec9864e4533c1f90d367c254af872054fc599ed058e2695d14e31"
-
-[[gate.input]]
-path = "docs/specs/storage-v1.vectors.json"
-sha256 = "8458f96e635568ae84e4234a26378f6fb2133d5ce9877ae1aa985970752899c9"
+sha256 = "record"
+input_class = "generated"
+producer_gate = "AC7-implementation"
+producer_output = "scripts/validate-host-provider-wire.py"
 
 [[gate.command]]
 cwd = "."
 argv = ["python3", "scripts/validate-host-provider-wire.py", "--registry", "docs/specs/host-provider-wire-v2.toml", "--out", "target/evidence/ac7-assertions.json"]
 test_count = 0
 outputs = ["target/evidence/ac7-assertions.json"]
-inputs = ["scripts/validate-host-provider-wire.py", "docs/specs/host-provider-wire-v2.toml", "docs/specs/host-provider-protocol-v2.md", "docs/specs/origin-host-registry-v2.cddl", "docs/specs/origin-host-registry-v2.operations.json", "docs/specs/origin-host-registry-v2.errors.json", "docs/specs/origin-host-registry-v2.schema.json", "docs/specs/origin-host-registry-v2.vectors.json", "docs/specs/origin-host-registry-v2.vectors.cbor", "docs/specs/protocol-executable-v2.vectors.json", "docs/specs/provider-protocol-v1.registry.json", "docs/specs/provider-protocol-v1.vectors.json", "docs/specs/host-outbox-v1.state-machine.json", "docs/specs/host-outbox-v1.vectors.json", "origin-rs/tests/generated/origin_host_registry_v2.rs", "origin/orbis/provider-node/src/capability.rs"]
+inputs = ["scripts/validate-host-provider-wire.py"]
 allowed_writes = []
 
 [[gate.command]]
@@ -765,7 +652,7 @@ cwd = "."
 argv = ["npm", "--prefix", "product-sdk", "run", "test:host-v2-outbox"]
 test_count = 1
 outputs = []
-inputs = ["product-sdk", "product-sdk/package.json", "product-sdk/package-lock.json", "docs/specs/origin-host-registry-v2.cddl", "docs/specs/origin-host-registry-v2.vectors.json", "docs/specs/protocol-executable-v2.vectors.json", "docs/specs/host-outbox-v1.state-machine.json", "docs/specs/host-outbox-v1.vectors.json"]
+inputs = ["product-sdk", "product-sdk/package.json", "product-sdk/package-lock.json"]
 allowed_writes = ["product-sdk/node_modules/.cache/**"]
 
 [[gate.command]]
@@ -773,7 +660,7 @@ cwd = "."
 argv = ["cargo", "test", "-p", "origin-rs", "host_v2_conformance", "--", "--nocapture"]
 test_count = 1
 outputs = []
-inputs = ["origin-rs", "Cargo.toml", "Cargo.lock", "docs/specs/host-outbox-v1.vectors.json", "origin/orbis/runtime/vectors/transaction-policy-v8/intent-preimage.scale", "docs/sdk/native-route-contract.json", "docs/sdk/native-version-matrix.json", "docs/sdk/vectors/storage-provider-deletion-v1.json", "docs/sdk/vectors/names-v1.json", "docs/sdk/vectors/attestation-v1.json"]
+inputs = ["origin-rs", "Cargo.toml", "Cargo.lock"]
 allowed_writes = ["target/debug/**", "target/.rustc_info.json"]
 
 [[gate.command]]
@@ -781,7 +668,7 @@ cwd = "."
 argv = ["cargo", "test", "-p", "origin-orbis-provider", "capability_resume_crash", "--", "--nocapture"]
 test_count = 1
 outputs = []
-inputs = ["origin/orbis/provider-node", "origin-rs", "Cargo.toml", "Cargo.lock", "docs/specs/protocol-executable-v2.vectors.json", "docs/specs/storage-v1.vectors.json", "docs/sdk/native-route-contract.json", "origin/orbis/provider-node/src/capability.rs", "origin/orbis/provider-node/src/storage/streaming/recovery.rs"]
+inputs = ["Cargo.toml", "Cargo.lock"]
 allowed_writes = ["target/debug/**", "target/.rustc_info.json"]
 
 [[gate.artifact]]

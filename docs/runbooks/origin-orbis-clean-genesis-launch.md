@@ -40,19 +40,14 @@ changing any timestamp changes the canonical payload and invalidates every signa
 2. Replace the candidate inputs with reviewed inputs. Origin requires at least four unique
    validators. Orbis requires at least two fixed collators, relay id `origin`, para/token-network id
    `1006`, and separate governance/block-authority accounts.
-3. Build the Orbis node with `cargo build --release -p origin-omni-node --features
-   on-chain-release-build`. The metadata-hash-enabled runtime is the default; retaining the explicit
-   feature documents production intent and embeds the Commons runtime supplied to the genesis
-   validator.
-4. Run `python3 scripts/validate_origin_orbis_genesis.py --origin-node <origin> --orbis-node
-   <origin-omni-node> --compact-wasm <metadata-build-compact.wasm> --write-evidence`. The validator
-   requires `subwasm`; it discovers it from `PATH` unless `--subwasm <path>` overrides discovery. It
-   builds every raw spec twice, derives the Orbis genesis state root from its genesis head, checks
-   native bootstrap/default state, and emits the AC21/AC22/M6 reports.
-5. Archive the input hashes, raw-spec hashes, Origin raw-storage identity, Orbis state root, runtime
+3. Run `python3 scripts/validate_origin_orbis_genesis.py --origin-node <origin> --orbis-node
+   <origin-orbis> --compact-wasm <metadata-build-compact.wasm> --write-evidence`. It builds every raw spec twice, derives the Orbis genesis state
+   root from its genesis head, checks native bootstrap/default state, and emits the AC21/AC22/M6
+   reports.
+4. Archive the input hashes, raw-spec hashes, Origin raw-storage identity, Orbis state root, runtime
    WASM hashes, source revision, tool versions, and the three reports. Obtain runtime, security, and
    release-owner signatures over that exact envelope.
-6. Replace the pending launch payload with the final identities, set activation only after the
+5. Replace the pending launch payload with the final identities, set activation only after the
    launch ceremony, set the bounded finalization/launch timestamps, and collect all five role
    signatures over the canonical payload. Rebuild the
    node so the approved envelope is embedded. Never promote the candidate fixture or an unsigned

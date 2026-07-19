@@ -72,7 +72,6 @@ substrate-build-script-utils = { workspace = true, default-features = true }
 
 [features]
 default = ["cli", "db", "full-node", "origin-native"]
-on-chain-release-build = ["origin-foundation-runtime/on-chain-release-build"]
 db = ["polkadot-service/db"]
 metadata-hash = ["origin-foundation-runtime/metadata-hash"]
 service = ["dep:polkadot-service"]

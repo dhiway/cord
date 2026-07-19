@@ -41,25 +41,6 @@ pub(crate) struct ReconcileStepV1 {
 	pub(crate) used_network: bool,
 }
 
-/// Mechanically separates failures returned by the peer exchange from failures in target-local
-/// validation, journaling, or persistence. Only the former can justify selecting another source.
-#[derive(Debug)]
-pub(crate) enum ReconcileFailureV1 {
-	SourcePeer(PeerTransportError),
-	TargetLocal(ContentError),
-}
-
-impl From<ReconcileFailureV1> for ContentError {
-	fn from(failure: ReconcileFailureV1) -> Self {
-		match failure {
-			ReconcileFailureV1::SourcePeer(_) => {
-				ContentError::Io("replication peer exchange failed".into())
-			},
-			ReconcileFailureV1::TargetLocal(error) => error,
-		}
-	}
-}
-
 /// Advances exactly one durable action and performs at most one external request.
 pub(crate) struct ReplicationReconciler<T: PeerTransport> {
 	stack: Arc<CheckpointStack>,
@@ -93,80 +74,45 @@ impl<T: PeerTransport> ReplicationReconciler<T> {
 		&self,
 		session: &ReplicationSessionV1,
 		operation_id: [u8; 16],
-	) -> Result<ReconcileStepV1, ReconcileFailureV1> {
+	) -> Result<ReconcileStepV1, ContentError> {
 		if operation_id != Self::operation_id(session)
 			|| session.target().service_key() != self.target.public().0
 		{
-			return Err(ReconcileFailureV1::TargetLocal(ContentError::IdempotencyConflict));
+			return Err(ContentError::IdempotencyConflict);
 		}
-		let planned = self
-			.stack
-			.plan_replication(session, operation_id)
-			.map_err(ReconcileFailureV1::TargetLocal)?;
+		let planned = self.stack.plan_replication(session, operation_id)?;
 		let intent_key = planned.intent_key.clone();
-		let action = self
-			.stack
-			.next_replication_action(&intent_key, &self.target)
-			.map_err(ReconcileFailureV1::TargetLocal)?;
+		let action = self.stack.next_replication_action(&intent_key, &self.target)?;
 		let (record, used_network) = match action {
 			ReplicationActionV1::SendPage { request_bytes, .. } => {
-				let response = self
-					.transport
-					.page(session, &request_bytes)
-					.await
-					.map_err(ReconcileFailureV1::SourcePeer)?;
-				(
-					self.stack
-						.accept_replication_page(&intent_key, &response)
-						.map_err(ReconcileFailureV1::TargetLocal)?,
-					true,
-				)
+				let response =
+					self.transport.page(session, &request_bytes).await.map_err(transport_error)?;
+				(self.stack.accept_replication_page(&intent_key, &response)?, true)
 			},
 			ReplicationActionV1::SendChunk { request_bytes, .. } => {
-				let response = self
-					.transport
-					.chunk(session, &request_bytes)
-					.await
-					.map_err(ReconcileFailureV1::SourcePeer)?;
+				let response =
+					self.transport.chunk(session, &request_bytes).await.map_err(transport_error)?;
 				// Bytes cross their fsync/journal boundary before authenticated proof progress.
-				self.stack
-					.persist_replication_chunk(&intent_key, &response)
-					.map_err(ReconcileFailureV1::TargetLocal)?;
-				(
-					self.stack
-						.accept_replication_chunk(&intent_key, &response)
-						.map_err(ReconcileFailureV1::TargetLocal)?,
-					true,
-				)
+				self.stack.persist_replication_chunk(&intent_key, &response)?;
+				(self.stack.accept_replication_chunk(&intent_key, &response)?, true)
 			},
 			ReplicationActionV1::FinishObject { sequence, cid, length, .. } => {
-				(
-					self.stack
-						.finish_replication_object(&intent_key, sequence, &cid, length)
-						.map_err(ReconcileFailureV1::TargetLocal)?,
-					false,
-				)
+				(self.stack.finish_replication_object(&intent_key, sequence, &cid, length)?, false)
 			},
 			ReplicationActionV1::MarkInstalled { .. } => {
-				(
-					self.stack
-						.mark_replication_installed(&intent_key)
-						.map_err(ReconcileFailureV1::TargetLocal)?,
-					false,
-				)
+				(self.stack.mark_replication_installed(&intent_key)?, false)
 			},
 			ReplicationActionV1::CommitMmr { .. } => {
-				(
-					self.stack
-						.commit_replication_mmr(&intent_key)
-						.map_err(ReconcileFailureV1::TargetLocal)?,
-					false,
-				)
+				(self.stack.commit_replication_mmr(&intent_key)?, false)
 			},
 			ReplicationActionV1::Complete => (planned, false),
 		};
 		Ok(ReconcileStepV1 { intent_key, phase: record.phase, used_network })
 	}
+}
+
+fn transport_error(_: PeerTransportError) -> ContentError {
+	ContentError::Io("replication peer exchange failed".into())
 }
 
 #[cfg(test)]
@@ -688,7 +634,7 @@ mod tests {
 			.unwrap();
 		assert!(matches!(
 			reconciler.reconcile_one(&session, operation).await,
-			Err(ReconcileFailureV1::TargetLocal(ContentError::Io(_)))
+			Err(ContentError::Io(_))
 		));
 		drop(reconciler);
 		drop(stack);

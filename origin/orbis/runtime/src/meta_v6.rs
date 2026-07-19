@@ -1436,10 +1436,7 @@ impl Output for FixedOutput {
 fn decode_meta_intent<R: MetadataImplicitResolver>(
 	call: &RuntimeCall,
 ) -> Result<DecodedMetaIntent, TransactionValidityError> {
-	let RuntimeCall::MetaTx(pallet_meta_tx::Call::dispatch {
-		meta_tx,
-		meta_tx_encoded_len,
-	}) = call
+	let RuntimeCall::MetaTx(pallet_meta_tx::Call::dispatch { meta_tx, meta_tx_encoded_len }) = call
 	else {
 		return Err(InvalidTransaction::Call.into());
 	};
@@ -1457,10 +1454,7 @@ struct DecodedMetaIntent {
 	participant: AccountId,
 }
 
-fn validate_meta_encoded_len(
-	actual: usize,
-	declared: u32,
-) -> Result<(), InvalidTransaction> {
+fn validate_meta_encoded_len(actual: usize, declared: u32) -> Result<(), InvalidTransaction> {
 	if actual > MAX_META_ENCODED_BYTES {
 		return Err(InvalidTransaction::ExhaustsResources);
 	}

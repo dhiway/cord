@@ -225,7 +225,7 @@ async fn every_authoritative_native_route_constructs_validates_and_dispatches_in
 		serde_json::from_str(&load("docs/sdk/native-route-contract.json")).unwrap();
 	let routes = contract["routes"].as_array().unwrap();
 	assert_eq!(contract["route_count"].as_u64(), Some(routes.len() as u64));
-	assert_eq!(routes.len(), 136);
+	assert_eq!(routes.len(), 138);
 	let selected = Arc::new(Mutex::new(Vec::new()));
 	let host = FakeHost::new(
 		Arc::new(|| 1_000),
@@ -310,7 +310,7 @@ fn local_runtime_api_version(source: &str, trait_name: &str) -> Result<u64, Stri
 		.map(|(offset, _)| offset)
 		.ok_or_else(|| format!("trait declaration `{declaration}` is absent"))?;
 	if declarations.next().is_some() {
-		return Err(format!("trait declaration `{declaration}` is duplicated"))
+		return Err(format!("trait declaration `{declaration}` is duplicated"));
 	}
 
 	let declaration_line = source[..declaration_offset].rfind('\n').map_or(0, |offset| offset + 1);
@@ -318,13 +318,13 @@ fn local_runtime_api_version(source: &str, trait_name: &str) -> Result<u64, Stri
 	for line in source[..declaration_line].lines().rev() {
 		let line = line.trim();
 		if line.is_empty() {
-			continue
+			continue;
 		}
 		if line.starts_with("#[") {
 			local_attributes.push(line);
-			continue
+			continue;
 		}
-		break
+		break;
 	}
 
 	let annotations = local_attributes
@@ -335,14 +335,14 @@ fn local_runtime_api_version(source: &str, trait_name: &str) -> Result<u64, Stri
 		return Err(format!(
 			"expected exactly one local api_version annotation, found {}",
 			annotations.len()
-		))
+		));
 	}
 	let version = annotations[0]
 		.strip_prefix(PREFIX)
 		.and_then(|value| value.strip_suffix(SUFFIX))
 		.ok_or_else(|| "local api_version annotation is malformed".to_owned())?;
 	if version.is_empty() || !version.bytes().all(|byte| byte.is_ascii_digit()) {
-		return Err("local api_version annotation is malformed".to_owned())
+		return Err("local api_version annotation is malformed".to_owned());
 	}
 	version
 		.parse()

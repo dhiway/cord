@@ -236,12 +236,16 @@ fn honour_meta_tuples() -> (pallet_meta_tx::MetaTxFor<Runtime>, pallet_meta_tx::
 fn policy_vectors() -> [crate::meta_v6::PolicyProofsV6; 7] {
 	[
 		include_bytes!("../vectors/transaction-policy-v8/proof-person-alias-meta.scale").as_slice(),
-		include_bytes!("../vectors/transaction-policy-v8/proof-person-identity-meta.scale").as_slice(),
-		include_bytes!("../vectors/transaction-policy-v8/proof-person-alias-revised-meta.scale").as_slice(),
+		include_bytes!("../vectors/transaction-policy-v8/proof-person-identity-meta.scale")
+			.as_slice(),
+		include_bytes!("../vectors/transaction-policy-v8/proof-person-alias-revised-meta.scale")
+			.as_slice(),
 		include_bytes!("../vectors/transaction-policy-v8/proof-lite-person-meta.scale").as_slice(),
 		include_bytes!("../vectors/transaction-policy-v8/proof-lite-alias-meta.scale").as_slice(),
-		include_bytes!("../vectors/transaction-policy-v8/proof-lite-alias-revised-meta.scale").as_slice(),
-		include_bytes!("../vectors/transaction-policy-v8/proof-resources-claim-meta.scale").as_slice(),
+		include_bytes!("../vectors/transaction-policy-v8/proof-lite-alias-revised-meta.scale")
+			.as_slice(),
+		include_bytes!("../vectors/transaction-policy-v8/proof-resources-claim-meta.scale")
+			.as_slice(),
 	]
 	.map(|mut bytes| {
 		let meta = pallet_meta_tx::MetaTxFor::<Runtime>::decode_all(&mut bytes).unwrap();
@@ -609,7 +613,8 @@ pub(crate) fn checked_in_score_meta_fixture_executes_as_paid_outer_extrinsic() {
 			participant.as_mut().unwrap().score = 10
 		});
 		let meta = pallet_meta_tx::MetaTxFor::<Runtime>::decode_all(
-			&mut include_bytes!("../vectors/transaction-policy-v8/score-participant-meta.scale").as_slice(),
+			&mut include_bytes!("../vectors/transaction-policy-v8/score-participant-meta.scale")
+				.as_slice(),
 		)
 		.unwrap();
 		assert!(apply_checked_meta_fixture(meta, &sponsor_pair).is_ok());
@@ -645,7 +650,8 @@ pub(crate) fn checked_in_score_nonce_mutation_is_exact_future_without_inner_muta
 		});
 		let before = pallet_orbis_score::Participants::<Runtime>::get(&key);
 		let meta = pallet_meta_tx::MetaTxFor::<Runtime>::decode_all(
-			&mut include_bytes!("../vectors/transaction-policy-v8/mutate-score-nonce-meta.scale").as_slice(),
+			&mut include_bytes!("../vectors/transaction-policy-v8/mutate-score-nonce-meta.scale")
+				.as_slice(),
 		)
 		.unwrap();
 		assert_eq!(
@@ -668,7 +674,8 @@ pub(crate) fn checked_in_honour_account_mutation_is_exact_bad_signer_and_executa
 		frame_system::GenesisConfig::<Runtime>::default().build();
 		crate::System::set_block_number(1);
 		crate::System::set_extrinsic_index(0);
-		let bytes = include_bytes!("../vectors/transaction-policy-v8/mutate-honour-account-meta.scale");
+		let bytes =
+			include_bytes!("../vectors/transaction-policy-v8/mutate-honour-account-meta.scale");
 		let meta = pallet_meta_tx::MetaTxFor::<Runtime>::decode_all(&mut bytes.as_slice()).unwrap();
 		let (call, _, extension): (RuntimeCall, u8, crate::MetaTxExtension) =
 			DecodeAll::decode_all(&mut bytes.as_slice()).unwrap();
@@ -841,7 +848,8 @@ fn regenerate_meta_v8_fixtures() {
 	sp_io::TestExternalities::new_empty().execute_with(|| {
 		frame_system::GenesisConfig::<Runtime>::default().build();
 		crate::System::set_block_number(1);
-		let dir = std::path::Path::new(env!("CARGO_MANIFEST_DIR")).join("vectors/transaction-policy-v8");
+		let dir =
+			std::path::Path::new(env!("CARGO_MANIFEST_DIR")).join("vectors/transaction-policy-v8");
 		let write = |name: &str, bytes: &[u8]| std::fs::write(dir.join(name), bytes).unwrap();
 		let intent = canonical_intent();
 		let token = paid_token();

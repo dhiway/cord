@@ -24,11 +24,11 @@
 
 #![cfg_attr(not(feature = "std"), no_std)]
 
-use orbis_transaction_storage_primitives::{
-	StorageRef, ContentHash, ProviderAllocationId, ReservationId, ResourceReservationLink,
-	ResourceReservationView, StorageActor, TransactionRef,
-};
 use codec::{Codec, Decode, Encode};
+use orbis_transaction_storage_primitives::{
+	ContentHash, ProviderAllocationId, ReservationId, ResourceReservationLink,
+	ResourceReservationView, StorageActor, StorageRef, TransactionRef,
+};
 use scale_decode::DecodeAsType;
 use scale_info::TypeInfo;
 

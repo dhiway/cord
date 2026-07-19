@@ -56,8 +56,8 @@ use origin_runtime_constants::{
 	time::*,
 };
 use pallet_grandpa::{fg_primitives, AuthorityId as GrandpaId};
-use pallet_session::historical as session_historical;
 use pallet_origin_token::Token as _;
+use pallet_session::historical as session_historical;
 use pallet_transaction_payment::{FeeDetails, FungibleAdapter, RuntimeDispatchInfo};
 use pallet_tx_pause::RuntimeCallNameOf;
 use polkadot_primitives::{

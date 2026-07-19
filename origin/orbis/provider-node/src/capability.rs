@@ -263,13 +263,13 @@ pub(crate) struct CapabilityRequest<'a> {
 pub(crate) enum CapabilityReplayInspection {
 	/// The `(grant, nonce)` has not been observed.
 	Fresh,
-	/// The nonce and capability digest match a durable byte-identical recovery entry.
+	/// The nonce and capability digest match, but durable request recovery is not implemented.
 	ExactRetry,
 	/// The nonce was observed with a different canonical capability digest.
 	Conflict,
 }
 
-/// Read-only seam for the provider-local durable capability replay table.
+/// Read-only seam for a future provider-local durable capability replay table.
 pub(crate) trait CapabilityReplayInspector {
 	/// Inspect one grant/nonce/capability-digest tuple without consuming or persisting it.
 	fn inspect(
@@ -287,7 +287,7 @@ pub(crate) struct VerifiedCapability {
 	pub(crate) finalized_hash: String,
 	/// Finalized state number used for validity checks.
 	pub(crate) finalized_number: u32,
-	/// SHA-256 of only the canonical capability bytes, not the request recovery fingerprint.
+	/// SHA-256 of only the canonical capability bytes, not a future request recovery fingerprint.
 	pub(crate) canonical_capability_sha256: [u8; 32],
 }
 
@@ -447,7 +447,8 @@ pub(crate) fn verify_capability<I: CapabilityReplayInspector>(
 
 	capability.verify_signature(delegation.issuer_public_key)?;
 	// Recovery later hashes canonical RequestV2 followed by canonical authority. This narrower
-	// digest is deliberately named as capability-only so it cannot be mistaken for that fingerprint.
+	// digest is deliberately named as capability-only so it cannot be mistaken for that
+	// fingerprint.
 	let canonical_capability_sha256 = capability.canonical_capability_sha256();
 	if replay.inspect(&capability.grant_id, &capability.nonce, &canonical_capability_sha256)
 		!= CapabilityReplayInspection::Fresh
@@ -547,7 +548,7 @@ fn encode_map(capability: &ProviderCapabilityV1, include_signature: bool) -> Vec
 }
 
 #[cfg(test)]
-pub(crate) mod tests {
+mod tests {
 	use super::*;
 	use orbis_storage_runtime_api::{
 		AgreementInfo, BucketGrantInfo, BucketRole, ControlBucketInfo, HostDelegationInfo,
@@ -586,7 +587,7 @@ pub(crate) mod tests {
 	}
 
 	#[test]
-	pub(crate) fn executable_vector_fixes_canonical_signature_and_fingerprint_bytes() {
+	fn executable_vector_fixes_canonical_signature_and_fingerprint_bytes() {
 		let vector = vector();
 		let canonical = hex_field(&vector, "canonical_cbor_hex");
 		let capability = ProviderCapabilityV1::decode(&canonical).expect("canonical vector");
@@ -910,7 +911,7 @@ pub(crate) mod tests {
 	}
 
 	#[test]
-	pub(crate) fn agreement_lifetime_and_replay_checks_fail_closed() {
+	fn agreement_lifetime_and_replay_checks_fail_closed() {
 		let (mut capability, mut snapshot, cid) = signed_fixture();
 		let pair = ed25519::Pair::from_seed(&[9; 32]);
 		assert_eq!(

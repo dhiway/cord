@@ -1057,6 +1057,11 @@ pub fn prepare_storage_provider_command(
 				Value::u128(*due_at as u128),
 			],
 		),
+		StorageProviderCommand::SubmitCheckpoint { challenge, proof_commitment } => (
+			"StorageProvider",
+			"submit_checkpoint",
+			vec![hash_value(challenge.as_hash())?, hash_value(proof_commitment.as_hash())?],
+		),
 		StorageProviderCommand::TimeoutChallenge { challenge } => {
 			("StorageProvider", "timeout_challenge", vec![hash_value(challenge.as_hash())?])
 		},
@@ -1074,19 +1079,43 @@ pub fn prepare_storage_provider_command(
 		StorageProviderCommand::PruneAgreement { agreement } => {
 			("StorageProvider", "prune_agreement", vec![hash_value(agreement.as_hash())?])
 		},
-		StorageProviderCommand::AcknowledgeManifestDeletion {
-			manifest,
-			evidence_hash,
-			service_key,
-			signature,
+		StorageProviderCommand::AcknowledgeDeletion {
+			agreement,
+			content_commitment,
+			tombstone_root,
+			root_sequence,
+			leaf_index,
+			leaf_count,
+			inclusion_proof,
 		} => (
 			"StorageProvider",
-			"acknowledge_manifest_deletion",
+			"acknowledge_deletion",
 			vec![
-				hash_value(manifest.as_hash())?,
-				hash_value(evidence_hash.as_hash())?,
-				Value::from_bytes(service_key.as_bytes()),
-				Value::from_bytes(signature),
+				hash_value(agreement.as_hash())?,
+				hash_value(content_commitment.as_hash())?,
+				hash_value(tombstone_root.as_hash())?,
+				Value::u128(*root_sequence as u128),
+				Value::u128(*leaf_index as u128),
+				Value::u128(*leaf_count as u128),
+				Value::unnamed_composite(
+					inclusion_proof
+						.iter()
+						.map(|hash| hash_value(hash.as_hash()))
+						.collect::<DomainResult<Vec<_>>>()?,
+				),
+			],
+		),
+		StorageProviderCommand::CommitProviderRoot { sequence, appended_leaves } => (
+			"StorageProvider",
+			"commit_provider_root",
+			vec![
+				Value::u128(*sequence as u128),
+				Value::unnamed_composite(
+					appended_leaves
+						.iter()
+						.map(|hash| hash_value(hash.as_hash()))
+						.collect::<DomainResult<Vec<_>>>()?,
+				),
 			],
 		),
 		StorageProviderCommand::AttachProvider { reservation_id, provider_ref } => (

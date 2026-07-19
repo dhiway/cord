@@ -23,8 +23,8 @@ use std::{net::SocketAddr, path::PathBuf, sync::Arc, time::Duration};
 use clap::Parser;
 use origin_orbis_provider::{
 	run_checkpoint_live_worker, run_checkpoint_quorum_worker, run_replication_worker, run_workers,
-	serve_provider_ingress, ApiConfig, FinalizedRuntimeAuthority, NodeProfile, ProviderService,
-	WorkerConfig,
+	serve_provider_ingress, ApiConfig, DiskStore, FinalizedRuntimeAuthority, JsonlCheckpointOutbox,
+	NodeProfile, ProviderService, WorkerConfig,
 };
 use sp_core::{crypto::AccountId32, ed25519, Pair as _};
 
@@ -70,6 +70,9 @@ struct Cli {
 	/// Maximum decoded content bytes per commit.
 	#[arg(long, default_value_t = 16 * 1024 * 1024)]
 	max_content_bytes: usize,
+	/// Signed checkpoint interval in seconds.
+	#[arg(long, default_value_t = 60)]
+	checkpoint_seconds: u64,
 	/// Target replication reconciliation interval in seconds.
 	#[arg(long, default_value_t = 6)]
 	replication_seconds: u64,
@@ -109,25 +112,25 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
 		service_key: format!("0x{}", hex::encode(service_key.public().0)),
 		region: cli.region,
 	};
+	let outbox_path = cli.data_path.join("provider-submissions-v3.jsonl");
+	let store = Arc::new(DiskStore::open(&cli.data_path, profile, cli.capacity_bytes)?);
 	let authority = Arc::new(FinalizedRuntimeAuthority::connect(
 		&cli.orbis_rpc,
 		provider,
 		service_key.public().0,
 	)?);
-	let service = Arc::new(ProviderService::open(
-		&cli.data_path,
-		profile,
-		cli.capacity_bytes,
-		authority,
-		service_key,
-	)?);
+	let submitter = Arc::new(JsonlCheckpointOutbox::new(outbox_path));
+	let service = Arc::new(ProviderService::new(store, authority, service_key, submitter)?);
 	let api = ApiConfig {
 		listen: cli.listen,
 		bearer_token_hash: *blake3::hash(bearer.as_bytes()).as_bytes(),
 		max_content_bytes: cli.max_content_bytes,
 		max_json_bytes: 64 * 1024,
 	};
-	let workers = WorkerConfig::default();
+	let workers = WorkerConfig {
+		checkpoint_interval: Duration::from_secs(cli.checkpoint_seconds.max(1)),
+		..Default::default()
+	};
 	// Bind before entering either lifecycle select so an unavailable peer endpoint is fatal.
 	let peer_listener = tokio::net::TcpListener::bind(cli.peer_listen).await?;
 	println!("origin-orbis-provider listening on {}", api.listen);
@@ -136,7 +139,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
 		result = serve_provider_ingress(api, peer_listener, service.clone(), local_provider) => result?,
 		_ = run_workers(service.clone(), workers) => {},
 		_ = run_replication_worker(service.clone(), local_provider, Duration::from_secs(cli.replication_seconds.max(1))) => {},
-		result = run_checkpoint_quorum_worker(service.clone(), local_provider, Duration::from_secs(cli.checkpoint_quorum_seconds.max(1))) => result?,
+		_ = run_checkpoint_quorum_worker(service.clone(), local_provider, Duration::from_secs(cli.checkpoint_quorum_seconds.max(1))) => {},
 		result = run_checkpoint_live_worker(service.clone(), local_provider, cli.orbis_native_rpc, account_suri, Duration::from_secs(cli.checkpoint_live_seconds.max(1))) => result?,
 		_ = tokio::signal::ctrl_c() => {},
 	}

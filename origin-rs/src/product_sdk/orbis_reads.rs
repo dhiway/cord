@@ -1058,9 +1058,10 @@ impl FinalizedReadBinding for OrbisFinalizedReadBinding {
 					response.value.map(agreement_view).transpose()?,
 				)?))
 			},
-			StorageProviderQuery::ProviderAgreements { provider, page } =>
+			StorageProviderQuery::ProviderAgreements { provider, page } => {
 				self.agreement_page(hash, "provider_agreements", account_arg(provider)?, page)
-					.await,
+					.await
+			},
 			StorageProviderQuery::AgreementNonce { owner } => {
 				let nonce: u64 = self
 					.call_at(
@@ -1386,8 +1387,9 @@ fn schema_view(
 			att_api::IndexPolicy::None => DomainIndexPolicy::None,
 			att_api::IndexPolicy::Issuer => DomainIndexPolicy::Issuer,
 			att_api::IndexPolicy::SubjectAndSchema => DomainIndexPolicy::SubjectAndSchema,
-			att_api::IndexPolicy::IssuerAndSubjectSchema =>
-				DomainIndexPolicy::IssuerAndSubjectSchema,
+			att_api::IndexPolicy::IssuerAndSubjectSchema => {
+				DomainIndexPolicy::IssuerAndSubjectSchema
+			},
 		},
 		authorized_issuers: view
 			.authorized_issuers
@@ -1465,13 +1467,16 @@ fn storage_actor(
 	actor: transaction_storage_api::ClientStorageActor<RuntimeAccountId>,
 ) -> DomainResult<StorageActor> {
 	Ok(match actor {
-		transaction_storage_api::ClientStorageActor::Account(account) =>
-			StorageActor::Account { account: account_id(&account)? },
+		transaction_storage_api::ClientStorageActor::Account(account) => {
+			StorageActor::Account { account: account_id(&account)? }
+		},
 		transaction_storage_api::ClientStorageActor::Root => StorageActor::Root,
-		transaction_storage_api::ClientStorageActor::Preimage(content_hash) =>
-			StorageActor::Preimage { content_hash: ContentHash(Hash32::from_bytes(content_hash)) },
-		transaction_storage_api::ClientStorageActor::AutoRenew(account) =>
-			StorageActor::AutoRenew { account: account_id(&account)? },
+		transaction_storage_api::ClientStorageActor::Preimage(content_hash) => {
+			StorageActor::Preimage { content_hash: ContentHash(Hash32::from_bytes(content_hash)) }
+		},
+		transaction_storage_api::ClientStorageActor::AutoRenew(account) => {
+			StorageActor::AutoRenew { account: account_id(&account)? }
+		},
 	})
 }
 
@@ -1482,7 +1487,7 @@ fn resource_reservation(
 	>,
 ) -> DomainResult<ResourceReservationView> {
 	Ok(match view {
-		transaction_storage_api::ClientResourceReservationView::Active(active) =>
+		transaction_storage_api::ClientResourceReservationView::Active(active) => {
 			ResourceReservationView::Active(ActiveResourceReservation {
 				owner: account_id(&active.owner)?,
 				purpose_digest: ContentHash(Hash32::from_bytes(active.purpose_digest)),
@@ -1490,14 +1495,17 @@ fn resource_reservation(
 				transactions_remaining: active.transactions_remaining,
 				created_at: active.created_at,
 				expires_at: active.expires_at,
-			}),
+			})
+		},
 		transaction_storage_api::ClientResourceReservationView::Tombstone(tombstone) => {
 			let outcome = match tombstone.outcome {
-				transaction_storage_api::ClientResourceClosure::Cancelled =>
-					ResourceClosure::Cancelled,
+				transaction_storage_api::ClientResourceClosure::Cancelled => {
+					ResourceClosure::Cancelled
+				},
 				transaction_storage_api::ClientResourceClosure::Expired => ResourceClosure::Expired,
-				transaction_storage_api::ClientResourceClosure::Exhausted =>
-					ResourceClosure::Exhausted,
+				transaction_storage_api::ClientResourceClosure::Exhausted => {
+					ResourceClosure::Exhausted
+				},
 			};
 			ResourceReservationView::Tombstone(ResourceReservationTombstone {
 				owner: account_id(&tombstone.owner)?,
@@ -1771,13 +1779,13 @@ fn storage_finalized_page<T>(
 		return Err(NativeError::new(
 			NativeErrorCode::UnsupportedRuntime,
 			"storage runtime response exceeded its page contract",
-		))
+		));
 	}
 	if items.is_empty() && next_cursor.is_some() {
 		return Err(NativeError::new(
 			NativeErrorCode::UnsupportedRuntime,
 			"empty storage runtime response advanced its cursor",
-		))
+		));
 	}
 	Ok(FinalizedPage { version, finalized_block_hash: hash.clone(), items, next_cursor })
 }
@@ -1795,13 +1803,13 @@ fn storage_sparse_finalized_page<T>(
 		return Err(NativeError::new(
 			NativeErrorCode::UnsupportedRuntime,
 			"storage runtime response exceeded its page contract",
-		))
+		));
 	}
 	if next_cursor.is_some_and(|next| next <= request_cursor.unwrap_or(0)) {
 		return Err(NativeError::new(
 			NativeErrorCode::InconsistentSnapshot,
 			"sparse storage runtime response did not advance its cursor",
-		))
+		));
 	}
 	Ok(FinalizedPage { version, finalized_block_hash: hash.clone(), items, next_cursor })
 }
@@ -1817,7 +1825,7 @@ fn finalized_object_page(
 		return Err(NativeError::new(
 			NativeErrorCode::UnsupportedRuntime,
 			"S3 object response exceeded its page contract",
-		))
+		));
 	}
 	if request
 		.cursor
@@ -1827,7 +1835,7 @@ fn finalized_object_page(
 		return Err(NativeError::new(
 			NativeErrorCode::InconsistentSnapshot,
 			"S3 object response changed snapshot version",
-		))
+		));
 	}
 
 	let items = response
@@ -1849,13 +1857,13 @@ fn finalized_object_page(
 			return Err(NativeError::new(
 				NativeErrorCode::InconsistentSnapshot,
 				"S3 object cursor changed snapshot version",
-			))
+			));
 		}
 		if items.last() != Some(&next.last_key) {
 			return Err(NativeError::new(
 				NativeErrorCode::InconsistentSnapshot,
 				"S3 object cursor does not identify the last returned key",
-			))
+			));
 		}
 		if request
 			.cursor
@@ -1865,7 +1873,7 @@ fn finalized_object_page(
 			return Err(NativeError::new(
 				NativeErrorCode::InconsistentSnapshot,
 				"S3 object cursor did not advance",
-			))
+			));
 		}
 	}
 
@@ -1893,7 +1901,7 @@ fn ensure_storage_response_version(version: u16) -> DomainResult<()> {
 		return Err(NativeError::new(
 			NativeErrorCode::UnsupportedRuntime,
 			format!("unsupported Orbis storage runtime API response version {version}"),
-		))
+		));
 	}
 	Ok(())
 }
@@ -2047,16 +2055,21 @@ fn runtime_api_error(error: subxt::Error) -> NativeError {
 
 fn s3_list_error(error: storage_api::S3ListError) -> NativeError {
 	let (code, message) = match error {
-		storage_api::S3ListError::BucketNotFound =>
-			(NativeErrorCode::NotFound, "S3 bucket was not found"),
-		storage_api::S3ListError::BucketDeleted =>
-			(NativeErrorCode::Conflict, "S3 bucket is deleted"),
-		storage_api::S3ListError::CursorStale =>
-			(NativeErrorCode::InconsistentSnapshot, "S3 object cursor is stale"),
-		storage_api::S3ListError::PageLimitInvalid =>
-			(NativeErrorCode::InvalidInput, "S3 object page limit is invalid"),
-		storage_api::S3ListError::CursorKeyInvalid =>
-			(NativeErrorCode::InvalidInput, "S3 object cursor key is invalid"),
+		storage_api::S3ListError::BucketNotFound => {
+			(NativeErrorCode::NotFound, "S3 bucket was not found")
+		},
+		storage_api::S3ListError::BucketDeleted => {
+			(NativeErrorCode::Conflict, "S3 bucket is deleted")
+		},
+		storage_api::S3ListError::CursorStale => {
+			(NativeErrorCode::InconsistentSnapshot, "S3 object cursor is stale")
+		},
+		storage_api::S3ListError::PageLimitInvalid => {
+			(NativeErrorCode::InvalidInput, "S3 object page limit is invalid")
+		},
+		storage_api::S3ListError::CursorKeyInvalid => {
+			(NativeErrorCode::InvalidInput, "S3 object cursor key is invalid")
+		},
 	};
 	NativeError::new(code, message)
 }

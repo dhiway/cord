@@ -437,11 +437,9 @@ fn promote_has_lower_priority_than_store_and_renew() {
 		// Get store priority.
 		let store_call =
 			pallet_orbis_transaction_storage::Call::<Test>::store { data: data.clone() };
-		let (store_tx, _) = pallet_orbis_transaction_storage::Pallet::<Test>::validate_signed(
-			&alice,
-			&store_call,
-		)
-		.unwrap();
+		let (store_tx, _) =
+			pallet_orbis_transaction_storage::Pallet::<Test>::validate_signed(&alice, &store_call)
+				.unwrap();
 
 		// Store data so we can renew it.
 		assert_ok!(pallet_orbis_transaction_storage::Pallet::<Test>::store(
@@ -458,11 +456,9 @@ fn promote_has_lower_priority_than_store_and_renew() {
 				index: 0,
 			},
 		};
-		let (renew_tx, _) = pallet_orbis_transaction_storage::Pallet::<Test>::validate_signed(
-			&alice,
-			&renew_call,
-		)
-		.unwrap();
+		let (renew_tx, _) =
+			pallet_orbis_transaction_storage::Pallet::<Test>::validate_signed(&alice, &renew_call)
+				.unwrap();
 
 		assert!(
 			promote_tx.priority < store_tx.priority,

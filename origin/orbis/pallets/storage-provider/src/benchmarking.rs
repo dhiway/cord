@@ -712,10 +712,10 @@ mod benchmarks {
 	}
 
 	#[benchmark]
-	fn tombstone_manifest(r: Linear<0, { T::MaxReplicas::get() }>) {
+	fn tombstone_manifest() {
 		let owner: T::AccountId = account("owner", 0, SEED);
 		let (primary, _) = provider::<T>(0, ProviderStatus::Active);
-		let (replicas, _) = replicas::<T>(r);
+		let (replicas, _) = replicas::<T>(4);
 		let id = bucket::<T>(&owner, &primary, replicas);
 		CanonicalManifests::<T>::insert(
 			[1; 32],
@@ -733,18 +733,11 @@ mod benchmarks {
 
 	#[benchmark]
 	fn acknowledge_manifest_deletion() {
-		let (provider, _) = provider::<T>(0, ProviderStatus::Active);
-		let key = service_public(1);
+		let (provider, key) = provider::<T>(0, ProviderStatus::Active);
 		let bucket_id = T::Hashing::hash_of(&b"bucket");
 		let manifest = [1; 32];
 		let evidence = T::Hashing::hash_of(&b"evidence");
 		let at = GovernedFinalizedCheckpoint::<T>::get().unwrap();
-		Providers::<T>::mutate(&provider, |record| {
-			let record = record.as_mut().unwrap();
-			record.service_key.pending = Some(key);
-			record.service_key.pending_version = Some(2);
-			record.service_key.pending_effective_at = Some(at);
-		});
 		CanonicalManifests::<T>::insert(
 			manifest,
 			CanonicalManifestRecord {
@@ -757,7 +750,6 @@ mod benchmarks {
 		);
 		let required: AssignedProvidersOf<T> = vec![provider.clone()].try_into().unwrap();
 		ManifestDeletionRequirements::<T>::insert(manifest, required);
-		ManifestDeletionDuties::<T>::insert(&provider, manifest, ());
 		let digest = T::Hashing::hash_of(&(
 			b"cord/storage/deletion-ack/v1",
 			bucket_id,
@@ -769,7 +761,7 @@ mod benchmarks {
 		let mut bytes = [0u8; 32];
 		bytes.copy_from_slice(&encoded);
 		#[extrinsic_call]
-		_(RawOrigin::Signed(provider), manifest, evidence, key, service_sign(1, &bytes));
+		_(RawOrigin::Signed(provider), manifest, evidence, key, service_sign(0, &bytes));
 	}
 
 	#[benchmark]

@@ -16,18 +16,13 @@
 // You should have received a copy of the GNU General Public License
 // along with CORD. If not, see <https://www.gnu.org/licenses/>.
 
-#[path = "../../wasm_build_hygiene.rs"]
-mod wasm_build_hygiene;
-
 #[cfg(all(feature = "std", not(feature = "metadata-hash")))]
 fn main() {
-	wasm_build_hygiene::configure();
 	substrate_wasm_builder::WasmBuilder::build_using_defaults()
 }
 
 #[cfg(all(feature = "std", feature = "metadata-hash"))]
 fn main() {
-	wasm_build_hygiene::configure();
 	substrate_wasm_builder::WasmBuilder::init_with_defaults()
 		.enable_metadata_hash("ORGN", 10)
 		.build()

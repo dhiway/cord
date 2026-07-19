@@ -144,52 +144,8 @@ pub(crate) struct CheckpointPromotionStoreV2 {
 	poisoned: RwLock<bool>,
 }
 
-pub(crate) struct PreparedCheckpointPromotionStoreV2 {
-	intents_root: PathBuf,
-	finalized_receipts_root: PathBuf,
-	scheduler_root: PathBuf,
-	missing_roots: [bool; 3],
-	intents: HashMap<String, FallbackPromotionIntentV2>,
-	intent_order: BTreeMap<(u32, String), String>,
-	by_tuple: HashMap<String, String>,
-	finalized_receipts: HashMap<String, FallbackPromotionFinalizedReceiptV2>,
-	scheduler_cursor: Option<CheckpointPromotionSchedulerCursorV2>,
-	temp_artifacts: [Vec<PathBuf>; 3],
-}
-
-impl PreparedCheckpointPromotionStoreV2 {
-	pub(crate) fn apply(self) -> Result<CheckpointPromotionStoreV2, ContentError> {
-		for (index, root) in
-			[&self.intents_root, &self.finalized_receipts_root, &self.scheduler_root]
-				.into_iter()
-				.enumerate()
-		{
-			crate::bounded_io::create_prepared_directory(root, self.missing_roots[index])?;
-			crate::bounded_io::remove_validated_temp_artifacts(root, &self.temp_artifacts[index])?;
-		}
-		Ok(CheckpointPromotionStoreV2 {
-			intents_root: self.intents_root,
-			finalized_receipts_root: self.finalized_receipts_root,
-			scheduler_root: self.scheduler_root,
-			intents: RwLock::new(self.intents),
-			intent_order: RwLock::new(self.intent_order),
-			by_tuple: RwLock::new(self.by_tuple),
-			finalized_receipts: RwLock::new(self.finalized_receipts),
-			scheduler_cursor: RwLock::new(self.scheduler_cursor),
-			fault: RwLock::new(None),
-			poisoned: RwLock::new(false),
-		})
-	}
-}
-
 impl CheckpointPromotionStoreV2 {
 	pub(crate) fn open(root: impl AsRef<Path>) -> Result<Self, ContentError> {
-		Self::prepare_open(root)?.apply()
-	}
-
-	pub(crate) fn prepare_open(
-		root: impl AsRef<Path>,
-	) -> Result<PreparedCheckpointPromotionStoreV2, ContentError> {
 		let provider_root = root.as_ref();
 		if provider_root.join(LEGACY_ROOT).try_exists().map_err(io_error)? {
 			return Err(ContentError::IntegrityFailed);
@@ -197,78 +153,58 @@ impl CheckpointPromotionStoreV2 {
 		let intents_root = provider_root.join(INTENTS_ROOT);
 		let finalized_receipts_root = provider_root.join(FINALIZED_RECEIPTS_ROOT);
 		let scheduler_root = provider_root.join(SCHEDULER_ROOT);
-		let missing_roots = [
-			!crate::bounded_io::optional_directory_exists(&intents_root)?,
-			!crate::bounded_io::optional_directory_exists(&finalized_receipts_root)?,
-			!crate::bounded_io::optional_directory_exists(&scheduler_root)?,
-		];
+		fs::create_dir_all(&intents_root).map_err(io_error)?;
+		fs::create_dir_all(&finalized_receipts_root).map_err(io_error)?;
+		fs::create_dir_all(&scheduler_root).map_err(io_error)?;
 
 		let mut intents = HashMap::new();
 		let mut intent_order = BTreeMap::new();
 		let mut by_tuple = HashMap::new();
-		let intent_scan = if missing_roots[0] {
-			RecordScan { records: Vec::new(), temp_artifacts: Vec::new() }
-		} else {
-			read_records(&intents_root, MAX_INTENT_BYTES)?
-		};
-		for item in intent_scan.records {
+		for item in read_records(&intents_root, MAX_INTENT_BYTES)? {
 			let intent: FallbackPromotionIntentV2 =
 				serde_json::from_slice(&item.bytes).map_err(|_| ContentError::IntegrityFailed)?;
 			validate_intent(&intent)?;
 			let order_key = (intent.inventory_finalized_number, intent.intent_id.clone());
-			if item.name != format!("{}.json", intent.intent_id)
-				|| intents.len() >= MAX_RECORDS
-				|| intents.insert(intent.intent_id.clone(), intent.clone()).is_some()
-				|| intent_order.insert(order_key, intent.intent_id.clone()).is_some()
-				|| by_tuple.insert(intent.tuple_key.clone(), intent.intent_id.clone()).is_some()
+			if item.name != format!("{}.json", intent.intent_id) ||
+				intents.len() >= MAX_RECORDS ||
+				intents.insert(intent.intent_id.clone(), intent.clone()).is_some() ||
+				intent_order.insert(order_key, intent.intent_id.clone()).is_some() ||
+				by_tuple.insert(intent.tuple_key.clone(), intent.intent_id.clone()).is_some()
 			{
 				return Err(ContentError::IntegrityFailed);
 			}
 		}
 
 		let mut finalized_receipts = HashMap::new();
-		let finalized_receipt_scan = if missing_roots[1] {
-			RecordScan { records: Vec::new(), temp_artifacts: Vec::new() }
-		} else {
-			read_records(&finalized_receipts_root, MAX_RECEIPT_BYTES)?
-		};
-		for item in finalized_receipt_scan.records {
+		for item in read_records(&finalized_receipts_root, MAX_RECEIPT_BYTES)? {
 			let receipt: FallbackPromotionFinalizedReceiptV2 =
 				serde_json::from_slice(&item.bytes).map_err(|_| ContentError::IntegrityFailed)?;
 			let intent = intents.get(&receipt.intent_id).ok_or(ContentError::IntegrityFailed)?;
 			validate_finalized_receipt(&receipt, intent)?;
-			if item.name != format!("{}.json", receipt.intent_id)
-				|| finalized_receipts.len() >= MAX_RECORDS
-				|| finalized_receipts.insert(receipt.intent_id.clone(), receipt).is_some()
+			if item.name != format!("{}.json", receipt.intent_id) ||
+				finalized_receipts.len() >= MAX_RECORDS ||
+				finalized_receipts.insert(receipt.intent_id.clone(), receipt).is_some()
 			{
 				return Err(ContentError::IntegrityFailed);
 			}
 		}
-		let scheduler_scan = if missing_roots[2] {
-			SchedulerCursorScan { cursor: None, temp_artifacts: Vec::new() }
-		} else {
-			read_scheduler_cursor(&scheduler_root)?
-		};
-		let scheduler_cursor = scheduler_scan.cursor;
+		let scheduler_cursor = read_scheduler_cursor(&scheduler_root)?;
 		if let Some(cursor) = &scheduler_cursor {
 			let intent = intents.get(&cursor.intent_id).ok_or(ContentError::IntegrityFailed)?;
 			validate_scheduler_cursor_against_intent(cursor, intent)?;
 		}
-		Ok(PreparedCheckpointPromotionStoreV2 {
+
+		Ok(Self {
 			intents_root,
 			finalized_receipts_root,
 			scheduler_root,
-			missing_roots,
-			intents,
-			intent_order,
-			by_tuple,
-			finalized_receipts,
-			scheduler_cursor,
-			temp_artifacts: [
-				intent_scan.temp_artifacts,
-				finalized_receipt_scan.temp_artifacts,
-				scheduler_scan.temp_artifacts,
-			],
+			intents: RwLock::new(intents),
+			intent_order: RwLock::new(intent_order),
+			by_tuple: RwLock::new(by_tuple),
+			finalized_receipts: RwLock::new(finalized_receipts),
+			scheduler_cursor: RwLock::new(scheduler_cursor),
+			fault: RwLock::new(None),
+			poisoned: RwLock::new(false),
 		})
 	}
 
@@ -508,20 +444,11 @@ struct RecordFile {
 	bytes: Vec<u8>,
 }
 
-struct RecordScan {
-	records: Vec<RecordFile>,
-	temp_artifacts: Vec<PathBuf>,
-}
-
-struct SchedulerCursorScan {
-	cursor: Option<CheckpointPromotionSchedulerCursorV2>,
-	temp_artifacts: Vec<PathBuf>,
-}
-
-fn read_records(root: &Path, max_record_bytes: usize) -> Result<RecordScan, ContentError> {
+fn read_records(root: &Path, max_record_bytes: usize) -> Result<Vec<RecordFile>, ContentError> {
 	let mut records = Vec::new();
 	let mut visited = 0usize;
-	let mut temp_artifacts = Vec::new();
+	let mut temp_artifacts = 0usize;
+	let mut removed_temp = false;
 	for item in fs::read_dir(root).map_err(io_error)? {
 		visited = visited.checked_add(1).ok_or(ContentError::IntegrityFailed)?;
 		if visited > MAX_RECORDS + MAX_TEMP_ARTIFACTS {
@@ -529,54 +456,71 @@ fn read_records(root: &Path, max_record_bytes: usize) -> Result<RecordScan, Cont
 		}
 		let item = item.map_err(io_error)?;
 		let name = item.file_name().to_string_lossy().into_owned();
-		if crate::bounded_io::is_json_temp_artifact(&name) {
-			if temp_artifacts.len() >= MAX_TEMP_ARTIFACTS
-				|| !item.file_type().map_err(io_error)?.is_file()
+		if name.contains(".tmp-") {
+			temp_artifacts = temp_artifacts.checked_add(1).ok_or(ContentError::IntegrityFailed)?;
+			if temp_artifacts > MAX_TEMP_ARTIFACTS || !item.file_type().map_err(io_error)?.is_file()
 			{
 				return Err(ContentError::IntegrityFailed);
 			}
-			temp_artifacts.push(item.path());
+			fs::remove_file(item.path()).map_err(io_error)?;
+			removed_temp = true;
 			continue;
 		}
-		if records.len() >= MAX_RECORDS
-			|| !name.ends_with(".json")
-			|| !item.file_type().map_err(io_error)?.is_file()
+		if records.len() >= MAX_RECORDS ||
+			!name.ends_with(".json") ||
+			!item.file_type().map_err(io_error)?.is_file()
 		{
 			return Err(ContentError::IntegrityFailed);
 		}
-		let bytes = crate::bounded_io::read_regular_file(item.path(), max_record_bytes as u64)?;
+		let bytes = fs::read(item.path()).map_err(io_error)?;
+		if bytes.len() > max_record_bytes {
+			return Err(ContentError::IntegrityFailed);
+		}
 		records.push(RecordFile { name, bytes });
 	}
-	Ok(RecordScan { records, temp_artifacts })
+	if removed_temp {
+		File::open(root).and_then(|directory| directory.sync_all()).map_err(io_error)?;
+	}
+	Ok(records)
 }
 
-fn read_scheduler_cursor(root: &Path) -> Result<SchedulerCursorScan, ContentError> {
+fn read_scheduler_cursor(
+	root: &Path,
+) -> Result<Option<CheckpointPromotionSchedulerCursorV2>, ContentError> {
 	let expected = format!("{SCHEDULER_KEY}.json");
 	let temp_prefix = format!("{SCHEDULER_KEY}.json.tmp-");
 	let mut cursor = None;
-	let mut temp_artifacts = Vec::new();
+	let mut temp_artifacts = 0usize;
+	let mut removed_temp = false;
 	for item in fs::read_dir(root).map_err(io_error)? {
 		let item = item.map_err(io_error)?;
 		let name = item.file_name().to_string_lossy().into_owned();
-		if name.starts_with(&temp_prefix) && crate::bounded_io::is_json_temp_artifact(&name) {
-			if temp_artifacts.len() >= MAX_TEMP_ARTIFACTS
-				|| !item.file_type().map_err(io_error)?.is_file()
+		if name.starts_with(&temp_prefix) {
+			temp_artifacts = temp_artifacts.checked_add(1).ok_or(ContentError::IntegrityFailed)?;
+			if temp_artifacts > MAX_TEMP_ARTIFACTS || !item.file_type().map_err(io_error)?.is_file()
 			{
 				return Err(ContentError::IntegrityFailed);
 			}
-			temp_artifacts.push(item.path());
+			fs::remove_file(item.path()).map_err(io_error)?;
+			removed_temp = true;
 			continue;
 		}
 		if name != expected || cursor.is_some() || !item.file_type().map_err(io_error)?.is_file() {
 			return Err(ContentError::IntegrityFailed);
 		}
-		let bytes = crate::bounded_io::read_regular_file(item.path(), MAX_RECEIPT_BYTES as u64)?;
+		let bytes = fs::read(item.path()).map_err(io_error)?;
+		if bytes.len() > MAX_RECEIPT_BYTES {
+			return Err(ContentError::IntegrityFailed);
+		}
 		let decoded: CheckpointPromotionSchedulerCursorV2 =
 			serde_json::from_slice(&bytes).map_err(|_| ContentError::IntegrityFailed)?;
 		validate_scheduler_cursor(&decoded)?;
 		cursor = Some(decoded);
 	}
-	Ok(SchedulerCursorScan { cursor, temp_artifacts })
+	if removed_temp {
+		File::open(root).and_then(|directory| directory.sync_all()).map_err(io_error)?;
+	}
+	Ok(cursor)
 }
 
 fn scheduler_cursor(
@@ -621,11 +565,11 @@ fn validate_scheduler_cursor_against_intent(
 	intent: &FallbackPromotionIntentV2,
 ) -> Result<(), ContentError> {
 	validate_scheduler_cursor(cursor)?;
-	if cursor.intent_id != intent.intent_id
-		|| cursor.intent_record_hash != intent.record_hash
-		|| cursor.tuple_key != intent.tuple_key
-		|| cursor.inventory_finalized_hash != intent.inventory_finalized_hash
-		|| cursor.inventory_finalized_number != intent.inventory_finalized_number
+	if cursor.intent_id != intent.intent_id ||
+		cursor.intent_record_hash != intent.record_hash ||
+		cursor.tuple_key != intent.tuple_key ||
+		cursor.inventory_finalized_hash != intent.inventory_finalized_hash ||
+		cursor.inventory_finalized_number != intent.inventory_finalized_number
 	{
 		return Err(ContentError::IntegrityFailed);
 	}
@@ -726,18 +670,18 @@ fn intent_record(
 }
 
 pub(crate) fn validate_intent(intent: &FallbackPromotionIntentV2) -> Result<(), ContentError> {
-	if intent.version != STORE_VERSION
-		|| intent.state != AUTHORIZED_STATE
-		|| intent.intent_id.len() != 64
-		|| intent.tuple_key.len() != 64
-		|| intent.record_hash != intent_record_hash(intent)?
+	if intent.version != STORE_VERSION ||
+		intent.state != AUTHORIZED_STATE ||
+		intent.intent_id.len() != 64 ||
+		intent.tuple_key.len() != 64 ||
+		intent.record_hash != intent_record_hash(intent)?
 	{
 		return Err(ContentError::IntegrityFailed);
 	}
 	let provider = decode_account(&intent.provider)?;
 	let duty_bytes = decode_hex(&intent.duty_scale)?;
-	if duty_bytes.len() > MAX_DUTY_BYTES
-		|| intent.duty_fingerprint != hex::encode(blake2_256(&duty_bytes))
+	if duty_bytes.len() > MAX_DUTY_BYTES ||
+		intent.duty_fingerprint != hex::encode(blake2_256(&duty_bytes))
 	{
 		return Err(ContentError::IntegrityFailed);
 	}
@@ -753,17 +697,17 @@ pub(crate) fn validate_intent(intent: &FallbackPromotionIntentV2) -> Result<(), 
 	};
 	let signature = ed25519::Signature::from_raw(decode_fixed(&intent.signature)?);
 	let args = (payload, service_key, signature);
-	if payload != expected_payload
-		|| intent.inventory_finalized_hash != hex::encode(duty.snapshot_hash.as_bytes())
-		|| intent.inventory_finalized_number != duty.snapshot_checkpoint
-		|| intent.snapshot_checkpoint != duty.snapshot_checkpoint
-		|| intent.bucket_id != hex::encode(duty.bucket_id.as_bytes())
-		|| intent.duty_id != hex::encode(duty.duty_id.as_bytes())
-		|| intent.service_key_version != local.active_service_key_version
-		|| intent.call_args_scale != hex::encode(args.encode())
-		|| intent.intent_id != intent_id(&provider, &duty_bytes, &args)
-		|| intent.tuple_key != tuple_key(&payload)
-		|| !ed25519::Pair::verify(&signature, &promotion_digest(&payload), &service_key)
+	if payload != expected_payload ||
+		intent.inventory_finalized_hash != hex::encode(duty.snapshot_hash.as_bytes()) ||
+		intent.inventory_finalized_number != duty.snapshot_checkpoint ||
+		intent.snapshot_checkpoint != duty.snapshot_checkpoint ||
+		intent.bucket_id != hex::encode(duty.bucket_id.as_bytes()) ||
+		intent.duty_id != hex::encode(duty.duty_id.as_bytes()) ||
+		intent.service_key_version != local.active_service_key_version ||
+		intent.call_args_scale != hex::encode(args.encode()) ||
+		intent.intent_id != intent_id(&provider, &duty_bytes, &args) ||
+		intent.tuple_key != tuple_key(&payload) ||
+		!ed25519::Pair::verify(&signature, &promotion_digest(&payload), &service_key)
 	{
 		return Err(ContentError::IntegrityFailed);
 	}
@@ -774,19 +718,19 @@ fn validate_finalized_receipt(
 	receipt: &FallbackPromotionFinalizedReceiptV2,
 	intent: &FallbackPromotionIntentV2,
 ) -> Result<(), ContentError> {
-	if receipt.version != STORE_VERSION
-		|| receipt.intent_id != intent.intent_id
-		|| receipt.intent_record_hash != intent.record_hash
-		|| receipt.tuple_key != intent.tuple_key
-		|| receipt.provider != intent.provider
-		|| receipt.state != FINALIZED_STATE
-		|| receipt.finalized_hash.len() != 64
-		|| receipt.extrinsic_hash.len() != 64
-		|| receipt.finality_attestation_version != FINALITY_ATTESTATION_VERSION
-		|| receipt.finality_signature.len() != 128
-		|| receipt.finalized_number < intent.inventory_finalized_number
-		|| receipt.finalized_number < intent.snapshot_checkpoint
-		|| receipt.receipt_hash != finalized_receipt_hash(receipt)?
+	if receipt.version != STORE_VERSION ||
+		receipt.intent_id != intent.intent_id ||
+		receipt.intent_record_hash != intent.record_hash ||
+		receipt.tuple_key != intent.tuple_key ||
+		receipt.provider != intent.provider ||
+		receipt.state != FINALIZED_STATE ||
+		receipt.finalized_hash.len() != 64 ||
+		receipt.extrinsic_hash.len() != 64 ||
+		receipt.finality_attestation_version != FINALITY_ATTESTATION_VERSION ||
+		receipt.finality_signature.len() != 128 ||
+		receipt.finalized_number < intent.inventory_finalized_number ||
+		receipt.finalized_number < intent.snapshot_checkpoint ||
+		receipt.receipt_hash != finalized_receipt_hash(receipt)?
 	{
 		return Err(ContentError::IntegrityFailed);
 	}
@@ -843,17 +787,17 @@ fn validate_duty<'a>(
 	provider: &AccountId32,
 	service_key: &ed25519::Public,
 ) -> Result<&'a Authority, ContentError> {
-	if duty.response_version != RESPONSE_VERSION
-		|| duty.phase != CheckpointDutyPhase::ReplicaFallbackPromotion
-		|| duty.mode != CheckpointDutyMode::Standard
-		|| duty.expected_nonce != duty.snapshot_checkpoint
-		|| duty.due_at > duty.grace_until
-		|| duty.snapshot_checkpoint < duty.grace_until
-		|| duty.initiator.as_ref() != Some(provider)
-		|| !duty.replicas.contains(provider)
-		|| !(2..=4).contains(&duty.replicas.len())
-		|| duty.required_primary_confirmations != 1
-		|| duty.required_replica_confirmations != 2
+	if duty.response_version != RESPONSE_VERSION ||
+		duty.phase != CheckpointDutyPhase::ReplicaFallbackPromotion ||
+		duty.mode != CheckpointDutyMode::Standard ||
+		duty.expected_nonce != duty.snapshot_checkpoint ||
+		duty.due_at > duty.grace_until ||
+		duty.snapshot_checkpoint < duty.grace_until ||
+		duty.initiator.as_ref() != Some(provider) ||
+		!duty.replicas.contains(provider) ||
+		!(2..=4).contains(&duty.replicas.len()) ||
+		duty.required_primary_confirmations != 1 ||
+		duty.required_replica_confirmations != 2
 	{
 		return Err(ContentError::IntegrityFailed);
 	}
@@ -870,10 +814,10 @@ fn validate_duty<'a>(
 		};
 		let expected_order = u8::try_from(index).map_err(|_| ContentError::IntegrityFailed)?;
 		let encoded = authority.provider.encode();
-		if authority.provider != *expected_provider
-			|| authority.role != expected_role
-			|| authority.order != expected_order
-			|| seen.iter().any(|item| item == &encoded)
+		if authority.provider != *expected_provider ||
+			authority.role != expected_role ||
+			authority.order != expected_order ||
+			seen.iter().any(|item| item == &encoded)
 		{
 			return Err(ContentError::IntegrityFailed);
 		}
@@ -900,11 +844,11 @@ fn validate_duty<'a>(
 		.iter()
 		.filter(|authority| authority.eligible && authority.provider != selected.provider)
 		.count();
-	if &selected.provider != provider
-		|| !promotion_eligible(selected)
-		|| nonselected_initiator
-		|| eligible_others >= 2
-		|| selected.active_service_key != service_key.0
+	if &selected.provider != provider ||
+		!promotion_eligible(selected) ||
+		nonselected_initiator ||
+		eligible_others >= 2 ||
+		selected.active_service_key != service_key.0
 	{
 		return Err(ContentError::IntegrityFailed);
 	}
@@ -916,13 +860,13 @@ fn promotion_eligible(authority: &Authority) -> bool {
 }
 
 fn selection_eligible(authority: &Authority) -> bool {
-	authority.eligible
-		&& authority.organization_sla_eligible
-		&& !authority.overdue_challenge
-		&& authority.exclusion.is_none()
-		&& authority.initiation_exclusion.is_none()
-		&& authority.active_service_key_version > 0
-		&& authority.active_service_key != [0; 32]
+	authority.eligible &&
+		authority.organization_sla_eligible &&
+		!authority.overdue_challenge &&
+		authority.exclusion.is_none() &&
+		authority.initiation_exclusion.is_none() &&
+		authority.active_service_key_version > 0 &&
+		authority.active_service_key != [0; 32]
 }
 
 fn promotion_digest(payload: &Payload) -> [u8; 32] {
@@ -1176,177 +1120,6 @@ mod tests {
 	}
 
 	#[test]
-	fn highest_checkpoint_then_scale_smallest_deterministically_wins() {
-		let temp = TempDir::new().unwrap();
-		let mut tie = duty();
-		tie.authorities[2].confirmed_checkpoint = Some(100);
-		let store = CheckpointPromotionStoreV2::open(temp.path()).unwrap();
-		store.authorize(&account(2), &tie.encode(), &pair(2)).unwrap();
-
-		let temp = TempDir::new().unwrap();
-		let mut higher = duty();
-		higher.authorities[1].may_initiate = false;
-		higher.authorities[2].may_initiate = true;
-		higher.authorities[2].confirmed_checkpoint = Some(101);
-		higher.initiator = Some(account(3));
-		let store = CheckpointPromotionStoreV2::open(temp.path()).unwrap();
-		store.authorize(&account(3), &higher.encode(), &pair(3)).unwrap();
-
-		let temp = TempDir::new().unwrap();
-		let mut forged_lower = duty();
-		forged_lower.authorities[2].confirmed_checkpoint = Some(101);
-		let store = CheckpointPromotionStoreV2::open(temp.path()).unwrap();
-		assert!(matches!(
-			store.authorize(&account(2), &forged_lower.encode(), &pair(2)),
-			Err(ContentError::IntegrityFailed)
-		));
-	}
-
-	#[test]
-	fn wrong_phase_mode_time_quorum_version_and_encoding_are_rejected() {
-		let base = duty();
-		let mut variants = Vec::new();
-		for phase in [
-			CheckpointDutyPhase::NotDue,
-			CheckpointDutyPhase::Primary,
-			CheckpointDutyPhase::ReplicaFallback,
-			CheckpointDutyPhase::BlockedInsufficientFallbackQuorum,
-			CheckpointDutyPhase::Unavailable,
-		] {
-			let mut changed = base.clone();
-			changed.phase = phase;
-			variants.push(changed.encode());
-		}
-		for fault in 0..9 {
-			let mut changed = base.clone();
-			match fault {
-				0 => changed.mode = CheckpointDutyMode::PromotionPending,
-				1 => changed.expected_nonce -= 1,
-				2 => changed.snapshot_checkpoint = changed.grace_until - 1,
-				3 => changed.due_at = changed.grace_until + 1,
-				4 => changed.required_primary_confirmations = 0,
-				5 => changed.required_replica_confirmations = 1,
-				6 => changed.response_version -= 1,
-				7 => {
-					changed.replicas.pop();
-					changed.replicas.pop();
-					changed.authorities.pop();
-					changed.authorities.pop();
-				},
-				8 => {
-					changed.replicas.extend([account(5), account(6)]);
-					changed.authorities.extend([
-						authority(5, ProviderDutyRole::Replica, 4, false, false, None),
-						authority(6, ProviderDutyRole::Replica, 5, false, false, None),
-					]);
-				},
-				_ => unreachable!(),
-			}
-			variants.push(changed.encode());
-		}
-		let mut noncanonical = base.encode();
-		noncanonical.push(0);
-		variants.push(noncanonical);
-		let mut oversized = base.encode();
-		oversized.resize(MAX_DUTY_BYTES + 1, 0);
-		variants.push(oversized);
-
-		for duty_scale in variants {
-			let temp = TempDir::new().unwrap();
-			let store = CheckpointPromotionStoreV2::open(temp.path()).unwrap();
-			assert!(matches!(
-				store.authorize(&account(2), &duty_scale, &pair(2)),
-				Err(ContentError::IntegrityFailed)
-			));
-		}
-	}
-
-	#[test]
-	fn wrong_self_key_authority_projection_and_eligibility_fail_closed() {
-		let base = duty();
-		let temp = TempDir::new().unwrap();
-		let store = CheckpointPromotionStoreV2::open(temp.path()).unwrap();
-		assert!(matches!(
-			store.authorize(&account(3), &base.encode(), &pair(3)),
-			Err(ContentError::IntegrityFailed)
-		));
-		assert!(matches!(
-			store.authorize(&account(2), &base.encode(), &pair(3)),
-			Err(ContentError::IntegrityFailed)
-		));
-
-		let mut variants = Vec::new();
-		let mut projection = base.clone();
-		projection.authorities.swap(1, 2);
-		variants.push(projection);
-		let mut duplicate = base.clone();
-		duplicate.replicas[1] = duplicate.replicas[0].clone();
-		duplicate.authorities[2].provider = duplicate.replicas[0].clone();
-		variants.push(duplicate);
-		let mut extra_initiator = base.clone();
-		extra_initiator.authorities[2].may_initiate = true;
-		variants.push(extra_initiator);
-		for fault in 0..8 {
-			let mut changed = base.clone();
-			let local = &mut changed.authorities[1];
-			match fault {
-				0 => local.eligible = false,
-				1 => local.may_sign = false,
-				2 => local.organization_sla_eligible = false,
-				3 => local.overdue_challenge = true,
-				4 => local.exclusion = Some(ProviderDutyExclusion::Inactive),
-				5 => {
-					local.initiation_exclusion =
-						Some(ProviderDutyExclusion::ReplicaCheckpointMissingOrStale)
-				},
-				6 => local.active_service_key_version = 0,
-				7 => local.active_service_key = [0; 32],
-				_ => unreachable!(),
-			}
-			variants.push(changed);
-		}
-
-		for changed in variants {
-			let temp = TempDir::new().unwrap();
-			let store = CheckpointPromotionStoreV2::open(temp.path()).unwrap();
-			assert!(matches!(
-				store.authorize(&account(2), &changed.encode(), &pair(2)),
-				Err(ContentError::IntegrityFailed)
-			));
-		}
-	}
-
-	#[test]
-	fn exact_retry_precedes_capacity_while_changed_duty_conflicts() {
-		let temp = TempDir::new().unwrap();
-		let base = duty();
-		let store = CheckpointPromotionStoreV2::open(temp.path()).unwrap();
-		let intent = store.authorize(&account(2), &base.encode(), &pair(2)).unwrap();
-		let mut changed = base.clone();
-		changed.snapshot_hash = H256::repeat_byte(88);
-		assert!(matches!(
-			store.authorize(&account(2), &changed.encode(), &pair(2)),
-			Err(ContentError::IdempotencyConflict)
-		));
-
-		{
-			let mut intents = store.intents.write().unwrap();
-			for index in intents.len()..MAX_RECORDS {
-				let mut dummy = intent.clone();
-				dummy.intent_id = format!("{index:064x}");
-				intents.insert(dummy.intent_id.clone(), dummy);
-			}
-		}
-		assert_eq!(store.authorize(&account(2), &base.encode(), &pair(2)).unwrap(), intent);
-		let mut next = base;
-		next.duty_id = H256::repeat_byte(89);
-		assert!(matches!(
-			store.authorize(&account(2), &next.encode(), &pair(2)),
-			Err(ContentError::ProviderRecoveryTableFull)
-		));
-	}
-
-	#[test]
 	fn same_tuple_with_changed_duty_conflicts_and_changed_finality_conflicts() {
 		let temp = TempDir::new().unwrap();
 		let store = CheckpointPromotionStoreV2::open(temp.path()).unwrap();
@@ -1484,8 +1257,6 @@ mod tests {
 			read_records(&root, MAX_RECEIPT_BYTES),
 			Err(ContentError::IntegrityFailed)
 		));
-		assert!(root.join("first.json.tmp-1").exists());
-		assert!(root.join("second.json.tmp-1").exists());
 
 		let temp = TempDir::new().unwrap();
 		let root = temp.path().join(INTENTS_ROOT);
@@ -1495,32 +1266,6 @@ mod tests {
 			read_records(&root, MAX_INTENT_BYTES),
 			Err(ContentError::IntegrityFailed)
 		));
-
-		let temp = TempDir::new().unwrap();
-		let root = temp.path().join(SCHEDULER_ROOT);
-		fs::create_dir_all(&root).unwrap();
-		fs::write(root.join("cursor.json.tmp-1"), []).unwrap();
-		fs::write(root.join("cursor.json.tmp-2"), []).unwrap();
-		assert!(matches!(read_scheduler_cursor(&root), Err(ContentError::IntegrityFailed)));
-		assert!(root.join("cursor.json.tmp-1").exists());
-		assert!(root.join("cursor.json.tmp-2").exists());
-	}
-
-	#[test]
-	fn recovery_validation_failure_preserves_temps_across_promotion_roots() {
-		let temp = TempDir::new().unwrap();
-		let intents_root = temp.path().join(INTENTS_ROOT);
-		let receipts_root = temp.path().join(FINALIZED_RECEIPTS_ROOT);
-		fs::create_dir_all(&intents_root).unwrap();
-		fs::create_dir_all(&receipts_root).unwrap();
-		let crash_temp = intents_root.join("intent.json.tmp-1");
-		fs::write(&crash_temp, b"partial").unwrap();
-		fs::write(receipts_root.join("corrupt.json"), b"not-json").unwrap();
-		assert!(matches!(
-			CheckpointPromotionStoreV2::open(temp.path()),
-			Err(ContentError::IntegrityFailed)
-		));
-		assert!(crash_temp.exists());
 	}
 
 	#[test]

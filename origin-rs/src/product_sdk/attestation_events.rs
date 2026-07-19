@@ -26,11 +26,11 @@ use scale_decode::DecodeAsType;
 use subxt::{blocks::Block, events::StaticEvent, OnlineClient};
 
 use super::{
-	domains::attestation::{
-		AttestationEvent, AttestationEventKind, AttestationEventSubscription,
-		FinalizedAttestationEvent, FinalizedAttestationOutcome, IndexPolicy, SchemaStatus,
-	},
 	domains::{
+		attestation::{
+			AttestationEvent, AttestationEventKind, AttestationEventSubscription,
+			FinalizedAttestationEvent, FinalizedAttestationOutcome, IndexPolicy, SchemaStatus,
+		},
 		AccountId, AttestationId, DomainResult, Hash32, SchemaId, StatusCommitment,
 		SubjectCommitment,
 	},
@@ -348,8 +348,7 @@ fn subscription_error(error: impl core::fmt::Display) -> NativeError {
 
 #[cfg(test)]
 mod tests {
-	use super::super::domains::attestation::AttestationOutcome;
-	use super::*;
+	use super::{super::domains::attestation::AttestationOutcome, *};
 
 	fn hash(byte: u8) -> RuntimeHash {
 		RuntimeHash::from([byte; 32])

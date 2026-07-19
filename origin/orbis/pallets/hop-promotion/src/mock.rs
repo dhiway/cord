@@ -19,8 +19,8 @@
 //! Test environment for hop-promotion pallet.
 
 use crate as pallet_orbis_hop_promotion;
-use orbis_pallets_common::NoCurrency;
 use indiv_support::traits::{ClaimCleanupOutcome, ResourceClaimLifecycle};
+use orbis_pallets_common::NoCurrency;
 use pallet_orbis_transaction_storage::AsAuthorizer;
 use polkadot_sdk_frame::{
 	deps::{frame_support, frame_system},
@@ -131,8 +131,7 @@ impl pallet_orbis_transaction_storage::Config for Test {
 	type RemoveExpiredAuthorizationPriority = RemoveExpiredAuthorizationPriority;
 	type RemoveExpiredAuthorizationLongevity = RemoveExpiredAuthorizationLongevity;
 	#[cfg(feature = "runtime-benchmarks")]
-	type BenchmarkHelper =
-		pallet_orbis_transaction_storage::benchmarking::DefaultCheckProofHelper;
+	type BenchmarkHelper = pallet_orbis_transaction_storage::benchmarking::DefaultCheckProofHelper;
 }
 
 impl pallet_orbis_hop_promotion::Config for Test {
