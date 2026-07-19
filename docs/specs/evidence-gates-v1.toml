@@ -1568,7 +1568,27 @@ producer_output = "target/evidence/ac12-assertions.json"
 
 [[gate.input]]
 path = "scripts/validate-origin-orbis-scope.py"
-sha256 = "e3c884a5f277b9c487c8d8317bee2daf855fc306fadd621c0aabc3c2afac261d"
+sha256 = "916f6097ed034323bd2760a98c10b674f2d7c7a93fcfd1c6391248d3e3156b68"
+
+[[gate.input]]
+path = "origin-rs/src/product_sdk/transport.rs"
+sha256 = "253e0b2551bd631271d276165738b038fe089519806c5e75302e23e39bb54b56"
+
+[[gate.input]]
+path = "product-sdk/packages/descriptors/generated/commons-papi-manifest.json"
+sha256 = "673d04218c99e6c17630a9fedf7689fa8b06761219c92a5e6f9b92ea25a8c595"
+
+[[gate.input]]
+path = "product-sdk/packages/descriptors/generated/native-route-contract.ts"
+sha256 = "e62a907241070f789317547b9b7c11c1bbb623ec7b209521ed575319e9ba6dfc"
+
+[[gate.input]]
+path = "product-sdk/packages/descriptors/generated/orbis-descriptor.json"
+sha256 = "80129838dd339f13222e2076a28fd4014368b9e04981038c76bc8de94dd02e3a"
+
+[[gate.input]]
+path = "product-sdk/packages/descriptors/generated/orbis-network-binding.ts"
+sha256 = "610d5694534924f6ad5a945db6b03ee458c1b4d78efb661cf8737f7e117462a5"
 
 [[gate.input]]
 path = "docs/specs/web3-storage-disposition-v1.toml"
@@ -1591,36 +1611,36 @@ schema = "unversioned-assertions-v1"
 clause = "economics"
 source = "target/evidence/ac14-assertions.json"
 json_pointer = "/economics_findings"
-operator = "zero"
-expected = 0
+operator = "eq"
+expected = []
 
 [[gate.assertion]]
 clause = "duplicate"
 source = "target/evidence/ac14-assertions.json"
 json_pointer = "/duplicate_state_findings"
-operator = "zero"
-expected = 0
+operator = "eq"
+expected = []
 
 [[gate.assertion]]
 clause = "migration"
 source = "target/evidence/ac14-assertions.json"
 json_pointer = "/migration_compat_findings"
-operator = "zero"
-expected = 0
+operator = "eq"
+expected = []
 
 [[gate.assertion]]
 clause = "fallback"
 source = "target/evidence/ac14-assertions.json"
 json_pointer = "/fallback_findings"
-operator = "zero"
-expected = 0
+operator = "eq"
+expected = []
 
 [[gate.assertion]]
 clause = "mobile"
 source = "target/evidence/ac14-assertions.json"
 json_pointer = "/production_mobile_edits"
-operator = "zero"
-expected = 0
+operator = "eq"
+expected = []
 
 [[gate.assertion]]
 clause = "external"

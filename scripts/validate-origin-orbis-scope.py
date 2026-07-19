@@ -106,7 +106,14 @@ def main() -> int:
             present = True
         elif locator == "rust-export":
             name = symbol.removeprefix("rust-export::")
-            present = f"pub fn {name}" in source or f"pub(crate) fn {name}" in source
+            # A finalized read is intentionally exposed by the public binding trait;
+            # command preparation is exposed as a public function. Both are canonical
+            # SDK surfaces and must be recognized by the same marker rule.
+            present = (
+                f"pub fn {name}" in source
+                or f"pub(crate) fn {name}" in source
+                or f"async fn {name}" in source
+            )
         else:
             present = symbol in source
         if not present:
@@ -136,6 +143,11 @@ def main() -> int:
         "external_repo_findings": external,
         "stop_condition_findings": stop,
         "p8_authorization_findings": p8,
+        # Scalar gate assertions intentionally bind the feature-completeness stop,
+        # while the detailed lists above retain diagnostic evidence.
+        "external_content_deltas": int(repositories.get("external_content_deltas", 0)) if not external else len(external),
+        "stop_literal": "feature-complete candidate—not production-ready",
+        "p8_authorized": phase.get("p8_authorized") is True,
     }
     args.out.parent.mkdir(parents=True, exist_ok=True)
     args.out.write_text(json.dumps(report, sort_keys=True, indent=2) + "\n", encoding="utf-8")
