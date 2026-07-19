@@ -2193,7 +2193,7 @@ argv = ["python3", "scripts/run-p0-control-tests.py", "--out", "target/evidence/
 test_count = 18
 outputs = ["target/evidence/p0-control-tests.json"]
 inputs = ["scripts/run-p0-control-tests.py", "scripts/evidence_common.py", "scripts/tests/test_storage_identity_deletion.py", "scripts/tests/test_evidence_runner_safety.py", "scripts/tests/fixtures/evidence-writer.py", "scripts/tests/fixtures/evidence_transitive_reader.py", "scripts/validate-storage-identity-deletion.py", "scripts/run-evidence-gate.py", "scripts/evidence-read-tracer/sitecustomize.py", "docs/specs/storage-identity-deletion-v1.toml", "docs/specs/web3-storage-capability-ledger-v1.json", "docs/specs/evidence-report-v1.schema.json", "@repository_snapshot"]
-allowed_reads = ["target/evidence/hostile-*", "target/evidence/hostile-*/**"]
+allowed_reads = [".git", ".git/**", "target/evidence/hostile-*", "target/evidence/hostile-*/**"]
 allowed_writes = []
 
 [[gate.command]]
