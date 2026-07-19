@@ -136,7 +136,15 @@ def validate_gate(
             failures.append("command read inputs are not explicitly declared")
         else:
             for value in read_inputs:
-                if value not in {"@registry", "@schema", "@repository_snapshot"} and value not in gate_input_paths and value not in prior_outputs:
+                generated_by_prior_command = any(
+                    value == output or value.startswith(f"{output.rstrip('/')}/")
+                    for output in prior_outputs
+                )
+                if (
+                    value not in {"@registry", "@schema", "@repository_snapshot"}
+                    and value not in gate_input_paths
+                    and not generated_by_prior_command
+                ):
                     failures.append(f"command read is not frozen or generated: {value}")
             if isinstance(argv, list):
                 inferred = {

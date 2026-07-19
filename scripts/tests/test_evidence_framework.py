@@ -261,8 +261,8 @@ class RegistryTests(unittest.TestCase):
             )
             value = json.loads(report.read_text())
             self.assertEqual(value["status"], "pass")
-            self.assertEqual(value["mechanical"], 13)
-            self.assertEqual(value["blocked_rows"], ["AC11"])
+            self.assertEqual(value["mechanical"], 14)
+            self.assertEqual(value["blocked_rows"], [])
 
 
 if __name__ == "__main__":

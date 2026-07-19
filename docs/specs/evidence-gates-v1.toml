@@ -1849,7 +1849,7 @@ sha256 = "10c6609aad6dc3a5417c12b99dadcd17ec5c7ede82edb5a551544c2d6f6621db"
 
 [[gate.input]]
 path = "scripts/validate-ac-decidability.py"
-sha256 = "f32ba5e2b5254ab57638bd6999df507920fb1ea28dcfa638233f1477dd0bac92"
+sha256 = "2ceb0cf923c621bcf37d1fa0b60af41c24e147e9167165fa193c2ad49c670cb1"
 
 [[gate.input]]
 path = "scripts/build-web3-storage-inventory.py"
@@ -2160,7 +2160,7 @@ cwd = "."
 argv = ["product-sdk/node_modules/.bin/tsc", "--noEmit", "--target", "ES2022", "--module", "NodeNext", "--moduleResolution", "NodeNext", "--allowImportingTsExtensions", "--typeRoots", "product-sdk/node_modules/@types", "--types", "node", "product-sdk/tools/origin-host-conformance/validate-origin-host-conformance.ts", "product-sdk/tools/origin-host-conformance/generated/origin-host-registry-v2.ts"]
 test_count = 0
 outputs = []
-inputs = ["product-sdk/node_modules", "node", "product-sdk/tools/origin-host-conformance/validate-origin-host-conformance.ts", "product-sdk/tools/origin-host-conformance/generated/origin-host-registry-v2.ts", "product-sdk/package.json", "product-sdk/package-lock.json"]
+inputs = ["product-sdk/node_modules", "product-sdk/node_modules/@types", "node", "product-sdk/tools/origin-host-conformance/validate-origin-host-conformance.ts", "product-sdk/tools/origin-host-conformance/generated/origin-host-registry-v2.ts", "product-sdk/package.json", "product-sdk/package-lock.json"]
 allowed_writes = []
 
 [[gate.command]]
