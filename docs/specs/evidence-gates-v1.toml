@@ -3111,7 +3111,7 @@ cwd = "."
 argv = ["python3", "scripts/validate-scale-metadata-binding.py", "--binding", "target/evidence/p1-scale-metadata-binding.json", "--metadata-scale", "target/evidence/origin-commons-runtime.metadata.scale", "--portable-registry", "target/evidence/origin-commons-runtime.portable-registry.json", "--logical-types", "docs/specs/checkpoint-scale-logical-types-v1.toml", "--descriptor", "product-sdk/generated/origin-commons-runtime.descriptor.json", "--out", "target/evidence/p3-scale-metadata-recheck.json"]
 test_count = 0
 outputs = ["target/evidence/p3-scale-metadata-recheck.json"]
-inputs = ["scripts/validate-scale-metadata-binding.py", "docs/specs/checkpoint-scale-logical-types-v1.toml", "scripts/evidence_common.py"]
+inputs = ["scripts/validate-scale-metadata-binding.py", "target/evidence/p1-scale-metadata-binding.json", "target/evidence/origin-commons-runtime.metadata.scale", "target/evidence/origin-commons-runtime.portable-registry.json", "docs/specs/checkpoint-scale-logical-types-v1.toml", "scripts/evidence_common.py"]
 allowed_writes = []
 
 [[gate.command]]
