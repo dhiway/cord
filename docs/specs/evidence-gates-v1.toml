@@ -170,7 +170,7 @@ sha256 = "1c371b33b5844c72331ff1b1a8c169240a5948109ea32892e6beb7cc60c39784"
 
 [[gate.input]]
 path = "product-sdk"
-sha256 = "06c7356872aef61710f4193daa0702f470880960ce2958778ee8b90bac07b8bc"
+sha256 = "65fbe7eb7eeaffdf836ef9c1ab23ee8849dc03c20df1e0b347202ed639f3a3d4"
 
 [[gate.input]]
 path = "product-sdk/package-lock.json"
@@ -178,7 +178,7 @@ sha256 = "18781247226bad2b6ae5dcb49fc8bebba5fb552c90a76f236d7c86bcbbc64163"
 
 [[gate.input]]
 path = "product-sdk/package.json"
-sha256 = "eedc18cefac692fdf6100119b1f9b14d11d9d7e5e15589a4e2c1d8f4d8f7ae2c"
+sha256 = "32aeda3cffc791dd05068abd5aebedbddea8762b77ea9ffad827955b5bfd9c09"
 
 [[gate.input]]
 path = "scripts/validate-storage-content-vectors.py"
@@ -271,7 +271,7 @@ sha256 = "1c371b33b5844c72331ff1b1a8c169240a5948109ea32892e6beb7cc60c39784"
 
 [[gate.input]]
 path = "product-sdk"
-sha256 = "06c7356872aef61710f4193daa0702f470880960ce2958778ee8b90bac07b8bc"
+sha256 = "65fbe7eb7eeaffdf836ef9c1ab23ee8849dc03c20df1e0b347202ed639f3a3d4"
 
 [[gate.input]]
 path = "product-sdk/package-lock.json"
@@ -279,7 +279,7 @@ sha256 = "18781247226bad2b6ae5dcb49fc8bebba5fb552c90a76f236d7c86bcbbc64163"
 
 [[gate.input]]
 path = "product-sdk/package.json"
-sha256 = "eedc18cefac692fdf6100119b1f9b14d11d9d7e5e15589a4e2c1d8f4d8f7ae2c"
+sha256 = "32aeda3cffc791dd05068abd5aebedbddea8762b77ea9ffad827955b5bfd9c09"
 
 [[gate.input]]
 path = "scripts/validate-storage-proof-vectors.py"
@@ -539,7 +539,7 @@ sha256 = "1c371b33b5844c72331ff1b1a8c169240a5948109ea32892e6beb7cc60c39784"
 
 [[gate.input]]
 path = "product-sdk"
-sha256 = "06c7356872aef61710f4193daa0702f470880960ce2958778ee8b90bac07b8bc"
+sha256 = "65fbe7eb7eeaffdf836ef9c1ab23ee8849dc03c20df1e0b347202ed639f3a3d4"
 
 [[gate.input]]
 path = "product-sdk/package-lock.json"
@@ -547,7 +547,7 @@ sha256 = "18781247226bad2b6ae5dcb49fc8bebba5fb552c90a76f236d7c86bcbbc64163"
 
 [[gate.input]]
 path = "product-sdk/package.json"
-sha256 = "eedc18cefac692fdf6100119b1f9b14d11d9d7e5e15589a4e2c1d8f4d8f7ae2c"
+sha256 = "32aeda3cffc791dd05068abd5aebedbddea8762b77ea9ffad827955b5bfd9c09"
 
 [[gate.input]]
 path = "scripts/validate-drive-s3-vectors.py"
@@ -648,7 +648,7 @@ sha256 = "76c72ddd2220de8a2549876cb0d7b9eab34867ec6b2d9e8480a2e0415989db36"
 
 [[gate.input]]
 path = "product-sdk"
-sha256 = "06c7356872aef61710f4193daa0702f470880960ce2958778ee8b90bac07b8bc"
+sha256 = "65fbe7eb7eeaffdf836ef9c1ab23ee8849dc03c20df1e0b347202ed639f3a3d4"
 
 [[gate.input]]
 path = "product-sdk/package-lock.json"
@@ -656,7 +656,7 @@ sha256 = "18781247226bad2b6ae5dcb49fc8bebba5fb552c90a76f236d7c86bcbbc64163"
 
 [[gate.input]]
 path = "product-sdk/package.json"
-sha256 = "eedc18cefac692fdf6100119b1f9b14d11d9d7e5e15589a4e2c1d8f4d8f7ae2c"
+sha256 = "32aeda3cffc791dd05068abd5aebedbddea8762b77ea9ffad827955b5bfd9c09"
 
 [[gate.input]]
 path = "scripts/validate-host-provider-wire.py"
@@ -863,7 +863,7 @@ sha256 = "76c72ddd2220de8a2549876cb0d7b9eab34867ec6b2d9e8480a2e0415989db36"
 
 [[gate.input]]
 path = "product-sdk"
-sha256 = "06c7356872aef61710f4193daa0702f470880960ce2958778ee8b90bac07b8bc"
+sha256 = "65fbe7eb7eeaffdf836ef9c1ab23ee8849dc03c20df1e0b347202ed639f3a3d4"
 
 [[gate.input]]
 path = "product-sdk/package-lock.json"
@@ -871,7 +871,7 @@ sha256 = "18781247226bad2b6ae5dcb49fc8bebba5fb552c90a76f236d7c86bcbbc64163"
 
 [[gate.input]]
 path = "product-sdk/package.json"
-sha256 = "eedc18cefac692fdf6100119b1f9b14d11d9d7e5e15589a4e2c1d8f4d8f7ae2c"
+sha256 = "32aeda3cffc791dd05068abd5aebedbddea8762b77ea9ffad827955b5bfd9c09"
 
 [[gate.input]]
 path = "scripts/validate-product-projection.py"
@@ -1034,7 +1034,7 @@ sha256 = "76c72ddd2220de8a2549876cb0d7b9eab34867ec6b2d9e8480a2e0415989db36"
 
 [[gate.input]]
 path = "product-sdk"
-sha256 = "06c7356872aef61710f4193daa0702f470880960ce2958778ee8b90bac07b8bc"
+sha256 = "65fbe7eb7eeaffdf836ef9c1ab23ee8849dc03c20df1e0b347202ed639f3a3d4"
 
 [[gate.input]]
 path = "docs/Developer.md"
@@ -1885,7 +1885,7 @@ sha256 = "be55b5543f285248683f7eccab5e9ca66f5935f10ffa2c11ed138277618fb3e1"
 
 [[gate.input]]
 path = "product-sdk/package.json"
-sha256 = "eedc18cefac692fdf6100119b1f9b14d11d9d7e5e15589a4e2c1d8f4d8f7ae2c"
+sha256 = "32aeda3cffc791dd05068abd5aebedbddea8762b77ea9ffad827955b5bfd9c09"
 
 [[gate.input]]
 path = "product-sdk/package-lock.json"
@@ -2089,7 +2089,7 @@ sha256 = "76c72ddd2220de8a2549876cb0d7b9eab34867ec6b2d9e8480a2e0415989db36"
 
 [[gate.input]]
 path = "product-sdk"
-sha256 = "06c7356872aef61710f4193daa0702f470880960ce2958778ee8b90bac07b8bc"
+sha256 = "65fbe7eb7eeaffdf836ef9c1ab23ee8849dc03c20df1e0b347202ed639f3a3d4"
 
 [[gate.input]]
 path = "docs/architecture/domains"
@@ -3032,7 +3032,7 @@ sha256 = "3272829b1aff6f4830fe70e1f32083d2215732905cdae184ae8ad6ceade63abe"
 
 [[gate.input]]
 path = "product-sdk/package.json"
-sha256 = "eedc18cefac692fdf6100119b1f9b14d11d9d7e5e15589a4e2c1d8f4d8f7ae2c"
+sha256 = "32aeda3cffc791dd05068abd5aebedbddea8762b77ea9ffad827955b5bfd9c09"
 
 [[gate.input]]
 path = "target/evidence/p1-scale-metadata-binding.json"
@@ -3064,7 +3064,7 @@ producer_output = "product-sdk/generated/origin-commons-runtime.descriptor.json"
 
 [[gate.input]]
 path = "product-sdk"
-sha256 = "06c7356872aef61710f4193daa0702f470880960ce2958778ee8b90bac07b8bc"
+sha256 = "65fbe7eb7eeaffdf836ef9c1ab23ee8849dc03c20df1e0b347202ed639f3a3d4"
 
 [[gate.input]]
 path = "product-sdk/package-lock.json"
