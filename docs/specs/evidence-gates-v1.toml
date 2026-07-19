@@ -2565,7 +2565,7 @@ sha256 = "3efa6856658a04ea73da27450ce2aae88ec31c1dd41bf225dac8235067cdd2b8"
 
 [[gate.input]]
 path = "scripts/run-p1-verification.py"
-sha256 = "25868d95f658e48d306db448ac683db90a370b24998c6370b8a6519a6e1e2534"
+sha256 = "fe70c0f10c35ec5590c9024279d26e5113b847db50d09c421e784440d7c45b4e"
 
 [[gate.input]]
 path = "scripts/validate-storage-phase-ownership.py"
@@ -2617,11 +2617,11 @@ sha256 = "28509264003a2f17ca6441fe2eb084506eaf39af50e10f9cbba35a959719e9f1"
 
 [[gate.input]]
 path = "docs/evidence/p1/g002-control-plane-v1"
-sha256 = "78ee0c9f455da6b1fabc06904bbb54fe197c055adc10bdbce3faafdc7ec210d5"
+sha256 = "0d0e20862137843ee4cf4e7ba3e3b19f02dae52f2b702ab1d4442bcde2c2a1a6"
 
 [[gate.input]]
 path = "docs/evidence/p1/g002-control-plane-v1/storage-weight-evidence-v1.json"
-sha256 = "a37af9c28323f436314299b447eaaf22fda02c87b8fd904292f0ddba081cb0f5"
+sha256 = "25cf17bd42e706612adc3f81ed1b456ef301cbfb519d0c6d37025dc404c0ab61"
 
 [[gate.input]]
 path = "docs/evidence/p1/g002-control-plane-v1/commons-metadata-evidence-v1.json"
@@ -2629,11 +2629,11 @@ sha256 = "c8ea2c94e5bc7413f56cdb8c94030096372e10d74cdb0ecebebaa1b98e6dd136"
 
 [[gate.input]]
 path = "origin/orbis/runtime/vectors/transaction-policy-v8/metadata-hash.json"
-sha256 = "0e5f0388f3f1f7fed0c5b3d870474aa7809448abe75e72b6fc1e941601aacbdf"
+sha256 = "10a718f43f9a6928429ac40e5824a2d9993800c672d2893c9ce41285b0426dd1"
 
 [[gate.input]]
 path = "origin/orbis/runtime/vectors/transaction-policy-v8/manifest.json"
-sha256 = "2904cc03e13e2a4a355847c2ccbdd3c4855a31bdd9ce9dfb4a12e75c69c95c53"
+sha256 = "a807502df5edc6b822c2af420e6078ef76409d6df6bc51b66450dd32c648d581"
 
 [[gate.input]]
 path = "docs/specs/checkpoint-v2.vectors.json"
