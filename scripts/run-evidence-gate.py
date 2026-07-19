@@ -670,10 +670,7 @@ def main() -> int:
                     path = root / value
                     try:
                         command_read_hashes[value] = hash_path(path)
-                        command_ancestry[value] = {
-                            **produced_outputs[generated_parent],
-                            "producer_output": generated_parent,
-                        }
+                        command_ancestry[value] = produced_outputs[generated_parent]
                     except OSError as exception:
                         blockers.append(f"missing generated command input {value}: {exception}")
                     continue
