@@ -43,7 +43,7 @@ def main() -> int:
     parser.add_argument("--ledger", required=True, type=Path)
     parser.add_argument("--deletion", required=True, type=Path)
     parser.add_argument("--repositories", required=True, type=Path)
-    parser.add_argument("--p7", required=True, type=Path)
+    parser.add_argument("--p7", type=Path)
     parser.add_argument("--out", required=True, type=Path)
     args = parser.parse_args()
     economics: list[str] = []
@@ -125,12 +125,13 @@ def main() -> int:
         value = repositories.get(key)
         if isinstance(value, int) and value != 0:
             external.append(f"{key}={value}")
-    phase = read_json(args.p7, stop, "P7 report")
-    if phase.get("status") != "pass":
+    # AC14 proves the clean-break scope *before* P7 aggregates AC1–AC14.
+    # Keeping the P7 receipt optional avoids a circular gate dependency while
+    # still rejecting an explicit, invalid P7 receipt when supplied for audit.
+    phase = read_json(args.p7, stop, "P7 report") if args.p7 else {}
+    if args.p7 and phase.get("status") != "pass":
         stop.append("P7 is not pass")
-    # P7 is intentionally a feature-completeness boundary, not production
-    # readiness; a P8 authorization here would violate that stop condition.
-    if phase.get("gate_id") not in (None, "P7"):
+    if args.p7 and phase.get("gate_id") not in (None, "P7"):
         stop.append("P7 report gate_id drift")
     if phase.get("p8_authorized") is True:
         p8.append("P8 authorization is present")

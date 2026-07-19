@@ -1568,7 +1568,7 @@ producer_output = "target/evidence/ac12-assertions.json"
 
 [[gate.input]]
 path = "scripts/validate-origin-orbis-scope.py"
-sha256 = "916f6097ed034323bd2760a98c10b674f2d7c7a93fcfd1c6391248d3e3156b68"
+sha256 = "f7dbffa360343e0882f6186fdfca487e845d61debedaa2f2e5c1f36fa76c47cd"
 
 [[gate.input]]
 path = "origin-rs/src/product_sdk/transport.rs"
@@ -1596,7 +1596,7 @@ sha256 = "9dc1c9d3b41c33148a854e5d0109be5f3b30857757a0ef4373f036b32253b825"
 
 [[gate.command]]
 cwd = "."
-argv = ["python3", "scripts/validate-origin-orbis-scope.py", "--ledger", "docs/specs/web3-storage-disposition-v1.toml", "--deletion", "docs/specs/storage-identity-deletion-v1.toml", "--repositories", "target/evidence/ac12-assertions.json", "--p7", "../.omx/evidence/origin-orbis-web3-storage/p7.json", "--out", "target/evidence/ac14-assertions.json"]
+argv = ["python3", "scripts/validate-origin-orbis-scope.py", "--ledger", "docs/specs/web3-storage-disposition-v1.toml", "--deletion", "docs/specs/storage-identity-deletion-v1.toml", "--repositories", "target/evidence/ac12-assertions.json", "--out", "target/evidence/ac14-assertions.json"]
 test_count = 0
 outputs = ["target/evidence/ac14-assertions.json"]
 inputs = ["docs/specs/storage-identity-deletion-v1.toml", "docs/specs/web3-storage-disposition-v1.toml", "target/evidence/ac12-assertions.json", "scripts/validate-origin-orbis-scope.py"]
