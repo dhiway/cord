@@ -376,7 +376,7 @@ sha256 = "3e7e8ae0c70cc959c8b0f7862d6296b92d5a7c544149460cbd74a245a17dd356"
 
 [[gate.input]]
 path = "origin/orbis/pallets/storage-provider/src/tests.rs"
-sha256 = "b13efd9e0804d04e5857a39a9271a073879d50220af91d93674ec859916c97be"
+sha256 = "0a31b117571ec9b63490c752d99b1eb7b5d4c9a3ea000b8195c04f2304ede9bc"
 
 [[gate.command]]
 cwd = "."
@@ -449,7 +449,7 @@ sha256 = "1c371b33b5844c72331ff1b1a8c169240a5948109ea32892e6beb7cc60c39784"
 
 [[gate.input]]
 path = "origin/orbis/provider-node"
-sha256 = "a8ba012a56c64a24a6a820955e5117dcae8dddb1f57ed38609852ddcc112f502"
+sha256 = "0cef144f366abca9cc9ea1b0b34484869ba2b6f2ac2b60e2416426c16c9b8ddc"
 
 [[gate.input]]
 path = "scripts/validate-three-provider-recovery.py"
@@ -720,7 +720,7 @@ sha256 = "9a4baccb03f411e298a662eef24c0ab645280f60cb88ac2d53a3361de9ce75d6"
 
 [[gate.input]]
 path = "origin/orbis/provider-node"
-sha256 = "a8ba012a56c64a24a6a820955e5117dcae8dddb1f57ed38609852ddcc112f502"
+sha256 = "0cef144f366abca9cc9ea1b0b34484869ba2b6f2ac2b60e2416426c16c9b8ddc"
 
 [[gate.input]]
 path = "origin/orbis/provider-node/src/capability.rs"
@@ -891,7 +891,7 @@ sha256 = "20e8135116ac9b82f86891b798224ec5c08ac09cdc6c249269e7a8e236ae88c5"
 
 [[gate.input]]
 path = "origin/orbis/provider-node/src"
-sha256 = "c8f2c34ab8fba880223ad4022a9f9558a3e76ccb745e491b85776118efbe9b3b"
+sha256 = "42b35b7da4ed5214270b590983a45cd74453f55c32be48e11918f9e33cdcf6c0"
 
 [[gate.command]]
 cwd = "."
@@ -1026,7 +1026,7 @@ sha256 = "d46f669da01d538bdf7dff1ade2352a83e7fb98c37784c2501eb4eefc0546a87"
 
 [[gate.input]]
 path = "origin/orbis"
-sha256 = "ec7cdaf01462edfa56536b5158356a0fae08d06a150b49f83cbfe23d611fa274"
+sha256 = "7168108a455fc66006a3eab90ef9e9fd1d7ae74eceae16b7eff7c761b51f9c65"
 
 [[gate.input]]
 path = "origin-rs"
@@ -1103,7 +1103,7 @@ sha256 = "6000bcc29746fc38db2ec109ca56f3a75877fae5f605e623555cf3a39f26b63c"
 
 [[gate.input]]
 path = "docs/specs/storage-identity-deletion-v1.toml"
-sha256 = "c40fea3e6ae58301ee4aaeeef6f07830e2af1ae2f58773b4b5d27bc4482827a1"
+sha256 = "551f9ddcfe1952f801f906c9ccccc93aa0837352f26c2269afe94ec19abb0d6a"
 
 [[gate.input]]
 path = "docs/specs/web3-storage-capability-ledger-v1.json"
@@ -1401,7 +1401,7 @@ sha256 = "1ee21acc0580bc7698cef67d6ef293c15d54d506288e38252fb6bcad7659e52a"
 
 [[gate.input]]
 path = "docs/specs/cord-change-slices.toml"
-sha256 = "fdd7383895b79e0938767b867da6cd923658ad07c6136692bbc8fe16516d5a9c"
+sha256 = "cff75b410c38ad0f267e06e6fede3b2c0eccf3b404c8a81db768922dc6e57d0d"
 
 [[gate.input]]
 path = "docs/specs/reference-repositories.toml"
@@ -1482,7 +1482,7 @@ sha256 = "6000bcc29746fc38db2ec109ca56f3a75877fae5f605e623555cf3a39f26b63c"
 
 [[gate.input]]
 path = "docs/specs/cord-change-slices.toml"
-sha256 = "fdd7383895b79e0938767b867da6cd923658ad07c6136692bbc8fe16516d5a9c"
+sha256 = "cff75b410c38ad0f267e06e6fede3b2c0eccf3b404c8a81db768922dc6e57d0d"
 
 [[gate.input]]
 path = "scripts/check-source-headers.py"
@@ -1557,7 +1557,7 @@ sha256 = "6000bcc29746fc38db2ec109ca56f3a75877fae5f605e623555cf3a39f26b63c"
 
 [[gate.input]]
 path = "docs/specs/storage-identity-deletion-v1.toml"
-sha256 = "c40fea3e6ae58301ee4aaeeef6f07830e2af1ae2f58773b4b5d27bc4482827a1"
+sha256 = "551f9ddcfe1952f801f906c9ccccc93aa0837352f26c2269afe94ec19abb0d6a"
 
 [[gate.input]]
 path = "target/evidence/ac12-assertions.json"
@@ -1568,7 +1568,7 @@ producer_output = "target/evidence/ac12-assertions.json"
 
 [[gate.input]]
 path = "scripts/validate-origin-orbis-scope.py"
-sha256 = "26ac748843843568a1bf24fb054c182cc9db4b457dd227f47b89ca8755871762"
+sha256 = "e3c884a5f277b9c487c8d8317bee2daf855fc306fadd621c0aabc3c2afac261d"
 
 [[gate.input]]
 path = "docs/specs/web3-storage-disposition-v1.toml"
@@ -1669,7 +1669,7 @@ sha256 = "b10c0cf77d34a10f70d60293137e05b3a262172c374d1338d634f3fdcea4a608"
 
 [[gate.input]]
 path = "docs/specs/web3-storage-upstream-inventory-v1.json"
-sha256 = "048e1f5f757f84d39b6c824ed24f330fd0e3217dbe8380799ac22300103c672e"
+sha256 = "9f137db38aa79f60ac221cd508642c1d7f8b504456f778e8def9893e9f78bd08"
 
 [[gate.input]]
 path = "docs/specs/web3-storage-blocked-conflicts-v1.json"
@@ -1681,7 +1681,7 @@ sha256 = "8bcf8b2a37a30214fc9188f6796c99a1f84e610c909eb989fab64d9fe4b3a9b4"
 
 [[gate.input]]
 path = "docs/specs/storage-identity-deletion-v1.toml"
-sha256 = "c40fea3e6ae58301ee4aaeeef6f07830e2af1ae2f58773b4b5d27bc4482827a1"
+sha256 = "551f9ddcfe1952f801f906c9ccccc93aa0837352f26c2269afe94ec19abb0d6a"
 
 [[gate.input]]
 path = "docs/adr/0020-web3-storage-component-disposition-policy.md"
@@ -1949,7 +1949,7 @@ sha256 = "07f622f8629917a97bf68a28145a25b7ad7d872b01c5457809c346846e853cb2"
 
 [[gate.input]]
 path = "origin/orbis/runtime/src/tests.rs"
-sha256 = "06d3dba118f14a3692a3ccdb48f89015fe718c3f690fe28c4fd5d779a16943df"
+sha256 = "93d314b51f9a06b2db5a2a8a38ab905e1f2f0f43ec98cad8e859dd30d113d854"
 
 [[gate.input]]
 path = "product-sdk/examples/festival/mobile-app-projection.ts"
@@ -2897,7 +2897,7 @@ write_paths = ["target/evidence/p1-provider-typed-outcomes.json"]
 
 [[gate.input]]
 path = "origin/orbis/provider-node"
-sha256 = "a8ba012a56c64a24a6a820955e5117dcae8dddb1f57ed38609852ddcc112f502"
+sha256 = "0cef144f366abca9cc9ea1b0b34484869ba2b6f2ac2b60e2416426c16c9b8ddc"
 
 [[gate.input]]
 path = "Cargo.toml"
@@ -3422,15 +3422,15 @@ sha256 = "9013cba387667eb652c25804dd57f80eea4c58abce4e6cafcb29ee5d65380052"
 
 [[gate.input]]
 path = "origin/orbis/provider-node"
-sha256 = "a8ba012a56c64a24a6a820955e5117dcae8dddb1f57ed38609852ddcc112f502"
+sha256 = "0cef144f366abca9cc9ea1b0b34484869ba2b6f2ac2b60e2416426c16c9b8ddc"
 
 [[gate.input]]
 path = "origin/orbis/pallets"
-sha256 = "bfbd4bd67e5be6fba3d1efec377763bd0a832b95258a800c0fee68a365a6a602"
+sha256 = "e04e89ee96c61c2216c3b6795991717c1ad2f117a246e276b19afde4c13ebd03"
 
 [[gate.input]]
 path = "origin/orbis/runtime"
-sha256 = "9d20c672a1c0f95750d51c3d82cb705895cf1709cc47dbfca7eaa3fc8074c8fc"
+sha256 = "02bf39730acd912a81b1aa05fb8b3beba7d3597d2d8e2f3c7cdfc97674b657eb"
 
 [[gate.input]]
 path = "scripts/validate-p6-journeys.py"
