@@ -1599,7 +1599,7 @@ cwd = "."
 argv = ["python3", "scripts/validate-origin-orbis-scope.py", "--ledger", "docs/specs/web3-storage-disposition-v1.toml", "--deletion", "docs/specs/storage-identity-deletion-v1.toml", "--repositories", "target/evidence/ac12-assertions.json", "--out", "target/evidence/ac14-assertions.json"]
 test_count = 0
 outputs = ["target/evidence/ac14-assertions.json"]
-inputs = ["docs/specs/storage-identity-deletion-v1.toml", "docs/specs/web3-storage-disposition-v1.toml", "target/evidence/ac12-assertions.json", "scripts/validate-origin-orbis-scope.py"]
+inputs = ["docs/specs/storage-identity-deletion-v1.toml", "docs/specs/web3-storage-disposition-v1.toml", "target/evidence/ac12-assertions.json", "scripts/validate-origin-orbis-scope.py", "origin-rs/src/product_sdk/transport.rs", "product-sdk/packages/descriptors/generated/commons-papi-manifest.json", "product-sdk/packages/descriptors/generated/native-route-contract.ts", "product-sdk/packages/descriptors/generated/orbis-descriptor.json", "product-sdk/packages/descriptors/generated/orbis-network-binding.ts"]
 allowed_writes = []
 
 [[gate.artifact]]
