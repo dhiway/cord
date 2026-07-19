@@ -39,3 +39,5 @@ runtimes/wasm/target/
 target/
 data/
 docs/
+.omx/
+omx_wiki/
