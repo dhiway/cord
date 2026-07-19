@@ -2081,7 +2081,7 @@ sha256 = "3376b985c5d0fc360534a0c347fa83a2e0441a34ba7e589ce14f80a7c1f5ad59"
 
 [[gate.input]]
 path = "origin"
-sha256 = "0e8a046a6f8913921a655e6fc4994f3c006683a74bba7dda2bfaa52b2f47f387"
+sha256 = "1797753c6b535c4756946fe718dd7fb5cbb5298778796d3f4b707b5eb643139f"
 
 [[gate.input]]
 path = "origin-rs"
@@ -2476,7 +2476,7 @@ sha256 = "be55b5543f285248683f7eccab5e9ca66f5935f10ffa2c11ed138277618fb3e1"
 
 [[gate.input]]
 path = "origin"
-sha256 = "dfe2b1e4880bd36131f1e2ba933db0b8eac0d7a0a059038b77699568310cfd9c"
+sha256 = "1797753c6b535c4756946fe718dd7fb5cbb5298778796d3f4b707b5eb643139f"
 
 [[gate.input]]
 path = "scripts/export-origin-commons-metadata.py"
@@ -2601,7 +2601,7 @@ sha256 = "1ee21acc0580bc7698cef67d6ef293c15d54d506288e38252fb6bcad7659e52a"
 
 [[gate.input]]
 path = "origin"
-sha256 = "dfe2b1e4880bd36131f1e2ba933db0b8eac0d7a0a059038b77699568310cfd9c"
+sha256 = "1797753c6b535c4756946fe718dd7fb5cbb5298778796d3f4b707b5eb643139f"
 
 [[gate.input]]
 path = "Cargo.toml"
