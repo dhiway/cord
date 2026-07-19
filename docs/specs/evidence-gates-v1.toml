@@ -1568,7 +1568,7 @@ producer_output = "target/evidence/ac12-assertions.json"
 
 [[gate.input]]
 path = "scripts/validate-origin-orbis-scope.py"
-sha256 = "f7dbffa360343e0882f6186fdfca487e845d61debedaa2f2e5c1f36fa76c47cd"
+sha256 = "8baa52a408bb9201daa156846d504cbbec41e42d1e07e2fbe1ef0a741cd62b5e"
 
 [[gate.input]]
 path = "origin-rs/src/product_sdk/transport.rs"

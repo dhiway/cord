@@ -152,7 +152,8 @@ def main() -> int:
     }
     args.out.parent.mkdir(parents=True, exist_ok=True)
     args.out.write_text(json.dumps(report, sort_keys=True, indent=2) + "\n", encoding="utf-8")
-    return 0 if not any(report.values()) else 1
+    findings = (economics, duplicate, migration, fallback, mobile, external, stop, p8)
+    return 0 if not any(findings) else 1
 
 if __name__ == "__main__":
     raise SystemExit(main())
