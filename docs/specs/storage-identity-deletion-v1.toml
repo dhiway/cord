@@ -3827,40 +3827,6 @@ prerequisites = ["DEL-PROVIDER-ROUTE-CA7DF522B70D"]
 post_delete_scans = ["path:origin/orbis/provider-node/src/api.rs", "symbol:GET /commitment", "consumer:provider protocol v1 canonical routes"]
 
 [[item]]
-id = "DEL-PROVIDER-ROUTE-74FAC65F350E"
-path = "origin/orbis/provider-node/src/api.rs"
-symbol = "GET /health"
-kind = "provider-route"
-surface_locator = "http-route"
-owns_obsolete = []
-replacement_consumer = "provider protocol v1 canonical routes"
-replacement_owner = "provider byte-plane owner"
-replacement_test = "python3 scripts/validate-storage-identity-deletion.py --manifest docs/specs/storage-identity-deletion-v1.toml --p0-audit --out target/evidence/deletion-census.json"
-replacement_gate = "AC7"
-slice = "P4_PROVIDER"
-order = 221
-status = "replacement-active"
-prerequisites = ["DEL-PROVIDER-ROUTE-20D6F4C9FD95"]
-post_delete_scans = ["path:origin/orbis/provider-node/src/api.rs", "symbol:GET /health", "consumer:provider protocol v1 canonical routes"]
-
-[[item]]
-id = "DEL-PROVIDER-ROUTE-738181B06D10"
-path = "origin/orbis/provider-node/src/api.rs"
-symbol = "GET /info"
-kind = "provider-route"
-surface_locator = "http-route"
-owns_obsolete = []
-replacement_consumer = "provider protocol v1 canonical routes"
-replacement_owner = "provider byte-plane owner"
-replacement_test = "python3 scripts/validate-storage-identity-deletion.py --manifest docs/specs/storage-identity-deletion-v1.toml --p0-audit --out target/evidence/deletion-census.json"
-replacement_gate = "AC7"
-slice = "P4_PROVIDER"
-order = 222
-status = "replacement-active"
-prerequisites = ["DEL-PROVIDER-ROUTE-74FAC65F350E"]
-post_delete_scans = ["path:origin/orbis/provider-node/src/api.rs", "symbol:GET /info", "consumer:provider protocol v1 canonical routes"]
-
-[[item]]
 id = "DEL-PROVIDER-ROUTE-10BB293D96B1"
 path = "origin/orbis/provider-node/src/api.rs"
 symbol = "GET /mmr_peaks"
@@ -3874,7 +3840,7 @@ replacement_gate = "AC7"
 slice = "P4_PROVIDER"
 order = 223
 status = "deleted"
-prerequisites = ["DEL-PROVIDER-ROUTE-738181B06D10"]
+prerequisites = ["DEL-PROVIDER-ROUTE-20D6F4C9FD95"]
 post_delete_scans = ["path:origin/orbis/provider-node/src/api.rs", "symbol:GET /mmr_peaks", "consumer:provider protocol v1 canonical routes"]
 
 [[item]]
@@ -4259,7 +4225,7 @@ replacement_test = "python3 scripts/validate-storage-identity-deletion.py --mani
 replacement_gate = "AC8"
 slice = "P5"
 order = 246
-status = "deleted"
+status = "replacement-active"
 prerequisites = ["DEL-PUBLIC-ROUTE-6D495119BC6B"]
 post_delete_scans = ["path:origin-rs/src/product_sdk/transport.rs", "symbol:rust-export::storage_provider", "consumer:unified Identity/storage SDK facade"]
 [[item]]

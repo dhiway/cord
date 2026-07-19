@@ -1103,7 +1103,7 @@ sha256 = "6000bcc29746fc38db2ec109ca56f3a75877fae5f605e623555cf3a39f26b63c"
 
 [[gate.input]]
 path = "docs/specs/storage-identity-deletion-v1.toml"
-sha256 = "551f9ddcfe1952f801f906c9ccccc93aa0837352f26c2269afe94ec19abb0d6a"
+sha256 = "2764aa10acf536e4f10904e238efdf8c975aacc6c5c2f1e14ee48c97dabaf2f9"
 
 [[gate.input]]
 path = "docs/specs/web3-storage-capability-ledger-v1.json"
@@ -1557,7 +1557,7 @@ sha256 = "6000bcc29746fc38db2ec109ca56f3a75877fae5f605e623555cf3a39f26b63c"
 
 [[gate.input]]
 path = "docs/specs/storage-identity-deletion-v1.toml"
-sha256 = "551f9ddcfe1952f801f906c9ccccc93aa0837352f26c2269afe94ec19abb0d6a"
+sha256 = "2764aa10acf536e4f10904e238efdf8c975aacc6c5c2f1e14ee48c97dabaf2f9"
 
 [[gate.input]]
 path = "target/evidence/ac12-assertions.json"
@@ -1681,7 +1681,7 @@ sha256 = "8bcf8b2a37a30214fc9188f6796c99a1f84e610c909eb989fab64d9fe4b3a9b4"
 
 [[gate.input]]
 path = "docs/specs/storage-identity-deletion-v1.toml"
-sha256 = "551f9ddcfe1952f801f906c9ccccc93aa0837352f26c2269afe94ec19abb0d6a"
+sha256 = "2764aa10acf536e4f10904e238efdf8c975aacc6c5c2f1e14ee48c97dabaf2f9"
 
 [[gate.input]]
 path = "docs/adr/0020-web3-storage-component-disposition-policy.md"
