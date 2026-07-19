@@ -27,7 +27,7 @@ sha256 = "6ee0927655e8cb283b4dc7e84839cbcd1cbc11917dbddf19acf83ba90455b39d"
 
 [[gate.input]]
 path = "docs/specs/p0-ratification-v1.toml"
-sha256 = "51fea4f6214826e51013a90e9fe720f5a6ffe1483a0849ebcd57b218e9ba8514"
+sha256 = "94e48e93fecc45e0f5d65e34421ea2a11496159f29c869bf3932e85913d520d6"
 
 [[gate.input]]
 path = "docs/specs/web3-storage-blocked-conflicts-v1.json"
@@ -1825,7 +1825,7 @@ sha256 = "f9738cb0a57ae42d2b788cb899064c16c5e4d21bea22bf87181d03b2aff726ab"
 
 [[gate.input]]
 path = "docs/specs/p0-ratification-v1.toml"
-sha256 = "51fea4f6214826e51013a90e9fe720f5a6ffe1483a0849ebcd57b218e9ba8514"
+sha256 = "94e48e93fecc45e0f5d65e34421ea2a11496159f29c869bf3932e85913d520d6"
 
 [[gate.input]]
 path = "docs/specs/origin-host-conformance-report-v1.schema.json"
