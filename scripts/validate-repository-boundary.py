@@ -39,6 +39,9 @@ from evidence_common import atomic_write_json, canonical_bytes, sha256_bytes
 
 
 VOLATILE_SNAPSHOT_KEYS = {"captured_at", "snapshot_sha256", "manifest_path", "manifest_sha256"}
+# OMX orchestration is intentionally outside CORD source. It may be present only as untracked
+# state in the protected checkout that supplied the immutable baseline, not in a compose worktree.
+ORCHESTRATION_UNTRACKED_PREFIXES = (".omx/", "omx_wiki/")
 CORD_CHANGE_KEYS = {
 	# CORD may be executed from an isolated detached worktree while the immutable
 	# baseline is captured from the protected branch checkout. These describe
@@ -92,6 +95,10 @@ def changed_paths(before: dict[str, Any], after: dict[str, Any]) -> set[str]:
         old = record_map(before, field)
         new = record_map(after, field)
         for path in old.keys() | new.keys():
+            # Never treat local OMX state as CORD source. The exception is restricted to
+            # *untracked* files, so a committed source path cannot be hidden by this rule.
+            if field == "untracked_files" and path.startswith(ORCHESTRATION_UNTRACKED_PREFIXES):
+                continue
             if old.get(path) != new.get(path):
                 paths.add(path)
     old_modules = {row["path"]: row for row in before.get("submodules", [])}
@@ -183,6 +190,13 @@ def main() -> int:
             continue
 
         for key in sorted((old.keys() | new.keys()) - CORD_CHANGE_KEYS):
+            if key == "index_tree":
+                # A committed descendant necessarily has a different index tree. Retain
+                # the invariant when the revision is unchanged, which detects a staged-only
+                # mutation hidden by restoring worktree bytes.
+                if old.get("head") == new.get("head") and old.get(key) != new.get(key):
+                    violations.append({"kind": "cord-invariant", "field": key})
+                continue
             if old.get(key) != new.get(key):
                 violations.append({"kind": "cord-invariant", "field": key})
         for changed in sorted(changed_paths(old, new), key=lambda value: value.encode("utf-8")):

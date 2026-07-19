@@ -109,7 +109,13 @@ class RepositoryBoundaryTests(unittest.TestCase):
             before = base / "before.json"
             after = base / "after.json"
             assertion = base / "assertion.json"
+            # OMX state is local orchestration, never CORD source. A protected baseline
+            # may contain it while a compose worktree deliberately does not.
+            (cord / ".omx").mkdir()
+            (cord / ".omx" / "state.json").write_text("local only\n", encoding="utf-8")
             run("python3", str(SCRIPTS / "snapshot-repositories.py"), "--manifest", str(manifest), "--out", str(before))
+            (cord / ".omx" / "state.json").unlink()
+            (cord / ".omx").rmdir()
             (cord / "allowed.txt").write_text("allowed change\n", encoding="utf-8")
             run("git", "config", "user.name", "Satish Mohan", cwd=cord)
             run("git", "config", "user.email", "satish@dhiway.com", cwd=cord)
