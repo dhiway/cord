@@ -1,22 +1,20 @@
 $ cargo test -p origin-orbis-provider storage::tests::commit_read_proof_delete_and_reopen --locked -- --exact
 exit=0
-   Compiling origin-rs v0.9.9 (/Users/smohan/dev/smohan-dw/cord-2026-1.0.x/cord/origin-rs)
-   Compiling origin-orbis-provider v0.9.9 (/Users/smohan/dev/smohan-dw/cord-2026-1.0.x/cord/origin/orbis/provider-node)
-    Finished `test` profile [unoptimized + debuginfo] target(s) in 7.12s
-     Running unittests src/lib.rs (target/debug/deps/origin_orbis_provider-fbb38469c44513f7)
+    Finished `test` profile [unoptimized + debuginfo] target(s) in 0.78s
+     Running unittests src/lib.rs (target/debug/deps/origin_orbis_provider-5802592c65b953de)
 
 running 1 test
 test storage::tests::commit_read_proof_delete_and_reopen ... ok
 
-test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 15 filtered out; finished in 0.11s
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 15 filtered out; finished in 0.08s
 
-     Running unittests src/main.rs (target/debug/deps/origin_orbis_provider-0d5dd05c647bd3ef)
+     Running unittests src/main.rs (target/debug/deps/origin_orbis_provider-56a90d16c843cbcb)
 
 running 0 tests
 
 test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
 
-     Running unittests src/bin/origin-orbis-provider-outbox.rs (target/debug/deps/origin_orbis_provider_outbox-76b7dab56f0e06d1)
+     Running unittests src/bin/origin-orbis-provider-outbox.rs (target/debug/deps/origin_orbis_provider_outbox-319a787e0e28deb8)
 
 running 0 tests
 

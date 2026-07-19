@@ -5,11 +5,11 @@
     "runtime": "orbis",
     "spec_version": 29,
     "transaction_version": 8,
-    "metadata_hash": "0x50c8958f0171889a4b01093a5dd5272faf8802018f24a4ac22b231d37b2adc45",
+    "metadata_hash": "0xa11fc57ceabd72676b4f1f6dec860de0c8f52f9d2e9496ea36366d1ba47cd391",
     "activation_state": "candidate-pending",
     "production_activation_ready": false
   },
-  "route_count": 138,
+  "route_count": 143,
   "routes": [
     {
       "id": "identity:identity_status",
@@ -48,7 +48,7 @@
         "implementation_source": "origin/orbis/runtime/src/lib.rs"
       },
       "metadata_binding": {
-        "metadata_hash": "0x50c8958f0171889a4b01093a5dd5272faf8802018f24a4ac22b231d37b2adc45",
+        "metadata_hash": "0xa11fc57ceabd72676b4f1f6dec860de0c8f52f9d2e9496ea36366d1ba47cd391",
         "inventory": "runtime-source-item-index-and-canonical-sdk-typed-factory;decoded-metadata-blob-unavailable"
       },
       "canonical_arguments": [
@@ -98,7 +98,7 @@
         "implementation_source": "origin/orbis/runtime/src/lib.rs"
       },
       "metadata_binding": {
-        "metadata_hash": "0x50c8958f0171889a4b01093a5dd5272faf8802018f24a4ac22b231d37b2adc45",
+        "metadata_hash": "0xa11fc57ceabd72676b4f1f6dec860de0c8f52f9d2e9496ea36366d1ba47cd391",
         "inventory": "runtime-source-item-index-and-canonical-sdk-typed-factory;decoded-metadata-blob-unavailable"
       },
       "canonical_arguments": [
@@ -142,7 +142,7 @@
         "implementation_source": "origin/orbis/runtime/src/lib.rs"
       },
       "metadata_binding": {
-        "metadata_hash": "0x50c8958f0171889a4b01093a5dd5272faf8802018f24a4ac22b231d37b2adc45",
+        "metadata_hash": "0xa11fc57ceabd72676b4f1f6dec860de0c8f52f9d2e9496ea36366d1ba47cd391",
         "inventory": "runtime-source-item-index-and-canonical-sdk-typed-factory;decoded-metadata-blob-unavailable"
       },
       "canonical_arguments": [
@@ -940,7 +940,7 @@
         "call_index": 1
       },
       "metadata_binding": {
-        "metadata_hash": "0x50c8958f0171889a4b01093a5dd5272faf8802018f24a4ac22b231d37b2adc45",
+        "metadata_hash": "0xa11fc57ceabd72676b4f1f6dec860de0c8f52f9d2e9496ea36366d1ba47cd391",
         "inventory": "runtime-source-item-index-and-canonical-sdk-typed-factory;decoded-metadata-blob-unavailable"
       },
       "canonical_arguments": [
@@ -989,7 +989,7 @@
         "call_index": 3
       },
       "metadata_binding": {
-        "metadata_hash": "0x50c8958f0171889a4b01093a5dd5272faf8802018f24a4ac22b231d37b2adc45",
+        "metadata_hash": "0xa11fc57ceabd72676b4f1f6dec860de0c8f52f9d2e9496ea36366d1ba47cd391",
         "inventory": "runtime-source-item-index-and-canonical-sdk-typed-factory;decoded-metadata-blob-unavailable"
       },
       "canonical_arguments": []
@@ -1030,7 +1030,7 @@
         "call_index": 4
       },
       "metadata_binding": {
-        "metadata_hash": "0x50c8958f0171889a4b01093a5dd5272faf8802018f24a4ac22b231d37b2adc45",
+        "metadata_hash": "0xa11fc57ceabd72676b4f1f6dec860de0c8f52f9d2e9496ea36366d1ba47cd391",
         "inventory": "runtime-source-item-index-and-canonical-sdk-typed-factory;decoded-metadata-blob-unavailable"
       },
       "canonical_arguments": [
@@ -1073,7 +1073,7 @@
         "call_index": 5
       },
       "metadata_binding": {
-        "metadata_hash": "0x50c8958f0171889a4b01093a5dd5272faf8802018f24a4ac22b231d37b2adc45",
+        "metadata_hash": "0xa11fc57ceabd72676b4f1f6dec860de0c8f52f9d2e9496ea36366d1ba47cd391",
         "inventory": "runtime-source-item-index-and-canonical-sdk-typed-factory;decoded-metadata-blob-unavailable"
       },
       "canonical_arguments": [
@@ -1147,7 +1147,7 @@
         "call_index": 8
       },
       "metadata_binding": {
-        "metadata_hash": "0x50c8958f0171889a4b01093a5dd5272faf8802018f24a4ac22b231d37b2adc45",
+        "metadata_hash": "0xa11fc57ceabd72676b4f1f6dec860de0c8f52f9d2e9496ea36366d1ba47cd391",
         "inventory": "runtime-source-item-index-and-canonical-sdk-typed-factory;decoded-metadata-blob-unavailable"
       },
       "canonical_arguments": [
@@ -1270,7 +1270,7 @@
         "call_index": 2
       },
       "metadata_binding": {
-        "metadata_hash": "0x50c8958f0171889a4b01093a5dd5272faf8802018f24a4ac22b231d37b2adc45",
+        "metadata_hash": "0xa11fc57ceabd72676b4f1f6dec860de0c8f52f9d2e9496ea36366d1ba47cd391",
         "inventory": "runtime-source-item-index-and-canonical-sdk-typed-factory;decoded-metadata-blob-unavailable"
       },
       "canonical_arguments": [
@@ -1321,7 +1321,7 @@
         "implementation_source": "origin/orbis/runtime/src/lib.rs"
       },
       "metadata_binding": {
-        "metadata_hash": "0x50c8958f0171889a4b01093a5dd5272faf8802018f24a4ac22b231d37b2adc45",
+        "metadata_hash": "0xa11fc57ceabd72676b4f1f6dec860de0c8f52f9d2e9496ea36366d1ba47cd391",
         "inventory": "runtime-source-item-index-and-canonical-sdk-typed-factory;decoded-metadata-blob-unavailable"
       },
       "canonical_arguments": [
@@ -1364,7 +1364,7 @@
         "implementation_source": "origin/orbis/runtime/src/lib.rs"
       },
       "metadata_binding": {
-        "metadata_hash": "0x50c8958f0171889a4b01093a5dd5272faf8802018f24a4ac22b231d37b2adc45",
+        "metadata_hash": "0xa11fc57ceabd72676b4f1f6dec860de0c8f52f9d2e9496ea36366d1ba47cd391",
         "inventory": "runtime-source-item-index-and-canonical-sdk-typed-factory;decoded-metadata-blob-unavailable"
       },
       "canonical_arguments": [
@@ -1407,7 +1407,7 @@
         "implementation_source": "origin/orbis/runtime/src/lib.rs"
       },
       "metadata_binding": {
-        "metadata_hash": "0x50c8958f0171889a4b01093a5dd5272faf8802018f24a4ac22b231d37b2adc45",
+        "metadata_hash": "0xa11fc57ceabd72676b4f1f6dec860de0c8f52f9d2e9496ea36366d1ba47cd391",
         "inventory": "runtime-source-item-index-and-canonical-sdk-typed-factory;decoded-metadata-blob-unavailable"
       },
       "canonical_arguments": [
@@ -1476,7 +1476,7 @@
         "implementation_source": "origin/orbis/runtime/src/lib.rs"
       },
       "metadata_binding": {
-        "metadata_hash": "0x50c8958f0171889a4b01093a5dd5272faf8802018f24a4ac22b231d37b2adc45",
+        "metadata_hash": "0xa11fc57ceabd72676b4f1f6dec860de0c8f52f9d2e9496ea36366d1ba47cd391",
         "inventory": "runtime-source-item-index-and-canonical-sdk-typed-factory;decoded-metadata-blob-unavailable"
       },
       "canonical_arguments": [
@@ -1549,7 +1549,7 @@
         "implementation_source": "origin/orbis/runtime/src/lib.rs"
       },
       "metadata_binding": {
-        "metadata_hash": "0x50c8958f0171889a4b01093a5dd5272faf8802018f24a4ac22b231d37b2adc45",
+        "metadata_hash": "0xa11fc57ceabd72676b4f1f6dec860de0c8f52f9d2e9496ea36366d1ba47cd391",
         "inventory": "runtime-source-item-index-and-canonical-sdk-typed-factory;decoded-metadata-blob-unavailable"
       },
       "canonical_arguments": [
@@ -1629,7 +1629,7 @@
         "implementation_source": "origin/orbis/runtime/src/lib.rs"
       },
       "metadata_binding": {
-        "metadata_hash": "0x50c8958f0171889a4b01093a5dd5272faf8802018f24a4ac22b231d37b2adc45",
+        "metadata_hash": "0xa11fc57ceabd72676b4f1f6dec860de0c8f52f9d2e9496ea36366d1ba47cd391",
         "inventory": "runtime-source-item-index-and-canonical-sdk-typed-factory;decoded-metadata-blob-unavailable"
       },
       "canonical_arguments": [
@@ -1678,7 +1678,7 @@
         "implementation_source": "origin/orbis/runtime/src/lib.rs"
       },
       "metadata_binding": {
-        "metadata_hash": "0x50c8958f0171889a4b01093a5dd5272faf8802018f24a4ac22b231d37b2adc45",
+        "metadata_hash": "0xa11fc57ceabd72676b4f1f6dec860de0c8f52f9d2e9496ea36366d1ba47cd391",
         "inventory": "runtime-source-item-index-and-canonical-sdk-typed-factory;decoded-metadata-blob-unavailable"
       },
       "canonical_arguments": [
@@ -1711,7 +1711,7 @@
         "implementation_source": "origin/orbis/runtime/src/lib.rs"
       },
       "metadata_binding": {
-        "metadata_hash": "0x50c8958f0171889a4b01093a5dd5272faf8802018f24a4ac22b231d37b2adc45",
+        "metadata_hash": "0xa11fc57ceabd72676b4f1f6dec860de0c8f52f9d2e9496ea36366d1ba47cd391",
         "inventory": "runtime-source-item-index-and-canonical-sdk-typed-factory;decoded-metadata-blob-unavailable"
       },
       "canonical_arguments": []
@@ -1742,7 +1742,7 @@
         "implementation_source": "origin/orbis/runtime/src/lib.rs"
       },
       "metadata_binding": {
-        "metadata_hash": "0x50c8958f0171889a4b01093a5dd5272faf8802018f24a4ac22b231d37b2adc45",
+        "metadata_hash": "0xa11fc57ceabd72676b4f1f6dec860de0c8f52f9d2e9496ea36366d1ba47cd391",
         "inventory": "runtime-source-item-index-and-canonical-sdk-typed-factory;decoded-metadata-blob-unavailable"
       },
       "canonical_arguments": []
@@ -1784,7 +1784,7 @@
         "implementation_source": "origin/orbis/runtime/src/lib.rs"
       },
       "metadata_binding": {
-        "metadata_hash": "0x50c8958f0171889a4b01093a5dd5272faf8802018f24a4ac22b231d37b2adc45",
+        "metadata_hash": "0xa11fc57ceabd72676b4f1f6dec860de0c8f52f9d2e9496ea36366d1ba47cd391",
         "inventory": "runtime-source-item-index-and-canonical-sdk-typed-factory;decoded-metadata-blob-unavailable"
       },
       "canonical_arguments": [
@@ -1836,7 +1836,7 @@
         "implementation_source": "origin/orbis/runtime/src/lib.rs"
       },
       "metadata_binding": {
-        "metadata_hash": "0x50c8958f0171889a4b01093a5dd5272faf8802018f24a4ac22b231d37b2adc45",
+        "metadata_hash": "0xa11fc57ceabd72676b4f1f6dec860de0c8f52f9d2e9496ea36366d1ba47cd391",
         "inventory": "runtime-source-item-index-and-canonical-sdk-typed-factory;decoded-metadata-blob-unavailable"
       },
       "canonical_arguments": [
@@ -1929,7 +1929,7 @@
         "call_index": 0
       },
       "metadata_binding": {
-        "metadata_hash": "0x50c8958f0171889a4b01093a5dd5272faf8802018f24a4ac22b231d37b2adc45",
+        "metadata_hash": "0xa11fc57ceabd72676b4f1f6dec860de0c8f52f9d2e9496ea36366d1ba47cd391",
         "inventory": "runtime-source-item-index-and-canonical-sdk-typed-factory;decoded-metadata-blob-unavailable"
       },
       "canonical_arguments": [
@@ -1992,7 +1992,7 @@
         "call_index": 1
       },
       "metadata_binding": {
-        "metadata_hash": "0x50c8958f0171889a4b01093a5dd5272faf8802018f24a4ac22b231d37b2adc45",
+        "metadata_hash": "0xa11fc57ceabd72676b4f1f6dec860de0c8f52f9d2e9496ea36366d1ba47cd391",
         "inventory": "runtime-source-item-index-and-canonical-sdk-typed-factory;decoded-metadata-blob-unavailable"
       },
       "canonical_arguments": [
@@ -2111,7 +2111,7 @@
         "call_index": 2
       },
       "metadata_binding": {
-        "metadata_hash": "0x50c8958f0171889a4b01093a5dd5272faf8802018f24a4ac22b231d37b2adc45",
+        "metadata_hash": "0xa11fc57ceabd72676b4f1f6dec860de0c8f52f9d2e9496ea36366d1ba47cd391",
         "inventory": "runtime-source-item-index-and-canonical-sdk-typed-factory;decoded-metadata-blob-unavailable"
       },
       "canonical_arguments": [
@@ -2288,7 +2288,7 @@
         "call_index": 3
       },
       "metadata_binding": {
-        "metadata_hash": "0x50c8958f0171889a4b01093a5dd5272faf8802018f24a4ac22b231d37b2adc45",
+        "metadata_hash": "0xa11fc57ceabd72676b4f1f6dec860de0c8f52f9d2e9496ea36366d1ba47cd391",
         "inventory": "runtime-source-item-index-and-canonical-sdk-typed-factory;decoded-metadata-blob-unavailable"
       },
       "canonical_arguments": [
@@ -2427,7 +2427,7 @@
         "call_index": 4
       },
       "metadata_binding": {
-        "metadata_hash": "0x50c8958f0171889a4b01093a5dd5272faf8802018f24a4ac22b231d37b2adc45",
+        "metadata_hash": "0xa11fc57ceabd72676b4f1f6dec860de0c8f52f9d2e9496ea36366d1ba47cd391",
         "inventory": "runtime-source-item-index-and-canonical-sdk-typed-factory;decoded-metadata-blob-unavailable"
       },
       "canonical_arguments": [
@@ -2480,7 +2480,7 @@
         "call_index": 5
       },
       "metadata_binding": {
-        "metadata_hash": "0x50c8958f0171889a4b01093a5dd5272faf8802018f24a4ac22b231d37b2adc45",
+        "metadata_hash": "0xa11fc57ceabd72676b4f1f6dec860de0c8f52f9d2e9496ea36366d1ba47cd391",
         "inventory": "runtime-source-item-index-and-canonical-sdk-typed-factory;decoded-metadata-blob-unavailable"
       },
       "canonical_arguments": [
@@ -2521,7 +2521,7 @@
         "call_index": 6
       },
       "metadata_binding": {
-        "metadata_hash": "0x50c8958f0171889a4b01093a5dd5272faf8802018f24a4ac22b231d37b2adc45",
+        "metadata_hash": "0xa11fc57ceabd72676b4f1f6dec860de0c8f52f9d2e9496ea36366d1ba47cd391",
         "inventory": "runtime-source-item-index-and-canonical-sdk-typed-factory;decoded-metadata-blob-unavailable"
       },
       "canonical_arguments": [
@@ -2580,7 +2580,7 @@
         "call_index": 7
       },
       "metadata_binding": {
-        "metadata_hash": "0x50c8958f0171889a4b01093a5dd5272faf8802018f24a4ac22b231d37b2adc45",
+        "metadata_hash": "0xa11fc57ceabd72676b4f1f6dec860de0c8f52f9d2e9496ea36366d1ba47cd391",
         "inventory": "runtime-source-item-index-and-canonical-sdk-typed-factory;decoded-metadata-blob-unavailable"
       },
       "canonical_arguments": [
@@ -2623,7 +2623,7 @@
         "call_index": 8
       },
       "metadata_binding": {
-        "metadata_hash": "0x50c8958f0171889a4b01093a5dd5272faf8802018f24a4ac22b231d37b2adc45",
+        "metadata_hash": "0xa11fc57ceabd72676b4f1f6dec860de0c8f52f9d2e9496ea36366d1ba47cd391",
         "inventory": "runtime-source-item-index-and-canonical-sdk-typed-factory;decoded-metadata-blob-unavailable"
       },
       "canonical_arguments": [
@@ -2729,7 +2729,7 @@
         "call_index": 9
       },
       "metadata_binding": {
-        "metadata_hash": "0x50c8958f0171889a4b01093a5dd5272faf8802018f24a4ac22b231d37b2adc45",
+        "metadata_hash": "0xa11fc57ceabd72676b4f1f6dec860de0c8f52f9d2e9496ea36366d1ba47cd391",
         "inventory": "runtime-source-item-index-and-canonical-sdk-typed-factory;decoded-metadata-blob-unavailable"
       },
       "canonical_arguments": [
@@ -2923,7 +2923,7 @@
         "call_index": 10
       },
       "metadata_binding": {
-        "metadata_hash": "0x50c8958f0171889a4b01093a5dd5272faf8802018f24a4ac22b231d37b2adc45",
+        "metadata_hash": "0xa11fc57ceabd72676b4f1f6dec860de0c8f52f9d2e9496ea36366d1ba47cd391",
         "inventory": "runtime-source-item-index-and-canonical-sdk-typed-factory;decoded-metadata-blob-unavailable"
       },
       "canonical_arguments": [
@@ -2994,7 +2994,7 @@
         "call_index": 11
       },
       "metadata_binding": {
-        "metadata_hash": "0x50c8958f0171889a4b01093a5dd5272faf8802018f24a4ac22b231d37b2adc45",
+        "metadata_hash": "0xa11fc57ceabd72676b4f1f6dec860de0c8f52f9d2e9496ea36366d1ba47cd391",
         "inventory": "runtime-source-item-index-and-canonical-sdk-typed-factory;decoded-metadata-blob-unavailable"
       },
       "canonical_arguments": [
@@ -3118,7 +3118,7 @@
         "call_index": 12
       },
       "metadata_binding": {
-        "metadata_hash": "0x50c8958f0171889a4b01093a5dd5272faf8802018f24a4ac22b231d37b2adc45",
+        "metadata_hash": "0xa11fc57ceabd72676b4f1f6dec860de0c8f52f9d2e9496ea36366d1ba47cd391",
         "inventory": "runtime-source-item-index-and-canonical-sdk-typed-factory;decoded-metadata-blob-unavailable"
       },
       "canonical_arguments": [
@@ -3174,7 +3174,7 @@
         "call_index": 13
       },
       "metadata_binding": {
-        "metadata_hash": "0x50c8958f0171889a4b01093a5dd5272faf8802018f24a4ac22b231d37b2adc45",
+        "metadata_hash": "0xa11fc57ceabd72676b4f1f6dec860de0c8f52f9d2e9496ea36366d1ba47cd391",
         "inventory": "runtime-source-item-index-and-canonical-sdk-typed-factory;decoded-metadata-blob-unavailable"
       },
       "canonical_arguments": [
@@ -3224,7 +3224,7 @@
         "call_index": 14
       },
       "metadata_binding": {
-        "metadata_hash": "0x50c8958f0171889a4b01093a5dd5272faf8802018f24a4ac22b231d37b2adc45",
+        "metadata_hash": "0xa11fc57ceabd72676b4f1f6dec860de0c8f52f9d2e9496ea36366d1ba47cd391",
         "inventory": "runtime-source-item-index-and-canonical-sdk-typed-factory;decoded-metadata-blob-unavailable"
       },
       "canonical_arguments": [
@@ -3259,7 +3259,7 @@
         "implementation_source": "origin/orbis/runtime/src/lib.rs"
       },
       "metadata_binding": {
-        "metadata_hash": "0x50c8958f0171889a4b01093a5dd5272faf8802018f24a4ac22b231d37b2adc45",
+        "metadata_hash": "0xa11fc57ceabd72676b4f1f6dec860de0c8f52f9d2e9496ea36366d1ba47cd391",
         "inventory": "runtime-source-item-index-and-canonical-sdk-typed-factory;decoded-metadata-blob-unavailable"
       },
       "canonical_arguments": []
@@ -3300,7 +3300,7 @@
         "implementation_source": "origin/orbis/runtime/src/lib.rs"
       },
       "metadata_binding": {
-        "metadata_hash": "0x50c8958f0171889a4b01093a5dd5272faf8802018f24a4ac22b231d37b2adc45",
+        "metadata_hash": "0xa11fc57ceabd72676b4f1f6dec860de0c8f52f9d2e9496ea36366d1ba47cd391",
         "inventory": "runtime-source-item-index-and-canonical-sdk-typed-factory;decoded-metadata-blob-unavailable"
       },
       "canonical_arguments": [
@@ -3345,7 +3345,7 @@
         "implementation_source": "origin/orbis/runtime/src/lib.rs"
       },
       "metadata_binding": {
-        "metadata_hash": "0x50c8958f0171889a4b01093a5dd5272faf8802018f24a4ac22b231d37b2adc45",
+        "metadata_hash": "0xa11fc57ceabd72676b4f1f6dec860de0c8f52f9d2e9496ea36366d1ba47cd391",
         "inventory": "runtime-source-item-index-and-canonical-sdk-typed-factory;decoded-metadata-blob-unavailable"
       },
       "canonical_arguments": [
@@ -3414,7 +3414,7 @@
         "implementation_source": "origin/orbis/runtime/src/lib.rs"
       },
       "metadata_binding": {
-        "metadata_hash": "0x50c8958f0171889a4b01093a5dd5272faf8802018f24a4ac22b231d37b2adc45",
+        "metadata_hash": "0xa11fc57ceabd72676b4f1f6dec860de0c8f52f9d2e9496ea36366d1ba47cd391",
         "inventory": "runtime-source-item-index-and-canonical-sdk-typed-factory;decoded-metadata-blob-unavailable"
       },
       "canonical_arguments": [
@@ -3461,7 +3461,7 @@
         "implementation_source": "origin/orbis/runtime/src/lib.rs"
       },
       "metadata_binding": {
-        "metadata_hash": "0x50c8958f0171889a4b01093a5dd5272faf8802018f24a4ac22b231d37b2adc45",
+        "metadata_hash": "0xa11fc57ceabd72676b4f1f6dec860de0c8f52f9d2e9496ea36366d1ba47cd391",
         "inventory": "runtime-source-item-index-and-canonical-sdk-typed-factory;decoded-metadata-blob-unavailable"
       },
       "canonical_arguments": [
@@ -3504,7 +3504,7 @@
         "implementation_source": "origin/orbis/runtime/src/lib.rs"
       },
       "metadata_binding": {
-        "metadata_hash": "0x50c8958f0171889a4b01093a5dd5272faf8802018f24a4ac22b231d37b2adc45",
+        "metadata_hash": "0xa11fc57ceabd72676b4f1f6dec860de0c8f52f9d2e9496ea36366d1ba47cd391",
         "inventory": "runtime-source-item-index-and-canonical-sdk-typed-factory;decoded-metadata-blob-unavailable"
       },
       "canonical_arguments": [
@@ -3547,7 +3547,7 @@
         "implementation_source": "origin/orbis/runtime/src/lib.rs"
       },
       "metadata_binding": {
-        "metadata_hash": "0x50c8958f0171889a4b01093a5dd5272faf8802018f24a4ac22b231d37b2adc45",
+        "metadata_hash": "0xa11fc57ceabd72676b4f1f6dec860de0c8f52f9d2e9496ea36366d1ba47cd391",
         "inventory": "runtime-source-item-index-and-canonical-sdk-typed-factory;decoded-metadata-blob-unavailable"
       },
       "canonical_arguments": [
@@ -3590,7 +3590,7 @@
         "implementation_source": "origin/orbis/runtime/src/lib.rs"
       },
       "metadata_binding": {
-        "metadata_hash": "0x50c8958f0171889a4b01093a5dd5272faf8802018f24a4ac22b231d37b2adc45",
+        "metadata_hash": "0xa11fc57ceabd72676b4f1f6dec860de0c8f52f9d2e9496ea36366d1ba47cd391",
         "inventory": "runtime-source-item-index-and-canonical-sdk-typed-factory;decoded-metadata-blob-unavailable"
       },
       "canonical_arguments": [
@@ -3633,7 +3633,7 @@
         "implementation_source": "origin/orbis/runtime/src/lib.rs"
       },
       "metadata_binding": {
-        "metadata_hash": "0x50c8958f0171889a4b01093a5dd5272faf8802018f24a4ac22b231d37b2adc45",
+        "metadata_hash": "0xa11fc57ceabd72676b4f1f6dec860de0c8f52f9d2e9496ea36366d1ba47cd391",
         "inventory": "runtime-source-item-index-and-canonical-sdk-typed-factory;decoded-metadata-blob-unavailable"
       },
       "canonical_arguments": [
@@ -3685,7 +3685,7 @@
         "implementation_source": "origin/orbis/runtime/src/lib.rs"
       },
       "metadata_binding": {
-        "metadata_hash": "0x50c8958f0171889a4b01093a5dd5272faf8802018f24a4ac22b231d37b2adc45",
+        "metadata_hash": "0xa11fc57ceabd72676b4f1f6dec860de0c8f52f9d2e9496ea36366d1ba47cd391",
         "inventory": "runtime-source-item-index-and-canonical-sdk-typed-factory;decoded-metadata-blob-unavailable"
       },
       "canonical_arguments": [
@@ -3730,7 +3730,7 @@
         "implementation_source": "origin/orbis/runtime/src/lib.rs"
       },
       "metadata_binding": {
-        "metadata_hash": "0x50c8958f0171889a4b01093a5dd5272faf8802018f24a4ac22b231d37b2adc45",
+        "metadata_hash": "0xa11fc57ceabd72676b4f1f6dec860de0c8f52f9d2e9496ea36366d1ba47cd391",
         "inventory": "runtime-source-item-index-and-canonical-sdk-typed-factory;decoded-metadata-blob-unavailable"
       },
       "canonical_arguments": [
@@ -3773,7 +3773,7 @@
         "implementation_source": "origin/orbis/runtime/src/lib.rs"
       },
       "metadata_binding": {
-        "metadata_hash": "0x50c8958f0171889a4b01093a5dd5272faf8802018f24a4ac22b231d37b2adc45",
+        "metadata_hash": "0xa11fc57ceabd72676b4f1f6dec860de0c8f52f9d2e9496ea36366d1ba47cd391",
         "inventory": "runtime-source-item-index-and-canonical-sdk-typed-factory;decoded-metadata-blob-unavailable"
       },
       "canonical_arguments": [
@@ -3815,7 +3815,7 @@
         "call_index": 0
       },
       "metadata_binding": {
-        "metadata_hash": "0x50c8958f0171889a4b01093a5dd5272faf8802018f24a4ac22b231d37b2adc45",
+        "metadata_hash": "0xa11fc57ceabd72676b4f1f6dec860de0c8f52f9d2e9496ea36366d1ba47cd391",
         "inventory": "runtime-source-item-index-and-canonical-sdk-typed-factory;decoded-metadata-blob-unavailable"
       },
       "canonical_arguments": [
@@ -3857,7 +3857,7 @@
         "call_index": 1
       },
       "metadata_binding": {
-        "metadata_hash": "0x50c8958f0171889a4b01093a5dd5272faf8802018f24a4ac22b231d37b2adc45",
+        "metadata_hash": "0xa11fc57ceabd72676b4f1f6dec860de0c8f52f9d2e9496ea36366d1ba47cd391",
         "inventory": "runtime-source-item-index-and-canonical-sdk-typed-factory;decoded-metadata-blob-unavailable"
       },
       "canonical_arguments": [
@@ -3908,7 +3908,7 @@
         "call_index": 2
       },
       "metadata_binding": {
-        "metadata_hash": "0x50c8958f0171889a4b01093a5dd5272faf8802018f24a4ac22b231d37b2adc45",
+        "metadata_hash": "0xa11fc57ceabd72676b4f1f6dec860de0c8f52f9d2e9496ea36366d1ba47cd391",
         "inventory": "runtime-source-item-index-and-canonical-sdk-typed-factory;decoded-metadata-blob-unavailable"
       },
       "canonical_arguments": [
@@ -3977,7 +3977,7 @@
         "call_index": 3
       },
       "metadata_binding": {
-        "metadata_hash": "0x50c8958f0171889a4b01093a5dd5272faf8802018f24a4ac22b231d37b2adc45",
+        "metadata_hash": "0xa11fc57ceabd72676b4f1f6dec860de0c8f52f9d2e9496ea36366d1ba47cd391",
         "inventory": "runtime-source-item-index-and-canonical-sdk-typed-factory;decoded-metadata-blob-unavailable"
       },
       "canonical_arguments": [
@@ -4029,7 +4029,7 @@
         "call_index": 4
       },
       "metadata_binding": {
-        "metadata_hash": "0x50c8958f0171889a4b01093a5dd5272faf8802018f24a4ac22b231d37b2adc45",
+        "metadata_hash": "0xa11fc57ceabd72676b4f1f6dec860de0c8f52f9d2e9496ea36366d1ba47cd391",
         "inventory": "runtime-source-item-index-and-canonical-sdk-typed-factory;decoded-metadata-blob-unavailable"
       },
       "canonical_arguments": [
@@ -4081,7 +4081,7 @@
         "call_index": 5
       },
       "metadata_binding": {
-        "metadata_hash": "0x50c8958f0171889a4b01093a5dd5272faf8802018f24a4ac22b231d37b2adc45",
+        "metadata_hash": "0xa11fc57ceabd72676b4f1f6dec860de0c8f52f9d2e9496ea36366d1ba47cd391",
         "inventory": "runtime-source-item-index-and-canonical-sdk-typed-factory;decoded-metadata-blob-unavailable"
       },
       "canonical_arguments": [
@@ -4133,7 +4133,7 @@
         "call_index": 6
       },
       "metadata_binding": {
-        "metadata_hash": "0x50c8958f0171889a4b01093a5dd5272faf8802018f24a4ac22b231d37b2adc45",
+        "metadata_hash": "0xa11fc57ceabd72676b4f1f6dec860de0c8f52f9d2e9496ea36366d1ba47cd391",
         "inventory": "runtime-source-item-index-and-canonical-sdk-typed-factory;decoded-metadata-blob-unavailable"
       },
       "canonical_arguments": [
@@ -4185,7 +4185,7 @@
         "call_index": 7
       },
       "metadata_binding": {
-        "metadata_hash": "0x50c8958f0171889a4b01093a5dd5272faf8802018f24a4ac22b231d37b2adc45",
+        "metadata_hash": "0xa11fc57ceabd72676b4f1f6dec860de0c8f52f9d2e9496ea36366d1ba47cd391",
         "inventory": "runtime-source-item-index-and-canonical-sdk-typed-factory;decoded-metadata-blob-unavailable"
       },
       "canonical_arguments": [
@@ -4244,7 +4244,7 @@
         "call_index": 8
       },
       "metadata_binding": {
-        "metadata_hash": "0x50c8958f0171889a4b01093a5dd5272faf8802018f24a4ac22b231d37b2adc45",
+        "metadata_hash": "0xa11fc57ceabd72676b4f1f6dec860de0c8f52f9d2e9496ea36366d1ba47cd391",
         "inventory": "runtime-source-item-index-and-canonical-sdk-typed-factory;decoded-metadata-blob-unavailable"
       },
       "canonical_arguments": [
@@ -4304,7 +4304,7 @@
         "call_index": 9
       },
       "metadata_binding": {
-        "metadata_hash": "0x50c8958f0171889a4b01093a5dd5272faf8802018f24a4ac22b231d37b2adc45",
+        "metadata_hash": "0xa11fc57ceabd72676b4f1f6dec860de0c8f52f9d2e9496ea36366d1ba47cd391",
         "inventory": "runtime-source-item-index-and-canonical-sdk-typed-factory;decoded-metadata-blob-unavailable"
       },
       "canonical_arguments": [
@@ -4362,7 +4362,7 @@
         "call_index": 10
       },
       "metadata_binding": {
-        "metadata_hash": "0x50c8958f0171889a4b01093a5dd5272faf8802018f24a4ac22b231d37b2adc45",
+        "metadata_hash": "0xa11fc57ceabd72676b4f1f6dec860de0c8f52f9d2e9496ea36366d1ba47cd391",
         "inventory": "runtime-source-item-index-and-canonical-sdk-typed-factory;decoded-metadata-blob-unavailable"
       },
       "canonical_arguments": [
@@ -4420,7 +4420,7 @@
         "call_index": 11
       },
       "metadata_binding": {
-        "metadata_hash": "0x50c8958f0171889a4b01093a5dd5272faf8802018f24a4ac22b231d37b2adc45",
+        "metadata_hash": "0xa11fc57ceabd72676b4f1f6dec860de0c8f52f9d2e9496ea36366d1ba47cd391",
         "inventory": "runtime-source-item-index-and-canonical-sdk-typed-factory;decoded-metadata-blob-unavailable"
       },
       "canonical_arguments": [
@@ -4488,7 +4488,7 @@
         "call_index": 12
       },
       "metadata_binding": {
-        "metadata_hash": "0x50c8958f0171889a4b01093a5dd5272faf8802018f24a4ac22b231d37b2adc45",
+        "metadata_hash": "0xa11fc57ceabd72676b4f1f6dec860de0c8f52f9d2e9496ea36366d1ba47cd391",
         "inventory": "runtime-source-item-index-and-canonical-sdk-typed-factory;decoded-metadata-blob-unavailable"
       },
       "canonical_arguments": [
@@ -4539,7 +4539,7 @@
         "call_index": 13
       },
       "metadata_binding": {
-        "metadata_hash": "0x50c8958f0171889a4b01093a5dd5272faf8802018f24a4ac22b231d37b2adc45",
+        "metadata_hash": "0xa11fc57ceabd72676b4f1f6dec860de0c8f52f9d2e9496ea36366d1ba47cd391",
         "inventory": "runtime-source-item-index-and-canonical-sdk-typed-factory;decoded-metadata-blob-unavailable"
       },
       "canonical_arguments": [
@@ -4581,7 +4581,7 @@
         "call_index": 14
       },
       "metadata_binding": {
-        "metadata_hash": "0x50c8958f0171889a4b01093a5dd5272faf8802018f24a4ac22b231d37b2adc45",
+        "metadata_hash": "0xa11fc57ceabd72676b4f1f6dec860de0c8f52f9d2e9496ea36366d1ba47cd391",
         "inventory": "runtime-source-item-index-and-canonical-sdk-typed-factory;decoded-metadata-blob-unavailable"
       },
       "canonical_arguments": [
@@ -4623,7 +4623,7 @@
         "call_index": 15
       },
       "metadata_binding": {
-        "metadata_hash": "0x50c8958f0171889a4b01093a5dd5272faf8802018f24a4ac22b231d37b2adc45",
+        "metadata_hash": "0xa11fc57ceabd72676b4f1f6dec860de0c8f52f9d2e9496ea36366d1ba47cd391",
         "inventory": "runtime-source-item-index-and-canonical-sdk-typed-factory;decoded-metadata-blob-unavailable"
       },
       "canonical_arguments": [
@@ -4713,7 +4713,7 @@
         "call_index": 16
       },
       "metadata_binding": {
-        "metadata_hash": "0x50c8958f0171889a4b01093a5dd5272faf8802018f24a4ac22b231d37b2adc45",
+        "metadata_hash": "0xa11fc57ceabd72676b4f1f6dec860de0c8f52f9d2e9496ea36366d1ba47cd391",
         "inventory": "runtime-source-item-index-and-canonical-sdk-typed-factory;decoded-metadata-blob-unavailable"
       },
       "canonical_arguments": [
@@ -4758,7 +4758,7 @@
         "call_index": 17
       },
       "metadata_binding": {
-        "metadata_hash": "0x50c8958f0171889a4b01093a5dd5272faf8802018f24a4ac22b231d37b2adc45",
+        "metadata_hash": "0xa11fc57ceabd72676b4f1f6dec860de0c8f52f9d2e9496ea36366d1ba47cd391",
         "inventory": "runtime-source-item-index-and-canonical-sdk-typed-factory;decoded-metadata-blob-unavailable"
       },
       "canonical_arguments": [
@@ -4809,7 +4809,7 @@
         "call_index": 18
       },
       "metadata_binding": {
-        "metadata_hash": "0x50c8958f0171889a4b01093a5dd5272faf8802018f24a4ac22b231d37b2adc45",
+        "metadata_hash": "0xa11fc57ceabd72676b4f1f6dec860de0c8f52f9d2e9496ea36366d1ba47cd391",
         "inventory": "runtime-source-item-index-and-canonical-sdk-typed-factory;decoded-metadata-blob-unavailable"
       },
       "canonical_arguments": [
@@ -4851,7 +4851,7 @@
         "call_index": 19
       },
       "metadata_binding": {
-        "metadata_hash": "0x50c8958f0171889a4b01093a5dd5272faf8802018f24a4ac22b231d37b2adc45",
+        "metadata_hash": "0xa11fc57ceabd72676b4f1f6dec860de0c8f52f9d2e9496ea36366d1ba47cd391",
         "inventory": "runtime-source-item-index-and-canonical-sdk-typed-factory;decoded-metadata-blob-unavailable"
       },
       "canonical_arguments": [
@@ -4902,7 +4902,7 @@
         "call_index": 20
       },
       "metadata_binding": {
-        "metadata_hash": "0x50c8958f0171889a4b01093a5dd5272faf8802018f24a4ac22b231d37b2adc45",
+        "metadata_hash": "0xa11fc57ceabd72676b4f1f6dec860de0c8f52f9d2e9496ea36366d1ba47cd391",
         "inventory": "runtime-source-item-index-and-canonical-sdk-typed-factory;decoded-metadata-blob-unavailable"
       },
       "canonical_arguments": [
@@ -4945,7 +4945,7 @@
         "call_index": 21
       },
       "metadata_binding": {
-        "metadata_hash": "0x50c8958f0171889a4b01093a5dd5272faf8802018f24a4ac22b231d37b2adc45",
+        "metadata_hash": "0xa11fc57ceabd72676b4f1f6dec860de0c8f52f9d2e9496ea36366d1ba47cd391",
         "inventory": "runtime-source-item-index-and-canonical-sdk-typed-factory;decoded-metadata-blob-unavailable"
       },
       "canonical_arguments": [
@@ -4995,7 +4995,7 @@
         "call_index": 22
       },
       "metadata_binding": {
-        "metadata_hash": "0x50c8958f0171889a4b01093a5dd5272faf8802018f24a4ac22b231d37b2adc45",
+        "metadata_hash": "0xa11fc57ceabd72676b4f1f6dec860de0c8f52f9d2e9496ea36366d1ba47cd391",
         "inventory": "runtime-source-item-index-and-canonical-sdk-typed-factory;decoded-metadata-blob-unavailable"
       },
       "canonical_arguments": [
@@ -5040,7 +5040,7 @@
         "implementation_source": "origin/orbis/runtime/src/lib.rs"
       },
       "metadata_binding": {
-        "metadata_hash": "0x50c8958f0171889a4b01093a5dd5272faf8802018f24a4ac22b231d37b2adc45",
+        "metadata_hash": "0xa11fc57ceabd72676b4f1f6dec860de0c8f52f9d2e9496ea36366d1ba47cd391",
         "inventory": "runtime-source-item-index-and-canonical-sdk-typed-factory;decoded-metadata-blob-unavailable"
       },
       "canonical_arguments": [
@@ -5093,7 +5093,7 @@
         "implementation_source": "origin/orbis/runtime/src/lib.rs"
       },
       "metadata_binding": {
-        "metadata_hash": "0x50c8958f0171889a4b01093a5dd5272faf8802018f24a4ac22b231d37b2adc45",
+        "metadata_hash": "0xa11fc57ceabd72676b4f1f6dec860de0c8f52f9d2e9496ea36366d1ba47cd391",
         "inventory": "runtime-source-item-index-and-canonical-sdk-typed-factory;decoded-metadata-blob-unavailable"
       },
       "canonical_arguments": [
@@ -5190,7 +5190,7 @@
         "implementation_source": "origin/orbis/runtime/src/lib.rs"
       },
       "metadata_binding": {
-        "metadata_hash": "0x50c8958f0171889a4b01093a5dd5272faf8802018f24a4ac22b231d37b2adc45",
+        "metadata_hash": "0xa11fc57ceabd72676b4f1f6dec860de0c8f52f9d2e9496ea36366d1ba47cd391",
         "inventory": "runtime-source-item-index-and-canonical-sdk-typed-factory;decoded-metadata-blob-unavailable"
       },
       "canonical_arguments": [
@@ -5256,7 +5256,7 @@
         "implementation_source": "origin/orbis/runtime/src/lib.rs"
       },
       "metadata_binding": {
-        "metadata_hash": "0x50c8958f0171889a4b01093a5dd5272faf8802018f24a4ac22b231d37b2adc45",
+        "metadata_hash": "0xa11fc57ceabd72676b4f1f6dec860de0c8f52f9d2e9496ea36366d1ba47cd391",
         "inventory": "runtime-source-item-index-and-canonical-sdk-typed-factory;decoded-metadata-blob-unavailable"
       },
       "canonical_arguments": [
@@ -5302,7 +5302,7 @@
         "implementation_source": "origin/orbis/runtime/src/lib.rs"
       },
       "metadata_binding": {
-        "metadata_hash": "0x50c8958f0171889a4b01093a5dd5272faf8802018f24a4ac22b231d37b2adc45",
+        "metadata_hash": "0xa11fc57ceabd72676b4f1f6dec860de0c8f52f9d2e9496ea36366d1ba47cd391",
         "inventory": "runtime-source-item-index-and-canonical-sdk-typed-factory;decoded-metadata-blob-unavailable"
       },
       "canonical_arguments": [
@@ -5353,7 +5353,7 @@
         "implementation_source": "origin/orbis/runtime/src/lib.rs"
       },
       "metadata_binding": {
-        "metadata_hash": "0x50c8958f0171889a4b01093a5dd5272faf8802018f24a4ac22b231d37b2adc45",
+        "metadata_hash": "0xa11fc57ceabd72676b4f1f6dec860de0c8f52f9d2e9496ea36366d1ba47cd391",
         "inventory": "runtime-source-item-index-and-canonical-sdk-typed-factory;decoded-metadata-blob-unavailable"
       },
       "canonical_arguments": [
@@ -5397,7 +5397,7 @@
         "implementation_source": "origin/orbis/runtime/src/lib.rs"
       },
       "metadata_binding": {
-        "metadata_hash": "0x50c8958f0171889a4b01093a5dd5272faf8802018f24a4ac22b231d37b2adc45",
+        "metadata_hash": "0xa11fc57ceabd72676b4f1f6dec860de0c8f52f9d2e9496ea36366d1ba47cd391",
         "inventory": "runtime-source-item-index-and-canonical-sdk-typed-factory;decoded-metadata-blob-unavailable"
       },
       "canonical_arguments": [
@@ -5440,7 +5440,7 @@
         "call_index": 0
       },
       "metadata_binding": {
-        "metadata_hash": "0x50c8958f0171889a4b01093a5dd5272faf8802018f24a4ac22b231d37b2adc45",
+        "metadata_hash": "0xa11fc57ceabd72676b4f1f6dec860de0c8f52f9d2e9496ea36366d1ba47cd391",
         "inventory": "runtime-source-item-index-and-canonical-sdk-typed-factory;decoded-metadata-blob-unavailable"
       },
       "canonical_arguments": [
@@ -5517,7 +5517,7 @@
         "call_index": 9
       },
       "metadata_binding": {
-        "metadata_hash": "0x50c8958f0171889a4b01093a5dd5272faf8802018f24a4ac22b231d37b2adc45",
+        "metadata_hash": "0xa11fc57ceabd72676b4f1f6dec860de0c8f52f9d2e9496ea36366d1ba47cd391",
         "inventory": "runtime-source-item-index-and-canonical-sdk-typed-factory;decoded-metadata-blob-unavailable"
       },
       "canonical_arguments": [
@@ -5606,7 +5606,7 @@
         "call_index": 10
       },
       "metadata_binding": {
-        "metadata_hash": "0x50c8958f0171889a4b01093a5dd5272faf8802018f24a4ac22b231d37b2adc45",
+        "metadata_hash": "0xa11fc57ceabd72676b4f1f6dec860de0c8f52f9d2e9496ea36366d1ba47cd391",
         "inventory": "runtime-source-item-index-and-canonical-sdk-typed-factory;decoded-metadata-blob-unavailable"
       },
       "canonical_arguments": [
@@ -5661,7 +5661,7 @@
         "call_index": 11
       },
       "metadata_binding": {
-        "metadata_hash": "0x50c8958f0171889a4b01093a5dd5272faf8802018f24a4ac22b231d37b2adc45",
+        "metadata_hash": "0xa11fc57ceabd72676b4f1f6dec860de0c8f52f9d2e9496ea36366d1ba47cd391",
         "inventory": "runtime-source-item-index-and-canonical-sdk-typed-factory;decoded-metadata-blob-unavailable"
       },
       "canonical_arguments": [
@@ -5712,7 +5712,7 @@
         "call_index": 18
       },
       "metadata_binding": {
-        "metadata_hash": "0x50c8958f0171889a4b01093a5dd5272faf8802018f24a4ac22b231d37b2adc45",
+        "metadata_hash": "0xa11fc57ceabd72676b4f1f6dec860de0c8f52f9d2e9496ea36366d1ba47cd391",
         "inventory": "runtime-source-item-index-and-canonical-sdk-typed-factory;decoded-metadata-blob-unavailable"
       },
       "canonical_arguments": [
@@ -5799,7 +5799,7 @@
         "call_index": 1
       },
       "metadata_binding": {
-        "metadata_hash": "0x50c8958f0171889a4b01093a5dd5272faf8802018f24a4ac22b231d37b2adc45",
+        "metadata_hash": "0xa11fc57ceabd72676b4f1f6dec860de0c8f52f9d2e9496ea36366d1ba47cd391",
         "inventory": "runtime-source-item-index-and-canonical-sdk-typed-factory;decoded-metadata-blob-unavailable"
       },
       "canonical_arguments": [
@@ -5889,7 +5889,7 @@
         "call_index": 2
       },
       "metadata_binding": {
-        "metadata_hash": "0x50c8958f0171889a4b01093a5dd5272faf8802018f24a4ac22b231d37b2adc45",
+        "metadata_hash": "0xa11fc57ceabd72676b4f1f6dec860de0c8f52f9d2e9496ea36366d1ba47cd391",
         "inventory": "runtime-source-item-index-and-canonical-sdk-typed-factory;decoded-metadata-blob-unavailable"
       },
       "canonical_arguments": [
@@ -5935,7 +5935,7 @@
         "call_index": 12
       },
       "metadata_binding": {
-        "metadata_hash": "0x50c8958f0171889a4b01093a5dd5272faf8802018f24a4ac22b231d37b2adc45",
+        "metadata_hash": "0xa11fc57ceabd72676b4f1f6dec860de0c8f52f9d2e9496ea36366d1ba47cd391",
         "inventory": "runtime-source-item-index-and-canonical-sdk-typed-factory;decoded-metadata-blob-unavailable"
       },
       "canonical_arguments": [
@@ -5977,7 +5977,7 @@
         "call_index": 13
       },
       "metadata_binding": {
-        "metadata_hash": "0x50c8958f0171889a4b01093a5dd5272faf8802018f24a4ac22b231d37b2adc45",
+        "metadata_hash": "0xa11fc57ceabd72676b4f1f6dec860de0c8f52f9d2e9496ea36366d1ba47cd391",
         "inventory": "runtime-source-item-index-and-canonical-sdk-typed-factory;decoded-metadata-blob-unavailable"
       },
       "canonical_arguments": [
@@ -6017,11 +6017,11 @@
         "target": "provider",
         "pallet": "StorageProvider",
         "pallet_index": 120,
-        "runtime_api_version": 10,
+        "runtime_api_version": 4,
         "implementation_source": "origin/orbis/runtime/src/lib.rs"
       },
       "metadata_binding": {
-        "metadata_hash": "0x50c8958f0171889a4b01093a5dd5272faf8802018f24a4ac22b231d37b2adc45",
+        "metadata_hash": "0xa11fc57ceabd72676b4f1f6dec860de0c8f52f9d2e9496ea36366d1ba47cd391",
         "inventory": "runtime-source-item-index-and-canonical-sdk-typed-factory;decoded-metadata-blob-unavailable"
       },
       "canonical_arguments": [
@@ -6077,11 +6077,11 @@
         "target": "providers",
         "pallet": "StorageProvider",
         "pallet_index": 120,
-        "runtime_api_version": 10,
+        "runtime_api_version": 4,
         "implementation_source": "origin/orbis/runtime/src/lib.rs"
       },
       "metadata_binding": {
-        "metadata_hash": "0x50c8958f0171889a4b01093a5dd5272faf8802018f24a4ac22b231d37b2adc45",
+        "metadata_hash": "0xa11fc57ceabd72676b4f1f6dec860de0c8f52f9d2e9496ea36366d1ba47cd391",
         "inventory": "runtime-source-item-index-and-canonical-sdk-typed-factory;decoded-metadata-blob-unavailable"
       },
       "canonical_arguments": [
@@ -6123,11 +6123,11 @@
         "target": "agreement",
         "pallet": "StorageProvider",
         "pallet_index": 120,
-        "runtime_api_version": 10,
+        "runtime_api_version": 4,
         "implementation_source": "origin/orbis/runtime/src/lib.rs"
       },
       "metadata_binding": {
-        "metadata_hash": "0x50c8958f0171889a4b01093a5dd5272faf8802018f24a4ac22b231d37b2adc45",
+        "metadata_hash": "0xa11fc57ceabd72676b4f1f6dec860de0c8f52f9d2e9496ea36366d1ba47cd391",
         "inventory": "runtime-source-item-index-and-canonical-sdk-typed-factory;decoded-metadata-blob-unavailable"
       },
       "canonical_arguments": [
@@ -6192,11 +6192,156 @@
         "target": "provider_agreements",
         "pallet": "StorageProvider",
         "pallet_index": 120,
-        "runtime_api_version": 10,
+        "runtime_api_version": 4,
         "implementation_source": "origin/orbis/runtime/src/lib.rs"
       },
       "metadata_binding": {
-        "metadata_hash": "0x50c8958f0171889a4b01093a5dd5272faf8802018f24a4ac22b231d37b2adc45",
+        "metadata_hash": "0xa11fc57ceabd72676b4f1f6dec860de0c8f52f9d2e9496ea36366d1ba47cd391",
+        "inventory": "runtime-source-item-index-and-canonical-sdk-typed-factory;decoded-metadata-blob-unavailable"
+      },
+      "canonical_arguments": [
+        "0x1111111111111111111111111111111111111111111111111111111111111111",
+        {
+          "cursor": null,
+          "limit": 1
+        }
+      ]
+    },
+    {
+      "id": "storage:owner_agreements",
+      "capability": "storage",
+      "method": "owner_agreements",
+      "finality": "finalized",
+      "parameters": [
+        {
+          "name": "owner",
+          "schema": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 128
+          }
+        },
+        {
+          "name": "cursor",
+          "schema": {
+            "anyOf": [
+              {
+                "type": "null"
+              },
+              {
+                "type": "integer",
+                "minimum": 0,
+                "maximum": 4294967295
+              }
+            ]
+          }
+        },
+        {
+          "name": "limit",
+          "schema": {
+            "type": "integer",
+            "minimum": 0,
+            "maximum": 100
+          }
+        }
+      ],
+      "sample_payload": {
+        "owner": "0x1111111111111111111111111111111111111111111111111111111111111111",
+        "cursor": null,
+        "limit": 1
+      },
+      "rust": {
+        "declaration": "StorageProviderQuery",
+        "variant": "OwnerAgreements",
+        "result": "StorageProviderResponse"
+      },
+      "typescript": {
+        "object": "provider",
+        "callable": "ownerAgreements"
+      },
+      "runtime": {
+        "kind": "runtime-api",
+        "source": "origin/orbis/runtime-api/storage/src/lib.rs",
+        "target": "owner_agreements",
+        "pallet": "StorageProvider",
+        "pallet_index": 120,
+        "runtime_api_version": 4,
+        "implementation_source": "origin/orbis/runtime/src/lib.rs"
+      },
+      "metadata_binding": {
+        "metadata_hash": "0xa11fc57ceabd72676b4f1f6dec860de0c8f52f9d2e9496ea36366d1ba47cd391",
+        "inventory": "runtime-source-item-index-and-canonical-sdk-typed-factory;decoded-metadata-blob-unavailable"
+      },
+      "canonical_arguments": [
+        "0x1111111111111111111111111111111111111111111111111111111111111111",
+        {
+          "cursor": null,
+          "limit": 1
+        }
+      ]
+    },
+    {
+      "id": "storage:container_agreements",
+      "capability": "storage",
+      "method": "container_agreements",
+      "finality": "finalized",
+      "parameters": [
+        {
+          "name": "container_ref",
+          "schema": {
+            "type": "string",
+            "pattern": "^0x[0-9a-f]{64}$"
+          }
+        },
+        {
+          "name": "cursor",
+          "schema": {
+            "anyOf": [
+              {
+                "type": "null"
+              },
+              {
+                "type": "integer",
+                "minimum": 0,
+                "maximum": 4294967295
+              }
+            ]
+          }
+        },
+        {
+          "name": "limit",
+          "schema": {
+            "type": "integer",
+            "minimum": 0,
+            "maximum": 100
+          }
+        }
+      ],
+      "sample_payload": {
+        "container_ref": "0x1111111111111111111111111111111111111111111111111111111111111111",
+        "cursor": null,
+        "limit": 1
+      },
+      "rust": {
+        "declaration": "StorageProviderQuery",
+        "variant": "ContainerAgreements",
+        "result": "StorageProviderResponse"
+      },
+      "typescript": {
+        "object": "provider",
+        "callable": "containerAgreements"
+      },
+      "runtime": {
+        "kind": "runtime-api",
+        "source": "origin/orbis/runtime-api/storage/src/lib.rs",
+        "target": "container_agreements",
+        "pallet": "StorageProvider",
+        "pallet_index": 120,
+        "runtime_api_version": 4,
+        "implementation_source": "origin/orbis/runtime/src/lib.rs"
+      },
+      "metadata_binding": {
+        "metadata_hash": "0xa11fc57ceabd72676b4f1f6dec860de0c8f52f9d2e9496ea36366d1ba47cd391",
         "inventory": "runtime-source-item-index-and-canonical-sdk-typed-factory;decoded-metadata-blob-unavailable"
       },
       "canonical_arguments": [
@@ -6240,11 +6385,11 @@
         "target": "agreement_nonce",
         "pallet": "StorageProvider",
         "pallet_index": 120,
-        "runtime_api_version": 10,
+        "runtime_api_version": 4,
         "implementation_source": "origin/orbis/runtime/src/lib.rs"
       },
       "metadata_binding": {
-        "metadata_hash": "0x50c8958f0171889a4b01093a5dd5272faf8802018f24a4ac22b231d37b2adc45",
+        "metadata_hash": "0xa11fc57ceabd72676b4f1f6dec860de0c8f52f9d2e9496ea36366d1ba47cd391",
         "inventory": "runtime-source-item-index-and-canonical-sdk-typed-factory;decoded-metadata-blob-unavailable"
       },
       "canonical_arguments": [
@@ -6283,11 +6428,11 @@
         "target": "challenge",
         "pallet": "StorageProvider",
         "pallet_index": 120,
-        "runtime_api_version": 10,
+        "runtime_api_version": 4,
         "implementation_source": "origin/orbis/runtime/src/lib.rs"
       },
       "metadata_binding": {
-        "metadata_hash": "0x50c8958f0171889a4b01093a5dd5272faf8802018f24a4ac22b231d37b2adc45",
+        "metadata_hash": "0xa11fc57ceabd72676b4f1f6dec860de0c8f52f9d2e9496ea36366d1ba47cd391",
         "inventory": "runtime-source-item-index-and-canonical-sdk-typed-factory;decoded-metadata-blob-unavailable"
       },
       "canonical_arguments": [
@@ -6351,11 +6496,11 @@
         "target": "challenges_at",
         "pallet": "StorageProvider",
         "pallet_index": 120,
-        "runtime_api_version": 10,
+        "runtime_api_version": 4,
         "implementation_source": "origin/orbis/runtime/src/lib.rs"
       },
       "metadata_binding": {
-        "metadata_hash": "0x50c8958f0171889a4b01093a5dd5272faf8802018f24a4ac22b231d37b2adc45",
+        "metadata_hash": "0xa11fc57ceabd72676b4f1f6dec860de0c8f52f9d2e9496ea36366d1ba47cd391",
         "inventory": "runtime-source-item-index-and-canonical-sdk-typed-factory;decoded-metadata-blob-unavailable"
       },
       "canonical_arguments": [
@@ -6364,6 +6509,49 @@
           "cursor": null,
           "limit": 1
         }
+      ]
+    },
+    {
+      "id": "storage:open_challenge_count",
+      "capability": "storage",
+      "method": "open_challenge_count",
+      "finality": "finalized",
+      "parameters": [
+        {
+          "name": "agreement_id",
+          "schema": {
+            "type": "string",
+            "pattern": "^0x[0-9a-f]{64}$"
+          }
+        }
+      ],
+      "sample_payload": {
+        "agreement_id": "0x1111111111111111111111111111111111111111111111111111111111111111"
+      },
+      "rust": {
+        "declaration": "StorageProviderQuery",
+        "variant": "OpenChallengeCount",
+        "result": "StorageProviderResponse"
+      },
+      "typescript": {
+        "object": "provider",
+        "callable": "openChallengeCount"
+      },
+      "runtime": {
+        "kind": "runtime-api",
+        "source": "origin/orbis/runtime-api/storage/src/lib.rs",
+        "target": "open_challenge_count",
+        "pallet": "StorageProvider",
+        "pallet_index": 120,
+        "runtime_api_version": 4,
+        "implementation_source": "origin/orbis/runtime/src/lib.rs"
+      },
+      "metadata_binding": {
+        "metadata_hash": "0xa11fc57ceabd72676b4f1f6dec860de0c8f52f9d2e9496ea36366d1ba47cd391",
+        "inventory": "runtime-source-item-index-and-canonical-sdk-typed-factory;decoded-metadata-blob-unavailable"
+      },
+      "canonical_arguments": [
+        "0x1111111111111111111111111111111111111111111111111111111111111111"
       ]
     },
     {
@@ -6407,11 +6595,11 @@
         "target": "can_accept_capacity",
         "pallet": "StorageProvider",
         "pallet_index": 120,
-        "runtime_api_version": 10,
+        "runtime_api_version": 4,
         "implementation_source": "origin/orbis/runtime/src/lib.rs"
       },
       "metadata_binding": {
-        "metadata_hash": "0x50c8958f0171889a4b01093a5dd5272faf8802018f24a4ac22b231d37b2adc45",
+        "metadata_hash": "0xa11fc57ceabd72676b4f1f6dec860de0c8f52f9d2e9496ea36366d1ba47cd391",
         "inventory": "runtime-source-item-index-and-canonical-sdk-typed-factory;decoded-metadata-blob-unavailable"
       },
       "canonical_arguments": [
@@ -6420,30 +6608,31 @@
       ]
     },
     {
-      "id": "storage:bucket_checkpoint",
+      "id": "storage:provider_checkpoint",
       "capability": "storage",
-      "method": "bucket_checkpoint",
+      "method": "provider_checkpoint",
       "finality": "finalized",
       "parameters": [
         {
-          "name": "bucket",
+          "name": "provider",
           "schema": {
             "type": "string",
-            "pattern": "^0x[0-9a-f]{64}$"
+            "minLength": 1,
+            "maxLength": 128
           }
         }
       ],
       "sample_payload": {
-        "bucket": "0x1111111111111111111111111111111111111111111111111111111111111111"
+        "provider": "0x1111111111111111111111111111111111111111111111111111111111111111"
       },
       "rust": {
         "declaration": "StorageProviderQuery",
-        "variant": "BucketCheckpoint",
+        "variant": "ProviderCheckpoint",
         "result": "StorageProviderResponse"
       },
       "typescript": {
         "object": "provider",
-        "callable": "bucketCheckpoint"
+        "callable": "providerCheckpoint"
       },
       "runtime": {
         "kind": "runtime-api",
@@ -6451,11 +6640,98 @@
         "target": "checkpoint",
         "pallet": "StorageProvider",
         "pallet_index": 120,
-        "runtime_api_version": 10,
+        "runtime_api_version": 4,
         "implementation_source": "origin/orbis/runtime/src/lib.rs"
       },
       "metadata_binding": {
-        "metadata_hash": "0x50c8958f0171889a4b01093a5dd5272faf8802018f24a4ac22b231d37b2adc45",
+        "metadata_hash": "0xa11fc57ceabd72676b4f1f6dec860de0c8f52f9d2e9496ea36366d1ba47cd391",
+        "inventory": "runtime-source-item-index-and-canonical-sdk-typed-factory;decoded-metadata-blob-unavailable"
+      },
+      "canonical_arguments": [
+        "0x1111111111111111111111111111111111111111111111111111111111111111"
+      ]
+    },
+    {
+      "id": "storage:provider_root",
+      "capability": "storage",
+      "method": "provider_root",
+      "finality": "finalized",
+      "parameters": [
+        {
+          "name": "provider",
+          "schema": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 128
+          }
+        }
+      ],
+      "sample_payload": {
+        "provider": "0x1111111111111111111111111111111111111111111111111111111111111111"
+      },
+      "rust": {
+        "declaration": "StorageProviderQuery",
+        "variant": "ProviderRoot",
+        "result": "StorageProviderResponse"
+      },
+      "typescript": {
+        "object": "provider",
+        "callable": "providerRoot"
+      },
+      "runtime": {
+        "kind": "runtime-api",
+        "source": "origin/orbis/runtime-api/storage/src/lib.rs",
+        "target": "provider_root",
+        "pallet": "StorageProvider",
+        "pallet_index": 120,
+        "runtime_api_version": 4,
+        "implementation_source": "origin/orbis/runtime/src/lib.rs"
+      },
+      "metadata_binding": {
+        "metadata_hash": "0xa11fc57ceabd72676b4f1f6dec860de0c8f52f9d2e9496ea36366d1ba47cd391",
+        "inventory": "runtime-source-item-index-and-canonical-sdk-typed-factory;decoded-metadata-blob-unavailable"
+      },
+      "canonical_arguments": [
+        "0x1111111111111111111111111111111111111111111111111111111111111111"
+      ]
+    },
+    {
+      "id": "storage:deletion_acknowledgement",
+      "capability": "storage",
+      "method": "deletion_acknowledgement",
+      "finality": "finalized",
+      "parameters": [
+        {
+          "name": "agreement_id",
+          "schema": {
+            "type": "string",
+            "pattern": "^0x[0-9a-f]{64}$"
+          }
+        }
+      ],
+      "sample_payload": {
+        "agreement_id": "0x1111111111111111111111111111111111111111111111111111111111111111"
+      },
+      "rust": {
+        "declaration": "StorageProviderQuery",
+        "variant": "DeletionAcknowledgement",
+        "result": "StorageProviderResponse"
+      },
+      "typescript": {
+        "object": "provider",
+        "callable": "deletionAcknowledgement"
+      },
+      "runtime": {
+        "kind": "runtime-api",
+        "source": "origin/orbis/runtime-api/storage/src/lib.rs",
+        "target": "deletion_acknowledgement",
+        "pallet": "StorageProvider",
+        "pallet_index": 120,
+        "runtime_api_version": 4,
+        "implementation_source": "origin/orbis/runtime/src/lib.rs"
+      },
+      "metadata_binding": {
+        "metadata_hash": "0xa11fc57ceabd72676b4f1f6dec860de0c8f52f9d2e9496ea36366d1ba47cd391",
         "inventory": "runtime-source-item-index-and-canonical-sdk-typed-factory;decoded-metadata-blob-unavailable"
       },
       "canonical_arguments": [
@@ -6524,7 +6800,7 @@
         "call_index": 0
       },
       "metadata_binding": {
-        "metadata_hash": "0x50c8958f0171889a4b01093a5dd5272faf8802018f24a4ac22b231d37b2adc45",
+        "metadata_hash": "0xa11fc57ceabd72676b4f1f6dec860de0c8f52f9d2e9496ea36366d1ba47cd391",
         "inventory": "runtime-source-item-index-and-canonical-sdk-typed-factory;decoded-metadata-blob-unavailable"
       },
       "canonical_arguments": [
@@ -6596,7 +6872,7 @@
         "call_index": 1
       },
       "metadata_binding": {
-        "metadata_hash": "0x50c8958f0171889a4b01093a5dd5272faf8802018f24a4ac22b231d37b2adc45",
+        "metadata_hash": "0xa11fc57ceabd72676b4f1f6dec860de0c8f52f9d2e9496ea36366d1ba47cd391",
         "inventory": "runtime-source-item-index-and-canonical-sdk-typed-factory;decoded-metadata-blob-unavailable"
       },
       "canonical_arguments": [
@@ -6656,7 +6932,7 @@
         "call_index": 2
       },
       "metadata_binding": {
-        "metadata_hash": "0x50c8958f0171889a4b01093a5dd5272faf8802018f24a4ac22b231d37b2adc45",
+        "metadata_hash": "0xa11fc57ceabd72676b4f1f6dec860de0c8f52f9d2e9496ea36366d1ba47cd391",
         "inventory": "runtime-source-item-index-and-canonical-sdk-typed-factory;decoded-metadata-blob-unavailable"
       },
       "canonical_arguments": [
@@ -6700,7 +6976,7 @@
         "call_index": 3
       },
       "metadata_binding": {
-        "metadata_hash": "0x50c8958f0171889a4b01093a5dd5272faf8802018f24a4ac22b231d37b2adc45",
+        "metadata_hash": "0xa11fc57ceabd72676b4f1f6dec860de0c8f52f9d2e9496ea36366d1ba47cd391",
         "inventory": "runtime-source-item-index-and-canonical-sdk-typed-factory;decoded-metadata-blob-unavailable"
       },
       "canonical_arguments": [
@@ -6732,7 +7008,7 @@
         "call_index": 4
       },
       "metadata_binding": {
-        "metadata_hash": "0x50c8958f0171889a4b01093a5dd5272faf8802018f24a4ac22b231d37b2adc45",
+        "metadata_hash": "0xa11fc57ceabd72676b4f1f6dec860de0c8f52f9d2e9496ea36366d1ba47cd391",
         "inventory": "runtime-source-item-index-and-canonical-sdk-typed-factory;decoded-metadata-blob-unavailable"
       },
       "canonical_arguments": []
@@ -6820,7 +7096,7 @@
         "call_index": 5
       },
       "metadata_binding": {
-        "metadata_hash": "0x50c8958f0171889a4b01093a5dd5272faf8802018f24a4ac22b231d37b2adc45",
+        "metadata_hash": "0xa11fc57ceabd72676b4f1f6dec860de0c8f52f9d2e9496ea36366d1ba47cd391",
         "inventory": "runtime-source-item-index-and-canonical-sdk-typed-factory;decoded-metadata-blob-unavailable"
       },
       "canonical_arguments": [
@@ -6869,7 +7145,7 @@
         "call_index": 6
       },
       "metadata_binding": {
-        "metadata_hash": "0x50c8958f0171889a4b01093a5dd5272faf8802018f24a4ac22b231d37b2adc45",
+        "metadata_hash": "0xa11fc57ceabd72676b4f1f6dec860de0c8f52f9d2e9496ea36366d1ba47cd391",
         "inventory": "runtime-source-item-index-and-canonical-sdk-typed-factory;decoded-metadata-blob-unavailable"
       },
       "canonical_arguments": [
@@ -6911,7 +7187,7 @@
         "call_index": 7
       },
       "metadata_binding": {
-        "metadata_hash": "0x50c8958f0171889a4b01093a5dd5272faf8802018f24a4ac22b231d37b2adc45",
+        "metadata_hash": "0xa11fc57ceabd72676b4f1f6dec860de0c8f52f9d2e9496ea36366d1ba47cd391",
         "inventory": "runtime-source-item-index-and-canonical-sdk-typed-factory;decoded-metadata-blob-unavailable"
       },
       "canonical_arguments": [
@@ -6969,7 +7245,7 @@
         "call_index": 8
       },
       "metadata_binding": {
-        "metadata_hash": "0x50c8958f0171889a4b01093a5dd5272faf8802018f24a4ac22b231d37b2adc45",
+        "metadata_hash": "0xa11fc57ceabd72676b4f1f6dec860de0c8f52f9d2e9496ea36366d1ba47cd391",
         "inventory": "runtime-source-item-index-and-canonical-sdk-typed-factory;decoded-metadata-blob-unavailable"
       },
       "canonical_arguments": [
@@ -7021,7 +7297,7 @@
         "call_index": 9
       },
       "metadata_binding": {
-        "metadata_hash": "0x50c8958f0171889a4b01093a5dd5272faf8802018f24a4ac22b231d37b2adc45",
+        "metadata_hash": "0xa11fc57ceabd72676b4f1f6dec860de0c8f52f9d2e9496ea36366d1ba47cd391",
         "inventory": "runtime-source-item-index-and-canonical-sdk-typed-factory;decoded-metadata-blob-unavailable"
       },
       "canonical_arguments": [
@@ -7064,7 +7340,7 @@
         "call_index": 10
       },
       "metadata_binding": {
-        "metadata_hash": "0x50c8958f0171889a4b01093a5dd5272faf8802018f24a4ac22b231d37b2adc45",
+        "metadata_hash": "0xa11fc57ceabd72676b4f1f6dec860de0c8f52f9d2e9496ea36366d1ba47cd391",
         "inventory": "runtime-source-item-index-and-canonical-sdk-typed-factory;decoded-metadata-blob-unavailable"
       },
       "canonical_arguments": [
@@ -7114,7 +7390,7 @@
         "call_index": 11
       },
       "metadata_binding": {
-        "metadata_hash": "0x50c8958f0171889a4b01093a5dd5272faf8802018f24a4ac22b231d37b2adc45",
+        "metadata_hash": "0xa11fc57ceabd72676b4f1f6dec860de0c8f52f9d2e9496ea36366d1ba47cd391",
         "inventory": "runtime-source-item-index-and-canonical-sdk-typed-factory;decoded-metadata-blob-unavailable"
       },
       "canonical_arguments": [
@@ -7210,7 +7486,7 @@
         "call_index": 15
       },
       "metadata_binding": {
-        "metadata_hash": "0x50c8958f0171889a4b01093a5dd5272faf8802018f24a4ac22b231d37b2adc45",
+        "metadata_hash": "0xa11fc57ceabd72676b4f1f6dec860de0c8f52f9d2e9496ea36366d1ba47cd391",
         "inventory": "runtime-source-item-index-and-canonical-sdk-typed-factory;decoded-metadata-blob-unavailable"
       },
       "canonical_arguments": [
@@ -7273,7 +7549,7 @@
         "call_index": 16
       },
       "metadata_binding": {
-        "metadata_hash": "0x50c8958f0171889a4b01093a5dd5272faf8802018f24a4ac22b231d37b2adc45",
+        "metadata_hash": "0xa11fc57ceabd72676b4f1f6dec860de0c8f52f9d2e9496ea36366d1ba47cd391",
         "inventory": "runtime-source-item-index-and-canonical-sdk-typed-factory;decoded-metadata-blob-unavailable"
       },
       "canonical_arguments": [
@@ -7318,7 +7594,7 @@
         "call_index": 12
       },
       "metadata_binding": {
-        "metadata_hash": "0x50c8958f0171889a4b01093a5dd5272faf8802018f24a4ac22b231d37b2adc45",
+        "metadata_hash": "0xa11fc57ceabd72676b4f1f6dec860de0c8f52f9d2e9496ea36366d1ba47cd391",
         "inventory": "runtime-source-item-index-and-canonical-sdk-typed-factory;decoded-metadata-blob-unavailable"
       },
       "canonical_arguments": [
@@ -7360,7 +7636,7 @@
         "call_index": 13
       },
       "metadata_binding": {
-        "metadata_hash": "0x50c8958f0171889a4b01093a5dd5272faf8802018f24a4ac22b231d37b2adc45",
+        "metadata_hash": "0xa11fc57ceabd72676b4f1f6dec860de0c8f52f9d2e9496ea36366d1ba47cd391",
         "inventory": "runtime-source-item-index-and-canonical-sdk-typed-factory;decoded-metadata-blob-unavailable"
       },
       "canonical_arguments": [
@@ -7402,7 +7678,7 @@
         "call_index": 14
       },
       "metadata_binding": {
-        "metadata_hash": "0x50c8958f0171889a4b01093a5dd5272faf8802018f24a4ac22b231d37b2adc45",
+        "metadata_hash": "0xa11fc57ceabd72676b4f1f6dec860de0c8f52f9d2e9496ea36366d1ba47cd391",
         "inventory": "runtime-source-item-index-and-canonical-sdk-typed-factory;decoded-metadata-blob-unavailable"
       },
       "canonical_arguments": [
@@ -7441,11 +7717,11 @@
         "target": "drive",
         "pallet": "Drive",
         "pallet_index": 121,
-        "runtime_api_version": 2,
+        "runtime_api_version": 4,
         "implementation_source": "origin/orbis/runtime/src/lib.rs"
       },
       "metadata_binding": {
-        "metadata_hash": "0x50c8958f0171889a4b01093a5dd5272faf8802018f24a4ac22b231d37b2adc45",
+        "metadata_hash": "0xa11fc57ceabd72676b4f1f6dec860de0c8f52f9d2e9496ea36366d1ba47cd391",
         "inventory": "runtime-source-item-index-and-canonical-sdk-typed-factory;decoded-metadata-blob-unavailable"
       },
       "canonical_arguments": [
@@ -7510,11 +7786,11 @@
         "target": "drives",
         "pallet": "Drive",
         "pallet_index": 121,
-        "runtime_api_version": 2,
+        "runtime_api_version": 4,
         "implementation_source": "origin/orbis/runtime/src/lib.rs"
       },
       "metadata_binding": {
-        "metadata_hash": "0x50c8958f0171889a4b01093a5dd5272faf8802018f24a4ac22b231d37b2adc45",
+        "metadata_hash": "0xa11fc57ceabd72676b4f1f6dec860de0c8f52f9d2e9496ea36366d1ba47cd391",
         "inventory": "runtime-source-item-index-and-canonical-sdk-typed-factory;decoded-metadata-blob-unavailable"
       },
       "canonical_arguments": [
@@ -7582,11 +7858,11 @@
         "target": "controllers",
         "pallet": "Drive",
         "pallet_index": 121,
-        "runtime_api_version": 2,
+        "runtime_api_version": 4,
         "implementation_source": "origin/orbis/runtime/src/lib.rs"
       },
       "metadata_binding": {
-        "metadata_hash": "0x50c8958f0171889a4b01093a5dd5272faf8802018f24a4ac22b231d37b2adc45",
+        "metadata_hash": "0xa11fc57ceabd72676b4f1f6dec860de0c8f52f9d2e9496ea36366d1ba47cd391",
         "inventory": "runtime-source-item-index-and-canonical-sdk-typed-factory;decoded-metadata-blob-unavailable"
       },
       "canonical_arguments": [
@@ -7630,11 +7906,11 @@
         "target": "next_drive_nonce",
         "pallet": "Drive",
         "pallet_index": 121,
-        "runtime_api_version": 2,
+        "runtime_api_version": 4,
         "implementation_source": "origin/orbis/runtime/src/lib.rs"
       },
       "metadata_binding": {
-        "metadata_hash": "0x50c8958f0171889a4b01093a5dd5272faf8802018f24a4ac22b231d37b2adc45",
+        "metadata_hash": "0xa11fc57ceabd72676b4f1f6dec860de0c8f52f9d2e9496ea36366d1ba47cd391",
         "inventory": "runtime-source-item-index-and-canonical-sdk-typed-factory;decoded-metadata-blob-unavailable"
       },
       "canonical_arguments": [
@@ -7692,7 +7968,7 @@
         "call_index": 0
       },
       "metadata_binding": {
-        "metadata_hash": "0x50c8958f0171889a4b01093a5dd5272faf8802018f24a4ac22b231d37b2adc45",
+        "metadata_hash": "0xa11fc57ceabd72676b4f1f6dec860de0c8f52f9d2e9496ea36366d1ba47cd391",
         "inventory": "runtime-source-item-index-and-canonical-sdk-typed-factory;decoded-metadata-blob-unavailable"
       },
       "canonical_arguments": [
@@ -7758,7 +8034,7 @@
         "call_index": 1
       },
       "metadata_binding": {
-        "metadata_hash": "0x50c8958f0171889a4b01093a5dd5272faf8802018f24a4ac22b231d37b2adc45",
+        "metadata_hash": "0xa11fc57ceabd72676b4f1f6dec860de0c8f52f9d2e9496ea36366d1ba47cd391",
         "inventory": "runtime-source-item-index-and-canonical-sdk-typed-factory;decoded-metadata-blob-unavailable"
       },
       "canonical_arguments": [
@@ -7818,7 +8094,7 @@
         "call_index": 2
       },
       "metadata_binding": {
-        "metadata_hash": "0x50c8958f0171889a4b01093a5dd5272faf8802018f24a4ac22b231d37b2adc45",
+        "metadata_hash": "0xa11fc57ceabd72676b4f1f6dec860de0c8f52f9d2e9496ea36366d1ba47cd391",
         "inventory": "runtime-source-item-index-and-canonical-sdk-typed-factory;decoded-metadata-blob-unavailable"
       },
       "canonical_arguments": [
@@ -7871,7 +8147,7 @@
         "call_index": 3
       },
       "metadata_binding": {
-        "metadata_hash": "0x50c8958f0171889a4b01093a5dd5272faf8802018f24a4ac22b231d37b2adc45",
+        "metadata_hash": "0xa11fc57ceabd72676b4f1f6dec860de0c8f52f9d2e9496ea36366d1ba47cd391",
         "inventory": "runtime-source-item-index-and-canonical-sdk-typed-factory;decoded-metadata-blob-unavailable"
       },
       "canonical_arguments": [
@@ -7914,7 +8190,7 @@
         "call_index": 4
       },
       "metadata_binding": {
-        "metadata_hash": "0x50c8958f0171889a4b01093a5dd5272faf8802018f24a4ac22b231d37b2adc45",
+        "metadata_hash": "0xa11fc57ceabd72676b4f1f6dec860de0c8f52f9d2e9496ea36366d1ba47cd391",
         "inventory": "runtime-source-item-index-and-canonical-sdk-typed-factory;decoded-metadata-blob-unavailable"
       },
       "canonical_arguments": [
@@ -7953,11 +8229,11 @@
         "target": "bucket",
         "pallet": "S3",
         "pallet_index": 122,
-        "runtime_api_version": 3,
+        "runtime_api_version": 4,
         "implementation_source": "origin/orbis/runtime/src/lib.rs"
       },
       "metadata_binding": {
-        "metadata_hash": "0x50c8958f0171889a4b01093a5dd5272faf8802018f24a4ac22b231d37b2adc45",
+        "metadata_hash": "0xa11fc57ceabd72676b4f1f6dec860de0c8f52f9d2e9496ea36366d1ba47cd391",
         "inventory": "runtime-source-item-index-and-canonical-sdk-typed-factory;decoded-metadata-blob-unavailable"
       },
       "canonical_arguments": [
@@ -7998,11 +8274,11 @@
         "target": "bucket_by_name",
         "pallet": "S3",
         "pallet_index": 122,
-        "runtime_api_version": 3,
+        "runtime_api_version": 4,
         "implementation_source": "origin/orbis/runtime/src/lib.rs"
       },
       "metadata_binding": {
-        "metadata_hash": "0x50c8958f0171889a4b01093a5dd5272faf8802018f24a4ac22b231d37b2adc45",
+        "metadata_hash": "0xa11fc57ceabd72676b4f1f6dec860de0c8f52f9d2e9496ea36366d1ba47cd391",
         "inventory": "runtime-source-item-index-and-canonical-sdk-typed-factory;decoded-metadata-blob-unavailable"
       },
       "canonical_arguments": [
@@ -8067,11 +8343,11 @@
         "target": "buckets",
         "pallet": "S3",
         "pallet_index": 122,
-        "runtime_api_version": 3,
+        "runtime_api_version": 4,
         "implementation_source": "origin/orbis/runtime/src/lib.rs"
       },
       "metadata_binding": {
-        "metadata_hash": "0x50c8958f0171889a4b01093a5dd5272faf8802018f24a4ac22b231d37b2adc45",
+        "metadata_hash": "0xa11fc57ceabd72676b4f1f6dec860de0c8f52f9d2e9496ea36366d1ba47cd391",
         "inventory": "runtime-source-item-index-and-canonical-sdk-typed-factory;decoded-metadata-blob-unavailable"
       },
       "canonical_arguments": [
@@ -8096,21 +8372,6 @@
           }
         },
         {
-          "name": "prefix",
-          "schema": {
-            "anyOf": [
-              {
-                "type": "null"
-              },
-              {
-                "type": "string",
-                "minLength": 0,
-                "maxUtf8Bytes": 1024
-              }
-            ]
-          }
-        },
-        {
           "name": "cursor",
           "schema": {
             "anyOf": [
@@ -8118,23 +8379,9 @@
                 "type": "null"
               },
               {
-                "type": "object",
-                "additionalProperties": false,
-                "required": [
-                  "snapshot_version",
-                  "last_key"
-                ],
-                "properties": {
-                  "snapshot_version": {
-                    "type": "string",
-                    "pattern": "^(0|[1-9][0-9]{0,19})$"
-                  },
-                  "last_key": {
-                    "type": "string",
-                    "minLength": 1,
-                    "maxUtf8Bytes": 1024
-                  }
-                }
+                "type": "integer",
+                "minimum": 0,
+                "maximum": 4294967295
               }
             ]
           }
@@ -8143,14 +8390,13 @@
           "name": "limit",
           "schema": {
             "type": "integer",
-            "minimum": 1,
+            "minimum": 0,
             "maximum": 100
           }
         }
       ],
       "sample_payload": {
         "bucket": "0x1111111111111111111111111111111111111111111111111111111111111111",
-        "prefix": null,
         "cursor": null,
         "limit": 1
       },
@@ -8169,17 +8415,16 @@
         "target": "object_keys",
         "pallet": "S3",
         "pallet_index": 122,
-        "runtime_api_version": 3,
+        "runtime_api_version": 4,
         "implementation_source": "origin/orbis/runtime/src/lib.rs"
       },
       "metadata_binding": {
-        "metadata_hash": "0x50c8958f0171889a4b01093a5dd5272faf8802018f24a4ac22b231d37b2adc45",
+        "metadata_hash": "0xa11fc57ceabd72676b4f1f6dec860de0c8f52f9d2e9496ea36366d1ba47cd391",
         "inventory": "runtime-source-item-index-and-canonical-sdk-typed-factory;decoded-metadata-blob-unavailable"
       },
       "canonical_arguments": [
         "0x1111111111111111111111111111111111111111111111111111111111111111",
         {
-          "prefix": null,
           "cursor": null,
           "limit": 1
         }
@@ -8226,11 +8471,11 @@
         "target": "object",
         "pallet": "S3",
         "pallet_index": 122,
-        "runtime_api_version": 3,
+        "runtime_api_version": 4,
         "implementation_source": "origin/orbis/runtime/src/lib.rs"
       },
       "metadata_binding": {
-        "metadata_hash": "0x50c8958f0171889a4b01093a5dd5272faf8802018f24a4ac22b231d37b2adc45",
+        "metadata_hash": "0xa11fc57ceabd72676b4f1f6dec860de0c8f52f9d2e9496ea36366d1ba47cd391",
         "inventory": "runtime-source-item-index-and-canonical-sdk-typed-factory;decoded-metadata-blob-unavailable"
       },
       "canonical_arguments": [
@@ -8304,11 +8549,11 @@
         "target": "object_history",
         "pallet": "S3",
         "pallet_index": 122,
-        "runtime_api_version": 3,
+        "runtime_api_version": 4,
         "implementation_source": "origin/orbis/runtime/src/lib.rs"
       },
       "metadata_binding": {
-        "metadata_hash": "0x50c8958f0171889a4b01093a5dd5272faf8802018f24a4ac22b231d37b2adc45",
+        "metadata_hash": "0xa11fc57ceabd72676b4f1f6dec860de0c8f52f9d2e9496ea36366d1ba47cd391",
         "inventory": "runtime-source-item-index-and-canonical-sdk-typed-factory;decoded-metadata-blob-unavailable"
       },
       "canonical_arguments": [
@@ -8361,11 +8606,11 @@
         "target": "object_id",
         "pallet": "S3",
         "pallet_index": 122,
-        "runtime_api_version": 3,
+        "runtime_api_version": 4,
         "implementation_source": "origin/orbis/runtime/src/lib.rs"
       },
       "metadata_binding": {
-        "metadata_hash": "0x50c8958f0171889a4b01093a5dd5272faf8802018f24a4ac22b231d37b2adc45",
+        "metadata_hash": "0xa11fc57ceabd72676b4f1f6dec860de0c8f52f9d2e9496ea36366d1ba47cd391",
         "inventory": "runtime-source-item-index-and-canonical-sdk-typed-factory;decoded-metadata-blob-unavailable"
       },
       "canonical_arguments": [
@@ -8410,7 +8655,7 @@
         "call_index": 0
       },
       "metadata_binding": {
-        "metadata_hash": "0x50c8958f0171889a4b01093a5dd5272faf8802018f24a4ac22b231d37b2adc45",
+        "metadata_hash": "0xa11fc57ceabd72676b4f1f6dec860de0c8f52f9d2e9496ea36366d1ba47cd391",
         "inventory": "runtime-source-item-index-and-canonical-sdk-typed-factory;decoded-metadata-blob-unavailable"
       },
       "canonical_arguments": [
@@ -8476,7 +8721,7 @@
         "call_index": 1
       },
       "metadata_binding": {
-        "metadata_hash": "0x50c8958f0171889a4b01093a5dd5272faf8802018f24a4ac22b231d37b2adc45",
+        "metadata_hash": "0xa11fc57ceabd72676b4f1f6dec860de0c8f52f9d2e9496ea36366d1ba47cd391",
         "inventory": "runtime-source-item-index-and-canonical-sdk-typed-factory;decoded-metadata-blob-unavailable"
       },
       "canonical_arguments": [
@@ -8538,7 +8783,7 @@
         "call_index": 2
       },
       "metadata_binding": {
-        "metadata_hash": "0x50c8958f0171889a4b01093a5dd5272faf8802018f24a4ac22b231d37b2adc45",
+        "metadata_hash": "0xa11fc57ceabd72676b4f1f6dec860de0c8f52f9d2e9496ea36366d1ba47cd391",
         "inventory": "runtime-source-item-index-and-canonical-sdk-typed-factory;decoded-metadata-blob-unavailable"
       },
       "canonical_arguments": [
@@ -8597,7 +8842,7 @@
         "call_index": 3
       },
       "metadata_binding": {
-        "metadata_hash": "0x50c8958f0171889a4b01093a5dd5272faf8802018f24a4ac22b231d37b2adc45",
+        "metadata_hash": "0xa11fc57ceabd72676b4f1f6dec860de0c8f52f9d2e9496ea36366d1ba47cd391",
         "inventory": "runtime-source-item-index-and-canonical-sdk-typed-factory;decoded-metadata-blob-unavailable"
       },
       "canonical_arguments": [
@@ -8656,7 +8901,7 @@
         "call_index": 4
       },
       "metadata_binding": {
-        "metadata_hash": "0x50c8958f0171889a4b01093a5dd5272faf8802018f24a4ac22b231d37b2adc45",
+        "metadata_hash": "0xa11fc57ceabd72676b4f1f6dec860de0c8f52f9d2e9496ea36366d1ba47cd391",
         "inventory": "runtime-source-item-index-and-canonical-sdk-typed-factory;decoded-metadata-blob-unavailable"
       },
       "canonical_arguments": [
@@ -8732,7 +8977,7 @@
         "call_index": 5
       },
       "metadata_binding": {
-        "metadata_hash": "0x50c8958f0171889a4b01093a5dd5272faf8802018f24a4ac22b231d37b2adc45",
+        "metadata_hash": "0xa11fc57ceabd72676b4f1f6dec860de0c8f52f9d2e9496ea36366d1ba47cd391",
         "inventory": "runtime-source-item-index-and-canonical-sdk-typed-factory;decoded-metadata-blob-unavailable"
       },
       "canonical_arguments": [
@@ -8794,7 +9039,7 @@
         "call_index": 6
       },
       "metadata_binding": {
-        "metadata_hash": "0x50c8958f0171889a4b01093a5dd5272faf8802018f24a4ac22b231d37b2adc45",
+        "metadata_hash": "0xa11fc57ceabd72676b4f1f6dec860de0c8f52f9d2e9496ea36366d1ba47cd391",
         "inventory": "runtime-source-item-index-and-canonical-sdk-typed-factory;decoded-metadata-blob-unavailable"
       },
       "canonical_arguments": [
@@ -8846,7 +9091,7 @@
         "call_index": 7
       },
       "metadata_binding": {
-        "metadata_hash": "0x50c8958f0171889a4b01093a5dd5272faf8802018f24a4ac22b231d37b2adc45",
+        "metadata_hash": "0xa11fc57ceabd72676b4f1f6dec860de0c8f52f9d2e9496ea36366d1ba47cd391",
         "inventory": "runtime-source-item-index-and-canonical-sdk-typed-factory;decoded-metadata-blob-unavailable"
       },
       "canonical_arguments": [
@@ -13407,7 +13652,7 @@
         "target": "prepare_sponsored_intent"
       },
       "metadata_binding": {
-        "metadata_hash": "0x50c8958f0171889a4b01093a5dd5272faf8802018f24a4ac22b231d37b2adc45",
+        "metadata_hash": "0xa11fc57ceabd72676b4f1f6dec860de0c8f52f9d2e9496ea36366d1ba47cd391",
         "inventory": "sdk-host-operation-and-canonical-sdk-typed-factory;no-runtime-api-or-pallet-call"
       },
       "canonical_arguments": [
@@ -18064,10 +18309,10 @@
           "envelope": {
             "version": 1,
             "signing_domain": "orbis/meta-intent/v7",
-            "genesis_hash": "0x2584c9d420dc8160b85deaf958d776886366d5beecc2ee7b1236293d20ac70fc",
+            "genesis_hash": "0x657de1aa28685cfa4c66e9f3186c586f3d85db02724bcbdd1a620e0a5cc4e173",
             "spec_version": 29,
             "transaction_version": 8,
-            "metadata_hash": "0x50c8958f0171889a4b01093a5dd5272faf8802018f24a4ac22b231d37b2adc45",
+            "metadata_hash": "0xa11fc57ceabd72676b4f1f6dec860de0c8f52f9d2e9496ea36366d1ba47cd391",
             "participant": "participant-account",
             "nonce": "1",
             "mortality": {
@@ -18108,7 +18353,7 @@
         "call_index": 0
       },
       "metadata_binding": {
-        "metadata_hash": "0x50c8958f0171889a4b01093a5dd5272faf8802018f24a4ac22b231d37b2adc45",
+        "metadata_hash": "0xa11fc57ceabd72676b4f1f6dec860de0c8f52f9d2e9496ea36366d1ba47cd391",
         "inventory": "runtime-source-item-index-and-canonical-sdk-typed-factory;decoded-metadata-blob-unavailable"
       },
       "canonical_arguments": [
@@ -18116,10 +18361,10 @@
           "envelope": {
             "version": 1,
             "signing_domain": "orbis/meta-intent/v7",
-            "genesis_hash": "0x2584c9d420dc8160b85deaf958d776886366d5beecc2ee7b1236293d20ac70fc",
+            "genesis_hash": "0x657de1aa28685cfa4c66e9f3186c586f3d85db02724bcbdd1a620e0a5cc4e173",
             "spec_version": 29,
             "transaction_version": 8,
-            "metadata_hash": "0x50c8958f0171889a4b01093a5dd5272faf8802018f24a4ac22b231d37b2adc45",
+            "metadata_hash": "0xa11fc57ceabd72676b4f1f6dec860de0c8f52f9d2e9496ea36366d1ba47cd391",
             "participant": "participant-account",
             "nonce": "1",
             "mortality": {
@@ -18145,7 +18390,7 @@
   "signature_schema_basis": {
     "host_payload": "product-sdk core validation rules and direct callable canonical arguments",
     "rust_binding": "canonical samples deserialize into the named Rust query/command variants and validate or prepare successfully",
-    "runtime_metadata": "checked-in Commons V14 SCALE metadata is extracted from the current runtime Wasm and drives the reproducible PAPI descriptor; this route contract remains the authoritative product-policy projection",
+    "runtime_metadata": "current RFC-78 metadata hash is reproduced, but no decoded metadata blob is available; runtime argument signatures are not asserted from decoded metadata",
     "sdk_host_operation": "prepare_sponsored_intent is an SDK/host operation bound to current Orbis state; it is not represented as a runtime API or pallet call"
   }
 }

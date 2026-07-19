@@ -1,6 +1,6 @@
 {
-  "current_vector_status": "P0 hash/outcome registry complete for existing spec-29/tx-8 runtime fixtures and construction tests; the Commons PAPI descriptor is generated while per-domain semantic transaction coverage remains independently tracked",
-  "policy": "This registry proves byte/hash/outcome binding of existing runtime fixtures only. The generated Commons PAPI descriptor proves metadata-derived call availability, not semantic coverage for every future domain transaction.",
+  "current_vector_status": "P0 hash/outcome registry complete for existing spec-29/tx-8 runtime fixtures and construction tests; production PAPI call encoders remain pending by domain",
+  "policy": "This registry proves byte/hash/outcome binding of existing runtime fixtures only. It does not claim that the P0 bootstrap descriptor is a production PAPI descriptor or that every future domain call is encoded.",
   "registry_version": 1,
   "required_current_vectors": [
     {

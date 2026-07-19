@@ -29,8 +29,8 @@
       "sealed_route_evidence": {
         "capabilities": [
           "attestation",
+          "dotns",
           "identity",
-          "names",
           "storage",
           "transaction"
         ],
@@ -40,10 +40,10 @@
       },
       "inputs": {
         "manifest_sha256": "1029023624b8ac444f8a1f55629865d7e4c2ce5f334e96889076fd616f4407a1",
-        "vectors_sha256": "2e9ee4aba923383ed47bb0786a69246e800097f895b8309bbd377e7264df512b",
-        "host_request_schema_sha256": "5119dacab99c6414bfbc8bc5d4378c00476476937cbebbb944ed8e5565bc5ecd",
+        "vectors_sha256": "4421458f8f836d729edb8bb576b898cced0f39c219a9511d9de7a60580cb2c9e",
+        "host_request_schema_sha256": "5245eb7801980a65b377cf5748409805913f5ee3e6c6c5763a5a3626cf3a75b2",
         "native_error_schema_sha256": "63beb84651fb926843ba0582108aba72fa6d7598bda6418ba3f6c843dcbe3bfd",
-        "native_route_contract_sha256": "2f19961bbf42a91a4c0335657b0ca73bc2dfa889e86f83fe7f72bdf1582397d0"
+        "native_route_contract_sha256": "5821b5f7205abb360a535bd6cf84eaf50b2b1cab51f3422c7d3104b4442c73e6"
       },
       "native_only": {
         "raw_scale": false,
@@ -82,8 +82,8 @@
       "sealed_route_evidence": {
         "capabilities": [
           "attestation",
+          "dotns",
           "identity",
-          "names",
           "storage",
           "transaction"
         ],
@@ -93,10 +93,10 @@
       },
       "inputs": {
         "manifest_sha256": "cbfadc283e8bedcd6d5b6cf062c79a074f5fca9c9bed58dc78c1288b7eebf63a",
-        "vectors_sha256": "2e9ee4aba923383ed47bb0786a69246e800097f895b8309bbd377e7264df512b",
-        "host_request_schema_sha256": "5119dacab99c6414bfbc8bc5d4378c00476476937cbebbb944ed8e5565bc5ecd",
+        "vectors_sha256": "4421458f8f836d729edb8bb576b898cced0f39c219a9511d9de7a60580cb2c9e",
+        "host_request_schema_sha256": "5245eb7801980a65b377cf5748409805913f5ee3e6c6c5763a5a3626cf3a75b2",
         "native_error_schema_sha256": "63beb84651fb926843ba0582108aba72fa6d7598bda6418ba3f6c843dcbe3bfd",
-        "native_route_contract_sha256": "2f19961bbf42a91a4c0335657b0ca73bc2dfa889e86f83fe7f72bdf1582397d0"
+        "native_route_contract_sha256": "5821b5f7205abb360a535bd6cf84eaf50b2b1cab51f3422c7d3104b4442c73e6"
       },
       "native_only": {
         "raw_scale": false,

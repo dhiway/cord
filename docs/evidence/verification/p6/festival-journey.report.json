@@ -77,10 +77,10 @@
       "response": {
         "version": 1,
         "signing_domain": "orbis/meta-intent/v7",
-        "genesis_hash": "0x2584c9d420dc8160b85deaf958d776886366d5beecc2ee7b1236293d20ac70fc",
+        "genesis_hash": "0x657de1aa28685cfa4c66e9f3186c586f3d85db02724bcbdd1a620e0a5cc4e173",
         "spec_version": 29,
         "transaction_version": 8,
-        "metadata_hash": "0x50c8958f0171889a4b01093a5dd5272faf8802018f24a4ac22b231d37b2adc45",
+        "metadata_hash": "0xa11fc57ceabd72676b4f1f6dec860de0c8f52f9d2e9496ea36366d1ba47cd391",
         "participant": "0x31f3322d4923d36c41c109bdb0099193187bed99942096e4926a24c77efd0d2f",
         "nonce": "1",
         "mortality": {
@@ -101,8 +101,8 @@
             "revocable": true
           }
         },
-        "signing_payload_hash": "0xe4787db353dfd3c98fb6361945d9faf9b04eaa6a77e21d41f9afd892a7023874",
-        "intent_id": "0x5afd6c0b47725e16804bff577c22f3fb43d9ee11bb180ad35f48241144617503"
+        "signing_payload_hash": "0x1e75cdf73a05082eaccd3731063a1b28e2ec27c10e302655870f7a5879480232",
+        "intent_id": "0xcb9b8258b419a897487e784ce0b188fe0ac65edd27a5329b19ebb7f7b9261668"
       }
     },
     "sponsored_check_in": {
@@ -112,7 +112,7 @@
       "extrinsic_hash": "0xd4d4d4d4d4d4d4d4d4d4d4d4d4d4d4d4d4d4d4d4d4d4d4d4d4d4d4d4d4d4d4d4",
       "response": {
         "version": 1,
-        "intent_id": "0x5afd6c0b47725e16804bff577c22f3fb43d9ee11bb180ad35f48241144617503",
+        "intent_id": "0xcb9b8258b419a897487e784ce0b188fe0ac65edd27a5329b19ebb7f7b9261668",
         "participant": "0x31f3322d4923d36c41c109bdb0099193187bed99942096e4926a24c77efd0d2f",
         "sponsor": "festival-sponsor-account",
         "dispatched": true,
@@ -135,10 +135,10 @@
       "response": {
         "version": 1,
         "signing_domain": "orbis/meta-intent/v7",
-        "genesis_hash": "0x2584c9d420dc8160b85deaf958d776886366d5beecc2ee7b1236293d20ac70fc",
+        "genesis_hash": "0x657de1aa28685cfa4c66e9f3186c586f3d85db02724bcbdd1a620e0a5cc4e173",
         "spec_version": 29,
         "transaction_version": 8,
-        "metadata_hash": "0x50c8958f0171889a4b01093a5dd5272faf8802018f24a4ac22b231d37b2adc45",
+        "metadata_hash": "0xa11fc57ceabd72676b4f1f6dec860de0c8f52f9d2e9496ea36366d1ba47cd391",
         "participant": "0x31f3322d4923d36c41c109bdb0099193187bed99942096e4926a24c77efd0d2f",
         "nonce": "2",
         "mortality": {
@@ -159,8 +159,8 @@
             "revocable": true
           }
         },
-        "signing_payload_hash": "0x6518ef8e758ef25aabcbf288f2bea91d6d05838ceee46fd355d9308865d15fdb",
-        "intent_id": "0x8fef16fd46cf5841a4443b6dbfd8bf96ac761e9f644b4f4afebf8aa9b19d83d2"
+        "signing_payload_hash": "0x309650e5d17f9eb4252b22192933f5282c5cf602e07035f3b7517147d626f4e3",
+        "intent_id": "0xa80cfd1ea223c8f2de22a1323603bca04f1fd27be6f26f09211a9a0b368c4af4"
       }
     },
     "sponsor_budget_exhaustion": {
@@ -232,10 +232,10 @@
       "response": {
         "version": 1,
         "signing_domain": "orbis/meta-intent/v7",
-        "genesis_hash": "0x2584c9d420dc8160b85deaf958d776886366d5beecc2ee7b1236293d20ac70fc",
+        "genesis_hash": "0x657de1aa28685cfa4c66e9f3186c586f3d85db02724bcbdd1a620e0a5cc4e173",
         "spec_version": 29,
         "transaction_version": 8,
-        "metadata_hash": "0x50c8958f0171889a4b01093a5dd5272faf8802018f24a4ac22b231d37b2adc45",
+        "metadata_hash": "0xa11fc57ceabd72676b4f1f6dec860de0c8f52f9d2e9496ea36366d1ba47cd391",
         "participant": "0x31f3322d4923d36c41c109bdb0099193187bed99942096e4926a24c77efd0d2f",
         "nonce": "3",
         "mortality": {
@@ -256,8 +256,8 @@
             "revocable": true
           }
         },
-        "signing_payload_hash": "0x6ed2819e619dca70fc2a8c2b3ada0dab843c85537934502e4c40227de26119a6",
-        "intent_id": "0xeeac4c66cd05a4f53e8525e4ba77ccda15a7b00554a4724fe6128cd2fc4008e8"
+        "signing_payload_hash": "0x2cba6add4ce37242ed09271bb2c505910c35cff117bde60530b80bc5e7e7958c",
+        "intent_id": "0xc296e8ca18a13599829013209ef28f9f7404d022b409afdc7dc72e356cdb383f"
       }
     },
     "revoked_sponsored_denial": {
@@ -281,13 +281,13 @@
   "route_selections": {
     "self": [
       "identity:personhood_status",
-      "names:root_name_by_normalized_label",
-      "names:commit",
-      "names:register",
-      "names:resolve_attestation",
-      "names:root_name_by_normalized_label",
-      "names:commit",
-      "names:commit"
+      "dotns:root_name_by_normalized_label",
+      "dotns:commit",
+      "dotns:register",
+      "dotns:resolve_attestation",
+      "dotns:root_name_by_normalized_label",
+      "dotns:commit",
+      "dotns:commit"
     ],
     "sponsor": [
       "attestation:attestation_live_status",
@@ -322,7 +322,7 @@
       "event": {
         "event": "sponsored_check_in",
         "data": {
-          "intent": "0x5afd6c0b47725e16804bff577c22f3fb43d9ee11bb180ad35f48241144617503",
+          "intent": "0xcb9b8258b419a897487e784ce0b188fe0ac65edd27a5329b19ebb7f7b9261668",
           "participant": "0x31f3322d4923d36c41c109bdb0099193187bed99942096e4926a24c77efd0d2f",
           "sponsor": "festival-sponsor-account"
         }
@@ -374,7 +374,7 @@
   "sealed_route_registry": {
     "capabilities": [
       "attestation",
-      "names",
+      "dotns",
       "identity",
       "storage",
       "transaction"

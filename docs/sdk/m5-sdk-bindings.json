@@ -9,7 +9,7 @@
     },
     "route_contract": {
       "path": "docs/sdk/native-route-contract.json",
-      "sha256": "dfc03fe7109fe400386f7b91cd05f183ee34227570cab018453314373df1a9b8"
+      "sha256": "156e93a88020ced8ee9a854d451fcfdda39755fafad4404d4c855f240b6380e8"
     },
     "approval_manifest": {
       "path": "docs/evidence/p0-contract-native/architect-semantic-disposition-approval.json",
@@ -375,7 +375,7 @@
           "constructor": "new"
         },
         "typescript": {
-          "path": "product-sdk/packages/origin-sdk-names/src/index.ts",
+          "path": "product-sdk/src/names.ts",
           "function": "normalizedLabel"
         },
         "vectors": {
@@ -428,7 +428,7 @@
           "constructor": "new"
         },
         "typescript": {
-          "path": "product-sdk/packages/origin-sdk-names/src/index.ts",
+          "path": "product-sdk/src/names.ts",
           "function": "normalizedLabel"
         },
         "vectors": {

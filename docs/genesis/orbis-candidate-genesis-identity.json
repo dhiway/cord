@@ -11,14 +11,14 @@
     "forbidden_identifier_findings": [],
     "old_network_dependency_findings": [],
     "source_files": {
-      "origin/base/cli/src/chain_spec.rs": "b2484294f75e0eae31e5844885670f2df33aedbb371e6f9f5869ed9001c239ca",
+      "origin/base/cli/src/chain_spec.rs": "2f08d82e25206c1e8e111445efbe8b2b8ea143b19736bc36e58a16f53dff5bc5",
       "origin/base/runtime/src/genesis_config_presets.rs": "fb982962cfad5a45166b1d3698db704b6a0068717e6decb524df1ba9571d4daf",
-      "origin/orbis/node/src/chain_spec.rs": "60e38b74de9c0ccdedfe9c1fa2ea4bdb0346739ba2fef5e7a5ad328c0920b451",
-      "origin/orbis/runtime/src/genesis_config_presets.rs": "b1cce5aab0bcd4860824d82fe5bd27b0f500cc1b02356cd3768cd53baf456c15"
+      "origin/orbis/node/src/chain_spec.rs": "7f0400a126b7e731e8bfab1a3fa8852b599619d112324fa411d72afa66f480bb",
+      "origin/orbis/runtime/src/genesis_config_presets.rs": "7d0fa97f7a01190b5618376fb92b99d608f08e5a79ae37db42326998346be958"
     }
   },
   "derivation": {
-    "command": "python3 scripts/validate_origin_orbis_genesis.py --origin-node target/orbis-metadata/release/origin --orbis-node target/orbis-metadata/release/origin-omni-node --compact-wasm target/orbis-metadata/release/wbuild/origin-commons-runtime/origin_commons_runtime.compact.wasm --metadata-hash-manifest origin/orbis/runtime/vectors/transaction-policy-v8/metadata-hash.json --write-evidence",
+    "command": "python3 scripts/validate_origin_orbis_genesis.py --origin-node target/release/origin --orbis-node target/release/origin-omni-node --compact-wasm target/orbis-metadata/release/wbuild/origin-commons-runtime/origin_commons_runtime.compact.wasm --write-evidence",
     "deterministic_build_count": 2,
     "header_encoding": "SCALE sp_runtime::generic::Header<BlockNumber=u32, BlakeTwo256>",
     "header_hash_algorithm": "Blake2b-256 over exact SCALE genesis header bytes",
@@ -33,10 +33,10 @@
     "rustc": "rustc 1.93.0 (254b59607 2026-01-19)"
   },
   "genesis": {
-    "header_hash": "0x2584c9d420dc8160b85deaf958d776886366d5beecc2ee7b1236293d20ac70fc",
-    "raw_chain_spec_sha256": "2c00b527388fb0cc633ae6d99967600b6766bf7b385247f56a5cdbef53c4a902",
-    "raw_storage_sha256": "f973b59715294e5dae035d680e6a100f3177edeaafdc5f46932972a04a0946f2",
-    "state_root": "0xe778ef91e9e1419f77a17a687245fc903335ecdb8dd3cf450df86637d529a53c"
+    "header_hash": "0x657de1aa28685cfa4c66e9f3186c586f3d85db02724bcbdd1a620e0a5cc4e173",
+    "raw_chain_spec_sha256": "73b858fe5af97caf6f69b76194f8fdd405fe9df288e37c874fe71e0eb4b66a35",
+    "raw_storage_sha256": "a3f8452a5b2f1952ac47885fdafd1738d523690d0315d58505fb462f0d122e80",
+    "state_root": "0x3455b0234339e9f97fbdf926721267226782dffaffd382f3f1e9f472099615e1"
   },
   "production_activation": false,
   "production_activation_ready": false,
@@ -46,7 +46,6 @@
         "0x4545454545454545454545454545454545454545454545454545454545454545",
         "0x4646464646464646464646464646464646464646464646464646464646464646"
       ],
-      "feeless_non_default_keys": [],
       "names_registrars": [
         "0x4747474747474747474747474747474747474747474747474747474747474747"
       ],
@@ -55,6 +54,7 @@
         "origin",
         "system"
       ],
+      "feeless_non_default_keys": [],
       "parachain_id": 1006,
       "session_validators": [
         "0x4545454545454545454545454545454545454545454545454545454545454545",
@@ -80,6 +80,7 @@
       "CollatorSelection": 4,
       "CoretimeControl": 1,
       "CumulusXcm": 1,
+      "Names": 6,
       "Drive": 1,
       "Entity": 1,
       "Feeless": 1,
@@ -94,7 +95,6 @@
       "MetaTx": 1,
       "MultiBlockMigrations": 1,
       "Multisig": 1,
-      "Names": 6,
       "Nfts": 1,
       "ParachainInfo": 2,
       "ParachainSystem": 1,
@@ -184,6 +184,12 @@
       "CumulusXcm": {
         ":__STORAGE_VERSION__:": 1
       },
+      "Names": {
+        ":__STORAGE_VERSION__:": 1,
+        "BootstrapReservationLabels": 1,
+        "BootstrapReservations": 3,
+        "Registrars": 1
+      },
       "Drive": {
         ":__STORAGE_VERSION__:": 1
       },
@@ -225,12 +231,6 @@
       },
       "Multisig": {
         ":__STORAGE_VERSION__:": 1
-      },
-      "Names": {
-        ":__STORAGE_VERSION__:": 1,
-        "BootstrapReservationLabels": 1,
-        "BootstrapReservations": 3,
-        "Registrars": 1
       },
       "Nfts": {
         ":__STORAGE_VERSION__:": 1
@@ -485,14 +485,14 @@
   },
   "runtime": {
     "compact_wasm_path": "target/orbis-metadata/release/wbuild/origin-commons-runtime/origin_commons_runtime.compact.wasm",
-    "compact_wasm_sha256": "19662465cef9ea3cde0c7c10865cc9e68cf3afb723e6184de8a0029de82b1f2e",
-    "embedded_code_sha256": "7594bc628da14abe59744d4f98ae641401a6fafc8ab3a89e1e4020bc942b9453",
-    "metadata_hash": "0x50c8958f0171889a4b01093a5dd5272faf8802018f24a4ac22b231d37b2adc45",
+    "compact_wasm_sha256": "558727456824d1f06928148ffead8cee5d58a63bf9109d0334a061f30c35db0f",
+    "embedded_code_sha256": "0351d4e8628bdc72485860928ad21a2c58b9d27e7ba3314d89edf416ec217fd0",
+    "metadata_hash": "0xa11fc57ceabd72676b4f1f6dec860de0c8f52f9d2e9496ea36366d1ba47cd391",
     "metadata_hash_manifest": "origin/orbis/runtime/vectors/transaction-policy-v8/metadata-hash.json",
-    "metadata_hash_manifest_canonical_sha256": "3e54b3570c67451346865cd433cc9647570529a4109e1e405a15bf30fa8384cd",
-    "metadata_hash_manifest_sha256": "b05ccc01671b2bd0bd578b89437eddb171fbdc314816f40ce14454fb12e467ac",
-    "node_binary_path": "target/orbis-metadata/release/origin-omni-node",
-    "node_binary_sha256": "018b681bf6facea91d95e48f7888b423c76f33073c6831bc39fecb4be5ef5973",
+    "metadata_hash_manifest_canonical_sha256": "bc56519b9d3eca07230f9aef41552abc2f69a0e0a9f152921016c15ab13bf6c4",
+    "metadata_hash_manifest_sha256": "23355f674c0e0108c8e9a80e75fa6050d16acae92304f06327587636be689c28",
+    "node_binary_path": "target/release/origin-omni-node",
+    "node_binary_sha256": "85683b1019ea7a5cbcca49dac089cedc0ac6676bc08bd4194efeedb190cf7f95",
     "spec_version": 29,
     "transaction_version": 8
   },
@@ -500,14 +500,14 @@
   "scope": "orbis-deterministic-candidate-genesis",
   "source": {
     "chain_spec_path": "origin/orbis/node/src/chain_spec.rs",
-    "chain_spec_sha256": "60e38b74de9c0ccdedfe9c1fa2ea4bdb0346739ba2fef5e7a5ad328c0920b451",
-    "git_branch": "sm-update-sub-0x65",
-    "git_revision": "68d3df8bff37803395a9ae60847427b4e39a794d",
+    "chain_spec_sha256": "7f0400a126b7e731e8bfab1a3fa8852b599619d112324fa411d72afa66f480bb",
+    "git_branch": "sm-update-sub-0x63",
+    "git_revision": "3e2c120041753cd5b75839a001c22ed2c5ec4e62",
     "source_file_sha256": {
-      "origin/base/cli/src/chain_spec.rs": "b2484294f75e0eae31e5844885670f2df33aedbb371e6f9f5869ed9001c239ca",
+      "origin/base/cli/src/chain_spec.rs": "2f08d82e25206c1e8e111445efbe8b2b8ea143b19736bc36e58a16f53dff5bc5",
       "origin/base/runtime/src/genesis_config_presets.rs": "fb982962cfad5a45166b1d3698db704b6a0068717e6decb524df1ba9571d4daf",
-      "origin/orbis/node/src/chain_spec.rs": "60e38b74de9c0ccdedfe9c1fa2ea4bdb0346739ba2fef5e7a5ad328c0920b451",
-      "origin/orbis/runtime/src/genesis_config_presets.rs": "b1cce5aab0bcd4860824d82fe5bd27b0f500cc1b02356cd3768cd53baf456c15"
+      "origin/orbis/node/src/chain_spec.rs": "7f0400a126b7e731e8bfab1a3fa8852b599619d112324fa411d72afa66f480bb",
+      "origin/orbis/runtime/src/genesis_config_presets.rs": "7d0fa97f7a01190b5618376fb92b99d608f08e5a79ae37db42326998346be958"
     },
     "worktree_clean": false
   }

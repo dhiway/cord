@@ -69,7 +69,7 @@
       "capability": "storage",
       "method": "register_provider",
       "approval": "storage-authority-multisig",
-      "success": "provider_by_id at the finalizing block matches provider account, endpoint, Ed25519 service key and capacity"
+      "success": "provider_by_id at the finalizing block matches provider account, endpoint, sr25519 service key and capacity"
     },
     {
       "id": "start-provider-service",
