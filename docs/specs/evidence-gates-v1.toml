@@ -6,7 +6,7 @@ canonicalization = "cord-json-canonical-v1"
 [execution_policy]
 repository_manifest = "docs/specs/reference-repositories.toml"
 allowed_executables = ["python3", "cargo", "npm", "node", "product-sdk/node_modules/.bin/tsc"]
-allowed_python_scripts = ["scripts/build-web3-storage-inventory.py", "scripts/export-origin-commons-metadata.py", "scripts/check-source-headers.py", "scripts/generate-scale-metadata-binding.py", "scripts/run-origin-orbis-app-journey.py", "scripts/run-p1-verification.py", "scripts/run-p0-control-tests.py", "scripts/snapshot-repositories.py", "scripts/validate-ac-decidability.py", "scripts/validate-drive-s3-vectors.py", "scripts/validate-host-provider-wire.py", "scripts/validate-origin-orbis-scope.py", "scripts/validate-p6-observability.py", "scripts/validate-phase-gate.py", "scripts/validate-product-projection.py", "scripts/validate-provider-organization.py", "scripts/validate-repository-boundary.py", "scripts/validate-scale-metadata-binding.py", "scripts/validate-storage-content-vectors.py", "scripts/validate-storage-identity-deletion.py", "scripts/validate-storage-phase-ownership.py", "scripts/validate-storage-proof-vectors.py", "scripts/validate-three-provider-recovery.py", "scripts/validate-web3-storage-parity.py", "scripts/verify-slice-commits.py"]
+allowed_python_scripts = ["scripts/build-web3-storage-inventory.py", "scripts/export-origin-commons-metadata.py", "scripts/check-source-headers.py", "scripts/generate-origin-commons-runtime-descriptor.py", "scripts/generate-scale-metadata-binding.py", "scripts/run-origin-orbis-app-journey.py", "scripts/run-p1-verification.py", "scripts/run-p0-control-tests.py", "scripts/snapshot-repositories.py", "scripts/validate-ac-decidability.py", "scripts/validate-drive-s3-vectors.py", "scripts/validate-host-provider-wire.py", "scripts/validate-origin-orbis-scope.py", "scripts/validate-p6-observability.py", "scripts/validate-phase-gate.py", "scripts/validate-product-projection.py", "scripts/validate-provider-organization.py", "scripts/validate-repository-boundary.py", "scripts/validate-scale-metadata-binding.py", "scripts/validate-storage-content-vectors.py", "scripts/validate-storage-identity-deletion.py", "scripts/validate-storage-phase-ownership.py", "scripts/validate-storage-proof-vectors.py", "scripts/validate-three-provider-recovery.py", "scripts/validate-web3-storage-parity.py", "scripts/verify-slice-commits.py"]
 allowed_external_output_roots = ["../.omx/evidence/origin-orbis-web3-storage"]
 
 [[gate]]
@@ -3028,7 +3028,7 @@ output = "../.omx/evidence/origin-orbis-web3-storage/p3.json"
 decidability = "mechanical"
 clauses = ["metadata-hash", "logical-binding", "descriptor-equality", "phase-contract"]
 enforce_write_set = true
-write_paths = ["product-sdk/generated/origin-commons-runtime.descriptor.json", "target/evidence/p3-scale-metadata-recheck.json", "target/evidence/p3-assertions.json", "product-sdk/node_modules/.cache/**"]
+write_paths = ["target/evidence/origin-commons-runtime-sdk-descriptor.json", "target/evidence/p3-scale-metadata-recheck.json", "target/evidence/p3-assertions.json"]
 
 [[gate.input]]
 path = "docs/specs/evidence-report-v1.schema.json"
@@ -3051,44 +3051,29 @@ path = "scripts/scale_metadata_binding.py"
 sha256 = "3272829b1aff6f4830fe70e1f32083d2215732905cdae184ae8ad6ceade63abe"
 
 [[gate.input]]
-path = "product-sdk/package.json"
-sha256 = "32aeda3cffc791dd05068abd5aebedbddea8762b77ea9ffad827955b5bfd9c09"
-
-[[gate.input]]
 path = "target/evidence/p1-scale-metadata-binding.json"
 sha256 = "record"
 input_class = "generated"
-producer_gate = "P3-predecessor"
+producer_gate = "P1"
 producer_output = "target/evidence/p1-scale-metadata-binding.json"
 
 [[gate.input]]
 path = "target/evidence/origin-commons-runtime.metadata.scale"
 sha256 = "record"
 input_class = "generated"
-producer_gate = "P3-predecessor"
+producer_gate = "P1_METADATA"
 producer_output = "target/evidence/origin-commons-runtime.metadata.scale"
 
 [[gate.input]]
 path = "target/evidence/origin-commons-runtime.portable-registry.json"
 sha256 = "record"
 input_class = "generated"
-producer_gate = "P3-predecessor"
+producer_gate = "P1_METADATA"
 producer_output = "target/evidence/origin-commons-runtime.portable-registry.json"
 
 [[gate.input]]
-path = "product-sdk/generated/origin-commons-runtime.descriptor.json"
-sha256 = "record"
-input_class = "generated"
-producer_gate = "P3-predecessor"
-producer_output = "product-sdk/generated/origin-commons-runtime.descriptor.json"
-
-[[gate.input]]
-path = "product-sdk"
-sha256 = "65fbe7eb7eeaffdf836ef9c1ab23ee8849dc03c20df1e0b347202ed639f3a3d4"
-
-[[gate.input]]
-path = "product-sdk/package-lock.json"
-sha256 = "18781247226bad2b6ae5dcb49fc8bebba5fb552c90a76f236d7c86bcbbc64163"
+path = "scripts/generate-origin-commons-runtime-descriptor.py"
+sha256 = "530c205e9b911b6ce45b2770c6570315b79842f8989f97aea2d9f93425929ad9"
 
 [[gate.input]]
 path = "scripts/evidence_common.py"
@@ -3100,18 +3085,18 @@ sha256 = "ab639afac171adc1da1d1c93dfb4ccdb3901bc590b33a5904704fb712eb0af52"
 
 [[gate.command]]
 cwd = "."
-argv = ["npm", "--prefix", "product-sdk", "run", "generate:runtime-descriptor"]
+argv = ["python3", "scripts/generate-origin-commons-runtime-descriptor.py", "--binding", "target/evidence/p1-scale-metadata-binding.json", "--out", "target/evidence/origin-commons-runtime-sdk-descriptor.json"]
 test_count = 0
-outputs = ["product-sdk/generated/origin-commons-runtime.descriptor.json"]
-inputs = ["product-sdk", "product-sdk/package.json", "product-sdk/package-lock.json"]
-allowed_writes = ["product-sdk/node_modules/.cache/**"]
+outputs = ["target/evidence/origin-commons-runtime-sdk-descriptor.json"]
+inputs = ["scripts/generate-origin-commons-runtime-descriptor.py", "target/evidence/p1-scale-metadata-binding.json", "scripts/scale_metadata_binding.py", "scripts/evidence_common.py"]
+allowed_writes = []
 
 [[gate.command]]
 cwd = "."
-argv = ["python3", "scripts/validate-scale-metadata-binding.py", "--binding", "target/evidence/p1-scale-metadata-binding.json", "--metadata-scale", "target/evidence/origin-commons-runtime.metadata.scale", "--portable-registry", "target/evidence/origin-commons-runtime.portable-registry.json", "--logical-types", "docs/specs/checkpoint-scale-logical-types-v1.toml", "--descriptor", "product-sdk/generated/origin-commons-runtime.descriptor.json", "--out", "target/evidence/p3-scale-metadata-recheck.json"]
+argv = ["python3", "scripts/validate-scale-metadata-binding.py", "--binding", "target/evidence/p1-scale-metadata-binding.json", "--metadata-scale", "target/evidence/origin-commons-runtime.metadata.scale", "--portable-registry", "target/evidence/origin-commons-runtime.portable-registry.json", "--logical-types", "docs/specs/checkpoint-scale-logical-types-v1.toml", "--descriptor", "target/evidence/origin-commons-runtime-sdk-descriptor.json", "--out", "target/evidence/p3-scale-metadata-recheck.json"]
 test_count = 0
 outputs = ["target/evidence/p3-scale-metadata-recheck.json"]
-inputs = ["scripts/validate-scale-metadata-binding.py", "target/evidence/p1-scale-metadata-binding.json", "target/evidence/origin-commons-runtime.metadata.scale", "target/evidence/origin-commons-runtime.portable-registry.json", "docs/specs/checkpoint-scale-logical-types-v1.toml", "scripts/evidence_common.py"]
+inputs = ["scripts/validate-scale-metadata-binding.py", "target/evidence/p1-scale-metadata-binding.json", "target/evidence/origin-commons-runtime.metadata.scale", "target/evidence/origin-commons-runtime.portable-registry.json", "docs/specs/checkpoint-scale-logical-types-v1.toml", "target/evidence/origin-commons-runtime-sdk-descriptor.json", "scripts/scale_metadata_binding.py", "scripts/evidence_common.py"]
 allowed_writes = []
 
 [[gate.command]]
@@ -3119,7 +3104,7 @@ cwd = "."
 argv = ["python3", "scripts/validate-phase-gate.py", "--gate", "P3", "--out", "target/evidence/p3-assertions.json"]
 test_count = 0
 outputs = ["target/evidence/p3-assertions.json"]
-inputs = ["scripts/validate-phase-gate.py", "scripts/evidence_common.py"]
+inputs = ["scripts/validate-phase-gate.py", "scripts/evidence_common.py", "@registry", "@schema"]
 allowed_writes = []
 
 [[gate.artifact]]
