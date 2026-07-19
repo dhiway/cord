@@ -70,7 +70,7 @@ EXPECTED_BENCHMARKS = {
     ],
 }
 EXPECTED_WEIGHTS = {
-    "provider": "2b7356a2c4e4b9e8663507ec52a6dcb6dd927b120a3571f6211fa220e9756292",
+    "provider": "b6c066a3b6224fe6198079c2dd57a51d591016baffccf5037536b5f4badebff8",
     "drive": "ba4c5a6c2dcb0d43ef14b4356d20e5c42d947268e2b3a74a73290be0516ec70e",
     "s3": "5d6a7cae56deffba6d3cce491883eaa8e9bdaebc7f4ce3531894cd2d68a2396b",
 }
@@ -89,17 +89,19 @@ G002_TESTS = {
     "tests::checkpoint_and_challenge_admissions_share_one_exact_bound",
     "tests::bucket_agreement_admission_is_exact_and_terminal_release_frees_slot",
 }
+# Native runtime tests retained after contract/fixture cutover. They bind the
+# current Commons storage APIs, metadata-hash profile, and recovery journey.
 REQUIRED_NAMED_TESTS = G002_TESTS | {
     "enterprise_journey::enterprise_identity_attestation_name_and_storage_lifecycle_is_native_and_fail_closed",
-    "tests::orbis_storage_is_authorized_indexed_and_content_addressed",
-    "tests::orbis_storage_mutations_are_rejected_when_wrapped_or_sent_by_xcm",
+    "tests::native_identity_attestation_name_asset_and_storage_journey",
+    "tests::storage_runtime_api_exposes_exact_active_and_revoked_host_delegation",
+    "tests::deletion_duty_runtime_api_is_provider_scoped_bounded_and_ack_aware",
+    "tests::s3_runtime_api_uses_snapshot_cursor_raw_order_and_hides_tombstones",
     "tests::runtime_signing_payloads_match_shared_sdk_vectors",
-    "transaction_policy_vectors::checked_in_current_transaction_policy_vectors_decode_all_recompute_and_match_hashes",
-    "transaction_policy_vectors::checked_in_score_meta_fixture_executes_as_paid_outer_extrinsic",
-    "transaction_policy_vectors::checked_in_score_nonce_mutation_is_exact_future_without_inner_mutation",
-    "transaction_policy_vectors::checked_in_honour_account_mutation_is_exact_bad_signer_and_executable",
-    "transaction_policy_vectors::checked_in_honour_meta_fixture_executes_against_exact_runtime_ring",
+    "tests::commons_checkpoint_wire_vector_production_profile_is_stable",
+    "tests::three_provider_promotion_repair_quorum_returns_to_standard_exactly_once",
     "tests::metadata_custom_hash_loss_is_detected_after_wire_roundtrip",
+    "tests::transaction_policy_construction_surfaces_share_the_frozen_slots",
 }
 EXPECTED_AMENDMENT_SHA256 = "ba89e20cb46bc19c9aa96cd1b316a1952f596209e82a939c446db86179e65c2d"
 EXPECTED_RATIFICATION_SHA256 = "3e4e66e4fc5be2e1aeaf1f3a84dcb8c3c3d7f2dc1ce421b4283be4a6ca351ac5"

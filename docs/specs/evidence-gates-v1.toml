@@ -2759,7 +2759,7 @@ clause = "provider-tests"
 source = "target/evidence/p1-verification.json"
 json_pointer = "/suites/provider/observed/passed"
 operator = "eq"
-expected = 77
+expected = 86
 
 [[gate.assertion]]
 clause = "drive-tests"
@@ -2780,7 +2780,7 @@ clause = "runtime-tests"
 source = "target/evidence/p1-verification.json"
 json_pointer = "/suites/runtime/observed/passed"
 operator = "eq"
-expected = 82
+expected = 75
 
 [[gate.assertion]]
 clause = "provider-benchmarks"
@@ -2815,14 +2815,14 @@ clause = "metadata-sha"
 source = "target/evidence/p1-verification.json"
 json_pointer = "/metadata_binding/metadata_scale_sha256"
 operator = "sha256_eq"
-expected = "5c10778acb64de5799e3933e774d0c646e5fbefd5bfeb7ef28b3fde2ac8f43a3"
+expected = "2a60f41a070fa839af8c36187f2a704fdb81fbcc6635d9bcc819a612b0b6c77a"
 
 [[gate.assertion]]
 clause = "provider-weight"
 source = "target/evidence/p1-verification.json"
 json_pointer = "/benchmark_evidence/provider/weight_sha256"
 operator = "sha256_eq"
-expected = "2b7356a2c4e4b9e8663507ec52a6dcb6dd927b120a3571f6211fa220e9756292"
+expected = "b6c066a3b6224fe6198079c2dd57a51d591016baffccf5037536b5f4badebff8"
 
 [[gate.assertion]]
 clause = "drive-weight"

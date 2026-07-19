@@ -866,12 +866,16 @@ mod benchmarks {
 
 	#[benchmark]
 	fn create_host_delegation() {
+		// The dev chain spec starts at genesis block zero; benchmarked dispatches
+		// must use the first real block so the one-block capability lifetime is valid.
+		let now: BlockNumberFor<T> = One::one();
+		frame_system::Pallet::<T>::set_block_number(now);
 		let owner: T::AccountId = account("host-owner", 0, SEED);
 		let (primary, _) = provider::<T>(40_000, ProviderStatus::Active);
 		let bucket_id = bucket::<T>(&owner, &primary, Default::default());
 		let product_id: CapabilityProductIdOf<T> = b"benchmark".to_vec().try_into().ok().unwrap();
 		let methods: CapabilityMethodsOf<T> = vec![1010].try_into().ok().unwrap();
-		let now = frame_system::Pallet::<T>::block_number();
+		let issuance_nonce = GrantNonce::<T>::get(&owner);
 		#[extrinsic_call]
 		_(
 			RawOrigin::Signed(owner.clone()),
@@ -885,7 +889,7 @@ mod benchmarks {
 			now.saturating_add(One::one()),
 		);
 		assert!(HostDelegations::<T>::contains_key(Pallet::<T>::host_delegation_id(
-			&owner, bucket_id, 0
+			&owner, bucket_id, issuance_nonce
 		)));
 	}
 

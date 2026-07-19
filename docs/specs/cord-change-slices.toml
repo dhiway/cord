@@ -80,7 +80,12 @@ enabled = true
 path_globs = [
   "Cargo.lock",
   "Cargo.toml",
+  ".maintain/frame-weight-template.hbs",
   "docs/**",
+  "origin/base/Cargo.toml",
+  "origin/base/cli/Cargo.toml",
+  "origin/base/runtime/build.rs",
+  "origin/wasm_build_hygiene.rs",
   "origin-rs/**",
   "origin/orbis/**",
   "product-sdk/**",
