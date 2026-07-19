@@ -598,29 +598,29 @@ schema = "unversioned-assertions-v1"
 clause = "bounds"
 source = "target/evidence/ac6-assertions.json"
 json_pointer = "/bound_failures"
-operator = "zero"
-expected = 0
+operator = "eq"
+expected = []
 
 [[gate.assertion]]
 clause = "codes"
 source = "target/evidence/ac6-assertions.json"
 json_pointer = "/error_code_failures"
-operator = "zero"
-expected = 0
+operator = "eq"
+expected = []
 
 [[gate.assertion]]
 clause = "state"
 source = "target/evidence/ac6-assertions.json"
 json_pointer = "/state_hash_failures"
-operator = "zero"
-expected = 0
+operator = "eq"
+expected = []
 
 [[gate.assertion]]
 clause = "events"
 source = "target/evidence/ac6-assertions.json"
 json_pointer = "/event_hash_failures"
-operator = "zero"
-expected = 0
+operator = "eq"
+expected = []
 
 [[gate]]
 id = "AC7"
