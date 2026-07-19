@@ -775,7 +775,7 @@ def main() -> int:
             if result.returncode != 0:
                 blockers.append(f"command failed ({result.returncode}): {argv!r}")
                 break
-            missing_outputs = [output for output in declared_outputs if not (root / output).is_file()]
+            missing_outputs = [output for output in declared_outputs if not (root / output).exists()]
             if missing_outputs:
                 blockers.append(
                     f"command did not materialize declared output(s): {missing_outputs!r}"
