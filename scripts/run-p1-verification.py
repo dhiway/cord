@@ -56,7 +56,8 @@ EXPECTED_BENCHMARKS = {
         "refresh_bucket_authority_valid", "refresh_bucket_authority_failover",
         "register_manifest", "publish_manifest", "tombstone_manifest",
         "acknowledge_manifest_deletion", "replace_bucket_replica",
-        "advance_finalized_checkpoint", "on_initialize_release",
+        "advance_finalized_checkpoint", "create_host_delegation",
+        "rotate_host_delegation", "revoke_host_delegation", "on_initialize_release",
         "on_initialize_reconcile", "on_initialize_challenges",
     ],
     "drive": [
@@ -70,9 +71,9 @@ EXPECTED_BENCHMARKS = {
     ],
 }
 EXPECTED_WEIGHTS = {
-    "provider": "b6c066a3b6224fe6198079c2dd57a51d591016baffccf5037536b5f4badebff8",
-    "drive": "ba4c5a6c2dcb0d43ef14b4356d20e5c42d947268e2b3a74a73290be0516ec70e",
-    "s3": "5d6a7cae56deffba6d3cce491883eaa8e9bdaebc7f4ce3531894cd2d68a2396b",
+    "provider": "022594cabf3b1755cd9319e851c8666b289bf38dc6f66e70489759286b72fe81",
+    "drive": "25af195852af0c66e265bfd82ded1ddd878c4527b672d08d04401221eab25615",
+    "s3": "0ea2abd134979aea574c6f6e2cdd5fae8bfcb67f01db0307a33e998647791987",
 }
 WEIGHT_PATHS = {
     "provider": Path("origin/orbis/pallets/storage-provider/src/weights.rs"),

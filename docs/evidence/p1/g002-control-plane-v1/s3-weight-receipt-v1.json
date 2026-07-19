@@ -1,10 +1,10 @@
 {
   "schema_version": 1,
   "status": "pass",
-  "scope": "G002 S3 control-plane weights: clean compiled-Wasm 50x20 rerun",
+  "scope": "P1 Commons storage weights: compiled-Wasm 50x20 measurement",
   "measurement_source": {
-    "commit": "048309a9e45abb315a25d25c06039936872e938f",
-    "tree": "c9455774c63decfb62b35eb250524c121fcca6eb",
+    "commit": "2f33901e7567099bb5d2d3751e85df346ea1f038",
+    "tree": "3f221fe89258a87d93c2e72dc8adcac87b9df056",
     "branch": "sm-update-sub-0x65",
     "isolated_worktree": true
   },
@@ -40,9 +40,9 @@
       "purge_object"
     ],
     "raw_json_path": "docs/evidence/p1/g002-control-plane-v1/benchmarks/pallet_orbis_s3.json",
-    "raw_json_sha256": "649a3e62fe31ed7e42d9874e3d2dee949ddad19f7b4c884b0ac591d8ad12d524",
+    "raw_json_sha256": "119e51e27b94aae7b506cc44d7c7beab61ec3a492ed464c16e3112fcbda5e63f",
     "generated_weight_path": "origin/orbis/pallets/s3/src/weights.rs",
-    "generated_weight_sha256": "5d6a7cae56deffba6d3cce491883eaa8e9bdaebc7f4ce3531894cd2d68a2396b"
+    "generated_weight_sha256": "0ea2abd134979aea574c6f6e2cdd5fae8bfcb67f01db0307a33e998647791987"
   },
   "checks": {
     "generated_coverage": {
@@ -99,5 +99,6 @@
     "g002_control_plane": true,
     "g003_provider_byte_plane": false,
     "production_ready": false
-  }
+  },
+  "finished_at": "2026-07-19T01:13:07.413932Z"
 }

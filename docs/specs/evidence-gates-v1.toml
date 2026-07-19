@@ -2787,7 +2787,7 @@ clause = "provider-benchmarks"
 source = "target/evidence/p1-verification.json"
 json_pointer = "/benchmark_evidence/provider/benchmark_count"
 operator = "eq"
-expected = 30
+expected = 33
 
 [[gate.assertion]]
 clause = "drive-benchmarks"
@@ -2822,21 +2822,21 @@ clause = "provider-weight"
 source = "target/evidence/p1-verification.json"
 json_pointer = "/benchmark_evidence/provider/weight_sha256"
 operator = "sha256_eq"
-expected = "b6c066a3b6224fe6198079c2dd57a51d591016baffccf5037536b5f4badebff8"
+expected = "022594cabf3b1755cd9319e851c8666b289bf38dc6f66e70489759286b72fe81"
 
 [[gate.assertion]]
 clause = "drive-weight"
 source = "target/evidence/p1-verification.json"
 json_pointer = "/benchmark_evidence/drive/weight_sha256"
 operator = "sha256_eq"
-expected = "ba4c5a6c2dcb0d43ef14b4356d20e5c42d947268e2b3a74a73290be0516ec70e"
+expected = "25af195852af0c66e265bfd82ded1ddd878c4527b672d08d04401221eab25615"
 
 [[gate.assertion]]
 clause = "s3-weight"
 source = "target/evidence/p1-verification.json"
 json_pointer = "/benchmark_evidence/s3/weight_sha256"
 operator = "sha256_eq"
-expected = "5d6a7cae56deffba6d3cce491883eaa8e9bdaebc7f4ce3531894cd2d68a2396b"
+expected = "0ea2abd134979aea574c6f6e2cdd5fae8bfcb67f01db0307a33e998647791987"
 
 [[gate.assertion]]
 clause = "cord-only"
