@@ -2629,11 +2629,11 @@ sha256 = "c8ea2c94e5bc7413f56cdb8c94030096372e10d74cdb0ecebebaa1b98e6dd136"
 
 [[gate.input]]
 path = "origin/orbis/runtime/vectors/transaction-policy-v8/metadata-hash.json"
-sha256 = "10a718f43f9a6928429ac40e5824a2d9993800c672d2893c9ce41285b0426dd1"
+sha256 = "06cccfe399c493617a96250aa8af844609ed9eef7edbe4b98ebdebcb1f727527"
 
 [[gate.input]]
 path = "origin/orbis/runtime/vectors/transaction-policy-v8/manifest.json"
-sha256 = "a807502df5edc6b822c2af420e6078ef76409d6df6bc51b66450dd32c648d581"
+sha256 = "83f27665981ff2ce2f532d6d925b1d665caa9cd5a508cd5c7f44de803b5f8554"
 
 [[gate.input]]
 path = "docs/specs/checkpoint-v2.vectors.json"
