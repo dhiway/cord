@@ -658,11 +658,22 @@ def main() -> int:
                 if value == "@repository_snapshot":
                     command_read_hashes[value] = repository_snapshot["sha256"]
                     continue
-                if value in produced_outputs:
+                generated_parent = next(
+                    (
+                        output
+                        for output in produced_outputs
+                        if value == output or value.startswith(f"{output.rstrip('/')}/")
+                    ),
+                    None,
+                )
+                if generated_parent is not None:
                     path = root / value
                     try:
                         command_read_hashes[value] = hash_path(path)
-                        command_ancestry[value] = produced_outputs[value]
+                        command_ancestry[value] = {
+                            **produced_outputs[generated_parent],
+                            "producer_output": generated_parent,
+                        }
                     except OSError as exception:
                         blockers.append(f"missing generated command input {value}: {exception}")
                     continue

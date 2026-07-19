@@ -1833,7 +1833,7 @@ sha256 = "58ee013c5639e42ce284873cb19ab0bb8261114647707f2ac4203f41dfd533ef"
 
 [[gate.input]]
 path = "scripts/run-evidence-gate.py"
-sha256 = "8b11ff2ea4a63a2591f1e63221c46b58931fff34e38a002b3f7d5c6fd6ebb832"
+sha256 = "57287eb36b854691f7eb00088338c848a2e0554555586504d4b4fbb914f42e89"
 
 [[gate.input]]
 path = "scripts/evidence_common.py"
