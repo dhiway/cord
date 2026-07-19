@@ -3588,7 +3588,7 @@ cwd = "."
 argv = ["python3", "scripts/validate-phase-gate.py", "--gate", "P7", "--out", "target/evidence/p7-assertions.json"]
 test_count = 0
 outputs = ["target/evidence/p7-assertions.json"]
-inputs = ["scripts/validate-phase-gate.py", "scripts/evidence_common.py"]
+inputs = ["scripts/validate-phase-gate.py", "scripts/evidence_common.py", "@registry", "@schema"]
 allowed_writes = []
 
 [[gate.artifact]]
