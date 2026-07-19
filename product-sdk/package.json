@@ -42,6 +42,7 @@
     "test:content": "node --experimental-strip-types --test tests/content/*.test.ts",
     "test:proof-vectors": "node --experimental-strip-types --test tests/content/proof-vectors.test.ts",
     "test:storage-vectors": "node --experimental-strip-types --test tests/content/storage-vectors.test.ts",
+    "test:drive-s3-vectors": "node --experimental-strip-types --test packages/origin-sdk-cloud-storage/tests/index.test.ts packages/origin-sdk-cloud-storage/tests/storage-v2-intents.test.ts",
     "test:host": "node --experimental-strip-types --test tests/host/*.test.ts",
     "test:host-v2-outbox": "node --experimental-strip-types --test tests/host/host-v2-outbox.test.ts",
     "validate:reference-app": "node --experimental-strip-types examples/festival/bootstrap.ts",
