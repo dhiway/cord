@@ -1,5 +1,20 @@
 // This file is part of CORD – https://cord.network
+
+// Copyright (C) Dhiway Networks Pvt. Ltd.
 // SPDX-License-Identifier: GPL-3.0-or-later
+
+// CORD is free software: you can redistribute it and/or modify
+// it under the terms of the GNU General Public License as published by
+// the Free Software Foundation, either version 3 of the License, or
+// (at your option) any later version.
+
+// CORD is distributed in the hope that it will be useful,
+// but WITHOUT ANY WARRANTY; without even the implied warranty of
+// MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
+// GNU General Public License for more details.
+
+// You should have received a copy of the GNU General Public License
+// along with CORD. If not, see <https://www.gnu.org/licenses/>.
 
 //! Native, bounded Orbis Names registry for the Commons runtime.
 //!
@@ -328,7 +343,10 @@ pub mod pallet {
 
 			let mut labels = BoundedVec::<LabelOf<T>, T::MaxBootstrapReservations>::default();
 			for (label, beneficiary) in &self.root_reservations {
-				assert!(Pallet::<T>::ensure_valid_label(label).is_ok(), "invalid Orbis Names genesis label");
+				assert!(
+					Pallet::<T>::ensure_valid_label(label).is_ok(),
+					"invalid Orbis Names genesis label"
+				);
 				assert!(!labels.contains(label), "duplicate Orbis Names genesis reservation");
 				labels
 					.try_push(label.clone())

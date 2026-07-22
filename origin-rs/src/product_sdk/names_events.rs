@@ -1,3 +1,21 @@
+// This file is part of CORD – https://cord.network
+
+// Copyright (C) Dhiway Networks Pvt. Ltd.
+// SPDX-License-Identifier: GPL-3.0-or-later
+
+// CORD is free software: you can redistribute it and/or modify
+// it under the terms of the GNU General Public License as published by
+// the Free Software Foundation, either version 3 of the License, or
+// (at your option) any later version.
+
+// CORD is distributed in the hope that it will be useful,
+// but WITHOUT ANY WARRANTY; without even the implied warranty of
+// MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
+// GNU General Public License for more details.
+
+// You should have received a copy of the GNU General Public License
+// along with CORD. If not, see <https://www.gnu.org/licenses/>.
+
 //! Executable finalized native-Orbis Names event subscription.
 
 use std::{collections::VecDeque, pin::Pin};
@@ -9,8 +27,8 @@ use subxt::{blocks::Block, events::StaticEvent, OnlineClient};
 use super::{
 	domains::{
 		names::{
-			NamesEvent, NamesEventKind, NamesEventSubscription, FinalizedNamesEvent,
-			FinalizedNamesOutcome, Label, TextKey,
+			FinalizedNamesEvent, FinalizedNamesOutcome, Label, NamesEvent, NamesEventKind,
+			NamesEventSubscription, TextKey,
 		},
 		AccountId, DomainResult, Hash32, NameId, RegistrationCommitment,
 	},
@@ -281,11 +299,9 @@ fn decode_wire_event(wire: NamesEventWire) -> DomainResult<NamesEvent> {
 }
 
 fn label(bytes: Vec<u8>) -> DomainResult<Label> {
-	Label::new(
-		String::from_utf8(bytes).map_err(|_| {
-			NativeError::new(NativeErrorCode::InvalidInput, "Orbis Names label is not UTF-8")
-		})?,
-	)
+	Label::new(String::from_utf8(bytes).map_err(|_| {
+		NativeError::new(NativeErrorCode::InvalidInput, "Orbis Names label is not UTF-8")
+	})?)
 }
 fn name(hash: RuntimeHash) -> NameId {
 	NameId(domain_hash(hash))

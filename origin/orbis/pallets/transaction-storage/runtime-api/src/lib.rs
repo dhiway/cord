@@ -1,5 +1,20 @@
-// Copyright (C) Parity Technologies (UK) Ltd.
-// SPDX-License-Identifier: Apache-2.0
+// This file is part of CORD – https://cord.network
+
+// Copyright (C) Dhiway Networks Pvt. Ltd.
+// SPDX-License-Identifier: GPL-3.0-or-later
+
+// CORD is free software: you can redistribute it and/or modify
+// it under the terms of the GNU General Public License as published by
+// the Free Software Foundation, either version 3 of the License, or
+// (at your option) any later version.
+
+// CORD is distributed in the hope that it will be useful,
+// but WITHOUT ANY WARRANTY; without even the implied warranty of
+// MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
+// GNU General Public License for more details.
+
+// You should have received a copy of the GNU General Public License
+// along with CORD. If not, see <https://www.gnu.org/licenses/>.
 
 //! Runtime API for the Orbis Storage transaction-storage pallet.
 //!
@@ -9,11 +24,11 @@
 
 #![cfg_attr(not(feature = "std"), no_std)]
 
-use orbis_transaction_storage_primitives::{
-	StorageRef, ContentHash, ProviderAllocationId, ReservationId, ResourceReservationLink,
-	ResourceReservationView, StorageActor, TransactionRef,
-};
 use codec::{Codec, Decode, Encode};
+use orbis_transaction_storage_primitives::{
+	ContentHash, ProviderAllocationId, ReservationId, ResourceReservationLink,
+	ResourceReservationView, StorageActor, StorageRef, TransactionRef,
+};
 use scale_decode::DecodeAsType;
 use scale_info::TypeInfo;
 

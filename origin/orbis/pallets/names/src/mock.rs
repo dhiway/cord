@@ -1,3 +1,21 @@
+// This file is part of CORD – https://cord.network
+
+// Copyright (C) Dhiway Networks Pvt. Ltd.
+// SPDX-License-Identifier: GPL-3.0-or-later
+
+// CORD is free software: you can redistribute it and/or modify
+// it under the terms of the GNU General Public License as published by
+// the Free Software Foundation, either version 3 of the License, or
+// (at your option) any later version.
+
+// CORD is distributed in the hope that it will be useful,
+// but WITHOUT ANY WARRANTY; without even the implied warranty of
+// MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
+// GNU General Public License for more details.
+
+// You should have received a copy of the GNU General Public License
+// along with CORD. If not, see <https://www.gnu.org/licenses/>.
+
 use crate as pallet_orbis_names;
 use frame_support::{derive_impl, parameter_types, traits::ConstU32};
 use sp_core::H256;
@@ -93,8 +111,8 @@ pub fn new_test_ext_with_names(
 		system: Default::default(),
 		names: pallet_orbis_names::GenesisConfig { registrars, root_reservations },
 	}
-		.build_storage()
-		.expect("test genesis builds");
+	.build_storage()
+	.expect("test genesis builds");
 	let mut ext: sp_io::TestExternalities = storage.into();
 	ext.execute_with(|| System::set_block_number(1));
 	ext

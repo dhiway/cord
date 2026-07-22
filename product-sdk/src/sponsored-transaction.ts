@@ -1,22 +1,38 @@
+// This file is part of CORD – https://cord.network
+
+// Copyright (C) Dhiway Networks Pvt. Ltd.
+// SPDX-License-Identifier: GPL-3.0-or-later
+
+// CORD is free software: you can redistribute it and/or modify
+// it under the terms of the GNU General Public License as published by
+// the Free Software Foundation, either version 3 of the License, or
+// (at your option) any later version.
+
+// CORD is distributed in the hope that it will be useful,
+// but WITHOUT ANY WARRANTY; without even the implied warranty of
+// MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
+// GNU General Public License for more details.
+
+// You should have received a copy of the GNU General Public License
+// along with CORD. If not, see <https://www.gnu.org/licenses/>.
+
 import { finalizedRead, submitAndFinalize, type RequestContext } from "./host.ts";
 import type { JsonObject } from "./errors.ts";
 import type { AccountId, BlockNumber, Hash32 } from "./types.ts";
-import type { attestation } from "./attestation.ts";
-import type { names } from "./names.ts";
-import type { drive } from "./drive.ts";
-import type { identity } from "./identity.ts";
-import type { provider } from "./provider.ts";
-import type { s3 } from "./s3.ts";
-import type { storage } from "./storage.ts";
+import type { attestationHostRoutes } from "../packages/descriptors/src/attestation-host-routes.ts";
+import type { namesHostRoutes } from "../packages/descriptors/src/names-host-routes.ts";
+import type { driveHostRoutes, providerHostRoutes, s3HostRoutes, storageHostRoutes } from "../packages/descriptors/src/storage-host-routes.ts";
+import type { identityHostRoutes, personhoodHostRoutes } from "../packages/descriptors/src/identity-host-routes.ts";
 
 type NativeRouteFactory =
-  | typeof attestation[keyof typeof attestation]
-  | typeof names[keyof typeof names]
-  | typeof drive[keyof typeof drive]
-  | typeof identity[keyof typeof identity]
-  | typeof provider[keyof typeof provider]
-  | typeof s3[keyof typeof s3]
-  | typeof storage[keyof typeof storage];
+  | typeof attestationHostRoutes[keyof typeof attestationHostRoutes]
+  | typeof namesHostRoutes[keyof typeof namesHostRoutes]
+  | typeof driveHostRoutes[keyof typeof driveHostRoutes]
+  | typeof identityHostRoutes[keyof typeof identityHostRoutes]
+  | typeof personhoodHostRoutes[keyof typeof personhoodHostRoutes]
+  | typeof providerHostRoutes[keyof typeof providerHostRoutes]
+  | typeof s3HostRoutes[keyof typeof s3HostRoutes]
+  | typeof storageHostRoutes[keyof typeof storageHostRoutes];
 
 type NativeRouteRequestOf<Factory> = Factory extends (...args: never[]) => infer Request
   ? Request

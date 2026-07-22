@@ -1,25 +1,21 @@
 #!/usr/bin/env bash
+# This file is part of CORD – https://cord.network
 
-##############################################################################
-#
-# This script checks that crates to not carelessly enable features that
-# should stay disabled. It's important to check that since features
-# are used to gate specific functionality which should only be enabled
-# when the feature is explicitly enabled.
-#
-# Invocation scheme:
-# 	./rust-features.sh <CARGO-ROOT-PATH>
-#
-# Example:
-# 	./rust-features.sh path/to/substrate
-#
-# The steps of this script:
-#   1. Check that all required dependencies are installed.
-#   2. Check that all rules are fullfilled for the whole workspace. If not:
-#   4. Check all crates to find the offending ones.
-#   5. Print all offending crates and exit with code 1.
-#
-##############################################################################
+# Copyright (C) Dhiway Networks Pvt. Ltd.
+# SPDX-License-Identifier: GPL-3.0-or-later
+
+# CORD is free software: you can redistribute it and/or modify
+# it under the terms of the GNU General Public License as published by
+# the Free Software Foundation, either version 3 of the License, or
+# (at your option) any later version.
+
+# CORD is distributed in the hope that it will be useful,
+# but WITHOUT ANY WARRANTY; without even the implied warranty of
+# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
+# GNU General Public License for more details.
+
+# You should have received a copy of the GNU General Public License
+# along with CORD. If not, see <https://www.gnu.org/licenses/>.
 
 set -eu
 

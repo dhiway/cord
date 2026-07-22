@@ -1,3 +1,21 @@
+// This file is part of CORD – https://cord.network
+
+// Copyright (C) Dhiway Networks Pvt. Ltd.
+// SPDX-License-Identifier: GPL-3.0-or-later
+
+// CORD is free software: you can redistribute it and/or modify
+// it under the terms of the GNU General Public License as published by
+// the Free Software Foundation, either version 3 of the License, or
+// (at your option) any later version.
+
+// CORD is distributed in the hope that it will be useful,
+// but WITHOUT ANY WARRANTY; without even the implied warranty of
+// MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
+// GNU General Public License for more details.
+
+// You should have received a copy of the GNU General Public License
+// along with CORD. If not, see <https://www.gnu.org/licenses/>.
+
 //! Version coherence contract for the first supported clean-break Origin/Orbis SDK surface.
 
 pub const NATIVE_SDK_CONTRACT_VERSION: u32 = 1;
@@ -12,24 +30,24 @@ pub const ORBIS_PARA_ID: u32 = 1006;
 pub const ORBIS_SPEC_VERSION: u32 = 29;
 pub const ORBIS_TRANSACTION_VERSION: u32 = 8;
 pub const ORBIS_METADATA_HASH: &str =
-	"0xa11fc57ceabd72676b4f1f6dec860de0c8f52f9d2e9496ea36366d1ba47cd391";
+	"0x50c8958f0171889a4b01093a5dd5272faf8802018f24a4ac22b231d37b2adc45";
 pub const ORBIS_COMPACT_WASM_SHA256: &str =
-	"558727456824d1f06928148ffead8cee5d58a63bf9109d0334a061f30c35db0f";
+	"19662465cef9ea3cde0c7c10865cc9e68cf3afb723e6184de8a0029de82b1f2e";
 pub const ORBIS_CANDIDATE_GENESIS_HEADER_HASH: &str =
-	"0x657de1aa28685cfa4c66e9f3186c586f3d85db02724bcbdd1a620e0a5cc4e173";
+	"0x2584c9d420dc8160b85deaf958d776886366d5beecc2ee7b1236293d20ac70fc";
 pub const ORBIS_CANDIDATE_GENESIS_STATE_ROOT: &str =
-	"0x3455b0234339e9f97fbdf926721267226782dffaffd382f3f1e9f472099615e1";
+	"0xe778ef91e9e1419f77a17a687245fc903335ecdb8dd3cf450df86637d529a53c";
 pub const ORBIS_CANDIDATE_GENESIS_IDENTITY_SHA256: &str =
-	"2a7a8d5b8fce4fc2dd15729c3e414d6d68e82ef9a21e12c382b5676d3530ed68";
+	"bfac0f6c85fac491cc9aa6fb0ff03ab1581db78c7901d094c8a9843e898c9e0d";
 pub const ORBIS_ACTIVATION_STATE: &str = "candidate-pending";
 pub const ORBIS_PRODUCTION_ACTIVATION_READY: bool = false;
 
 pub const IDENTITY_PERSONHOOD_RUNTIME_API_VERSION: u32 = 1;
 pub const ATTESTATION_RUNTIME_API_VERSION: u32 = 1;
 pub const NAMES_RUNTIME_API_VERSION: u32 = 1;
-pub const STORAGE_PROVIDER_RUNTIME_API_VERSION: u32 = 4;
-pub const DRIVE_RUNTIME_API_VERSION: u32 = 1;
-pub const S3_RUNTIME_API_VERSION: u32 = 1;
+pub const STORAGE_PROVIDER_RUNTIME_API_VERSION: u32 = 10;
+pub const DRIVE_RUNTIME_API_VERSION: u32 = 2;
+pub const S3_RUNTIME_API_VERSION: u32 = 3;
 
 pub const ATTESTATION_STORAGE_SCHEMA_VERSION: u32 = 1;
 pub const NAMES_STORAGE_SCHEMA_VERSION: u32 = 1;
@@ -78,6 +96,8 @@ mod tests {
 			matrix["native_runtime_apis"]["storage_provider"]["version"],
 			STORAGE_PROVIDER_RUNTIME_API_VERSION
 		);
+		assert_eq!(matrix["native_runtime_apis"]["drive"]["version"], DRIVE_RUNTIME_API_VERSION);
+		assert_eq!(matrix["native_runtime_apis"]["s3"]["version"], S3_RUNTIME_API_VERSION);
 		assert_eq!(
 			matrix["native_storage_schemas"]["storage_provider"]["version"],
 			STORAGE_PROVIDER_STORAGE_SCHEMA_VERSION

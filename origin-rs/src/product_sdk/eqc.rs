@@ -1,14 +1,34 @@
+// This file is part of CORD – https://cord.network
+
+// Copyright (C) Dhiway Networks Pvt. Ltd.
+// SPDX-License-Identifier: GPL-3.0-or-later
+
+// CORD is free software: you can redistribute it and/or modify
+// it under the terms of the GNU General Public License as published by
+// the Free Software Foundation, either version 3 of the License, or
+// (at your option) any later version.
+
+// CORD is distributed in the hope that it will be useful,
+// but WITHOUT ANY WARRANTY; without even the implied warranty of
+// MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
+// GNU General Public License for more details.
+
+// You should have received a copy of the GNU General Public License
+// along with CORD. If not, see <https://www.gnu.org/licenses/>.
+
 use std::collections::{BTreeMap, BTreeSet};
 
 use serde::{Deserialize, Serialize};
 use serde_json::Value;
 
-use super::contract::{
-	NativeError, NativeErrorCode, NATIVE_SDK_RATIFICATION_PAYLOAD_SHA256,
-	ORBIS_CANDIDATE_GENESIS_HEADER_HASH, ORBIS_DESCRIPTOR_CONTRACT_SHA256, ORBIS_METADATA_HASH,
-	ORBIS_PARA_ID, ORBIS_SPEC_VERSION, ORBIS_TRANSACTION_VERSION,
+use super::{
+	contract::{
+		NativeError, NativeErrorCode, NATIVE_SDK_RATIFICATION_PAYLOAD_SHA256,
+		ORBIS_CANDIDATE_GENESIS_HEADER_HASH, ORBIS_DESCRIPTOR_CONTRACT_SHA256, ORBIS_METADATA_HASH,
+		ORBIS_PARA_ID, ORBIS_SPEC_VERSION, ORBIS_TRANSACTION_VERSION,
+	},
+	version::ORBIS_COMPACT_WASM_SHA256,
 };
-use super::version::ORBIS_COMPACT_WASM_SHA256;
 
 #[derive(Clone, Debug, Deserialize, PartialEq, Serialize)]
 #[serde(deny_unknown_fields)]

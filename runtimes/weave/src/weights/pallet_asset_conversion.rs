@@ -14,7 +14,7 @@
 // GNU General Public License for more details.
 
 // You should have received a copy of the GNU General Public License
-// along with CORD. If not, see <https://www.gnu.org/licenses/>. ANY KIND, either express or implied.
+// along with CORD. If not, see <https://www.gnu.org/licenses/>.
 
 use core::marker::PhantomData;
 use frame_support::{traits::Get, weights::Weight};

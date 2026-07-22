@@ -19,7 +19,7 @@
 //! Genesis config presets for the Orbis enterprise runtime
 
 use crate::{
-	AccountId, Balance, BalancesConfig, CollatorSelectionConfig, NamesConfig, ExistentialDeposit,
+	AccountId, Balance, BalancesConfig, CollatorSelectionConfig, ExistentialDeposit, NamesConfig,
 	ParaId, ParachainInfoConfig, Revive, SessionConfig, SessionKeys, TokenConfig,
 };
 use alloc::{vec, vec::Vec};
@@ -53,7 +53,9 @@ fn orbis_genesis(
 	let names_registrar = root_key.clone();
 	let names_root_reservations = [b"origin".as_slice(), b"orbis", b"system"]
 		.into_iter()
-		.map(|label| (label.to_vec().try_into().expect("bootstrap Orbis Names label is bounded"), None))
+		.map(|label| {
+			(label.to_vec().try_into().expect("bootstrap Orbis Names label is bounded"), None)
+		})
 		.collect();
 	if !balances.iter().any(|(account, _)| account == &revive_account) {
 		// Code-upload deposits are held on this account. It must exist before the first upload

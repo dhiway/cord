@@ -1,6 +1,26 @@
+// This file is part of CORD – https://cord.network
+
+// Copyright (C) Dhiway Networks Pvt. Ltd.
+// SPDX-License-Identifier: GPL-3.0-or-later
+
+// CORD is free software: you can redistribute it and/or modify
+// it under the terms of the GNU General Public License as published by
+// the Free Software Foundation, either version 3 of the License, or
+// (at your option) any later version.
+
+// CORD is distributed in the hope that it will be useful,
+// but WITHOUT ANY WARRANTY; without even the implied warranty of
+// MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
+// GNU General Public License for more details.
+
+// You should have received a copy of the GNU General Public License
+// along with CORD. If not, see <https://www.gnu.org/licenses/>.
+
 export interface OrbisDescriptorContract {
   contractVersion: 1;
-  kind: "papi-bootstrap-descriptor-contract";
+  kind: "cord-native-host-contract-manifest";
+  release: "origin-orbis-native-v1";
+  firstSupportedNativeSdk: true;
   runtime: {
     name: "orbis";
     paraId: 1006;
@@ -9,10 +29,15 @@ export interface OrbisDescriptorContract {
     metadataHash: `0x${string}`;
   };
   fixtureIdentity: {
-    status: "unfinalized-p0-fixture-not-production-genesis";
+    status: "deterministic-clean-break-candidate-not-production-approved";
     genesis_identity: `0x${string}`;
     chain_spec_source: string;
     chain_spec_source_sha256: string;
+  };
+  networkActivation: {
+    state: "candidate-pending" | "production-approved";
+    productionActivationReady: boolean;
+    source: string;
   };
   ratificationPayloadSha256: string;
   sources: Record<string, { path: string; sha256: string }>;
@@ -29,5 +54,5 @@ export interface OrbisDescriptorContract {
       payloadFields: readonly string[];
     }[];
   };
-  productionPapiDescriptorGenerated: false;
+  productionPapiDescriptorGenerated: true;
 }

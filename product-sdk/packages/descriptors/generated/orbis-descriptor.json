@@ -8,31 +8,31 @@
     "paraId": 1006,
     "specVersion": 29,
     "transactionVersion": 8,
-    "metadataHash": "0xa11fc57ceabd72676b4f1f6dec860de0c8f52f9d2e9496ea36366d1ba47cd391"
+    "metadataHash": "0x50c8958f0171889a4b01093a5dd5272faf8802018f24a4ac22b231d37b2adc45"
   },
   "fixtureIdentity": {
     "status": "deterministic-clean-break-candidate-not-production-approved",
-    "genesis_identity": "0x657de1aa28685cfa4c66e9f3186c586f3d85db02724bcbdd1a620e0a5cc4e173",
+    "genesis_identity": "0x2584c9d420dc8160b85deaf958d776886366d5beecc2ee7b1236293d20ac70fc",
     "chain_spec_source": "origin/orbis/node/src/chain_spec.rs",
-    "chain_spec_source_sha256": "7f0400a126b7e731e8bfab1a3fa8852b599619d112324fa411d72afa66f480bb",
-    "genesis_state_root": "0x3455b0234339e9f97fbdf926721267226782dffaffd382f3f1e9f472099615e1",
+    "chain_spec_source_sha256": "60e38b74de9c0ccdedfe9c1fa2ea4bdb0346739ba2fef5e7a5ad328c0920b451",
+    "genesis_state_root": "0xe778ef91e9e1419f77a17a687245fc903335ecdb8dd3cf450df86637d529a53c",
     "candidate_identity_source": "docs/genesis/orbis-candidate-genesis-identity.json",
-    "candidate_identity_sha256": "2a7a8d5b8fce4fc2dd15729c3e414d6d68e82ef9a21e12c382b5676d3530ed68"
+    "candidate_identity_sha256": "bfac0f6c85fac491cc9aa6fb0ff03ab1581db78c7901d094c8a9843e898c9e0d"
   },
   "networkActivation": {
     "state": "candidate-pending",
     "productionActivationReady": false,
     "source": "docs/evidence/verification/p5/sdk-freeze-ratification-envelope.json"
   },
-  "ratificationPayloadSha256": "294df78d3a7baa4c999ce65958db08cae4e29148b8d5d22d5dc114b419bc895e",
+  "ratificationPayloadSha256": "68d367d5a5a76390b1f80c88b075714f4ad730e0843edcd748ea8ce87785513c",
   "sources": {
     "compatibility": {
       "path": "docs/sdk/compatibility-manifest.json",
-      "sha256": "3d1c6b48e7da5fa26aca01089bc84d6c22613922eb55858d049e0471d258f7f0"
+      "sha256": "62bf7d6bd620c63ee4571f1b4c74de483bde1499e47c2df29ed2d3ea8f34c102"
     },
     "versionMatrix": {
       "path": "docs/sdk/native-version-matrix.json",
-      "sha256": "e288fe3f10ca7dab28d19258d0709e86af372a8c576f1a3f2ab96c05f49d68b0"
+      "sha256": "1442b5b8301b0a6756b0aec64227504db8578502311b978e41b3e2fe693120a9"
     },
     "extensions": {
       "path": "docs/sdk/signed-extension-manifest.json",
@@ -40,23 +40,31 @@
     },
     "metadata": {
       "path": "origin/orbis/runtime/vectors/transaction-policy-v8/metadata-hash.json",
-      "sha256": "23355f674c0e0108c8e9a80e75fa6050d16acae92304f06327587636be689c28"
+      "sha256": "b05ccc01671b2bd0bd578b89437eddb171fbdc314816f40ce14454fb12e467ac"
+    },
+    "metadataScale": {
+      "path": "product-sdk/packages/descriptors/.papi/metadata/commons.scale",
+      "sha256": "2785e1e501df231ea313a7613c7cadcdad550c79ecf87bb3797b61c64be462fe"
+    },
+    "papiDescriptor": {
+      "path": "product-sdk/packages/descriptors/generated/commons-papi-manifest.json",
+      "sha256": "863725ddb75dca2cda5550d8f28cebcbf0be38c06a3f038da05b3574b8ba3aaa"
     },
     "vectors": {
       "path": "docs/sdk/vectors/native-sdk-v1.json",
-      "sha256": "37174b7b41c06d112d8a35f2daff6cda488057fc1c8888d9bed5f96c97e4b026"
+      "sha256": "5055b9e7e4de99a825b23700b2b9b8a338b9009d12afdc6189b5dc32f146125f"
     },
     "genesisIdentity": {
       "path": "docs/genesis/orbis-candidate-genesis-identity.json",
-      "sha256": "2a7a8d5b8fce4fc2dd15729c3e414d6d68e82ef9a21e12c382b5676d3530ed68"
+      "sha256": "bfac0f6c85fac491cc9aa6fb0ff03ab1581db78c7901d094c8a9843e898c9e0d"
     },
     "chainSpec": {
       "path": "origin/orbis/node/src/chain_spec.rs",
-      "sha256": "0199092fe8c40201459f566c766ebf2bd2dfc3bc6dfc62badd5116edcc88dbab"
+      "sha256": "60e38b74de9c0ccdedfe9c1fa2ea4bdb0346739ba2fef5e7a5ad328c0920b451"
     },
     "nativeRouteContract": {
       "path": "docs/sdk/native-route-contract.json",
-      "sha256": "156e93a88020ced8ee9a854d451fcfdda39755fafad4404d4c855f240b6380e8"
+      "sha256": "2f19961bbf42a91a4c0335657b0ca73bc2dfa889e86f83fe7f72bdf1582397d0"
     }
   },
   "signedExtensionSurfaces": {
@@ -1408,9 +1416,10 @@
     ]
   },
   "descriptorProvenance": {
-    "runtimeMetadataBinding": "reproduced-rfc78-wasm-metadata-hash",
+    "runtimeMetadataBinding": "checked-in-v14-scale-plus-reproduced-rfc78-wasm-metadata-hash",
+    "papiDescriptor": "polkadot-api-2.1.6-byte-reproducible-generation",
     "methodInventory": "authoritative-typed-native-route-contract",
     "driftValidation": "metadata-hash-pallet-call-index-runtime-api-and-rust-typescript-route-harness"
   },
-  "productionPapiDescriptorGenerated": false
+  "productionPapiDescriptorGenerated": true
 }

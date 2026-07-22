@@ -1,0 +1,28 @@
+{
+  "name": "@cord-network/origin-sdk-apps",
+  "version": "0.1.0",
+  "description": "Commons-native application manifests, resolution, and publication binding",
+  "license": "GPL-3.0-or-later",
+  "type": "module",
+  "sideEffects": false,
+  "files": ["dist", "README.md"],
+  "exports": {".": {"types": "./dist/index.d.ts", "import": "./dist/index.js"}},
+  "main": "./dist/index.js",
+  "module": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "scripts": {
+    "build": "tsc -p tsconfig.json",
+    "check": "tsc -p tsconfig.json --noEmit && node --experimental-strip-types --test tests/*.test.ts"
+  },
+  "dependencies": {
+    "@cord-network/origin-sdk-chain-client": "0.1.0",
+    "@cord-network/origin-sdk-cloud-storage": "0.1.0",
+    "@cord-network/origin-sdk-descriptors": "0.1.0",
+    "@cord-network/origin-sdk-errors": "0.1.0",
+    "@cord-network/origin-sdk-host": "0.1.0",
+    "@cord-network/origin-sdk-names": "0.1.0",
+    "@cord-network/origin-sdk-result": "0.1.0",
+    "@cord-network/origin-sdk-tx": "0.1.0"
+  },
+  "cord": {"bundleBudgetBytes": 350000}
+}

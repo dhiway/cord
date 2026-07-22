@@ -1,5 +1,20 @@
+// This file is part of CORD – https://cord.network
+
 // Copyright (C) Dhiway Networks Pvt. Ltd.
-// SPDX-License-Identifier: Apache-2.0
+// SPDX-License-Identifier: GPL-3.0-or-later
+
+// CORD is free software: you can redistribute it and/or modify
+// it under the terms of the GNU General Public License as published by
+// the Free Software Foundation, either version 3 of the License, or
+// (at your option) any later version.
+
+// CORD is distributed in the hope that it will be useful,
+// but WITHOUT ANY WARRANTY; without even the implied warranty of
+// MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
+// GNU General Public License for more details.
+
+// You should have received a copy of the GNU General Public License
+// along with CORD. If not, see <https://www.gnu.org/licenses/>.
 
 //! Conservative pre-benchmark weights for native Orbis Names.
 //!
@@ -106,7 +121,8 @@ impl<T: frame_system::Config> WeightInfo for SubstrateWeight<T> {
 	fn resolver_write() -> Weight {
 		Weight::from_parts(30_000_000, 4_500)
 			// Attestation references add an attestation, schema, and current-block read before
-			// the authorized Orbis Names record mutation. Keep one conservative shared resolver weight.
+			// the authorized Orbis Names record mutation. Keep one conservative shared resolver
+			// weight.
 			.saturating_add(T::DbWeight::get().reads(6))
 			.saturating_add(T::DbWeight::get().writes(1))
 	}

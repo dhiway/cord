@@ -1,3 +1,21 @@
+// This file is part of CORD – https://cord.network
+
+// Copyright (C) Dhiway Networks Pvt. Ltd.
+// SPDX-License-Identifier: GPL-3.0-or-later
+
+// CORD is free software: you can redistribute it and/or modify
+// it under the terms of the GNU General Public License as published by
+// the Free Software Foundation, either version 3 of the License, or
+// (at your option) any later version.
+
+// CORD is distributed in the hope that it will be useful,
+// but WITHOUT ANY WARRANTY; without even the implied warranty of
+// MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
+// GNU General Public License for more details.
+
+// You should have received a copy of the GNU General Public License
+// along with CORD. If not, see <https://www.gnu.org/licenses/>.
+
 //! Closed product operations for participant-authorized, sponsor-paid Orbis transactions.
 //!
 //! The participant signs the inner active MetaTx wire. A distinct sponsor signs and pays for the
@@ -12,12 +30,13 @@ use crate::{
 	config::{build_orbis_params, OrbisConfig},
 	product_sdk::{
 		domains::{
-			attestation::AttestationCommand, names::NamesCommand, drive::DriveCommand,
-			identity_personhood::IdentityPersonhoodCommand, s3::S3Command, storage::StorageCommand,
-			storage_provider::StorageProviderCommand, BlockNumber, Validate,
+			attestation::AttestationCommand, drive::DriveCommand,
+			identity_personhood::IdentityPersonhoodCommand, names::NamesCommand, s3::S3Command,
+			storage::StorageCommand, storage_provider::StorageProviderCommand, BlockNumber,
+			Validate,
 		},
-		prepare_attestation_command, prepare_names_command, prepare_drive_command,
-		prepare_identity_personhood_command, prepare_s3_command, prepare_storage_command,
+		prepare_attestation_command, prepare_drive_command, prepare_identity_personhood_command,
+		prepare_names_command, prepare_s3_command, prepare_storage_command,
 		prepare_storage_provider_command, OrbisNativeClient,
 	},
 	tx::meta::{
@@ -106,8 +125,8 @@ impl SponsoredMortality {
 			));
 		}
 		let era = sp_runtime::generic::Era::mortal(period.into(), self.valid_from.into());
-		if era.birth(self.valid_from.into()) != u64::from(self.valid_from) ||
-			era.death(self.valid_from.into()) != u64::from(self.valid_until)
+		if era.birth(self.valid_from.into()) != u64::from(self.valid_from)
+			|| era.death(self.valid_from.into()) != u64::from(self.valid_until)
 		{
 			return Err(OriginSdkError::InvalidInput(
 				"sponsored mortality window is not exactly representable as a mortal era".into(),
@@ -280,8 +299,9 @@ fn decode_dispatched_result<T>(result: &Value<T>) -> Result<(), OriginSdkError> 
 		ValueDef::Variant(variant) if variant.name == "Err" => Err(OriginSdkError::MetaTx(
 			"MetaTx::Dispatched reported an inner dispatch error".into(),
 		)),
-		_ =>
-			Err(OriginSdkError::MetaTx("MetaTx::Dispatched result has an unexpected shape".into())),
+		_ => {
+			Err(OriginSdkError::MetaTx("MetaTx::Dispatched result has an unexpected shape".into()))
+		},
 	}
 }
 

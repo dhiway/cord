@@ -1,3 +1,21 @@
+// This file is part of CORD – https://cord.network
+
+// Copyright (C) Dhiway Networks Pvt. Ltd.
+// SPDX-License-Identifier: GPL-3.0-or-later
+
+// CORD is free software: you can redistribute it and/or modify
+// it under the terms of the GNU General Public License as published by
+// the Free Software Foundation, either version 3 of the License, or
+// (at your option) any later version.
+
+// CORD is distributed in the hope that it will be useful,
+// but WITHOUT ANY WARRANTY; without even the implied warranty of
+// MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
+// GNU General Public License for more details.
+
+// You should have received a copy of the GNU General Public License
+// along with CORD. If not, see <https://www.gnu.org/licenses/>.
+
 use serde::{Deserialize, Serialize};
 
 use super::{
@@ -27,9 +45,9 @@ pub enum IdentityPersonhoodQuery {
 impl Validate for IdentityPersonhoodQuery {
 	fn validate(&self) -> DomainResult<()> {
 		match self {
-			Self::IdentityStatus { account } |
-			Self::PersonhoodStatus { account } |
-			Self::AttestationAllowance { account } => account.validate(),
+			Self::IdentityStatus { account }
+			| Self::PersonhoodStatus { account }
+			| Self::AttestationAllowance { account } => account.validate(),
 		}
 	}
 }
@@ -138,12 +156,13 @@ impl Validate for IdentityData {
 	fn validate(&self) -> DomainResult<()> {
 		match self {
 			Self::None => Ok(()),
-			Self::Raw { value } =>
-				ensure_bytes(value.as_bytes(), 1, MAX_IDENTITY_RAW_BYTES, "identity data"),
-			Self::BlakeTwo256 { hash } |
-			Self::Sha256 { hash } |
-			Self::Keccak256 { hash } |
-			Self::ShaThree256 { hash } => hash.validate(),
+			Self::Raw { value } => {
+				ensure_bytes(value.as_bytes(), 1, MAX_IDENTITY_RAW_BYTES, "identity data")
+			},
+			Self::BlakeTwo256 { hash }
+			| Self::Sha256 { hash }
+			| Self::Keccak256 { hash }
+			| Self::ShaThree256 { hash } => hash.validate(),
 		}
 	}
 }
@@ -213,9 +232,9 @@ impl RingVrfSignature {
 impl Validate for RingVrfSignature {
 	fn validate(&self) -> DomainResult<()> {
 		let raw = self.0.as_bytes();
-		if raw.len() != 2 + RING_VRF_SIGNATURE_BYTES * 2 ||
-			!self.0.starts_with("0x") ||
-			!raw[2..]
+		if raw.len() != 2 + RING_VRF_SIGNATURE_BYTES * 2
+			|| !self.0.starts_with("0x")
+			|| !raw[2..]
 				.iter()
 				.all(|byte| byte.is_ascii_digit() || (b'a'..=b'f').contains(byte))
 		{
@@ -256,8 +275,9 @@ impl Validate for IdentityPersonhoodCommand {
 		match self {
 			Self::SetIdentity { info } => info.validate(),
 			Self::ClearIdentity => Ok(()),
-			Self::RequestJudgement { registrar } | Self::CancelJudgement { registrar } =>
-				registrar.validate(),
+			Self::RequestJudgement { registrar } | Self::CancelJudgement { registrar } => {
+				registrar.validate()
+			},
 			Self::ProvideJudgement { target, identity_hash, .. } => {
 				target.validate()?;
 				identity_hash.validate()

@@ -1,9 +1,7 @@
 // This file is part of CORD – https://cord.network
 
-// Copyright (C) Parity Technologies (UK) Ltd.
 // Copyright (C) Dhiway Networks Pvt. Ltd.
 // SPDX-License-Identifier: GPL-3.0-or-later
-// Adapted to meet the requirements of the CORD project.
 
 // CORD is free software: you can redistribute it and/or modify
 // it under the terms of the GNU General Public License as published by
@@ -17,7 +15,6 @@
 
 // You should have received a copy of the GNU General Public License
 // along with CORD. If not, see <https://www.gnu.org/licenses/>.
-//
 
 //! # Identity Pallet
 //! Modified to work with CORD primitives
@@ -1128,7 +1125,6 @@ impl<T: Config> Pallet<T> {
 			erroneous,
 		))
 	}
-
 
 	/// Get the subs of an account.
 	pub fn subs(who: &T::AccountId) -> Vec<(T::AccountId, Data)> {

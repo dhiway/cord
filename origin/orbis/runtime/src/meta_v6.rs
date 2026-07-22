@@ -1,3 +1,21 @@
+// This file is part of CORD – https://cord.network
+
+// Copyright (C) Dhiway Networks Pvt. Ltd.
+// SPDX-License-Identifier: GPL-3.0-or-later
+
+// CORD is free software: you can redistribute it and/or modify
+// it under the terms of the GNU General Public License as published by
+// the Free Software Foundation, either version 3 of the License, or
+// (at your option) any later version.
+
+// CORD is distributed in the hope that it will be useful,
+// but WITHOUT ANY WARRANTY; without even the implied warranty of
+// MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
+// GNU General Public License for more details.
+
+// You should have received a copy of the GNU General Public License
+// along with CORD. If not, see <https://www.gnu.org/licenses/>.
+
 use crate::{AccountId, Members, Runtime, RuntimeCall, RuntimeOrigin, System};
 use alloc::vec::Vec;
 use codec::{Decode, DecodeWithMemTracking, Encode, Output};
@@ -1418,10 +1436,7 @@ impl Output for FixedOutput {
 fn decode_meta_intent<R: MetadataImplicitResolver>(
 	call: &RuntimeCall,
 ) -> Result<DecodedMetaIntent, TransactionValidityError> {
-	let RuntimeCall::MetaTx(pallet_meta_tx::Call::dispatch {
-		meta_tx,
-		meta_tx_encoded_len,
-	}) = call
+	let RuntimeCall::MetaTx(pallet_meta_tx::Call::dispatch { meta_tx, meta_tx_encoded_len }) = call
 	else {
 		return Err(InvalidTransaction::Call.into());
 	};
@@ -1439,10 +1454,7 @@ struct DecodedMetaIntent {
 	participant: AccountId,
 }
 
-fn validate_meta_encoded_len(
-	actual: usize,
-	declared: u32,
-) -> Result<(), InvalidTransaction> {
+fn validate_meta_encoded_len(actual: usize, declared: u32) -> Result<(), InvalidTransaction> {
 	if actual > MAX_META_ENCODED_BYTES {
 		return Err(InvalidTransaction::ExhaustsResources);
 	}
@@ -1514,7 +1526,7 @@ fn decode_meta_payload<R: MetadataImplicitResolver>(
 		metadata_implicit: R::resolve(&metadata)?,
 	};
 	if consume.0 != expected
-		|| expected.spec_version != 29
+		|| expected.spec_version != crate::VERSION.spec_version
 		|| expected.transaction_version != 8
 		|| matches!(inner_call, RuntimeCall::MetaTx(..))
 	{

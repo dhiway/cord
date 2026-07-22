@@ -1,3 +1,21 @@
+// This file is part of CORD – https://cord.network
+
+// Copyright (C) Dhiway Networks Pvt. Ltd.
+// SPDX-License-Identifier: GPL-3.0-or-later
+
+// CORD is free software: you can redistribute it and/or modify
+// it under the terms of the GNU General Public License as published by
+// the Free Software Foundation, either version 3 of the License, or
+// (at your option) any later version.
+
+// CORD is distributed in the hope that it will be useful,
+// but WITHOUT ANY WARRANTY; without even the implied warranty of
+// MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
+// GNU General Public License for more details.
+
+// You should have received a copy of the GNU General Public License
+// along with CORD. If not, see <https://www.gnu.org/licenses/>.
+
 /** Canonical first-supported clean-break native SDK/runtime contract. */
 export const NATIVE_SDK_VERSION = {
   contractVersion: 1,
@@ -13,10 +31,10 @@ export const NATIVE_SDK_VERSION = {
     paraId: 1006,
     specVersion: 29,
     transactionVersion: 8,
-    metadataHash: "0xa11fc57ceabd72676b4f1f6dec860de0c8f52f9d2e9496ea36366d1ba47cd391",
-    candidateGenesisHeaderHash: "0x657de1aa28685cfa4c66e9f3186c586f3d85db02724bcbdd1a620e0a5cc4e173",
-    candidateGenesisStateRoot: "0x3455b0234339e9f97fbdf926721267226782dffaffd382f3f1e9f472099615e1",
-    candidateGenesisIdentitySha256: "2a7a8d5b8fce4fc2dd15729c3e414d6d68e82ef9a21e12c382b5676d3530ed68",
+    metadataHash: "0x50c8958f0171889a4b01093a5dd5272faf8802018f24a4ac22b231d37b2adc45",
+    candidateGenesisHeaderHash: "0x2584c9d420dc8160b85deaf958d776886366d5beecc2ee7b1236293d20ac70fc",
+    candidateGenesisStateRoot: "0xe778ef91e9e1419f77a17a687245fc903335ecdb8dd3cf450df86637d529a53c",
+    candidateGenesisIdentitySha256: "bfac0f6c85fac491cc9aa6fb0ff03ab1581db78c7901d094c8a9843e898c9e0d",
     activationState: "candidate-pending",
     productionActivationReady: false,
   },
@@ -24,9 +42,9 @@ export const NATIVE_SDK_VERSION = {
     identityPersonhood: 1,
     attestation: 1,
     names: 1,
-    storageProvider: 4,
-    drive: 1,
-    s3: 1,
+    storageProvider: 10,
+    drive: 2,
+    s3: 3,
   },
   storageSchemas: {
     attestation: 1,

@@ -1,3 +1,21 @@
+// This file is part of CORD – https://cord.network
+
+// Copyright (C) Dhiway Networks Pvt. Ltd.
+// SPDX-License-Identifier: GPL-3.0-or-later
+
+// CORD is free software: you can redistribute it and/or modify
+// it under the terms of the GNU General Public License as published by
+// the Free Software Foundation, either version 3 of the License, or
+// (at your option) any later version.
+
+// CORD is distributed in the hope that it will be useful,
+// but WITHOUT ANY WARRANTY; without even the implied warranty of
+// MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
+// GNU General Public License for more details.
+
+// You should have received a copy of the GNU General Public License
+// along with CORD. If not, see <https://www.gnu.org/licenses/>.
+
 import { createHash } from "node:crypto";
 import { spawnSync } from "node:child_process";
 import { readFileSync, writeFileSync } from "node:fs";
@@ -116,7 +134,7 @@ const orbisRuntime = read(matrix.networks.orbis.runtime_source);
 const workspaceVersion = read("Cargo.toml").match(/^version\s*=\s*"([^"]+)"/m)?.[1];
 
 equal(matrix.schema, "cord.native-sdk-version-matrix.v1", "matrix schema");
-equal(matrix.branch, "sm-update-sub-0x63", "matrix branch");
+equal(matrix.branch, "sm-update-sub-0x65", "matrix branch");
 equal(matrix.clean_break.new_network, true, "clean-break new network");
 for (const field of ["backward_compatibility", "data_migration", "legacy_client", "contract_compatibility_facade"])
   equal(matrix.clean_break[field], false, `clean-break ${field}`);
@@ -130,7 +148,7 @@ equal(firstVersion(orbisRuntime, "transaction_version"), matrix.networks.orbis.t
 equal(matrix.networks.origin.activation_state, "candidate-pending", "Origin candidate activation state");
 equal(matrix.networks.origin.production_activation_ready, false, "Origin candidate production gate");
 equal(metadata.metadata_hash, matrix.networks.orbis.metadata_hash, "Orbis metadata hash");
-equal(metadata.compact_wasm_sha256, "558727456824d1f06928148ffead8cee5d58a63bf9109d0334a061f30c35db0f", "Orbis compact Wasm");
+equal(metadata.compact_wasm_sha256, "19662465cef9ea3cde0c7c10865cc9e68cf3afb723e6184de8a0029de82b1f2e", "Orbis compact Wasm");
 equal(sha256(matrix.networks.orbis.candidate_genesis_identity_source), matrix.networks.orbis.candidate_genesis_identity_sha256, "candidate genesis artifact");
 equal(candidateGenesis.genesis.header_hash, matrix.networks.orbis.candidate_genesis_header_hash, "candidate genesis header");
 equal(candidateGenesis.genesis.state_root, matrix.networks.orbis.candidate_genesis_state_root, "candidate genesis state root");
@@ -336,7 +354,7 @@ for (const binding of m5Bindings.bindings) {
       || !new RegExp(`impl\\s+${surface.rust.declaration}\\s*\\{[\\s\\S]*?pub\\s+fn\\s+${surface.rust.constructor}\\s*\\(`).test(rustValidation)) {
       fail(`missing exact Rust label validation surface ${keyOf(binding.key)}`);
     }
-    equal(surface.typescript.path, "product-sdk/src/names.ts", `M5 label TypeScript path ${keyOf(binding.key)}`);
+    equal(surface.typescript.path, "product-sdk/packages/origin-sdk-names/src/index.ts", `M5 label TypeScript path ${keyOf(binding.key)}`);
     if (!new RegExp(`export\\s+function\\s+${surface.typescript.function}\\s*\\(`).test(read(surface.typescript.path))) {
       fail(`missing exact TypeScript label validation surface ${keyOf(binding.key)}`);
     }
@@ -358,12 +376,12 @@ equal(descriptor.fixtureIdentity.genesis_state_root, matrix.networks.orbis.candi
 equal(descriptor.fixtureIdentity.candidate_identity_sha256, matrix.networks.orbis.candidate_genesis_identity_sha256, "descriptor candidate artifact");
 equal(descriptor.nativeHostContract.methodCount, NATIVE_HOST_METHODS.length, "descriptor native method count");
 equal(routeContract.schema, "cord.native-route-contract.v1", "route contract schema");
-equal(routeContract.route_count, 143, "route contract count");
+equal(routeContract.route_count, 138, "route contract count");
 equal(routeContract.network.metadata_hash, matrix.networks.orbis.metadata_hash, "route contract metadata hash");
 equal(routeContract.network.activation_state, matrix.networks.orbis.activation_state, "route contract activation state");
 equal(routeContract.network.production_activation_ready, false, "route contract production gate");
 equal(routeContract.signature_schema_basis.runtime_metadata,
-  "current RFC-78 metadata hash is reproduced, but no decoded metadata blob is available; runtime argument signatures are not asserted from decoded metadata",
+  "checked-in Commons V14 SCALE metadata is extracted from the current runtime Wasm and drives the reproducible PAPI descriptor; this route contract remains the authoritative product-policy projection",
   "route contract decoded metadata boundary");
 equal(routeContract.routes.length, NATIVE_HOST_METHODS.length, "route projection count");
 const projectedRoutes = routeContract.routes.map((route: any) => ({ capability: route.capability, method: route.method, finality: route.finality, payloadFields: route.parameters.map(({ name }: any) => name) }));
@@ -476,7 +494,7 @@ const report = {
     compatibility_facade_rows: compatibilityRows.length,
     data_migration_rows: migrationRows.length,
   },
-  descriptor: { kind: descriptor.kind, native_method_count: NATIVE_HOST_METHODS.length, authoritative_route_contract: "docs/sdk/native-route-contract.json", runtime_dispatch_or_api_bound_routes: routeContract.route_count, metadata_reconciliation: "exact current metadata hash plus source-derived pallet/call indices and runtime API implementation tables; decoded current metadata blob unavailable, so decoded runtime signatures are not asserted" },
+  descriptor: { kind: descriptor.kind, native_method_count: NATIVE_HOST_METHODS.length, authoritative_route_contract: "docs/sdk/native-route-contract.json", runtime_dispatch_or_api_bound_routes: routeContract.route_count, metadata_reconciliation: "checked-in Commons V14 SCALE metadata plus exact current RFC-78 hash; reproducible PAPI output provides metadata-derived types while the route contract restricts the supported product surface" },
   reference_surface: { raw_scale: false, migrated_domain_revive: false, contract_abi: false, pallet_or_call_indices: false },
   inputs: {
     version_matrix_sha256: sha256("docs/sdk/native-version-matrix.json"),

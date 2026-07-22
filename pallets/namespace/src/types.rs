@@ -15,7 +15,7 @@
 
 // You should have received a copy of the GNU General Public License
 // along with CORD. If not, see <https://www.gnu.org/licenses/>.
-//
+
 //! # Space Management Module Types
 //!
 //! This module defines types used for managing spaces within the blockchain,

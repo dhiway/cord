@@ -1,3 +1,21 @@
+// This file is part of CORD – https://cord.network
+
+// Copyright (C) Dhiway Networks Pvt. Ltd.
+// SPDX-License-Identifier: GPL-3.0-or-later
+
+// CORD is free software: you can redistribute it and/or modify
+// it under the terms of the GNU General Public License as published by
+// the Free Software Foundation, either version 3 of the License, or
+// (at your option) any later version.
+
+// CORD is distributed in the hope that it will be useful,
+// but WITHOUT ANY WARRANTY; without even the implied warranty of
+// MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
+// GNU General Public License for more details.
+
+// You should have received a copy of the GNU General Public License
+// along with CORD. If not, see <https://www.gnu.org/licenses/>.
+
 //! Subxt config for Origin relay and Orbis system-chain networks.
 //!
 //! Keeps the SDK dynamic (no codegen) while ensuring hashes, headers, accounts,
@@ -39,8 +57,8 @@ pub type OriginExtrinsicParams<T> = AnyOf<
 
 /// Signed extensions exposed by Orbis. The five actor-policy extensions encode an unused
 /// `Option::None` selector and must be named here, in runtime order, so Subxt matches live
-/// metadata. Quota-aware payment remains metadata-compatible with `ChargeAssetTxPayment`; Orbis Storage
-/// validation and Revive origin mapping are also zero-byte fields.
+/// metadata. Quota-aware payment remains metadata-compatible with `ChargeAssetTxPayment`; Orbis
+/// Storage validation and Revive origin mapping are also zero-byte fields.
 pub type OrbisExtrinsicParams<T> = AnyOf<
 	T,
 	(

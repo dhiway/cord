@@ -15,9 +15,7 @@
 
 // You should have received a copy of the GNU General Public License
 // along with CORD. If not, see <https://www.gnu.org/licenses/>.
-//
 
-// tests.rs — unit tests for AuthorityManager
 #![cfg(test)]
 
 use super::*;

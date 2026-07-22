@@ -1,3 +1,21 @@
+// This file is part of CORD – https://cord.network
+
+// Copyright (C) Dhiway Networks Pvt. Ltd.
+// SPDX-License-Identifier: GPL-3.0-or-later
+
+// CORD is free software: you can redistribute it and/or modify
+// it under the terms of the GNU General Public License as published by
+// the Free Software Foundation, either version 3 of the License, or
+// (at your option) any later version.
+
+// CORD is distributed in the hope that it will be useful,
+// but WITHOUT ANY WARRANTY; without even the implied warranty of
+// MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
+// GNU General Public License for more details.
+
+// You should have received a copy of the GNU General Public License
+// along with CORD. If not, see <https://www.gnu.org/licenses/>.
+
 import assert from "node:assert/strict";import{readFileSync}from"node:fs";import{resolve}from"node:path";import test from"node:test";
 import{contractDigest,sha256File,validateEqcResult,validateResultSchemaContract,validateServiceSchemaContract,validateSloManifest}from"../../packages/eqc/src/validate.ts";
 const repo=resolve(import.meta.dirname,"../../.."),load=(p:string)=>JSON.parse(readFileSync(resolve(repo,p),"utf8")),mp=resolve(repo,"docs/evidence/performance/service-slo-manifest.json"),slo=load("docs/evidence/performance/service-slo-manifest.json"),env=load("docs/evidence/verification/p5/sdk-freeze-ratification-envelope.json"),hash=sha256File(mp),descriptor=contractDigest("descriptor",load("product-sdk/packages/descriptors/generated/orbis-descriptor.json"));

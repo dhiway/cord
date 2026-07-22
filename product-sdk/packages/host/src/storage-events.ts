@@ -1,7 +1,25 @@
+// This file is part of CORD – https://cord.network
+
+// Copyright (C) Dhiway Networks Pvt. Ltd.
+// SPDX-License-Identifier: GPL-3.0-or-later
+
+// CORD is free software: you can redistribute it and/or modify
+// it under the terms of the GNU General Public License as published by
+// the Free Software Foundation, either version 3 of the License, or
+// (at your option) any later version.
+
+// CORD is distributed in the hope that it will be useful,
+// but WITHOUT ANY WARRANTY; without even the implied warranty of
+// MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
+// GNU General Public License for more details.
+
+// You should have received a copy of the GNU General Public License
+// along with CORD. If not, see <https://www.gnu.org/licenses/>.
+
 import { ProductSdkError } from "../../core/src/contract.ts";
 import type { TypedFinalizedEvent, TypedFinalizedEventSource } from "./attestation-events.ts";
-import { storageNativeEventOutcome, type FinalizedStorageNativeEvent, type StorageNativeEvent, type StorageNativeEventKind, type StorageNativeEventSubscription, type StorageNativeOutcome } from "../../../src/storage-events.ts";
-import type { AccountId, AgreementId, BlockHash, BlockNumber, BucketId, ChallengeId, ContentCommitment, DecimalU64, DriveId, ObjectId, ProviderId } from "../../../src/types.ts";
+import { storageNativeEventOutcome, type FinalizedStorageNativeEvent, type StorageNativeEvent, type StorageNativeEventKind, type StorageNativeEventSubscription, type StorageNativeOutcome } from "@cord-network/origin-sdk-cloud-storage";
+import type { AccountId, AgreementId, BlockHash, BlockNumber, BucketId, ChallengeId, ContentCommitment, DecimalU64, DriveId, ObjectId, ProviderId } from "@cord-network/origin-sdk-cloud-storage";
 export interface FinalizedStorageNativeOutcome{readonly event:FinalizedStorageNativeEvent;readonly outcome:StorageNativeOutcome}
 const HASH=/^0x[0-9a-f]{64}$/i,DECIMAL=/^(0|[1-9][0-9]*)$/,U64=18_446_744_073_709_551_615n;
 function reject(m:string):never{throw new ProductSdkError("runtime_rejected",m)}

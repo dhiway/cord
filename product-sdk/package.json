@@ -3,37 +3,40 @@
   "version": "0.9.9",
   "private": true,
   "type": "module",
+  "workspaces": [
+    "packages/origin-sdk-*",
+    "packages/origin-sdk"
+  ],
   "engines": {
     "node": ">=22.6.0"
   },
   "exports": {
     ".": "./src/index.ts",
-    "./attestation": "./src/attestation.ts",
-    "./content": "./src/content.ts",
-    "./names": "./src/names.ts",
-    "./drive": "./src/drive.ts",
     "./errors": "./src/errors.ts",
     "./host": "./src/host.ts",
-    "./identity": "./src/identity.ts",
     "./network-host": "./packages/host/src/network-host.ts",
     "./attestation-events": "./packages/host/src/attestation-events.ts",
     "./network-binding": "./packages/descriptors/generated/orbis-network-binding.ts",
-    "./provider": "./src/provider.ts",
-    "./s3": "./src/s3.ts",
-    "./storage": "./src/storage.ts",
     "./sponsored-transaction": "./src/sponsored-transaction.ts",
     "./types": "./src/types.ts",
     "./names-events": "./packages/host/src/names-events.ts",
-    "./storage-events": "./src/storage-events.ts",
-    "./storage-native-events": "./packages/host/src/storage-events.ts",
     "./version": "./src/version.ts"
   },
   "scripts": {
+    "build": "node --experimental-strip-types tools/run-workspace-script.ts build",
+    "check:workspaces": "node --experimental-strip-types tools/run-workspace-script.ts check",
+    "clean": "node --experimental-strip-types tools/clean-workspaces.ts",
+    "changeset": "changeset",
+    "version-packages": "changeset version",
+    "check:packages": "node --experimental-strip-types tools/check-package-contract.ts",
+    "test:packed": "npm run build && node --experimental-strip-types tools/test-packed-consumer.ts",
     "check:domains": "node --experimental-strip-types --input-type=module -e \"import('./src/index.ts')\"",
     "generate:routes": "node --experimental-strip-types tools/generate-route-contract.ts",
     "check:routes": "node --experimental-strip-types tools/generate-route-contract.ts --check",
-    "generate:descriptors": "npm run generate:routes && node --experimental-strip-types tools/generate-descriptor.ts",
-    "check:descriptors": "npm run check:routes && node --experimental-strip-types tools/generate-descriptor.ts --check",
+    "generate:papi": "node --experimental-strip-types tools/generate-papi-descriptor.ts",
+    "check:papi": "node --experimental-strip-types tools/generate-papi-descriptor.ts --check",
+    "generate:descriptors": "npm run generate:routes && npm run generate:papi && node --experimental-strip-types tools/generate-descriptor.ts",
+    "check:descriptors": "npm run check:routes && npm run check:papi && node --experimental-strip-types tools/generate-descriptor.ts --check",
     "test:conformance": "node --experimental-strip-types --test tests/conformance/*.test.ts",
     "test:content": "node --experimental-strip-types --test tests/content/*.test.ts",
     "test:host": "node --experimental-strip-types --test tests/host/*.test.ts",
@@ -43,8 +46,16 @@
     "validate:ratification": "node --experimental-strip-types tools/validate-ratification.ts",
     "update:ratification": "node --experimental-strip-types tools/update-ratification.ts",
     "test:eqc": "node --experimental-strip-types --test tests/eqc/*.test.ts",
-    "test": "npm run check:descriptors && npm run validate:ratification && npm run test:conformance && npm run test:content && npm run test:host && npm run validate:eqc && npm run test:eqc",
+    "test": "npm run check:descriptors && npm run check:inventory && npm run validate:ratification && npm run test:conformance && npm run test:content && npm run test:host && npm run validate:eqc && npm run test:eqc",
     "validate:sdk-freeze": "node --experimental-strip-types tools/generate-m5-sdk-bindings.ts --check && node --experimental-strip-types tools/validate-sdk-native-coverage.ts",
-    "update:sdk-freeze": "node --experimental-strip-types tools/generate-m5-sdk-bindings.ts && node --experimental-strip-types tools/validate-sdk-native-coverage.ts --write"
+    "update:sdk-freeze": "node --experimental-strip-types tools/generate-m5-sdk-bindings.ts && node --experimental-strip-types tools/validate-sdk-native-coverage.ts --write",
+    "generate:inventory": "npm run generate:papi && node --experimental-strip-types tools/generate-papi-app-surface.ts",
+    "check:inventory": "npm run check:papi && node --experimental-strip-types tools/generate-papi-app-surface.ts --check"
+  },
+  "devDependencies": {
+    "@changesets/cli": "2.31.0",
+    "@types/node": "22.20.1",
+    "polkadot-api": "2.1.6",
+    "typescript": "5.9.3"
   }
 }

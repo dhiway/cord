@@ -1,8 +1,17 @@
 # CORD Product SDK — native SDK v1
 
+## Publishable Origin SDK packages
+
+The Tier A package floor is available as side-effect-free ESM with declarations:
+`origin-sdk-result`, `origin-sdk-errors`, `origin-sdk-descriptors`, `origin-sdk-chain-client`,
+`origin-sdk-host`, `origin-sdk-signer`, and `origin-sdk-tx` under the `@cord-network` scope.
+`npm run test:packed` builds and installs only their tarballs into a clean consumer, then proves a
+runtime-bound finalized read and a host-approved finalized transaction. The private root exports
+remain temporary inputs for Tier B extraction and are not publication targets.
+
 This workspace is the first supported transport-neutral TypeScript SDK for the
-clean-break Origin/Orbis stack. It freezes the Origin `9901/2` and Orbis
-`29/8` version matrix, current Orbis metadata, typed descriptor contract, and
+clean-break Foundation/Commons stack. It freezes the Foundation `9901/2` and Commons
+`29/8` version matrix, current Commons metadata, typed descriptor contract, and
 cross-language native semantic vectors.
 
 It is deliberately **not** a production mobile rewrite, a performance result,
@@ -71,18 +80,20 @@ activation envelope derives `production-approved`.
 
 `packages/descriptors/generated/orbis-descriptor.json` is a deterministic
 native host contract manifest bound to the checked-in runtime metadata-hash
-record and SDK manifests. Its 132-method inventory is generated from
-`docs/sdk/native-route-contract.json`; Rust and TypeScript execute every canonical route sample.
-The inventory is not generated from PAPI or a decoded current metadata blob. It binds the canonical P5 signing-payload hash while
+record and SDK manifests. The checked-in Commons V14 SCALE metadata generates a byte-reproducible
+PAPI descriptor with `polkadot-api@2.1.6`; `check:papi` rejects metadata or generated-output drift.
+The authoritative 138-method inventory is generated from `docs/sdk/native-route-contract.json`;
+Rust and TypeScript execute every canonical route sample. The network-bound descriptor and host
+schema are regenerated only from a reconciled live metadata identity. The descriptor binds the canonical P5 signing-payload hash while
 the signing payload binds a canonical descriptor-contract digest that excludes
 only that mutable binding field, avoiding a circular/full-envelope hash claim.
-It is the supported closed host-route inventory, but must not be represented as
-a generated PAPI or metadata descriptor: the Subxt runtime adapter resolves calls from live
-metadata and the freeze validator rejects version, metadata, route, or schema drift.
+It is the supported closed host-route policy inventory rather than a substitute for the generated
+PAPI package. The Subxt runtime adapter resolves calls from verified metadata and the freeze
+validator rejects version, metadata, descriptor, route, or schema drift.
 
 ## Verified content retrieval
 
-`src/content.ts` is the CORD-owned, transport-neutral content client. Applications
+`@cord-network/origin-sdk-cloud-storage` provides the CORD-owned, transport-neutral content client. Applications
 inject an ordered set of gateway and/or Bitswap block providers; the SDK applies
 that order deterministically, bounds block/file sizes and DAG block counts, and
 verifies CIDv0/v1 SHA2-256 or Blake2b-256 multihashes before returning bytes.

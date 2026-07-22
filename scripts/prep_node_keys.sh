@@ -1,13 +1,21 @@
-#
-#/ Copyright 2019-2021 Dhiway.
-# This file is part of CORD Platform.
-# 
+# This file is part of CORD – https://cord.network
 
-# Generating a new NODE_SEED
-# use the CMD - subkey generate -n cord --words 24
-# Secret seed of this account is the node seed
+# Copyright (C) Dhiway Networks Pvt. Ltd.
+# SPDX-License-Identifier: GPL-3.0-or-later
 
-#!/usr/bin/env bash
+# CORD is free software: you can redistribute it and/or modify
+# it under the terms of the GNU General Public License as published by
+# the Free Software Foundation, either version 3 of the License, or
+# (at your option) any later version.
+
+# CORD is distributed in the hope that it will be useful,
+# but WITHOUT ANY WARRANTY; without even the implied warranty of
+# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
+# GNU General Public License for more details.
+
+# You should have received a copy of the GNU General Public License
+# along with CORD. If not, see <https://www.gnu.org/licenses/>.
+
 set -e
 
 if [ "$#" -ne 1 ]; then

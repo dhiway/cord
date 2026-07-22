@@ -58,3 +58,10 @@ kvdb = { workspace = true }
 kvdb-rocksdb = { workspace = true }
 rand = "0.8"
 proptest = "1"
+ciborium = "0.2.2"
+cddl = "0.10.6"
+sha2 = { workspace = true, features = ["std"] }
+blake2 = { workspace = true, features = ["std"] }
+ed25519-dalek = { workspace = true, features = ["std"] }
+chacha20poly1305 = "0.10.1"
+unicode-normalization = "0.1.24"

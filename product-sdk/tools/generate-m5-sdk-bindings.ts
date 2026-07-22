@@ -1,3 +1,21 @@
+// This file is part of CORD – https://cord.network
+
+// Copyright (C) Dhiway Networks Pvt. Ltd.
+// SPDX-License-Identifier: GPL-3.0-or-later
+
+// CORD is free software: you can redistribute it and/or modify
+// it under the terms of the GNU General Public License as published by
+// the Free Software Foundation, either version 3 of the License, or
+// (at your option) any later version.
+
+// CORD is distributed in the hope that it will be useful,
+// but WITHOUT ANY WARRANTY; without even the implied warranty of
+// MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
+// GNU General Public License for more details.
+
+// You should have received a copy of the GNU General Public License
+// along with CORD. If not, see <https://www.gnu.org/licenses/>.
+
 import { createHash } from "node:crypto";
 import { readFileSync, writeFileSync } from "node:fs";
 import { resolve } from "node:path";
@@ -61,7 +79,7 @@ const bindings = adopted.map((entry: any) => {
   if (bindingKind === "label-validation-surface") {
     binding.validation_surfaces = {
       rust: { path: "origin-rs/src/product_sdk/domains/names.rs", declaration: "Label", constructor: "new" },
-      typescript: { path: "product-sdk/src/names.ts", function: "normalizedLabel" },
+      typescript: { path: "product-sdk/packages/origin-sdk-names/src/index.ts", function: "normalizedLabel" },
       vectors: { path: vectorPath, sha256: sha256(vectorPath) },
       cases: {
         rust: { path: "origin-rs/src/product_sdk/domains/names.rs", case: "shared_vectors_match_label_name_commitment_and_event_contracts" },

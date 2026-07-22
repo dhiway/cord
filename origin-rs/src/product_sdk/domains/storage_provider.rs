@@ -1,8 +1,26 @@
+// This file is part of CORD – https://cord.network
+
+// Copyright (C) Dhiway Networks Pvt. Ltd.
+// SPDX-License-Identifier: GPL-3.0-or-later
+
+// CORD is free software: you can redistribute it and/or modify
+// it under the terms of the GNU General Public License as published by
+// the Free Software Foundation, either version 3 of the License, or
+// (at your option) any later version.
+
+// CORD is distributed in the hope that it will be useful,
+// but WITHOUT ANY WARRANTY; without even the implied warranty of
+// MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
+// GNU General Public License for more details.
+
+// You should have received a copy of the GNU General Public License
+// along with CORD. If not, see <https://www.gnu.org/licenses/>.
+
 use serde::{Deserialize, Serialize};
 
 use super::common::{
-	ensure_bytes, invalid, AccountId, AgreementId, BlockNumber, ChallengeId, ContainerId,
-	ContentCommitment, DomainResult, FinalizedQuery, PageRequest, ProofCommitment,
+	ensure_bytes, invalid, AccountId, AgreementId, BlockNumber, BucketId, ChallengeId, ContainerId,
+	ContentCommitment, DomainResult, FinalizedQuery, Hash32, PageRequest, ProofCommitment,
 	ProviderReference, ReservationId, SubmitAndFinalize, Validate,
 };
 
@@ -68,6 +86,7 @@ pub enum ProviderStatus {
 pub enum AgreementStatus {
 	Proposed,
 	Active,
+	Suspended,
 	Cancelled,
 	Expired,
 }
@@ -82,16 +101,42 @@ pub enum ChallengeStatus {
 
 #[derive(Clone, Debug, Deserialize, Eq, PartialEq, Serialize)]
 #[serde(deny_unknown_fields)]
+pub struct ProviderOrganizationView {
+	pub entity_id: Vec<u8>,
+	pub attestation: Hash32,
+	pub schema: Hash32,
+	pub sla_commitment: Hash32,
+	pub sla_version: u16,
+	pub valid_from: BlockNumber,
+	pub valid_until: BlockNumber,
+	pub rotation_predecessor: Option<Hash32>,
+}
+
+#[derive(Clone, Debug, Deserialize, Eq, PartialEq, Serialize)]
+#[serde(deny_unknown_fields)]
+pub struct ProviderServiceKeyView {
+	pub active: ServiceKey,
+	pub active_version: u64,
+	pub previous: Option<ServiceKey>,
+	pub pending: Option<ServiceKey>,
+	pub pending_version: Option<u64>,
+	pub pending_effective_at: Option<BlockNumber>,
+}
+
+#[derive(Clone, Debug, Deserialize, Eq, PartialEq, Serialize)]
+#[serde(deny_unknown_fields)]
 pub struct ProviderView {
 	pub provider: AccountId,
 	pub endpoint: Endpoint,
-	pub service_key: ServiceKey,
+	pub organization: ProviderOrganizationView,
+	pub service_key: ProviderServiceKeyView,
 	pub capacity_bytes: u64,
 	pub allocated_bytes: u64,
 	pub pending_bytes: u64,
 	pub status: ProviderStatus,
 	pub last_heartbeat: BlockNumber,
-	pub reputation: i32,
+	pub overdue_challenges: u32,
+	pub authority_validated_at: Option<BlockNumber>,
 }
 
 #[derive(Clone, Debug, Deserialize, Eq, PartialEq, Serialize)]
@@ -99,57 +144,53 @@ pub struct ProviderView {
 pub struct AgreementView {
 	pub agreement: AgreementId,
 	pub owner: AccountId,
-	pub provider: AccountId,
-	pub container: ContainerId,
-	pub content_commitment: ContentCommitment,
-	pub reservation_ref: Option<ReservationId>,
+	pub bucket: BucketId,
+	pub primary: AccountId,
+	pub replicas: Vec<AccountId>,
 	pub bytes: u64,
 	pub created_at: BlockNumber,
 	pub expires_at: BlockNumber,
-	pub pending_expiry: Option<BlockNumber>,
+	pub release_at: Option<BlockNumber>,
+	pub state_version: u64,
 	pub status: AgreementStatus,
+}
+
+#[derive(Clone, Debug, Deserialize, Eq, PartialEq, Serialize)]
+#[serde(deny_unknown_fields)]
+pub struct CommitmentView {
+	pub mmr_root: ProofCommitment,
+	pub start_seq: u64,
+	pub leaf_count: u64,
+}
+
+#[derive(Clone, Copy, Debug, Deserialize, Eq, PartialEq, Serialize)]
+#[serde(deny_unknown_fields)]
+pub struct ChunkLocationView {
+	pub leaf_index: u64,
+	pub chunk_index: u32,
 }
 
 #[derive(Clone, Debug, Deserialize, Eq, PartialEq, Serialize)]
 #[serde(deny_unknown_fields)]
 pub struct ChallengeView {
 	pub challenge: ChallengeId,
+	pub bucket: BucketId,
 	pub provider: AccountId,
-	pub agreement: AgreementId,
-	pub expected_commitment: ProofCommitment,
+	pub expected_commitment: CommitmentView,
+	pub location: ChunkLocationView,
 	pub due_at: BlockNumber,
-	pub proof_commitment: Option<ProofCommitment>,
 	pub status: ChallengeStatus,
 }
 
 #[derive(Clone, Debug, Deserialize, Eq, PartialEq, Serialize)]
 #[serde(deny_unknown_fields)]
 pub struct CheckpointView {
-	pub challenge: ChallengeId,
-	pub proof_commitment: ProofCommitment,
-	pub recorded_at: BlockNumber,
-}
-
-#[derive(Clone, Debug, Deserialize, Eq, PartialEq, Serialize)]
-#[serde(deny_unknown_fields)]
-pub struct ProviderRootView {
-	pub sequence: u64,
-	pub root: ProofCommitment,
-	pub leaf_count: u64,
-	pub committed_at: BlockNumber,
-}
-
-#[derive(Clone, Debug, Deserialize, Eq, PartialEq, Serialize)]
-#[serde(deny_unknown_fields)]
-pub struct DeletionAcknowledgementView {
-	pub provider: AccountId,
-	pub content_commitment: ContentCommitment,
-	pub tombstone_root: ProofCommitment,
-	pub root_sequence: u64,
-	pub leaf_index: u64,
-	pub leaf_count: u64,
-	pub proof_commitment: ProofCommitment,
-	pub acknowledged_at: BlockNumber,
+	pub bucket: BucketId,
+	pub commitment: CommitmentView,
+	pub checkpoint_block: BlockNumber,
+	pub primary_signers: u8,
+	pub commitment_nonce: BlockNumber,
+	pub replica_confirmations: Vec<AccountId>,
 }
 
 #[derive(Clone, Debug, Deserialize, Eq, PartialEq, Serialize)]
@@ -162,11 +203,8 @@ pub enum StorageProviderResponse {
 	AgreementNonce(super::common::FinalizedValue<u64>),
 	Challenge(super::common::FinalizedValue<ChallengeView>),
 	Challenges(super::common::FinalizedPage<ChallengeId>),
-	OpenChallengeCount(super::common::FinalizedValue<u32>),
 	CanAcceptCapacity(super::common::FinalizedValue<bool>),
 	Checkpoint(super::common::FinalizedValue<CheckpointView>),
-	ProviderRoot(super::common::FinalizedValue<ProviderRootView>),
-	DeletionAcknowledgement(super::common::FinalizedValue<DeletionAcknowledgementView>),
 	ResourceProviderRef(super::common::FinalizedValue<ProviderReference>),
 }
 
@@ -186,14 +224,6 @@ pub enum StorageProviderQuery {
 		provider: AccountId,
 		page: PageRequest,
 	},
-	OwnerAgreements {
-		owner: AccountId,
-		page: PageRequest,
-	},
-	ContainerAgreements {
-		container: ContainerId,
-		page: PageRequest,
-	},
 	AgreementNonce {
 		owner: AccountId,
 	},
@@ -204,21 +234,12 @@ pub enum StorageProviderQuery {
 		block: BlockNumber,
 		page: PageRequest,
 	},
-	OpenChallengeCount {
-		agreement: AgreementId,
-	},
 	CanAcceptCapacity {
 		provider: AccountId,
 		additional_bytes: u64,
 	},
-	ProviderCheckpoint {
-		provider: AccountId,
-	},
-	ProviderRoot {
-		provider: AccountId,
-	},
-	DeletionAcknowledgement {
-		agreement: AgreementId,
+	BucketCheckpoint {
+		bucket: BucketId,
 	},
 	/// Exact TransactionStorage `resource_provider_ref(reservation_id)` runtime API query.
 	ResourceProviderRef {
@@ -229,32 +250,22 @@ pub enum StorageProviderQuery {
 impl Validate for StorageProviderQuery {
 	fn validate(&self) -> DomainResult<()> {
 		match self {
-			Self::ProviderById { provider }
-			| Self::AgreementNonce { owner: provider }
-			| Self::ProviderCheckpoint { provider }
-			| Self::ProviderRoot { provider } => provider.validate(),
+			Self::ProviderById { provider } | Self::AgreementNonce { owner: provider } => {
+				provider.validate()
+			},
 			Self::CanAcceptCapacity { provider, additional_bytes } => {
 				let _ = additional_bytes;
 				provider.validate()
 			},
 			Self::Providers { page } => page.validate(),
-			Self::AgreementById { agreement }
-			| Self::OpenChallengeCount { agreement }
-			| Self::DeletionAcknowledgement { agreement } => agreement.validate(),
+			Self::AgreementById { agreement } => agreement.validate(),
 			Self::ProviderAgreements { provider, page } => {
 				provider.validate()?;
 				page.validate()
 			},
-			Self::OwnerAgreements { owner, page } => {
-				owner.validate()?;
-				page.validate()
-			},
-			Self::ContainerAgreements { container, page } => {
-				container.validate()?;
-				page.validate()
-			},
 			Self::ChallengeById { challenge } => challenge.validate(),
 			Self::ChallengesAt { page, .. } => page.validate(),
+			Self::BucketCheckpoint { bucket } => bucket.validate(),
 			Self::ResourceProviderRef { reservation_id } => reservation_id.validate(),
 		}
 	}
@@ -443,6 +454,29 @@ impl Validate for StorageProviderCommand {
 				reservation_id.validate()?;
 				provider_ref.validate()
 			},
+		}
+	}
+}
+
+#[cfg(test)]
+mod tests {
+	use super::*;
+
+	#[test]
+	fn checkpoint_query_is_bucket_scoped_and_removed_reads_do_not_decode() {
+		let bucket = BucketId::new(format!("0x{}", "11".repeat(32))).unwrap();
+		let query = StorageProviderQuery::BucketCheckpoint { bucket };
+		query.validate().unwrap();
+		assert!(serde_json::to_string(&query).unwrap().contains("bucket_checkpoint"));
+
+		for stale in [
+			r#"{"query":"owner_agreements","arguments":{}}"#,
+			r#"{"query":"container_agreements","arguments":{}}"#,
+			r#"{"query":"open_challenge_count","arguments":{}}"#,
+			r#"{"query":"provider_root","arguments":{}}"#,
+			r#"{"query":"deletion_acknowledgement","arguments":{}}"#,
+		] {
+			assert!(serde_json::from_str::<StorageProviderQuery>(stale).is_err());
 		}
 	}
 }

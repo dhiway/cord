@@ -19,6 +19,10 @@
 **/hfuzz_target/
 **/hfuzz_workspace/
 **/node_modules
+product-sdk/packages/origin-sdk-*/dist/
+product-sdk/packages/origin-sdk-*/*.tgz
+product-sdk/packages/origin-sdk/dist/
+product-sdk/packages/origin-sdk/*.tgz
 **/target/
 **/wip/*.stderr
 /.cargo/config
@@ -34,3 +38,6 @@ runtime/wasm/target/
 runtimes/wasm/target/
 target/
 data/
+docs/
+.omx/
+omx_wiki/

@@ -25,6 +25,7 @@ members = [
 	"origin/orbis/runtime-api/storage",
 	"origin/orbis/runtime-api/token",
 	"origin/orbis/runtime/constants",
+	"origin/orbis/primitives/storage-control",
 	"origin/orbis/runtime/metadata-implicit-nohash",
 	"origin/common",
 	"origin/pallets/authorities",
@@ -186,6 +187,7 @@ cfg-expr = { version = "0.15.5" }
 cfg-if = { version = "1.0" }
 chain-spec-builder = { git = "https://github.com/dhiway/sdk", default-features = false, branch = "release-v1.24.0", package = "staging-chain-spec-builder" }
 chrono = { version = "0.4.31" }
+ciborium = { version = "0.2.2" }
 cid = { version = "0.11.1", default-features = false }
 clap = { version = "4.5.13" }
 clap_complete = { version = "4.5.13" }
@@ -404,6 +406,7 @@ pallet-orbis-names = { path = "origin/orbis/pallets/names", default-features = f
 pallet-orbis-names-runtime-api = { path = "origin/orbis/pallets/names/runtime-api", default-features = false }
 orbis-identity-personhood-runtime-api = { path = "origin/orbis/runtime-api/identity-personhood", default-features = false }
 pallet-orbis-drive = { path = "origin/orbis/pallets/drive", default-features = false }
+pallet-orbis-storage-control-primitives = { path = "origin/orbis/primitives/storage-control", default-features = false }
 pallet-orbis-storage-provider = { path = "origin/orbis/pallets/storage-provider", default-features = false }
 pallet-orbis-s3 = { path = "origin/orbis/pallets/s3", default-features = false }
 pallet-child-bounties = { git = "https://github.com/dhiway/sdk", default-features = false, branch = "release-v1.24.0" }

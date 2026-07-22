@@ -1,9 +1,27 @@
+// This file is part of CORD – https://cord.network
+
+// Copyright (C) Dhiway Networks Pvt. Ltd.
+// SPDX-License-Identifier: GPL-3.0-or-later
+
+// CORD is free software: you can redistribute it and/or modify
+// it under the terms of the GNU General Public License as published by
+// the Free Software Foundation, either version 3 of the License, or
+// (at your option) any later version.
+
+// CORD is distributed in the hope that it will be useful,
+// but WITHOUT ANY WARRANTY; without even the implied warranty of
+// MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
+// GNU General Public License for more details.
+
+// You should have received a copy of the GNU General Public License
+// along with CORD. If not, see <https://www.gnu.org/licenses/>.
+
 import assert from "node:assert/strict";
 import test from "node:test";
 import { decodeNamesEvent, subscribeNamesEvents, type FinalizedNamesOutcome } from "../../packages/host/src/names-events.ts";
 import type { TypedFinalizedEvent, TypedFinalizedEventSource } from "../../packages/host/src/attestation-events.ts";
-import { NAMES_EVENT_KINDS, namesEventSubscription } from "../../src/names.ts";
-import type { BlockHash } from "../../src/types.ts";
+import { NAMES_EVENT_KINDS, namesEventSubscription } from "@cord-network/origin-sdk-names";
+import type { BlockHash } from "@cord-network/origin-sdk-names";
 
 const anchor = `0x${"11".repeat(32)}` as BlockHash;
 const finalized = `0x${"22".repeat(32)}`;

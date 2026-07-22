@@ -1,3 +1,21 @@
+// This file is part of CORD – https://cord.network
+
+// Copyright (C) Dhiway Networks Pvt. Ltd.
+// SPDX-License-Identifier: GPL-3.0-or-later
+
+// CORD is free software: you can redistribute it and/or modify
+// it under the terms of the GNU General Public License as published by
+// the Free Software Foundation, either version 3 of the License, or
+// (at your option) any later version.
+
+// CORD is distributed in the hope that it will be useful,
+// but WITHOUT ANY WARRANTY; without even the implied warranty of
+// MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
+// GNU General Public License for more details.
+
+// You should have received a copy of the GNU General Public License
+// along with CORD. If not, see <https://www.gnu.org/licenses/>.
+
 use std::marker::PhantomData;
 
 use codec::{Decode, Encode, Input, Output};
@@ -446,8 +464,8 @@ fn find_type(metadata: &Metadata, path: &[&str]) -> Option<scale_info::PortableT
 		.iter()
 		.find(|ty| {
 			let segments = &ty.ty.path.segments;
-			segments.len() == path.len() &&
-				segments.iter().map(|seg| seg.as_str()).zip(path.iter()).all(|(a, b)| a == *b)
+			segments.len() == path.len()
+				&& segments.iter().map(|seg| seg.as_str()).zip(path.iter()).all(|(a, b)| a == *b)
 		})
 		.cloned()
 }
@@ -722,8 +740,9 @@ mod sponsored_tests {
 
 	#[test]
 	fn current_intent_preimage_fixture_matches_wire_shape() {
-		let fixture =
-			include_bytes!("../../../origin/orbis/runtime/vectors/transaction-policy-v8/intent-preimage.scale");
+		let fixture = include_bytes!(
+			"../../../origin/orbis/runtime/vectors/transaction-policy-v8/intent-preimage.scale"
+		);
 		let mut cursor = &fixture[..];
 		let decoded = raw::IntentPreimageV7::decode(&mut cursor).expect("current intent fixture");
 		assert!(cursor.is_empty());

@@ -1,5 +1,20 @@
-// This file is part of CORD - https://cord.network
+// This file is part of CORD – https://cord.network
+
+// Copyright (C) Dhiway Networks Pvt. Ltd.
 // SPDX-License-Identifier: GPL-3.0-or-later
+
+// CORD is free software: you can redistribute it and/or modify
+// it under the terms of the GNU General Public License as published by
+// the Free Software Foundation, either version 3 of the License, or
+// (at your option) any later version.
+
+// CORD is distributed in the hope that it will be useful,
+// but WITHOUT ANY WARRANTY; without even the implied warranty of
+// MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
+// GNU General Public License for more details.
+
+// You should have received a copy of the GNU General Public License
+// along with CORD. If not, see <https://www.gnu.org/licenses/>.
 
 //! Bounded authenticated provider HTTP API.
 
@@ -22,12 +37,14 @@ use hyper::{
 };
 use hyper_util::rt::TokioIo;
 use serde::{Deserialize, Serialize};
-use sp_core::{sr25519, Pair as _};
+use sp_core::{ed25519, Pair as _};
 use tokio::net::TcpListener;
 
 use crate::{
-	workers::flush_pending_submissions, ChainAuthority, CheckpointSubmitter, CommitInput,
-	DiskStore, NodeProfile, RootObservation, SignedCheckpoint, StoreError, PROTOCOL_VERSION,
+	chain::ReplicationAuthority, checkpoint_stack::CheckpointStack, peer_http::serve_peer_http,
+	peer_responder::PeerResponder, workers::flush_pending_submissions, ChainAuthority,
+	CheckpointSubmitter, CommitInput, ContentError, DiskStore, FinalizedRuntimeAuthority,
+	NodeProfile, RootObservation, SignedCheckpoint, StoreError, PROTOCOL_VERSION,
 };
 
 type Body = Full<Bytes>;
@@ -48,8 +65,9 @@ pub struct ApiConfig {
 /// Shared provider service state.
 pub struct ProviderService<A: ChainAuthority> {
 	store: Arc<DiskStore>,
+	checkpoint_stack: Arc<CheckpointStack>,
 	authority: Arc<A>,
-	service_key: sr25519::Pair,
+	service_key: ed25519::Pair,
 	outbox: Arc<dyn CheckpointSubmitter>,
 	root_outbox_lock: tokio::sync::Mutex<()>,
 	started_unix_ms: u64,
@@ -60,17 +78,19 @@ impl<A: ChainAuthority> ProviderService<A> {
 	pub fn new(
 		store: Arc<DiskStore>,
 		authority: Arc<A>,
-		service_key: sr25519::Pair,
+		service_key: ed25519::Pair,
 		outbox: Arc<dyn CheckpointSubmitter>,
-	) -> Self {
-		Self {
+	) -> Result<Self, ContentError> {
+		let checkpoint_stack = Arc::new(CheckpointStack::open(store.root())?);
+		Ok(Self {
 			store,
+			checkpoint_stack,
 			authority,
 			service_key,
 			outbox,
 			root_outbox_lock: tokio::sync::Mutex::new(()),
 			started_unix_ms: now_ms(),
-		}
+		})
 	}
 
 	/// Access the local store for worker orchestration.
@@ -81,6 +101,11 @@ impl<A: ChainAuthority> ProviderService<A> {
 	/// Access the finalized chain authority for challenge coordination.
 	pub fn authority(&self) -> &Arc<A> {
 		&self.authority
+	}
+
+	/// Access the private checkpoint kernels for in-crate orchestration.
+	pub(crate) fn checkpoint_stack(&self) -> &Arc<CheckpointStack> {
+		&self.checkpoint_stack
 	}
 
 	pub(crate) fn outbox(&self) -> &Arc<dyn CheckpointSubmitter> {
@@ -117,6 +142,114 @@ impl<A: ChainAuthority> ProviderService<A> {
 		self.store.append_checkpoint(checkpoint.clone())?;
 		Ok(checkpoint)
 	}
+}
+
+/// Serve the public API and the separately-bound authenticated peer ingress as one lifecycle.
+///
+/// This is intentionally specialized to the finalized runtime authority so the private
+/// replication authority and responder types never become public API.
+pub async fn serve_provider_ingress(
+	config: ApiConfig,
+	peer_listener: TcpListener,
+	service: Arc<ProviderService<FinalizedRuntimeAuthority>>,
+	local_provider: [u8; 32],
+) -> Result<(), std::io::Error> {
+	let responder = peer_responder_for_service(&service, local_provider).map_err(|_| {
+		std::io::Error::new(std::io::ErrorKind::InvalidInput, "provider peer identity is invalid")
+	})?;
+	tokio::select! {
+		result = serve(config, service) => result,
+		result = serve_peer_http(peer_listener, responder) => result,
+	}
+}
+
+/// Run the separately bounded target replication lifecycle for the production authority.
+pub async fn run_replication_worker(
+	service: Arc<ProviderService<FinalizedRuntimeAuthority>>,
+	local_provider: [u8; 32],
+	cadence: std::time::Duration,
+) {
+	crate::replication_worker::run(
+		Arc::clone(service.authority()),
+		Arc::clone(service.checkpoint_stack()),
+		Arc::clone(service.store()),
+		local_provider,
+		service.service_key.clone(),
+		cadence,
+	)
+	.await
+}
+
+/// Run the separately bounded checkpoint confirmation quorum lifecycle.
+pub async fn run_checkpoint_quorum_worker(
+	service: Arc<ProviderService<FinalizedRuntimeAuthority>>,
+	local_provider: [u8; 32],
+	cadence: std::time::Duration,
+) {
+	crate::checkpoint_quorum_worker::run(
+		Arc::clone(service.authority()),
+		Arc::clone(service.checkpoint_stack()),
+		Arc::clone(service.store()),
+		local_provider,
+		service.service_key.clone(),
+		cadence,
+	)
+	.await
+}
+
+/// Run one long-lived account-serialized finality lane and exact checkpoint publication lifecycle.
+#[cfg(feature = "checkpoint-live")]
+pub async fn run_checkpoint_live_worker(
+	service: Arc<ProviderService<FinalizedRuntimeAuthority>>,
+	local_provider: [u8; 32],
+	orbis_native_rpc: String,
+	account_suri: String,
+	cadence: std::time::Duration,
+) -> Result<(), ContentError> {
+	use oc::{product_sdk::OrbisNativeClient, types::OriginAccount, OriginSigner};
+
+	let account = OriginAccount::from_uri(&account_suri, None)
+		.map_err(|_| ContentError::Io("invalid provider account secret URI".into()))?;
+	drop(account_suri);
+	let signer = OriginSigner::from_account(&account)
+		.map_err(|_| ContentError::Io("provider account signer initialization failed".into()))?;
+	drop(account);
+	let signer_account: [u8; 32] = signer.account_id().into();
+	if signer_account != local_provider {
+		return Err(ContentError::IntegrityFailed);
+	}
+	let client = OrbisNativeClient::connect(&orbis_native_rpc)
+		.await
+		.map_err(|error| ContentError::Io(error.to_string()))?;
+	let lane = crate::checkpoint::checkpoint_live::OriginRsCheckpointFinalityLane::new(
+		client,
+		signer,
+		service.service_key.clone(),
+	)?;
+	crate::checkpoint_live_worker::run(
+		Arc::clone(service.authority()),
+		Arc::clone(service.checkpoint_stack()),
+		lane,
+		cadence,
+	)
+	.await;
+	Ok(())
+}
+
+fn peer_responder_for_service<A>(
+	service: &Arc<ProviderService<A>>,
+	local_provider: [u8; 32],
+) -> Result<Arc<PeerResponder<A>>, ContentError>
+where
+	A: ChainAuthority + ReplicationAuthority,
+{
+	Ok(Arc::new(PeerResponder::new_with_store(
+		Arc::clone(service.authority()),
+		Arc::clone(service.checkpoint_stack()),
+		Arc::clone(service.store()),
+		local_provider,
+		service.service_key.clone(),
+	)?))
 }
 
 /// Serve the provider protocol until the listener fails or the task is cancelled.
@@ -530,4 +663,182 @@ fn now_ms() -> u64 {
 	SystemTime::now()
 		.duration_since(UNIX_EPOCH)
 		.map_or(0, |value| value.as_millis() as u64)
+}
+
+#[cfg(test)]
+mod lifecycle_tests {
+	use async_trait::async_trait;
+	use sp_core::Pair as _;
+
+	use super::*;
+	use crate::{
+		chain::{ReplicationProviderSnapshot, ReplicationTopologySnapshot},
+		peer::{
+			PeerMmrCommitmentV1, PeerPageExpectationV1, PeerRequestIdentityV1,
+			PeerSyncPageRequestV1,
+		},
+		replication_session::ReplicationSessionV1,
+		storage::{bucket_mmr::BucketMmrStore, StreamingDescriptor, StreamingStore},
+		AgreementAuthorization, BucketId, CanonicalCid, ChainError, ChallengeBatch,
+		CheckpointDutyBatch, CheckpointDutyPageRequest, JsonlCheckpointOutbox, OperationId,
+	};
+
+	struct Authority(ReplicationTopologySnapshot);
+
+	#[async_trait]
+	impl ChainAuthority for Authority {
+		async fn authorize_commit(
+			&self,
+			_: [u8; 32],
+			_: [u8; 32],
+			_: u64,
+		) -> Result<AgreementAuthorization, ChainError> {
+			Err(ChainError::Rejected("unused".into()))
+		}
+
+		async fn authorize_delete(
+			&self,
+			_: [u8; 32],
+			_: [u8; 32],
+		) -> Result<AgreementAuthorization, ChainError> {
+			Err(ChainError::Rejected("unused".into()))
+		}
+
+		async fn challenge_duties(&self, _: Option<u32>) -> Result<ChallengeBatch, ChainError> {
+			Err(ChainError::Rejected("unused".into()))
+		}
+
+		async fn checkpoint_duties(
+			&self,
+			_: Option<CheckpointDutyPageRequest>,
+		) -> Result<CheckpointDutyBatch, ChainError> {
+			Err(ChainError::Rejected("unused".into()))
+		}
+	}
+
+	#[async_trait]
+	impl ReplicationAuthority for Authority {
+		async fn replication_topology(
+			&self,
+			_: [u8; 32],
+		) -> Result<ReplicationTopologySnapshot, ChainError> {
+			Ok(self.0.clone())
+		}
+
+		async fn replication_topology_at(
+			&self,
+			_: [u8; 32],
+			_: [u8; 32],
+			_: u32,
+		) -> Result<ReplicationTopologySnapshot, ChainError> {
+			Ok(self.0.clone())
+		}
+	}
+
+	#[tokio::test]
+	async fn peer_responder_clones_services_stack_and_replays_its_exact_reply() {
+		let temp = tempfile::tempdir().unwrap();
+		let key = ed25519::Pair::from_seed(&[8; 32]);
+		let target = ed25519::Pair::from_seed(&[9; 32]);
+		let bytes = b"shared checkpoint stack".to_vec();
+		let cid = CanonicalCid::from_digest(sp_crypto_hashing::blake2_256(&bytes));
+		let streaming = StreamingStore::open(temp.path()).unwrap();
+		streaming
+			.put_chunks(
+				StreamingDescriptor {
+					operation_id: OperationId::from_bytes([3; 16]),
+					bucket_id: BucketId::from_bytes([4; 32]),
+					expected_cid: cid.to_string(),
+					object_len: bytes.len() as u64,
+				},
+				[bytes],
+			)
+			.unwrap();
+		let mmr = BucketMmrStore::open(temp.path(), &streaming).unwrap();
+		let candidate =
+			mmr.commitment_candidate(&streaming, BucketId::from_bytes([4; 32]), 0).unwrap();
+		let commitment = PeerMmrCommitmentV1::new(candidate.mmr_root.0, 0, 1, 0).unwrap();
+		let provider = |id: u8, order: u8, service_key: [u8; 32]| {
+			let endpoint = format!("https://provider-{id}.invalid").into_bytes();
+			ReplicationProviderSnapshot {
+				provider: [id; 32],
+				order,
+				primary: order == 0,
+				record_present: true,
+				endpoint_hash: Some(sp_crypto_hashing::blake2_256(&endpoint)),
+				endpoint: Some(endpoint),
+				active_service_key: Some(service_key),
+				active_service_key_version: Some(u64::from(order) + 1),
+				status_active: true,
+				organization_valid: true,
+				authority_validated_at: Some(8),
+				overdue_challenges: 0,
+				eligible: true,
+				usable: true,
+				exclusions: Vec::new(),
+				confirmed_checkpoint: None,
+			}
+		};
+		let mut topology = ReplicationTopologySnapshot {
+			genesis_hash: [1; 32],
+			finalized_hash: [2; 32],
+			finalized_number: 10,
+			governed_finalized_checkpoint: Some(8),
+			bucket_id: [4; 32],
+			bucket_version: 1,
+			primary: [7; 32],
+			replicas: vec![[9; 32]],
+			providers: vec![provider(7, 0, key.public().0), provider(9, 1, target.public().0)],
+			current_checkpoint: None,
+			snapshot_hash: [0; 32],
+		};
+		let mut topology_bytes = b"cord/provider/replication-topology/v1".to_vec();
+		codec::Encode::encode_to(&topology, &mut topology_bytes);
+		topology.snapshot_hash = sp_crypto_hashing::blake2_256(&topology_bytes);
+		let store = Arc::new(
+			DiskStore::open(
+				temp.path(),
+				NodeProfile {
+					provider: hex::encode([7; 32]),
+					endpoint: "http://127.0.0.1:8080".into(),
+					service_key: hex::encode(key.public().0),
+					region: None,
+				},
+				1024,
+			)
+			.unwrap(),
+		);
+		let service = Arc::new(
+			ProviderService::new(
+				store,
+				Arc::new(Authority(topology.clone())),
+				key,
+				Arc::new(JsonlCheckpointOutbox::new(temp.path().join("outbox.jsonl"))),
+			)
+			.unwrap(),
+		);
+		let responder = peer_responder_for_service(&service, [7; 32]).unwrap();
+		assert!(Arc::ptr_eq(service.checkpoint_stack(), responder.checkpoint_stack()));
+		let session = ReplicationSessionV1::from_topology(
+			topology,
+			[7; 32],
+			key.public().0,
+			[7; 32],
+			[9; 32],
+			commitment,
+		)
+		.unwrap();
+		let expectation = PeerPageExpectationV1::new(
+			session.context().clone(),
+			PeerRequestIdentityV1::new([5; 16], [6; 16]).unwrap(),
+			None,
+			1,
+		)
+		.unwrap();
+		let request = PeerSyncPageRequestV1::new_signed(&expectation, &target).unwrap();
+		let request = codec::Encode::encode(&request);
+		let first = responder.page(&request).await.unwrap();
+		let replay = responder.page(&request).await.unwrap();
+		assert_eq!(replay, first);
+	}
 }

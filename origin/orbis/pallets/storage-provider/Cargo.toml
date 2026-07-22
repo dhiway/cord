@@ -1,6 +1,6 @@
 [package]
 name = "pallet-orbis-storage-provider"
-description = "Zero-stake, administratively admitted storage providers and bounded agreements for Orbis"
+description = "Governed enterprise storage providers and bounded agreements for Origin Commons"
 version.workspace = true
 authors.workspace = true
 edition.workspace = true
@@ -13,27 +13,33 @@ workspace = true
 
 [dependencies]
 codec = { features = ["derive", "max-encoded-len"], workspace = true }
+ed25519-zebra = { optional = true, workspace = true }
 scale-info = { features = ["derive"], workspace = true }
 frame-support = { workspace = true }
 frame-system = { workspace = true }
-sp-runtime = { workspace = true }
-
-[dev-dependencies]
+frame-benchmarking = { optional = true, workspace = true }
+pallet-orbis-storage-control-primitives = { workspace = true }
 sp-core = { workspace = true }
 sp-io = { workspace = true }
+sp-runtime = { workspace = true }
 
 [features]
 default = ["std"]
 std = [
 	"codec/std",
+	"ed25519-zebra?/std",
 	"scale-info/std",
 	"frame-support/std",
 	"frame-system/std",
-	"sp-runtime/std",
+	"frame-benchmarking?/std",
+	"pallet-orbis-storage-control-primitives/std",
 	"sp-core/std",
 	"sp-io/std",
+	"sp-runtime/std",
 ]
 runtime-benchmarks = [
+	"ed25519-zebra",
+	"frame-benchmarking/runtime-benchmarks",
 	"frame-support/runtime-benchmarks",
 	"frame-system/runtime-benchmarks",
 	"sp-runtime/runtime-benchmarks",

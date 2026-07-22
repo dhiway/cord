@@ -15,7 +15,6 @@
 
 // You should have received a copy of the GNU General Public License
 // along with CORD. If not, see <https://www.gnu.org/licenses/>.
-// along with Polkadot.  If not, see <http://www.gnu.org/licenses/>.
 
 //! CORD Origin Relay CLI
 

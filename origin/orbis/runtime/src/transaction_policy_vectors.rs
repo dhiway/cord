@@ -3,6 +3,19 @@
 // Copyright (C) Dhiway Networks Pvt. Ltd.
 // SPDX-License-Identifier: GPL-3.0-or-later
 
+// CORD is free software: you can redistribute it and/or modify
+// it under the terms of the GNU General Public License as published by
+// the Free Software Foundation, either version 3 of the License, or
+// (at your option) any later version.
+
+// CORD is distributed in the hope that it will be useful,
+// but WITHOUT ANY WARRANTY; without even the implied warranty of
+// MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
+// GNU General Public License for more details.
+
+// You should have received a copy of the GNU General Public License
+// along with CORD. If not, see <https://www.gnu.org/licenses/>.
+
 //! Checked-in SCALE conformance vectors for the current Commons signed and sponsored transaction
 //! pipeline.
 //!
@@ -23,9 +36,9 @@ use sp_runtime::{
 };
 use verifiable::{ring::bandersnatch::BandersnatchVrfVerifiable, GenerateVerifiable};
 
-const VECTOR_BASELINE_METADATA_IMPLICIT: [u8; 32] = [
-	0x85, 0x19, 0x55, 0x76, 0x67, 0xf8, 0x7e, 0xb7, 0xee, 0x32, 0xcd, 0x10, 0x9d, 0x40, 0xac, 0xfd,
-	0x48, 0xd9, 0xc5, 0x3a, 0x7e, 0xd9, 0x15, 0xfe, 0x17, 0x33, 0xb0, 0x35, 0x73, 0xab, 0x9e, 0xf9,
+pub(crate) const VECTOR_CURRENT_METADATA_IMPLICIT: [u8; 32] = [
+	0x82, 0x47, 0x31, 0xed, 0x7c, 0xab, 0x60, 0x37, 0xcd, 0xfa, 0x3f, 0x88, 0xe4, 0x0f, 0x78, 0x55,
+	0x6f, 0x77, 0xf0, 0x16, 0x13, 0x6f, 0xd5, 0x63, 0xac, 0xd6, 0xc7, 0xa4, 0x14, 0xc2, 0x9f, 0x8e,
 ];
 
 type MetaBareExtension = (
@@ -72,7 +85,7 @@ fn meta_tuple_for(
 	let metadata =
 		frame_metadata_hash_extension::CheckMetadataHash::<Runtime>::decode_all(&mut &[1u8][..])
 			.unwrap();
-	let metadata_implicit = Some(VECTOR_BASELINE_METADATA_IMPLICIT);
+	let metadata_implicit = Some(VECTOR_CURRENT_METADATA_IMPLICIT);
 	let preimage = crate::meta_v6::IntentPreimageV7 {
 		domain: crate::meta_v6::META_DOMAIN.to_vec(),
 		extension_version: 0,
@@ -116,7 +129,7 @@ fn meta_tuple_for(
 		bare.7.implicit().unwrap(),
 		bare.8.implicit().unwrap(),
 		bare.9.implicit().unwrap(),
-		Some(VECTOR_BASELINE_METADATA_IMPLICIT),
+		Some(VECTOR_CURRENT_METADATA_IMPLICIT),
 	);
 	let signature = (0u8, call.clone(), bare.clone(), implicit)
 		.using_encoded(|payload| pair.sign(&sp_io::hashing::blake2_256(payload)));
@@ -182,7 +195,7 @@ fn honour_meta_tuples() -> (pallet_meta_tx::MetaTxFor<Runtime>, pallet_meta_tx::
 	// VoterAuth is last inside the nested identity tuple. Its inherited implication is the base
 	// Meta call followed by the outer Orbis Storage/metadata explicit and implicit suffixes.
 	let message =
-		(0u8, &call, &storage, &metadata, (), Some(VECTOR_BASELINE_METADATA_IMPLICIT), &account)
+		(0u8, &call, &storage, &metadata, (), Some(VECTOR_CURRENT_METADATA_IMPLICIT), &account)
 			.using_encoded(sp_io::hashing::blake2_256);
 
 	let domain: RingDomainSize = crate::MembersFlexibleRingExponent::get().try_into().unwrap();
@@ -223,12 +236,16 @@ fn honour_meta_tuples() -> (pallet_meta_tx::MetaTxFor<Runtime>, pallet_meta_tx::
 fn policy_vectors() -> [crate::meta_v6::PolicyProofsV6; 7] {
 	[
 		include_bytes!("../vectors/transaction-policy-v8/proof-person-alias-meta.scale").as_slice(),
-		include_bytes!("../vectors/transaction-policy-v8/proof-person-identity-meta.scale").as_slice(),
-		include_bytes!("../vectors/transaction-policy-v8/proof-person-alias-revised-meta.scale").as_slice(),
+		include_bytes!("../vectors/transaction-policy-v8/proof-person-identity-meta.scale")
+			.as_slice(),
+		include_bytes!("../vectors/transaction-policy-v8/proof-person-alias-revised-meta.scale")
+			.as_slice(),
 		include_bytes!("../vectors/transaction-policy-v8/proof-lite-person-meta.scale").as_slice(),
 		include_bytes!("../vectors/transaction-policy-v8/proof-lite-alias-meta.scale").as_slice(),
-		include_bytes!("../vectors/transaction-policy-v8/proof-lite-alias-revised-meta.scale").as_slice(),
-		include_bytes!("../vectors/transaction-policy-v8/proof-resources-claim-meta.scale").as_slice(),
+		include_bytes!("../vectors/transaction-policy-v8/proof-lite-alias-revised-meta.scale")
+			.as_slice(),
+		include_bytes!("../vectors/transaction-policy-v8/proof-resources-claim-meta.scale")
+			.as_slice(),
 	]
 	.map(|mut bytes| {
 		let meta = pallet_meta_tx::MetaTxFor::<Runtime>::decode_all(&mut bytes).unwrap();
@@ -419,7 +436,7 @@ fn verify_meta_signature(meta: pallet_meta_tx::MetaTxFor<Runtime>) -> bool {
 		bare.7.implicit().unwrap(),
 		bare.8.implicit().unwrap(),
 		bare.9.implicit().unwrap(),
-		Some(VECTOR_BASELINE_METADATA_IMPLICIT),
+		Some(VECTOR_CURRENT_METADATA_IMPLICIT),
 	);
 	let digest = (version, call, bare, implicit).using_encoded(sp_io::hashing::blake2_256);
 	sp_runtime::traits::Verify::verify(&signature, digest.as_slice(), &account)
@@ -468,7 +485,7 @@ fn validate_meta_head(
 		bare.7.implicit().unwrap(),
 		bare.8.implicit().unwrap(),
 		bare.9.implicit().unwrap(),
-		Some(VECTOR_BASELINE_METADATA_IMPLICIT),
+		Some(VECTOR_CURRENT_METADATA_IMPLICIT),
 	);
 	verify
 		.validate(
@@ -489,7 +506,7 @@ impl crate::meta_v6::MetadataImplicitResolver for FixtureMetadataResolver {
 	fn resolve(
 		metadata: &frame_metadata_hash_extension::CheckMetadataHash<Runtime>,
 	) -> Result<Option<[u8; 32]>, sp_runtime::transaction_validity::TransactionValidityError> {
-		Ok(if metadata.encode() == [0] { None } else { Some(VECTOR_BASELINE_METADATA_IMPLICIT) })
+		Ok(if metadata.encode() == [0] { None } else { Some(VECTOR_CURRENT_METADATA_IMPLICIT) })
 	}
 }
 
@@ -596,7 +613,8 @@ pub(crate) fn checked_in_score_meta_fixture_executes_as_paid_outer_extrinsic() {
 			participant.as_mut().unwrap().score = 10
 		});
 		let meta = pallet_meta_tx::MetaTxFor::<Runtime>::decode_all(
-			&mut include_bytes!("../vectors/transaction-policy-v8/score-participant-meta.scale").as_slice(),
+			&mut include_bytes!("../vectors/transaction-policy-v8/score-participant-meta.scale")
+				.as_slice(),
 		)
 		.unwrap();
 		assert!(apply_checked_meta_fixture(meta, &sponsor_pair).is_ok());
@@ -632,7 +650,8 @@ pub(crate) fn checked_in_score_nonce_mutation_is_exact_future_without_inner_muta
 		});
 		let before = pallet_orbis_score::Participants::<Runtime>::get(&key);
 		let meta = pallet_meta_tx::MetaTxFor::<Runtime>::decode_all(
-			&mut include_bytes!("../vectors/transaction-policy-v8/mutate-score-nonce-meta.scale").as_slice(),
+			&mut include_bytes!("../vectors/transaction-policy-v8/mutate-score-nonce-meta.scale")
+				.as_slice(),
 		)
 		.unwrap();
 		assert_eq!(
@@ -655,7 +674,8 @@ pub(crate) fn checked_in_honour_account_mutation_is_exact_bad_signer_and_executa
 		frame_system::GenesisConfig::<Runtime>::default().build();
 		crate::System::set_block_number(1);
 		crate::System::set_extrinsic_index(0);
-		let bytes = include_bytes!("../vectors/transaction-policy-v8/mutate-honour-account-meta.scale");
+		let bytes =
+			include_bytes!("../vectors/transaction-policy-v8/mutate-honour-account-meta.scale");
 		let meta = pallet_meta_tx::MetaTxFor::<Runtime>::decode_all(&mut bytes.as_slice()).unwrap();
 		let (call, _, extension): (RuntimeCall, u8, crate::MetaTxExtension) =
 			DecodeAll::decode_all(&mut bytes.as_slice()).unwrap();
@@ -828,7 +848,8 @@ fn regenerate_meta_v8_fixtures() {
 	sp_io::TestExternalities::new_empty().execute_with(|| {
 		frame_system::GenesisConfig::<Runtime>::default().build();
 		crate::System::set_block_number(1);
-		let dir = std::path::Path::new(env!("CARGO_MANIFEST_DIR")).join("vectors/transaction-policy-v8");
+		let dir =
+			std::path::Path::new(env!("CARGO_MANIFEST_DIR")).join("vectors/transaction-policy-v8");
 		let write = |name: &str, bytes: &[u8]| std::fs::write(dir.join(name), bytes).unwrap();
 		let intent = canonical_intent();
 		let token = paid_token();
@@ -984,7 +1005,7 @@ fn checked_in_current_transaction_policy_vectors_decode_all_recompute_and_match_
 		let (inner_call, _, extension): (RuntimeCall, u8, crate::MetaTxExtension) =
 			DecodeAll::decode_all(&mut meta.encode().as_slice()).unwrap();
 		assert_eq!(extension.1 .0, intent);
-		assert_eq!(extension.1 .0.metadata_implicit, Some(VECTOR_BASELINE_METADATA_IMPLICIT));
+		assert_eq!(extension.1 .0.metadata_implicit, Some(VECTOR_CURRENT_METADATA_IMPLICIT));
 		assert!(extension.1.weight(&inner_call).all_gte(crate::weights::meta_v6::v7_commitment_delta()));
 		let score_meta = include_bytes!("../vectors/transaction-policy-v8/score-participant-meta.scale");
 		let (score_call, _, score_extension): (RuntimeCall, u8, crate::MetaTxExtension) =
@@ -1096,7 +1117,7 @@ fn checked_in_current_transaction_policy_vectors_decode_all_recompute_and_match_
 			let (_, _, extension): (RuntimeCall, u8, crate::MetaTxExtension) =
 				DecodeAll::decode_all(&mut meta.encode().as_slice()).unwrap();
 			assert_eq!(extension.9 .1 .0, expected);
-			assert_eq!(extension.1 .0.metadata_implicit, Some(VECTOR_BASELINE_METADATA_IMPLICIT));
+			assert_eq!(extension.1 .0.metadata_implicit, Some(VECTOR_CURRENT_METADATA_IMPLICIT));
 			match index {
 				2 => assert!(matches!(extension.9 .1 .0.personhood, Some(crate::meta_v6::MetaPersonhoodAuthV6::PersonalAliasAccountRevised(ref proof, ..)) if !proof.is_empty())),
 				5 => assert!(matches!(extension.9 .1 .0.people_lite, Some(crate::meta_v6::MetaPeopleLiteAuthV6::LiteAliasAccountRevised(ref proof, ..)) if !proof.is_empty())),
@@ -1142,7 +1163,7 @@ fn checked_in_current_transaction_policy_vectors_decode_all_recompute_and_match_
 		assert_eq!(crate::meta_v6::MAX_META_PAYLOAD_BYTES, 65_503);
 		let manifest: serde_json::Value =
 			serde_json::from_str(include_str!("../vectors/transaction-policy-v8/manifest.json")).unwrap();
-		assert_eq!(manifest["spec_version"], 29);
+		assert_eq!(manifest["spec_version"], crate::VERSION.spec_version);
 		assert_eq!(manifest["transaction_version"], 8);
 		assert_eq!(manifest["max_envelope_bytes"], 65_536);
 		assert_eq!(manifest["over_bound_error"], "InvalidTransaction::ExhaustsResources");

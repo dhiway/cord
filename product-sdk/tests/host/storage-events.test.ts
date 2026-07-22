@@ -1,7 +1,25 @@
+// This file is part of CORD – https://cord.network
+
+// Copyright (C) Dhiway Networks Pvt. Ltd.
+// SPDX-License-Identifier: GPL-3.0-or-later
+
+// CORD is free software: you can redistribute it and/or modify
+// it under the terms of the GNU General Public License as published by
+// the Free Software Foundation, either version 3 of the License, or
+// (at your option) any later version.
+
+// CORD is distributed in the hope that it will be useful,
+// but WITHOUT ANY WARRANTY; without even the implied warranty of
+// MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
+// GNU General Public License for more details.
+
+// You should have received a copy of the GNU General Public License
+// along with CORD. If not, see <https://www.gnu.org/licenses/>.
+
 import assert from "node:assert/strict";import test from "node:test";
 import {decodeStorageNativeEvent,subscribeStorageNativeEvents} from "../../packages/host/src/storage-events.ts";
-import {storageNativeEventSubscription,type StorageNativeEventKind} from "../../src/storage-events.ts";
-import type {TypedFinalizedEventSource} from "../../packages/host/src/attestation-events.ts";import type{BlockHash}from"../../src/types.ts";
+import {storageNativeEventSubscription,type StorageNativeEventKind} from "@cord-network/origin-sdk-cloud-storage";
+import type {TypedFinalizedEventSource} from "../../packages/host/src/attestation-events.ts";import type{BlockHash}from"@cord-network/origin-sdk-cloud-storage";
 const h=(n:number)=>`0x${n.toString(16).padStart(2,"0").repeat(32)}`,a=(n:number)=>`account-${n}`;
 const cases:[string,string,Record<string,unknown>,StorageNativeEventKind][]=[
 ["StorageProvider","ProviderRegistered",{provider:a(1),capacity_bytes:2},"provider_registered"],["StorageProvider","ProviderUpdated",{provider:a(1),capacity_bytes:"3"},"provider_updated"],["StorageProvider","ProviderStatusChanged",{provider:a(1),status:"Active"},"provider_status_changed"],["StorageProvider","ProviderRemoved",{provider:a(1)},"provider_removed"],["StorageProvider","Heartbeat",{provider:a(1),at:2},"heartbeat"],["StorageProvider","AgreementProposed",{agreement_id:h(2),owner:a(2),provider:a(1)},"agreement_proposed"],["StorageProvider","AgreementAccepted",{agreement_id:h(2)},"agreement_accepted"],["StorageProvider","AgreementCancelled",{agreement_id:h(2)},"agreement_cancelled"],["StorageProvider","AgreementRenewalRequested",{agreement_id:h(2),expires_at:3},"agreement_renewal_requested"],["StorageProvider","AgreementRenewed",{agreement_id:h(2),expires_at:4},"agreement_renewed"],["StorageProvider","AgreementExpired",{agreement_id:h(2)},"agreement_expired"],["StorageProvider","AgreementPruned",{agreement_id:h(2)},"agreement_pruned"],["StorageProvider","ChallengeIssued",{challenge_id:h(3),provider:a(1),due_at:4},"challenge_issued"],["StorageProvider","CheckpointSubmitted",{challenge_id:h(3),proof_commitment:h(4)},"checkpoint_submitted"],["StorageProvider","ChallengeTimedOut",{challenge_id:h(3),provider:a(1)},"challenge_timed_out"],["StorageProvider","ProviderRootCommitted",{provider:a(1),sequence:3,root:h(4),leaf_count:3},"provider_root_committed"],["StorageProvider","DeletionAcknowledged",{agreement_id:h(2),provider:a(1),content_commitment:h(5),tombstone_root:h(6),root_sequence:3,leaf_index:2,leaf_count:3,proof_commitment:h(7)},"deletion_acknowledged"],["Drive","DriveCreated",{drive_id:h(8),owner:a(2)},"drive_created"],["Drive","DriveRootUpdated",{drive_id:h(8),version:2},"drive_root_updated"],["Drive","ControllerChanged",{drive_id:h(8),controller:a(3),enabled:true},"drive_controller_changed"],["Drive","DriveTransferred",{drive_id:h(8),old_owner:a(2),new_owner:a(3)},"drive_transferred"],["Drive","DriveArchived",{drive_id:h(8)},"drive_archived"],["S3","BucketCreated",{bucket:h(9),name:[98],owner:a(2)},"bucket_created"],["S3","ControllerChanged",{bucket:h(9),controller:a(3),enabled:true,version:2},"bucket_controller_changed"],["S3","BucketTransferred",{bucket:h(9),from:a(2),to:a(3),version:3},"bucket_transferred"],["S3","BucketArchived",{bucket:h(9),archived:true,version:4},"bucket_archived"],["S3","BucketVersioningChanged",{bucket:h(9),enabled:true,version:5},"bucket_versioning_changed"],["S3","ObjectPut",{bucket:h(9),object:h(10),key:[107],content_hash:h(11),version:1},"object_put"],["S3","ObjectDeleted",{bucket:h(9),object:h(10),key:[107],version:2},"object_deleted"],["S3","BucketDeleted",{bucket:h(9),name:[98],owner:a(3)},"bucket_deleted"]];

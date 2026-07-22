@@ -68,6 +68,7 @@ pallet-orbis-attestation-runtime-api = { workspace = true }
 pallet-orbis-names = { workspace = true }
 pallet-orbis-names-runtime-api = { workspace = true }
 pallet-orbis-drive = { workspace = true }
+pallet-orbis-storage-control-primitives = { workspace = true }
 pallet-orbis-storage-provider = { workspace = true }
 pallet-orbis-s3 = { workspace = true }
 pallet-orbis-people = { workspace = true }
@@ -139,6 +140,8 @@ parachain-info = { workspace = true }
 parachains-common = { workspace = true }
 
 [dev-dependencies]
+frame-metadata = { version = "23.0.1", features = ["current"] }
+sp-crypto-hashing = { workspace = true, features = ["std"] }
 hex = { workspace = true }
 sc-client-db = { workspace = true }
 sp-externalities = { workspace = true }
@@ -215,6 +218,7 @@ std = [
 	"pallet-orbis-names/std",
 	"pallet-orbis-names-runtime-api/std",
 	"pallet-orbis-drive/std",
+	"pallet-orbis-storage-control-primitives/std",
 	"pallet-orbis-storage-provider/std",
 	"pallet-orbis-s3/std",
 	"pallet-orbis-people/std",

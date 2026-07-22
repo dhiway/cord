@@ -6,7 +6,8 @@ state remains authoritative. The process refuses commits unless `StorageProvider
 one exact finalized hash that:
 
 - the configured provider is active;
-- the local sr25519 service key equals the registered provider service key;
+- the local Ed25519 service key equals the registered provider service key;
+- current-root checkpoint signatures verify as Ed25519 with that exact finalized service key;
 - the agreement is active, unexpired, belongs to the provider, and matches the exact byte length;
 - the agreement content commitment equals `blake2b-256(raw_content_bytes)`.
 

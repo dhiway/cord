@@ -1,3 +1,21 @@
+// This file is part of CORD – https://cord.network
+
+// Copyright (C) Dhiway Networks Pvt. Ltd.
+// SPDX-License-Identifier: GPL-3.0-or-later
+
+// CORD is free software: you can redistribute it and/or modify
+// it under the terms of the GNU General Public License as published by
+// the Free Software Foundation, either version 3 of the License, or
+// (at your option) any later version.
+
+// CORD is distributed in the hope that it will be useful,
+// but WITHOUT ANY WARRANTY; without even the implied warranty of
+// MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
+// GNU General Public License for more details.
+
+// You should have received a copy of the GNU General Public License
+// along with CORD. If not, see <https://www.gnu.org/licenses/>.
+
 //! Transport binding for native product-SDK domain intents.
 //!
 //! Writes use Subxt dynamic payloads, so pallet and call shape are resolved from live metadata and
@@ -26,12 +44,12 @@ use crate::{
 				SignatureScheme, SignedDelegatedIssue, SignedDelegatedRevoke,
 			},
 			common::{AccountId, DomainResult, Hash32, SubmitAndFinalize, Validate},
-			names::{NamesCommand, NamesRead, NamesResponse},
 			drive::{DriveCommand, DriveRead, DriveResponse},
 			identity_personhood::{
 				IdentityData, IdentityInfo, IdentityPersonhoodCommand, IdentityPersonhoodRead,
 				IdentityPersonhoodResponse, Judgement,
 			},
+			names::{NamesCommand, NamesRead, NamesResponse},
 			s3::{S3Command, S3Read, S3Response},
 			storage::{
 				CidConfig, HashingAlgorithm as StorageHashingAlgorithm, StorageCommand,
@@ -681,8 +699,8 @@ pub fn prepare_identity_personhood_command(
 	let args = match command {
 		IdentityPersonhoodCommand::SetIdentity { info } => vec![identity_info_value(info)?],
 		IdentityPersonhoodCommand::ClearIdentity => vec![],
-		IdentityPersonhoodCommand::RequestJudgement { registrar } |
-		IdentityPersonhoodCommand::CancelJudgement { registrar } => vec![account_value(registrar)?],
+		IdentityPersonhoodCommand::RequestJudgement { registrar }
+		| IdentityPersonhoodCommand::CancelJudgement { registrar } => vec![account_value(registrar)?],
 		IdentityPersonhoodCommand::ProvideJudgement { target, judgement, identity_hash } => vec![
 			lookup_account_value(target)?,
 			judgement_value(*judgement),
@@ -734,14 +752,18 @@ fn identity_data_value(data: &IdentityData) -> DomainResult<Value> {
 			format!("Raw{}", value.len()),
 			Composite::unnamed(vec![Value::from_bytes(value.as_bytes())]),
 		),
-		IdentityData::BlakeTwo256 { hash } =>
-			Value::variant("BlakeTwo256", Composite::unnamed(vec![hash_value(hash)?])),
-		IdentityData::Sha256 { hash } =>
-			Value::variant("Sha256", Composite::unnamed(vec![hash_value(hash)?])),
-		IdentityData::Keccak256 { hash } =>
-			Value::variant("Keccak256", Composite::unnamed(vec![hash_value(hash)?])),
-		IdentityData::ShaThree256 { hash } =>
-			Value::variant("ShaThree256", Composite::unnamed(vec![hash_value(hash)?])),
+		IdentityData::BlakeTwo256 { hash } => {
+			Value::variant("BlakeTwo256", Composite::unnamed(vec![hash_value(hash)?]))
+		},
+		IdentityData::Sha256 { hash } => {
+			Value::variant("Sha256", Composite::unnamed(vec![hash_value(hash)?]))
+		},
+		IdentityData::Keccak256 { hash } => {
+			Value::variant("Keccak256", Composite::unnamed(vec![hash_value(hash)?]))
+		},
+		IdentityData::ShaThree256 { hash } => {
+			Value::variant("ShaThree256", Composite::unnamed(vec![hash_value(hash)?]))
+		},
 	})
 }
 

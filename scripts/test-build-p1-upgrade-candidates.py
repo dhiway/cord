@@ -1,4 +1,22 @@
 #!/usr/bin/env python3
+# This file is part of CORD – https://cord.network
+
+# Copyright (C) Dhiway Networks Pvt. Ltd.
+# SPDX-License-Identifier: GPL-3.0-or-later
+
+# CORD is free software: you can redistribute it and/or modify
+# it under the terms of the GNU General Public License as published by
+# the Free Software Foundation, either version 3 of the License, or
+# (at your option) any later version.
+
+# CORD is distributed in the hope that it will be useful,
+# but WITHOUT ANY WARRANTY; without even the implied warranty of
+# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
+# GNU General Public License for more details.
+
+# You should have received a copy of the GNU General Public License
+# along with CORD. If not, see <https://www.gnu.org/licenses/>.
+
 """Unit tests for the P1 upgrade-candidate builder (no compilation or network)."""
 
 import importlib.util
@@ -18,16 +36,21 @@ class CandidateBuilderTests(unittest.TestCase):
         module.assert_version_sources()
 
     def test_subwasm_nested_runtime_version(self):
-        payload = json.dumps({"core_version": {"specName": "origin", "specVersion": 9902}})
+        payload = json.dumps({"core_version": {"specName": "foundation", "specVersion": 9902}})
         info = module.parse_subwasm(payload)
-        module.validate_runtime_info(info, spec_name="origin", spec_version=9902)
+        module.validate_runtime_info(info, spec_name="foundation", spec_version=9902)
+
+    def test_subwasm_commons_runtime_version(self):
+        payload = json.dumps({"core_version": {"specName": "commons", "specVersion": 32}})
+        info = module.parse_subwasm(payload)
+        module.validate_runtime_info(info, spec_name="commons", spec_version=32)
 
     def test_rejects_wrong_spec_version(self):
-        with self.assertRaisesRegex(RuntimeError, "expected 30"):
+        with self.assertRaisesRegex(RuntimeError, "expected 32"):
             module.validate_runtime_info(
-                {"runtime": {"spec_name": "orbis", "spec_version": 29}},
-                spec_name="orbis",
-                spec_version=30,
+                {"runtime": {"spec_name": "commons", "spec_version": 31}},
+                spec_name="commons",
+                spec_version=32,
             )
 
     def test_command_hash_is_argument_boundary_sensitive(self):

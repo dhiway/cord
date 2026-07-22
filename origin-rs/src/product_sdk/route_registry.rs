@@ -1,3 +1,21 @@
+// This file is part of CORD – https://cord.network
+
+// Copyright (C) Dhiway Networks Pvt. Ltd.
+// SPDX-License-Identifier: GPL-3.0-or-later
+
+// CORD is free software: you can redistribute it and/or modify
+// it under the terms of the GNU General Public License as published by
+// the Free Software Foundation, either version 3 of the License, or
+// (at your option) any later version.
+
+// CORD is distributed in the hope that it will be useful,
+// but WITHOUT ANY WARRANTY; without even the implied warranty of
+// MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
+// GNU General Public License for more details.
+
+// You should have received a copy of the GNU General Public License
+// along with CORD. If not, see <https://www.gnu.org/licenses/>.
+
 use serde::Deserialize;
 use serde_json::{json, Map, Value};
 
@@ -6,17 +24,17 @@ use super::{
 	domains::{
 		attestation::{AttestationCommand, AttestationQuery},
 		common::{AccountId, Hash32},
-		names::{NamesCommand, NamesQuery},
 		drive::{DriveCommand, DriveQuery},
 		identity_personhood::{IdentityPersonhoodCommand, IdentityPersonhoodQuery},
+		names::{NamesCommand, NamesQuery},
 		s3::{S3Command, S3Query},
 		storage::{StorageCommand, StorageQuery},
 		storage_provider::{StorageProviderCommand, StorageProviderQuery},
 		Validate,
 	},
 	transport::{
-		prepare_attestation_command, prepare_names_command, prepare_drive_command,
-		prepare_identity_personhood_command, prepare_s3_command, prepare_storage_command,
+		prepare_attestation_command, prepare_drive_command, prepare_identity_personhood_command,
+		prepare_names_command, prepare_s3_command, prepare_storage_command,
 		prepare_storage_provider_command,
 	},
 };
@@ -138,9 +156,9 @@ impl ParticipantSignature {
 			ParticipantSignatureScheme::Sr25519 | ParticipantSignatureScheme::Ed25519 => 64,
 			ParticipantSignatureScheme::Ecdsa => 65,
 		};
-		if bytes.len() != 2 + expected * 2 ||
-			!self.value.starts_with("0x") ||
-			!bytes[2..]
+		if bytes.len() != 2 + expected * 2
+			|| !self.value.starts_with("0x")
+			|| !bytes[2..]
 				.iter()
 				.all(|byte| byte.is_ascii_digit() || (b'a'..=b'f').contains(byte))
 		{
@@ -218,15 +236,17 @@ impl NativeRouteBinding {
 			Self::StorageQuery(value) => value.validate(),
 			Self::StorageCommand(value) => prepare_storage_command(value).map(drop),
 			Self::StorageProviderQuery(value) => value.validate(),
-			Self::StorageProviderCommand(value) =>
-				prepare_storage_provider_command(value).map(drop),
+			Self::StorageProviderCommand(value) => {
+				prepare_storage_provider_command(value).map(drop)
+			},
 			Self::DriveQuery(value) => value.validate(),
 			Self::DriveCommand(value) => prepare_drive_command(value).map(drop),
 			Self::S3Query(value) => value.validate(),
 			Self::S3Command(value) => prepare_s3_command(value).map(drop),
 			Self::IdentityPersonhoodQuery(value) => value.validate(),
-			Self::IdentityPersonhoodCommand(value) =>
-				prepare_identity_personhood_command(value).map(drop),
+			Self::IdentityPersonhoodCommand(value) => {
+				prepare_identity_personhood_command(value).map(drop)
+			},
 			Self::PrepareSponsoredIntent(value) => {
 				value.participant.validate()?;
 				value.nonce.validate()?;
@@ -461,7 +481,7 @@ fn bytes(value: &mut Value) {
 fn normalize_numbers(value: &mut Value) {
 	match value {
 		Value::Array(values) => values.iter_mut().for_each(normalize_numbers),
-		Value::Object(fields) =>
+		Value::Object(fields) => {
 			for (name, value) in fields {
 				if [
 					"spec_version",
@@ -492,6 +512,7 @@ fn normalize_numbers(value: &mut Value) {
 					}
 				}
 				normalize_numbers(value);
+			}
 		},
 		_ => {},
 	}
@@ -501,7 +522,7 @@ fn normalize_accounts(value: &mut Value) {
 	const ALICE: &str = "5GrwvaEF5zXb26Fz9rcQpDWS57CtERHpNehXCPcNoHGKutQY";
 	match value {
 		Value::Array(values) => values.iter_mut().for_each(normalize_accounts),
-		Value::Object(fields) =>
+		Value::Object(fields) => {
 			for (name, value) in fields {
 				if [
 					"account",
@@ -530,6 +551,7 @@ fn normalize_accounts(value: &mut Value) {
 					}
 				}
 				normalize_accounts(value);
+			}
 		},
 		_ => {},
 	}
@@ -594,16 +616,16 @@ fn rust_arguments(route: &Value) -> Result<Map<String, Value>, NativeError> {
 	}
 	for field in ["definition", "label", "salt", "key", "value", "endpoint", "service_key", "name"]
 	{
-		if (declaration == "AttestationCommand" && field == "definition") ||
-			declaration.starts_with("Names") &&
-				((method == "register" && field == "salt") ||
-					(["resolve_text", "set_text"].contains(&method) && field == "key") ||
-					(method == "set_text" && field == "value") ||
-					(method == "set_address" && field == "address")) ||
-			declaration.starts_with("Drive") && method == "create_drive" && field == "name" ||
-			declaration.starts_with("StorageProvider") &&
-				["endpoint", "service_key"].contains(&field) ||
-			declaration.starts_with("S3") && field == "key"
+		if (declaration == "AttestationCommand" && field == "definition")
+			|| declaration.starts_with("Names")
+				&& ((method == "register" && field == "salt")
+					|| (["resolve_text", "set_text"].contains(&method) && field == "key")
+					|| (method == "set_text" && field == "value")
+					|| (method == "set_address" && field == "address"))
+			|| declaration.starts_with("Drive") && method == "create_drive" && field == "name"
+			|| declaration.starts_with("StorageProvider")
+				&& ["endpoint", "service_key"].contains(&field)
+			|| declaration.starts_with("S3") && field == "key"
 		{
 			if let Some(value) = fields.get_mut(field) {
 				bytes(value);

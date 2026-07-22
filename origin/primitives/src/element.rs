@@ -16,11 +16,6 @@
 // You should have received a copy of the GNU General Public License
 // along with CORD. If not, see <https://www.gnu.org/licenses/>.
 
-// # CORD Element (MultiData Format)
-
-// Note: This module is part of cord-primitives and should be imported by all higher-level
-// modules that need to interact with elements.
-
 use crate::identifier::Ss58Identifier;
 use alloc::vec::Vec;
 use codec::{Decode, DecodeWithMemTracking, Encode, MaxEncodedLen};

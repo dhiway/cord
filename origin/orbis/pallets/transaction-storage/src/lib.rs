@@ -1,17 +1,20 @@
-// Copyright (C) Parity Technologies (UK) Ltd.
-// SPDX-License-Identifier: Apache-2.0
+// This file is part of CORD – https://cord.network
 
-// Licensed under the Apache License, Version 2.0 (the "License");
-// you may not use this file except in compliance with the License.
-// You may obtain a copy of the License at
-//
-// 	http://www.apache.org/licenses/LICENSE-2.0
-//
-// Unless required by applicable law or agreed to in writing, software
-// distributed under the License is distributed on an "AS IS" BASIS,
-// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-// See the License for the specific language governing permissions and
-// limitations under the License.
+// Copyright (C) Dhiway Networks Pvt. Ltd.
+// SPDX-License-Identifier: GPL-3.0-or-later
+
+// CORD is free software: you can redistribute it and/or modify
+// it under the terms of the GNU General Public License as published by
+// the Free Software Foundation, either version 3 of the License, or
+// (at your option) any later version.
+
+// CORD is distributed in the hope that it will be useful,
+// but WITHOUT ANY WARRANTY; without even the implied warranty of
+// MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
+// GNU General Public License for more details.
+
+// You should have received a copy of the GNU General Public License
+// along with CORD. If not, see <https://www.gnu.org/licenses/>.
 
 //! Transaction storage pallet. Indexes transactions and manages storage proofs.
 //!
@@ -36,15 +39,15 @@ mod tests;
 mod types;
 
 use alloc::vec::Vec;
-use orbis_transaction_storage_primitives::{
-	cids::{calculate_cid, Cid, CidCodec, CidConfig, HashingAlgorithm, RAW_CODEC},
-	StorageRef, ContentHash, ReservationId, ResourceClosure, ResourceExpiryCursor,
-	ResourceReservation, ResourceReservationLink, ResourceReservationTombstone,
-	ResourceReservationView, StorageActor,
-};
 use codec::{Decode, Encode, MaxEncodedLen};
 use core::fmt::Debug;
 use indiv_support::traits::{ResourceClaimLifecycle, TwoPhaseStorage};
+use orbis_transaction_storage_primitives::{
+	cids::{calculate_cid, Cid, CidCodec, CidConfig, HashingAlgorithm, RAW_CODEC},
+	ContentHash, ReservationId, ResourceClosure, ResourceExpiryCursor, ResourceReservation,
+	ResourceReservationLink, ResourceReservationTombstone, ResourceReservationView, StorageActor,
+	StorageRef,
+};
 use pallet_orbis_transaction_storage_runtime_api::AccountAuthorization;
 use polkadot_sdk_frame::{
 	deps::*,
@@ -1596,8 +1599,8 @@ pub mod pallet {
 	}
 
 	// `ValidateUnsigned` is deprecated upstream (will be removed after April 2027) in favour of
-	// `#[pallet::authorize]` + `frame_system::AuthorizeCall`. That API refactor is tracked separately;
-	// silence the deprecation here so `-D warnings` in CI does not block the SDK bump.
+	// `#[pallet::authorize]` + `frame_system::AuthorizeCall`. That API refactor is tracked
+	// separately; silence the deprecation here so `-D warnings` in CI does not block the SDK bump.
 	#[allow(deprecated)]
 	#[pallet::validate_unsigned]
 	impl<T: Config> ValidateUnsigned for Pallet<T> {

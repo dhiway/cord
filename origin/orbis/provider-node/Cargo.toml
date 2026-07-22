@@ -8,6 +8,22 @@ license.workspace = true
 repository.workspace = true
 publish = false
 
+[features]
+default = ["checkpoint-live"]
+checkpoint-consumer = ["dep:scale-decode", "dep:scale-value", "dep:subxt"]
+checkpoint-live = ["checkpoint-consumer", "outbox"]
+outbox = ["dep:origin-rs"]
+
+[[bin]]
+name = "origin-orbis-provider"
+path = "src/main.rs"
+required-features = ["checkpoint-live"]
+
+[[bin]]
+name = "origin-orbis-provider-outbox"
+path = "src/bin/origin-orbis-provider-outbox.rs"
+required-features = ["outbox"]
+
 [lints]
 workspace = true
 
@@ -15,22 +31,35 @@ workspace = true
 async-trait = { workspace = true }
 base64 = { workspace = true, default-features = true }
 blake3 = { workspace = true }
+blake2 = { workspace = true, default-features = true }
 bytes = { workspace = true, default-features = true }
+ciborium = { workspace = true }
+cid = { workspace = true, default-features = true }
 clap = { workspace = true, features = ["derive"] }
 codec = { workspace = true, default-features = true }
 hex = { workspace = true, default-features = true }
 http-body-util = { workspace = true }
-hyper = { workspace = true, features = ["http1", "server"] }
-hyper-util = { workspace = true, features = ["tokio"] }
+hyper = { workspace = true, features = ["client", "http1", "server"] }
+hyper-rustls = { workspace = true }
+hyper-util = { workspace = true, features = ["client-legacy", "http1", "tokio"] }
 jsonrpsee = { workspace = true, features = ["http-client"] }
-origin-rs = { path = "../../../origin-rs" }
+origin-rs = { path = "../../../origin-rs", optional = true }
 orbis-storage-runtime-api = { workspace = true, default-features = true }
+pallet-orbis-storage-provider = { workspace = true, default-features = true }
 serde = { workspace = true, features = ["derive"], default-features = true }
 serde_json = { workspace = true, default-features = true }
+scale-decode = { version = "0.16", default-features = false, optional = true }
+scale-value = { version = "0.18", default-features = false, optional = true }
+sha2 = { workspace = true, default-features = true }
 sp-core = { workspace = true, default-features = true }
 sp-crypto-hashing = { workspace = true, default-features = true }
 thiserror = { workspace = true }
+subxt = { workspace = true, features = ["native"], optional = true }
 tokio = { workspace = true, features = ["fs", "macros", "net", "rt-multi-thread", "signal", "sync", "time"] }
+unicode-normalization = "0.1.24"
 
 [dev-dependencies]
+chacha20poly1305 = "0.10.1"
+frame-metadata = { version = "23.0.1", features = ["current"] }
+scale-info = { workspace = true, features = ["std"] }
 tempfile = { workspace = true }

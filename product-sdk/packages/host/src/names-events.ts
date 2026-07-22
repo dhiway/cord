@@ -1,3 +1,21 @@
+// This file is part of CORD – https://cord.network
+
+// Copyright (C) Dhiway Networks Pvt. Ltd.
+// SPDX-License-Identifier: GPL-3.0-or-later
+
+// CORD is free software: you can redistribute it and/or modify
+// it under the terms of the GNU General Public License as published by
+// the Free Software Foundation, either version 3 of the License, or
+// (at your option) any later version.
+
+// CORD is distributed in the hope that it will be useful,
+// but WITHOUT ANY WARRANTY; without even the implied warranty of
+// MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
+// GNU General Public License for more details.
+
+// You should have received a copy of the GNU General Public License
+// along with CORD. If not, see <https://www.gnu.org/licenses/>.
+
 import { ProductSdkError } from "../../core/src/contract.ts";
 import type { TypedFinalizedEvent, TypedFinalizedEventSource } from "./attestation-events.ts";
 import {
@@ -9,10 +27,12 @@ import {
   type NamesEventSubscription,
   type NamesOutcome,
   type FinalizedNamesEvent,
-} from "../../../src/names.ts";
-import type {
-  AccountId, BlockHash, BlockNumber, NameId, RegistrationCommitment,
-} from "../../../src/types.ts";
+  type AccountId,
+  type BlockHash,
+  type BlockNumber,
+  type NameId,
+  type RegistrationCommitment,
+} from "@cord-network/origin-sdk-names";
 
 export interface FinalizedNamesOutcome { readonly event: FinalizedNamesEvent; readonly outcome: NamesOutcome }
 const HASH = /^0x[0-9a-f]{64}$/i;

@@ -1,4 +1,23 @@
+// This file is part of CORD – https://cord.network
+
+// Copyright (C) Dhiway Networks Pvt. Ltd.
+// SPDX-License-Identifier: GPL-3.0-or-later
+
+// CORD is free software: you can redistribute it and/or modify
+// it under the terms of the GNU General Public License as published by
+// the Free Software Foundation, either version 3 of the License, or
+// (at your option) any later version.
+
+// CORD is distributed in the hope that it will be useful,
+// but WITHOUT ANY WARRANTY; without even the implied warranty of
+// MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
+// GNU General Public License for more details.
+
+// You should have received a copy of the GNU General Public License
+// along with CORD. If not, see <https://www.gnu.org/licenses/>.
+
 import assert from "node:assert/strict";
+import { readFileSync } from "node:fs";
 import test from "node:test";
 import {
   bitswapContentProvider,
@@ -10,10 +29,19 @@ import {
   verifyContentBlock,
   type ContentCodec,
   type ContentMultihash,
-} from "../../src/content.ts";
-import { NativeDomainError } from "../../src/errors.ts";
+} from "@cord-network/origin-sdk-cloud-storage";
+import { ContentError } from "@cord-network/origin-sdk-cloud-storage";
 
 const text = new TextEncoder();
+const cidFixture = JSON.parse(
+  readFileSync(new URL("../../../docs/sdk/vectors/content-cid-v1.json", import.meta.url), "utf8"),
+) as {
+  readonly schema: string;
+  readonly input_utf8: string;
+  readonly codec: ContentCodec;
+  readonly multihash: ContentMultihash;
+  readonly cid: string;
+};
 const hex = (bytes: Uint8Array) => [...bytes].map((byte) => byte.toString(16).padStart(2, "0")).join("");
 const varint = (value: number): number[] => {
   const result: number[] = [];
@@ -67,7 +95,7 @@ async function errorCode(promise: Promise<unknown>): Promise<string> {
     await promise;
     return "success";
   } catch (error) {
-    assert.ok(error instanceof NativeDomainError);
+    assert.ok(error instanceof ContentError);
     return error.code;
   }
 }
@@ -81,10 +109,10 @@ test("portable SHA2-256 and Blake2b-256 match canonical vectors", () => {
 });
 
 test("raw Blake2b-256 CID matches the Orbis TransactionStorage fixture", () => {
-  const bytes = text.encode("Hello, Orbis Storage with PAPI - Fri Nov 21 2025 11:09:18 GMT+0000");
-  const expected = "bafk2bzacedvk4eijklisgdjijnxky24pmkg7jgk5vsct4mwndj3nmx7plzz7m";
-  assert.equal(cid(bytes, "raw", "blake2b-256"), expected);
-  assert.equal(verifyContentBlock(expected, bytes).multihash, "blake2b-256");
+  assert.equal(cidFixture.schema, "cord.content-cid-vector.v1");
+  const bytes = text.encode(cidFixture.input_utf8);
+  assert.equal(cid(bytes, cidFixture.codec, cidFixture.multihash), cidFixture.cid);
+  assert.equal(verifyContentBlock(cidFixture.cid, bytes).multihash, "blake2b-256");
 });
 
 test("CIDv0 is accepted only as canonical DAG-PB plus SHA2-256", () => {
@@ -170,7 +198,7 @@ test("abort signals cancel an in-flight caller transport with one typed result",
     await pending;
     assert.fail("fetch should be cancelled");
   } catch (error) {
-    assert.ok(error instanceof NativeDomainError);
+    assert.ok(error instanceof ContentError);
     assert.equal(error.code, "content_unavailable");
     assert.equal(error.details.cancelled, true);
   }

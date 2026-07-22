@@ -16,7 +16,6 @@
 // You should have received a copy of the GNU General Public License
 // along with CORD. If not, see <https://www.gnu.org/licenses/>.
 
-// Unix only since it uses signals from [`common::run_node_for_a_while`].
 #![cfg(unix)]
 
 use assert_cmd::cargo::cargo_bin;

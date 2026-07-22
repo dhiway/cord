@@ -1,3 +1,21 @@
+// This file is part of CORD – https://cord.network
+
+// Copyright (C) Dhiway Networks Pvt. Ltd.
+// SPDX-License-Identifier: GPL-3.0-or-later
+
+// CORD is free software: you can redistribute it and/or modify
+// it under the terms of the GNU General Public License as published by
+// the Free Software Foundation, either version 3 of the License, or
+// (at your option) any later version.
+
+// CORD is distributed in the hope that it will be useful,
+// but WITHOUT ANY WARRANTY; without even the implied warranty of
+// MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
+// GNU General Public License for more details.
+
+// You should have received a copy of the GNU General Public License
+// along with CORD. If not, see <https://www.gnu.org/licenses/>.
+
 //! Assign bootstrap execution cores to Orbis through Origin Sudo.
 //!
 //! Usage:
@@ -72,8 +90,8 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
 	}
 
 	// A partial multi-core assignment leaves the parachain in a surprising intermediate state.
-	// Match the upstream Orbis Storage/storage operator flow by applying every Coretime call atomically
-	// under one Sudo dispatch.
+	// Match the upstream Orbis Storage/storage operator flow by applying every Coretime call
+	// atomically under one Sudo dispatch.
 	let batch =
 		subxt::dynamic::tx("Utility", "batch_all", vec![Value::unnamed_composite(assignments)]);
 	let sudo = subxt::dynamic::tx("Sudo", "sudo", vec![batch.into_value()]);

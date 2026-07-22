@@ -1,8 +1,26 @@
 #!/usr/bin/env python3
+# This file is part of CORD – https://cord.network
+
+# Copyright (C) Dhiway Networks Pvt. Ltd.
+# SPDX-License-Identifier: GPL-3.0-or-later
+
+# CORD is free software: you can redistribute it and/or modify
+# it under the terms of the GNU General Public License as published by
+# the Free Software Foundation, either version 3 of the License, or
+# (at your option) any later version.
+
+# CORD is distributed in the hope that it will be useful,
+# but WITHOUT ANY WARRANTY; without even the implied warranty of
+# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
+# GNU General Public License for more details.
+
+# You should have received a copy of the GNU General Public License
+# along with CORD. If not, see <https://www.gnu.org/licenses/>.
+
 """Build hash-bound, higher-spec P1 Foundation/Commons runtime upgrade candidates.
 
 The production runtime versions remain unchanged. Candidate versions exist only behind the
-explicit ``p1-upgrade-candidate`` feature; Orbis is always built with ``fast-runtime`` as well.
+explicit ``p1-upgrade-candidate`` feature; Commons is always built with ``fast-runtime`` as well.
 An authoritative manifest is emitted only from a clean Git worktree and only after ``subwasm``
 proves that the produced Wasm has the exact expected runtime identity and higher spec version.
 """
@@ -62,16 +80,16 @@ def git_identity(root: Path = ROOT) -> dict[str, Any]:
 def assert_version_sources() -> None:
     checks = (
         (ORIGIN_MANIFEST, r'^p1-upgrade-candidate\s*=\s*\[\]\s*$', "Origin feature"),
-        (ORBIS_MANIFEST, r'^p1-upgrade-candidate\s*=\s*\[\]\s*$', "Orbis feature"),
+        (ORBIS_MANIFEST, r'^p1-upgrade-candidate\s*=\s*\[\]\s*$', "Commons feature"),
         (ORIGIN_SOURCE, r'spec_version:\s*9901\s*,', "Origin production spec 9901"),
         (ORIGIN_SOURCE, r'spec_version:\s*9902\s*,', "Origin candidate spec 9902"),
-        (ORBIS_SOURCE, r'spec_version:\s*29\s*,', "Orbis production spec 29"),
-        (ORBIS_SOURCE, r'spec_version:\s*30\s*,', "Orbis candidate spec 30"),
+        (ORBIS_SOURCE, r'spec_version:\s*31\s*,', "Commons production spec 31"),
+        (ORBIS_SOURCE, r'spec_version:\s*32\s*,', "Commons candidate spec 32"),
         (
             ORBIS_SOURCE,
             r'Period:\s*u32\s*=\s*if\s+cfg!\(feature\s*=\s*"fast-runtime"\)\s*'
             r'\{\s*2\s*\*\s*MINUTES\s*\}\s*else\s*\{\s*6\s*\*\s*HOURS\s*\}',
-            "Orbis fast two-minute / production six-hour session period",
+            "Commons fast two-minute / production six-hour session period",
         ),
     )
     for path, pattern, label in checks:
@@ -79,10 +97,17 @@ def assert_version_sources() -> None:
             raise RuntimeError(f"missing {label} in {path.relative_to(ROOT)}")
     orbis = ORBIS_SOURCE.read_text(encoding="utf-8")
     if '#[cfg(feature = "p1-upgrade-candidate")]' not in orbis:
-        raise RuntimeError("Orbis candidate version is not feature-gated")
+        raise RuntimeError("Commons candidate version is not feature-gated")
     origin = ORIGIN_SOURCE.read_text(encoding="utf-8")
     if '#[cfg(feature = "p1-upgrade-candidate")]' not in origin:
         raise RuntimeError("Origin candidate version is not feature-gated")
+    for text, expected, label in (
+        (origin, "foundation", "Foundation"),
+        (orbis, "commons", "Commons"),
+    ):
+        identities = re.findall(r'spec_name:\s*[^\n]*Borrowed\("([^"]+)"\)', text)
+        if identities != [expected, expected]:
+            raise RuntimeError(f"{label} production/candidate spec names are {identities!r}")
 
 
 def find_wasm(target: Path, stem: str) -> Path:
@@ -206,21 +231,21 @@ def main() -> int:
                 "features": "p1-upgrade-candidate,on-chain-release-build",
                 "target": target_root / "origin",
                 "stem": "origin_runtime",
-                "spec_name": "origin",
+                "spec_name": "foundation",
                 "current_spec_version": 9901,
                 "candidate_spec_version": 9902,
                 "destination": artifacts / "origin-foundation-runtime-v9902.compact.compressed.wasm",
             },
             {
-                "name": "orbis-fast",
+                "name": "commons-fast",
                 "package": "origin-commons-runtime",
                 "features": "fast-runtime,p1-upgrade-candidate,on-chain-release-build",
-                "target": target_root / "orbis-fast",
+                "target": target_root / "commons-fast",
                 "stem": "origin_commons_runtime",
-                "spec_name": "orbis",
-                "current_spec_version": 29,
-                "candidate_spec_version": 30,
-                "destination": artifacts / "orbis-fast-runtime-v30.compact.compressed.wasm",
+                "spec_name": "commons",
+                "current_spec_version": 31,
+                "candidate_spec_version": 32,
+                "destination": artifacts / "origin-commons-fast-runtime-v32.compact.compressed.wasm",
             },
         )
         for build in builds:

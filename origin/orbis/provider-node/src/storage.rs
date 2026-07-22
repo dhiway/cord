@@ -1,7 +1,31 @@
-// This file is part of CORD - https://cord.network
+// This file is part of CORD – https://cord.network
+
+// Copyright (C) Dhiway Networks Pvt. Ltd.
 // SPDX-License-Identifier: GPL-3.0-or-later
 
+// CORD is free software: you can redistribute it and/or modify
+// it under the terms of the GNU General Public License as published by
+// the Free Software Foundation, either version 3 of the License, or
+// (at your option) any later version.
+
+// CORD is distributed in the hope that it will be useful,
+// but WITHOUT ANY WARRANTY; without even the implied warranty of
+// MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
+// GNU General Public License for more details.
+
+// You should have received a copy of the GNU General Public License
+// along with CORD. If not, see <https://www.gnu.org/licenses/>.
+
 //! Crash-safe content and provider metadata storage.
+
+#[allow(dead_code)]
+pub(crate) mod bucket_mmr;
+pub mod streaming;
+
+pub use streaming::{
+	BeginStreaming, IngressPermit, IntegritySummary, ProgressAck, StreamingDescriptor,
+	StreamingFault, StreamingReceipt, StreamingStore,
+};
 
 use std::{
 	collections::BTreeMap,
@@ -12,13 +36,18 @@ use std::{
 	time::{SystemTime, UNIX_EPOCH},
 };
 
-use codec::Encode;
+use codec::{Decode, Encode};
+use orbis_storage_runtime_api::CheckpointDutyInfo;
 use serde::{Deserialize, Serialize};
 use sp_core::{crypto::AccountId32, H256};
 
-use crate::{merkle, AgreementAuthorization, PROTOCOL_VERSION};
+use crate::{
+	merkle, AgreementAuthorization, CheckpointDuty, CheckpointDutyBatch, CheckpointDutyPageRequest,
+	CheckpointDutyRole, CheckpointDutyScanCursor, PROTOCOL_VERSION,
+};
 
-const INDEX_FILE: &str = "provider-index-v4.json";
+const INDEX_FILE: &str = "provider-index-v6.json";
+const LEGACY_INDEX_FILE: &str = "provider-index-v5.json";
 const BLOBS_DIR: &str = "blobs";
 const MAX_BUCKET_BYTES: usize = 255;
 const MAX_KEY_BYTES: usize = 1024;
@@ -136,6 +165,58 @@ pub struct PendingRootSubmission {
 	pub expected_leaf_count: u64,
 }
 
+/// Durable watermark for the last completely installed finalized checkpoint-duty snapshot.
+#[derive(Clone, Debug, Eq, PartialEq, Serialize, Deserialize)]
+#[serde(deny_unknown_fields)]
+pub struct CheckpointDutyWatermark {
+	/// Finalized block hash used to read the snapshot.
+	pub finalized_hash: String,
+	/// Finalized block number corresponding to `finalized_hash`.
+	pub finalized_number: u32,
+	/// Governed finalized checkpoint which fixed the snapshot.
+	pub snapshot_checkpoint: u32,
+	/// Last fully visited runtime cursor, or `None` for an empty snapshot.
+	pub cursor: Option<CheckpointDutyScanCursor>,
+}
+
+/// Exact duty inventory from the latest completely installed finalized scan.
+///
+/// Unlike the pending-duty journal, this inventory is replaced as one durable unit whenever a
+/// terminal page is installed. Its three finalized coordinates bind every contained duty to one
+/// fixed runtime view.
+#[derive(Clone, Debug, Eq, PartialEq, Serialize, Deserialize)]
+#[serde(deny_unknown_fields)]
+pub(crate) struct CheckpointDutyInventory {
+	/// Finalized block hash used to read the complete inventory.
+	pub(crate) finalized_hash: String,
+	/// Finalized block number corresponding to `finalized_hash`.
+	pub(crate) finalized_number: u32,
+	/// Governed finalized checkpoint which fixed the inventory.
+	pub(crate) snapshot_checkpoint: u32,
+	/// Exact duties returned by the complete scan, in canonical bucket order.
+	pub(crate) duties: Vec<CheckpointDuty>,
+}
+
+#[derive(Clone, Debug, Eq, PartialEq, Serialize, Deserialize)]
+#[serde(deny_unknown_fields)]
+struct CheckpointDutyDiscoveryCursor {
+	finalized_hash: String,
+	finalized_number: u32,
+	snapshot_checkpoint: u32,
+	after_key: String,
+}
+
+#[derive(Clone, Debug, Eq, PartialEq, Serialize, Deserialize)]
+#[serde(deny_unknown_fields)]
+struct CheckpointDutyIntake {
+	finalized_hash: String,
+	finalized_number: u32,
+	provider: String,
+	snapshot_checkpoint: u32,
+	next_cursor: CheckpointDutyScanCursor,
+	duties: Vec<CheckpointDuty>,
+}
+
 /// Bounded provider statistics.
 #[derive(Clone, Debug, Eq, PartialEq, Serialize)]
 pub struct ProviderStats {
@@ -209,6 +290,11 @@ struct PersistedState {
 	root_sequence: u64,
 	pending_roots: BTreeMap<u64, PendingRootSubmission>,
 	pending_deletions: BTreeMap<String, PendingDeletion>,
+	checkpoint_duty_watermark: Option<CheckpointDutyWatermark>,
+	checkpoint_duty_intake: Option<CheckpointDutyIntake>,
+	pending_checkpoint_duties: BTreeMap<String, CheckpointDuty>,
+	checkpoint_duty_inventory: Option<CheckpointDutyInventory>,
+	checkpoint_duty_discovery_cursor: Option<CheckpointDutyDiscoveryCursor>,
 	#[serde(default)]
 	checkpoints: Vec<SignedCheckpoint>,
 }
@@ -253,6 +339,11 @@ impl DiskStore {
 		let root = root.as_ref().to_path_buf();
 		fs::create_dir_all(root.join(BLOBS_DIR)).map_err(io_error)?;
 		let path = root.join(INDEX_FILE);
+		if !path.exists() && root.join(LEGACY_INDEX_FILE).exists() {
+			return Err(StoreError::Invalid(
+				"provider protocol v5 state is unsupported; initialize a clean data path".into(),
+			));
+		}
 		let state = if path.exists() {
 			let data = fs::read(&path).map_err(io_error)?;
 			let existing: PersistedState = serde_json::from_slice(&data).map_err(io_error)?;
@@ -288,6 +379,11 @@ impl DiskStore {
 				root_sequence: 0,
 				pending_roots: BTreeMap::new(),
 				pending_deletions: BTreeMap::new(),
+				checkpoint_duty_watermark: None,
+				checkpoint_duty_intake: None,
+				pending_checkpoint_duties: BTreeMap::new(),
+				checkpoint_duty_inventory: None,
+				checkpoint_duty_discovery_cursor: None,
 				checkpoints: Vec::new(),
 			}
 		};
@@ -297,6 +393,11 @@ impl DiskStore {
 		}
 		store.verify_index()?;
 		Ok(store)
+	}
+
+	/// Return the provider data root for co-located private durable kernels.
+	pub(crate) fn root(&self) -> &Path {
+		&self.root
 	}
 
 	/// Compute the canonical off-chain content commitment.
@@ -521,6 +622,222 @@ impl DiskStore {
 		Ok(self.read_state()?.pending_roots.values().cloned().collect())
 	}
 
+	/// Atomically stage one page or install a terminal finalized checkpoint-duty snapshot.
+	///
+	/// Non-terminal pages retain the fixed finalized hash, exact next cursor, and accumulated
+	/// duties for restart. A terminal page atomically replaces the current exact inventory, merges
+	/// the complete snapshot into pending work, advances the watermark and clears staging. Existing
+	/// pending duties are never removed by intake.
+	pub fn stage_checkpoint_duty_page(
+		&self,
+		batch: CheckpointDutyBatch,
+	) -> Result<bool, StoreError> {
+		let mut state = self.write_state()?;
+		validate_checkpoint_duty_page(&batch, &state.profile)?;
+		if let Some(previous) = &state.checkpoint_duty_watermark {
+			if batch.snapshot_checkpoint < previous.snapshot_checkpoint
+				|| batch.finalized_number < previous.finalized_number
+			{
+				return Err(StoreError::Invalid(
+					"checkpoint duty snapshot or finalized height regressed".into(),
+				));
+			}
+		}
+		let mut next = state.clone();
+		let mut accumulated = match next.checkpoint_duty_intake.take() {
+			Some(intake) => {
+				if batch.finalized_hash != intake.finalized_hash
+					|| batch.finalized_number != intake.finalized_number
+					|| batch.provider != intake.provider
+					|| batch.snapshot_checkpoint != intake.snapshot_checkpoint
+					|| batch.requested_cursor.as_ref() != Some(&intake.next_cursor)
+				{
+					return Err(StoreError::Invalid(
+						"checkpoint duty page does not resume the durable fixed snapshot".into(),
+					));
+				}
+				intake.duties
+			},
+			None => {
+				if batch.requested_cursor.is_some() {
+					return Err(StoreError::Invalid(
+						"checkpoint duty resume cursor has no durable staging record".into(),
+					));
+				}
+				Vec::new()
+			},
+		};
+		if let (Some(previous), Some(first)) = (accumulated.last(), batch.duties.first()) {
+			if normalize_hash(&previous.bucket_id)? >= normalize_hash(&first.bucket_id)? {
+				return Err(StoreError::Invalid(
+					"checkpoint duty page did not advance canonical bucket order".into(),
+				));
+			}
+		}
+		accumulated.extend(batch.duties);
+		if let Some(next_cursor) = batch.next_cursor {
+			next.checkpoint_duty_intake = Some(CheckpointDutyIntake {
+				finalized_hash: batch.finalized_hash,
+				finalized_number: batch.finalized_number,
+				provider: batch.provider,
+				snapshot_checkpoint: batch.snapshot_checkpoint,
+				next_cursor,
+				duties: accumulated,
+			});
+			persist_state(&self.root, &next)?;
+			*state = next;
+			return Ok(false);
+		}
+		for duty in &accumulated {
+			let key = normalize_hash(&duty.duty_id)?;
+			if let Some(existing) = next.pending_checkpoint_duties.get(&key) {
+				if existing != duty {
+					return Err(StoreError::Invalid(
+						"checkpoint duty id replay changed its payload".into(),
+					));
+				}
+			} else {
+				next.pending_checkpoint_duties.insert(key, duty.clone());
+			}
+		}
+		let cursor = accumulated.last().map(|duty| CheckpointDutyScanCursor {
+			snapshot_checkpoint: batch.snapshot_checkpoint,
+			last_key: duty.bucket_id.clone(),
+		});
+		let exact_view = match &state.checkpoint_duty_inventory {
+			Some(current) => {
+				let exact = normalize_hash(&current.finalized_hash)?
+					== normalize_hash(&batch.finalized_hash)?
+					&& current.finalized_number == batch.finalized_number
+					&& current.snapshot_checkpoint == batch.snapshot_checkpoint;
+				if exact
+					&& (current.duties != accumulated
+						|| state.checkpoint_duty_watermark.as_ref().map(|item| &item.cursor)
+							!= Some(&cursor))
+				{
+					return Err(StoreError::Invalid(
+						"checkpoint duty fixed-view replay changed its inventory".into(),
+					));
+				}
+				exact
+			},
+			None => false,
+		};
+		if let Some(previous) = &state.checkpoint_duty_watermark {
+			if exact_view && terminal_cursor_key(&cursor)? < terminal_cursor_key(&previous.cursor)?
+			{
+				return Err(StoreError::Invalid("checkpoint duty cursor regressed".into()));
+			}
+		}
+		next.checkpoint_duty_watermark = Some(CheckpointDutyWatermark {
+			finalized_hash: batch.finalized_hash.clone(),
+			finalized_number: batch.finalized_number,
+			snapshot_checkpoint: batch.snapshot_checkpoint,
+			cursor,
+		});
+		if !exact_view {
+			next.checkpoint_duty_inventory = Some(CheckpointDutyInventory {
+				finalized_hash: batch.finalized_hash,
+				finalized_number: batch.finalized_number,
+				snapshot_checkpoint: batch.snapshot_checkpoint,
+				duties: accumulated,
+			});
+			next.checkpoint_duty_discovery_cursor = None;
+		}
+		next.checkpoint_duty_intake = None;
+		persist_state(&self.root, &next)?;
+		*state = next;
+		Ok(true)
+	}
+
+	/// Return the exact fixed-hash request needed to resume a staged duty scan after restart.
+	pub fn checkpoint_duty_resume_request(
+		&self,
+	) -> Result<Option<CheckpointDutyPageRequest>, StoreError> {
+		Ok(self.read_state()?.checkpoint_duty_intake.as_ref().map(|intake| {
+			CheckpointDutyPageRequest {
+				finalized_hash: intake.finalized_hash.clone(),
+				finalized_number: intake.finalized_number,
+				provider: intake.provider.clone(),
+				snapshot_checkpoint: intake.snapshot_checkpoint,
+				cursor: intake.next_cursor.clone(),
+			}
+		}))
+	}
+
+	/// Return the last atomically installed checkpoint-duty snapshot watermark.
+	pub fn checkpoint_duty_watermark(&self) -> Result<Option<CheckpointDutyWatermark>, StoreError> {
+		Ok(self.read_state()?.checkpoint_duty_watermark.clone())
+	}
+
+	/// Return the exact latest fully installed duty inventory.
+	pub(crate) fn checkpoint_duty_inventory(
+		&self,
+	) -> Result<Option<CheckpointDutyInventory>, StoreError> {
+		Ok(self.read_state()?.checkpoint_duty_inventory.clone())
+	}
+
+	/// Durably reserve a bounded round-robin slice of replica duties from the exact current
+	/// inventory. Reopening the store continues strictly after the last reserved duty.
+	pub(crate) fn reserve_checkpoint_replica_duties(
+		&self,
+		inventory: &CheckpointDutyInventory,
+		limit: usize,
+	) -> Result<Vec<CheckpointDuty>, StoreError> {
+		if limit == 0 {
+			return Ok(Vec::new());
+		}
+		let mut state = self.write_state()?;
+		if state.checkpoint_duty_inventory.as_ref() != Some(inventory) {
+			return Err(StoreError::Invalid("checkpoint duty inventory changed".into()));
+		}
+		let mut eligible = inventory
+			.duties
+			.iter()
+			.filter(|duty| duty.role == CheckpointDutyRole::Replica)
+			.map(|duty| Ok((checkpoint_duty_order_key(duty)?, duty.clone())))
+			.collect::<Result<Vec<_>, StoreError>>()?;
+		eligible.sort_by(|left, right| left.0.cmp(&right.0));
+		if eligible.is_empty() {
+			return Ok(Vec::new());
+		}
+		let after = state
+			.checkpoint_duty_discovery_cursor
+			.as_ref()
+			.filter(|cursor| {
+				cursor.finalized_hash == inventory.finalized_hash
+					&& cursor.finalized_number == inventory.finalized_number
+					&& cursor.snapshot_checkpoint == inventory.snapshot_checkpoint
+			})
+			.map(|cursor| cursor.after_key.as_str());
+		let start = after
+			.and_then(|after| eligible.iter().position(|(key, _)| key.as_str() > after))
+			.unwrap_or(0);
+		let selected = eligible
+			.iter()
+			.cycle()
+			.skip(start)
+			.take(eligible.len().min(limit))
+			.cloned()
+			.collect::<Vec<_>>();
+		let next_cursor = CheckpointDutyDiscoveryCursor {
+			finalized_hash: inventory.finalized_hash.clone(),
+			finalized_number: inventory.finalized_number,
+			snapshot_checkpoint: inventory.snapshot_checkpoint,
+			after_key: selected.last().expect("selection is non-empty").0.clone(),
+		};
+		let mut next = state.clone();
+		next.checkpoint_duty_discovery_cursor = Some(next_cursor);
+		persist_state(&self.root, &next)?;
+		*state = next;
+		Ok(selected.into_iter().map(|(_, duty)| duty).collect())
+	}
+
+	/// Return all durable checkpoint duties awaiting later signing/quorum processing.
+	pub fn pending_checkpoint_duties(&self) -> Result<Vec<CheckpointDuty>, StoreError> {
+		Ok(self.read_state()?.pending_checkpoint_duties.values().cloned().collect())
+	}
+
 	/// Remove a root journal entry only after it has been durably appended to the outbox.
 	pub fn complete_root_submission(&self, sequence: u64) -> Result<(), StoreError> {
 		let mut state = self.write_state()?;
@@ -576,7 +893,8 @@ impl DiskStore {
 		})
 	}
 
-	/// Resolve an exact historical append-log root without requiring equality with the current root.
+	/// Resolve an exact historical append-log root without requiring equality with the current
+	/// root.
 	pub fn root_observation(&self, root: &str) -> Result<RootObservation, StoreError> {
 		let normalized = normalize_hash(root)?;
 		let state = self.read_state()?;
@@ -681,6 +999,7 @@ impl DiskStore {
 
 	fn verify_index(&self) -> Result<(), StoreError> {
 		let state = self.read_state()?;
+		verify_checkpoint_duty_state(&state)?;
 		if state.root_sequence != state.leaf_hashes.len() as u64 {
 			return Err(StoreError::Io("root sequence and proof-leaf counts differ".into()));
 		}
@@ -942,6 +1261,192 @@ fn stored_bytes(state: &PersistedState) -> u64 {
 		.fold(0u64, |total, record| total.saturating_add(record.bytes))
 }
 
+fn validate_checkpoint_duty_page(
+	batch: &CheckpointDutyBatch,
+	profile: &NodeProfile,
+) -> Result<(), StoreError> {
+	normalize_hash(&batch.finalized_hash)?;
+	if let Some(cursor) = &batch.requested_cursor {
+		if cursor.snapshot_checkpoint != batch.snapshot_checkpoint {
+			return Err(StoreError::Invalid(
+				"checkpoint duty request cursor belongs to another snapshot".into(),
+			));
+		}
+		normalize_hash(&cursor.last_key)?;
+	}
+	if batch.next_cursor.is_some() && batch.next_cursor == batch.requested_cursor {
+		return Err(StoreError::Invalid("checkpoint duty cursor did not advance".into()));
+	}
+	match (&batch.next_cursor, batch.duties.last()) {
+		(None, _) => {},
+		(Some(cursor), Some(last)) => {
+			if cursor.snapshot_checkpoint != batch.snapshot_checkpoint
+				|| normalize_hash(&cursor.last_key)? != normalize_hash(&last.bucket_id)?
+			{
+				return Err(StoreError::Invalid(
+					"checkpoint duty cursor does not bind the installed snapshot tail".into(),
+				));
+			}
+		},
+		(Some(_), None) => {
+			return Err(StoreError::Invalid("checkpoint duty page advanced an empty cursor".into()))
+		},
+	}
+	let expected_provider = normalize_hash(&profile.provider)?;
+	let expected_key = normalize_hash(&profile.service_key)?;
+	if normalize_hash(&batch.provider)? != expected_provider {
+		return Err(StoreError::Invalid("checkpoint duty page belongs to another provider".into()));
+	}
+	let mut previous_bucket = None;
+	let mut ids = BTreeMap::new();
+	for duty in &batch.duties {
+		let duty_id = normalize_hash(&duty.duty_id)?;
+		let bucket = normalize_hash(&duty.bucket_id)?;
+		if duty.snapshot_checkpoint != batch.snapshot_checkpoint {
+			return Err(StoreError::Invalid(
+				"checkpoint duty does not belong to the installed snapshot".into(),
+			));
+		}
+		if normalize_hash(&duty.provider)? != expected_provider {
+			return Err(StoreError::Invalid(
+				"checkpoint duty is addressed to another provider".into(),
+			));
+		}
+		if normalize_hash(&duty.service_key)? != expected_key {
+			return Err(StoreError::Invalid("checkpoint duty uses another service key".into()));
+		}
+		normalize_hash(&duty.snapshot_hash)?;
+		let encoded = hex::decode(duty.encoded_duty.trim_start_matches("0x")).map_err(|error| {
+			StoreError::Invalid(format!("invalid checkpoint duty SCALE: {error}"))
+		})?;
+		if normalize_hash(&duty.duty_fingerprint)?
+			!= hex::encode(sp_crypto_hashing::blake2_256(&encoded))
+		{
+			return Err(StoreError::Invalid("checkpoint duty fingerprint mismatch".into()));
+		}
+		let provider_raw = hex::decode(expected_provider.as_bytes()).map_err(io_error)?;
+		let provider = AccountId32::new(
+			provider_raw
+				.try_into()
+				.map_err(|_| StoreError::Invalid("provider profile is not 32 bytes".into()))?,
+		);
+		let service_key: [u8; 32] = hex::decode(expected_key.as_bytes())
+			.map_err(io_error)?
+			.try_into()
+			.map_err(|_| StoreError::Invalid("service key profile is not 32 bytes".into()))?;
+		let mut input = &encoded[..];
+		let decoded =
+			CheckpointDutyInfo::<AccountId32, H256, u32>::decode(&mut input).map_err(|error| {
+				StoreError::Invalid(format!("invalid checkpoint duty SCALE: {error}"))
+			})?;
+		if !input.is_empty() {
+			return Err(StoreError::Invalid("checkpoint duty SCALE has trailing bytes".into()));
+		}
+		let projected = crate::chain::validate_checkpoint_duty(
+			decoded,
+			&provider,
+			service_key,
+			batch.snapshot_checkpoint,
+		)
+		.map_err(|error| StoreError::Invalid(error.to_string()))?;
+		if &projected != duty {
+			return Err(StoreError::Invalid(
+				"checkpoint duty typed projection does not match exact runtime SCALE".into(),
+			));
+		}
+		if ids.insert(duty_id, ()).is_some() {
+			return Err(StoreError::Invalid("duplicate checkpoint duty id in batch".into()));
+		}
+		if previous_bucket.as_ref().is_some_and(|previous| previous >= &bucket) {
+			return Err(StoreError::Invalid(
+				"checkpoint duties are not in canonical bucket order".into(),
+			));
+		}
+		previous_bucket = Some(bucket);
+	}
+	Ok(())
+}
+
+fn terminal_cursor_key(
+	cursor: &Option<CheckpointDutyScanCursor>,
+) -> Result<Option<String>, StoreError> {
+	cursor.as_ref().map(|cursor| normalize_hash(&cursor.last_key)).transpose()
+}
+
+fn checkpoint_duty_order_key(duty: &CheckpointDuty) -> Result<String, StoreError> {
+	Ok(format!("{}:{}", normalize_hash(&duty.bucket_id)?, normalize_hash(&duty.duty_id)?))
+}
+
+fn verify_checkpoint_duty_state(state: &PersistedState) -> Result<(), StoreError> {
+	match (&state.checkpoint_duty_watermark, &state.checkpoint_duty_inventory) {
+		(None, None) => {},
+		(Some(watermark), Some(inventory)) => {
+			if normalize_hash(&watermark.finalized_hash)?
+				!= normalize_hash(&inventory.finalized_hash)?
+				|| watermark.finalized_number != inventory.finalized_number
+				|| watermark.snapshot_checkpoint != inventory.snapshot_checkpoint
+			{
+				return Err(StoreError::Io(
+					"checkpoint duty inventory is not bound to its watermark".into(),
+				));
+			}
+			let terminal = inventory.duties.last().map(|duty| CheckpointDutyScanCursor {
+				snapshot_checkpoint: inventory.snapshot_checkpoint,
+				last_key: duty.bucket_id.clone(),
+			});
+			if terminal_cursor_key(&terminal)? != terminal_cursor_key(&watermark.cursor)? {
+				return Err(StoreError::Io(
+					"checkpoint duty inventory tail does not match its watermark".into(),
+				));
+			}
+			validate_checkpoint_duty_page(
+				&CheckpointDutyBatch {
+					finalized_hash: inventory.finalized_hash.clone(),
+					finalized_number: inventory.finalized_number,
+					provider: state.profile.provider.clone(),
+					snapshot_checkpoint: inventory.snapshot_checkpoint,
+					requested_cursor: None,
+					next_cursor: None,
+					duties: inventory.duties.clone(),
+				},
+				&state.profile,
+			)
+			.map_err(|_| StoreError::Io("checkpoint duty inventory is invalid".into()))?;
+			for duty in &inventory.duties {
+				let key = normalize_hash(&duty.duty_id)?;
+				if state.pending_checkpoint_duties.get(&key) != Some(duty) {
+					return Err(StoreError::Io(
+						"checkpoint duty inventory is absent from the pending journal".into(),
+					));
+				}
+			}
+		},
+		_ => {
+			return Err(StoreError::Io(
+				"checkpoint duty inventory and watermark presence differ".into(),
+			))
+		},
+	}
+	if let Some(cursor) = &state.checkpoint_duty_discovery_cursor {
+		let inventory = state.checkpoint_duty_inventory.as_ref().ok_or_else(|| {
+			StoreError::Io("checkpoint duty discovery cursor has no inventory".into())
+		})?;
+		if normalize_hash(&cursor.finalized_hash)? != normalize_hash(&inventory.finalized_hash)?
+			|| cursor.finalized_number != inventory.finalized_number
+			|| cursor.snapshot_checkpoint != inventory.snapshot_checkpoint
+			|| !inventory.duties.iter().any(|duty| {
+				duty.role == CheckpointDutyRole::Replica
+					&& checkpoint_duty_order_key(duty).ok().as_deref()
+						== Some(cursor.after_key.as_str())
+			}) {
+			return Err(StoreError::Io(
+				"checkpoint duty discovery cursor is outside its inventory".into(),
+			));
+		}
+	}
+	Ok(())
+}
+
 fn now_ms() -> Result<u64, StoreError> {
 	Ok(SystemTime::now()
 		.duration_since(UNIX_EPOCH)
@@ -976,6 +1481,11 @@ fn io_error(error: impl std::fmt::Display) -> StoreError {
 #[cfg(test)]
 mod tests {
 	use super::*;
+	use orbis_storage_runtime_api::{
+		CheckpointDutyMode as RuntimeCheckpointDutyMode,
+		CheckpointDutyPhase as RuntimeCheckpointDutyPhase, ProviderDutyAuthority, ProviderDutyRole,
+		RESPONSE_VERSION,
+	};
 
 	fn profile() -> NodeProfile {
 		NodeProfile {
@@ -994,6 +1504,116 @@ mod tests {
 			container_ref: format!("0x{}", "03".repeat(32)),
 			bytes,
 			expires_at: 100,
+		}
+	}
+
+	fn duty(id: u8, bucket: u8, snapshot: u32) -> CheckpointDuty {
+		duty_with_role(id, bucket, snapshot, CheckpointDutyRole::Primary)
+	}
+
+	fn replica_duty(id: u8, bucket: u8, snapshot: u32) -> CheckpointDuty {
+		duty_with_role(id, bucket, snapshot, CheckpointDutyRole::Replica)
+	}
+
+	fn duty_with_role(
+		id: u8,
+		bucket: u8,
+		snapshot: u32,
+		role: CheckpointDutyRole,
+	) -> CheckpointDuty {
+		let provider = AccountId32::new([1; 32]);
+		let other = AccountId32::new([3; 32]);
+		let (primary, replica) = if role == CheckpointDutyRole::Primary {
+			(provider.clone(), other)
+		} else {
+			(other, provider.clone())
+		};
+		let authority = |account: AccountId32, role, order, key, may_sign| ProviderDutyAuthority {
+			provider: account,
+			role,
+			order,
+			active_service_key_version: 1,
+			active_service_key: [key; 32],
+			endpoint_hash: H256::repeat_byte(key),
+			organization_sla_eligible: true,
+			overdue_challenge: false,
+			eligible: true,
+			may_sign,
+			may_initiate: false,
+			exclusion: None,
+			initiation_exclusion: None,
+			confirmed_checkpoint: None,
+		};
+		crate::chain::validate_checkpoint_duty(
+			CheckpointDutyInfo {
+				response_version: RESPONSE_VERSION,
+				commons_genesis_hash: H256::repeat_byte(10),
+				commons_spec_version: 1,
+				commons_transaction_version: 1,
+				commons_metadata_hash: H256::repeat_byte(11),
+				duty_id: H256::repeat_byte(id),
+				bucket_id: H256::repeat_byte(bucket),
+				primary: primary.clone(),
+				replicas: vec![replica.clone()],
+				authorities: vec![
+					authority(
+						primary.clone(),
+						ProviderDutyRole::Primary,
+						0,
+						if role == CheckpointDutyRole::Primary { 2 } else { 3 },
+						true,
+					),
+					authority(
+						replica,
+						ProviderDutyRole::Replica,
+						1,
+						if role == CheckpointDutyRole::Replica { 2 } else { 3 },
+						true,
+					),
+				],
+				initiator: None,
+				phase: RuntimeCheckpointDutyPhase::NotDue,
+				mode: RuntimeCheckpointDutyMode::Standard,
+				snapshot_checkpoint: snapshot,
+				snapshot_hash: H256::repeat_byte(12),
+				due_at: snapshot + 10,
+				grace_until: snapshot + 20,
+				expected_nonce: snapshot,
+				scheduled_at: snapshot,
+				previous_commitment: None,
+				previous_checkpoint: None,
+				expected_next_start_seq: 0,
+				required_primary_confirmations: 1,
+				required_replica_confirmations: 2,
+			},
+			&provider,
+			[2; 32],
+			snapshot,
+		)
+		.unwrap()
+	}
+
+	fn cursor(snapshot: u32, bucket: u8) -> CheckpointDutyScanCursor {
+		CheckpointDutyScanCursor {
+			snapshot_checkpoint: snapshot,
+			last_key: format!("0x{}", hex::encode([bucket; 32])),
+		}
+	}
+
+	fn page(
+		snapshot: u32,
+		requested_cursor: Option<CheckpointDutyScanCursor>,
+		next_cursor: Option<CheckpointDutyScanCursor>,
+		duties: Vec<CheckpointDuty>,
+	) -> CheckpointDutyBatch {
+		CheckpointDutyBatch {
+			finalized_hash: format!("0x{}", "10".repeat(32)),
+			finalized_number: snapshot + 1,
+			provider: format!("0x{}", "01".repeat(32)),
+			snapshot_checkpoint: snapshot,
+			requested_cursor,
+			next_cursor,
+			duties,
 		}
 	}
 
@@ -1051,5 +1671,249 @@ mod tests {
 			hex::encode(deletion_leaf(&record, &"07".repeat(32)).unwrap()),
 			"0ff8e8e8049774a562cf153e0361c2efa34a0f3c888ca4f9e4efaa7f510e11f4",
 		);
+	}
+
+	#[test]
+	fn checkpoint_duty_pages_stage_resume_and_install_only_at_terminal_page() {
+		let temp = tempfile::tempdir().unwrap();
+		let snapshot = 40;
+		let first_cursor = cursor(snapshot, 1);
+		let store = DiskStore::open(temp.path(), profile(), 1024).unwrap();
+		assert!(!store
+			.stage_checkpoint_duty_page(page(
+				snapshot,
+				None,
+				Some(first_cursor.clone()),
+				vec![duty(1, 1, snapshot)],
+			))
+			.unwrap());
+		assert!(store.pending_checkpoint_duties().unwrap().is_empty());
+		assert!(store.checkpoint_duty_watermark().unwrap().is_none());
+		let resume = store.checkpoint_duty_resume_request().unwrap().unwrap();
+		assert_eq!(resume.cursor, first_cursor);
+		drop(store);
+
+		let reopened = DiskStore::open(temp.path(), profile(), 1024).unwrap();
+		assert_eq!(reopened.checkpoint_duty_resume_request().unwrap().unwrap(), resume);
+		assert!(reopened
+			.stage_checkpoint_duty_page(page(
+				snapshot,
+				Some(first_cursor),
+				None,
+				vec![duty(2, 2, snapshot)],
+			))
+			.unwrap());
+		assert!(reopened.checkpoint_duty_resume_request().unwrap().is_none());
+		assert_eq!(reopened.pending_checkpoint_duties().unwrap().len(), 2);
+		assert_eq!(
+			reopened.checkpoint_duty_watermark().unwrap().unwrap().cursor,
+			Some(cursor(snapshot, 2)),
+		);
+	}
+
+	#[test]
+	fn latest_duty_inventory_survives_partial_next_scan_then_replaces_exactly() {
+		let temp = tempfile::tempdir().unwrap();
+		let snapshot = 45;
+		let store = DiskStore::open(temp.path(), profile(), 1024).unwrap();
+		let first = vec![
+			replica_duty(1, 1, snapshot),
+			replica_duty(2, 2, snapshot),
+			replica_duty(3, 3, snapshot),
+		];
+		assert!(store
+			.stage_checkpoint_duty_page(page(snapshot, None, None, first.clone()))
+			.unwrap());
+		let installed_a = store.checkpoint_duty_inventory().unwrap().unwrap();
+		assert_eq!(installed_a.duties, first);
+
+		let mut partial_b =
+			page(snapshot, None, Some(cursor(snapshot, 1)), vec![replica_duty(4, 1, snapshot)]);
+		partial_b.finalized_hash = format!("0x{}", "20".repeat(32));
+		partial_b.finalized_number += 1;
+		assert!(!store.stage_checkpoint_duty_page(partial_b).unwrap());
+		assert_eq!(store.checkpoint_duty_inventory().unwrap().unwrap(), installed_a);
+		drop(store);
+
+		let reopened = DiskStore::open(temp.path(), profile(), 1024).unwrap();
+		assert_eq!(reopened.checkpoint_duty_inventory().unwrap().unwrap(), installed_a);
+		let resume = reopened.checkpoint_duty_resume_request().unwrap().unwrap();
+		let second_tail = replica_duty(5, 2, snapshot);
+		let terminal_b = CheckpointDutyBatch {
+			finalized_hash: resume.finalized_hash,
+			finalized_number: resume.finalized_number,
+			provider: resume.provider,
+			snapshot_checkpoint: resume.snapshot_checkpoint,
+			requested_cursor: Some(resume.cursor),
+			next_cursor: None,
+			duties: vec![second_tail.clone()],
+		};
+		assert!(reopened.stage_checkpoint_duty_page(terminal_b).unwrap());
+		let installed_b = reopened.checkpoint_duty_inventory().unwrap().unwrap();
+		assert_eq!(installed_b.finalized_hash, format!("0x{}", "20".repeat(32)));
+		assert_eq!(installed_b.finalized_number, snapshot + 2);
+		assert_eq!(installed_b.duties, vec![replica_duty(4, 1, snapshot), second_tail]);
+		assert_eq!(reopened.pending_checkpoint_duties().unwrap().len(), 5);
+	}
+
+	#[test]
+	fn fixed_view_inventory_replay_is_exact_but_a_different_finalized_hash_replaces() {
+		let temp = tempfile::tempdir().unwrap();
+		let snapshot = 47;
+		let store = DiskStore::open(temp.path(), profile(), 1024).unwrap();
+		let original = vec![replica_duty(1, 1, snapshot), replica_duty(2, 2, snapshot)];
+		assert!(store
+			.stage_checkpoint_duty_page(page(snapshot, None, None, original.clone()))
+			.unwrap());
+		let inventory = store.checkpoint_duty_inventory().unwrap().unwrap();
+		assert_eq!(store.reserve_checkpoint_replica_duties(&inventory, 1).unwrap(), original[..1],);
+		assert!(store
+			.stage_checkpoint_duty_page(page(snapshot, None, None, original.clone()))
+			.unwrap());
+		assert_eq!(store.reserve_checkpoint_replica_duties(&inventory, 1).unwrap(), original[1..],);
+		assert!(store
+			.stage_checkpoint_duty_page(page(snapshot, None, None, Vec::new()))
+			.is_err());
+
+		let mut replacement = page(snapshot, None, None, Vec::new());
+		replacement.finalized_hash = format!("0x{}", "30".repeat(32));
+		assert!(store.stage_checkpoint_duty_page(replacement).unwrap());
+		let inventory = store.checkpoint_duty_inventory().unwrap().unwrap();
+		assert_eq!(inventory.finalized_hash, format!("0x{}", "30".repeat(32)));
+		assert!(inventory.duties.is_empty());
+	}
+
+	#[test]
+	fn reopen_rejects_inventory_coordinates_changed_outside_atomic_install() {
+		let temp = tempfile::tempdir().unwrap();
+		let snapshot = 48;
+		let store = DiskStore::open(temp.path(), profile(), 1024).unwrap();
+		assert!(store
+			.stage_checkpoint_duty_page(page(
+				snapshot,
+				None,
+				None,
+				vec![replica_duty(1, 1, snapshot)],
+			))
+			.unwrap());
+		drop(store);
+		let path = temp.path().join(INDEX_FILE);
+		let mut persisted: serde_json::Value =
+			serde_json::from_slice(&fs::read(&path).unwrap()).unwrap();
+		persisted["checkpoint_duty_inventory"]["finalized_number"] =
+			serde_json::json!(snapshot + 9);
+		fs::write(path, serde_json::to_vec_pretty(&persisted).unwrap()).unwrap();
+		assert!(DiskStore::open(temp.path(), profile(), 1024).is_err());
+	}
+
+	#[test]
+	fn replica_duty_reservations_round_robin_durably_past_first_page() {
+		let temp = tempfile::tempdir().unwrap();
+		let snapshot = 46;
+		let store = DiskStore::open(temp.path(), profile(), 1024).unwrap();
+		let duties =
+			(1..=200).map(|value| replica_duty(value, value, snapshot)).collect::<Vec<_>>();
+		assert!(store
+			.stage_checkpoint_duty_page(page(snapshot, None, None, duties.clone()))
+			.unwrap());
+		let inventory = store.checkpoint_duty_inventory().unwrap().unwrap();
+		let first = store.reserve_checkpoint_replica_duties(&inventory, 64).unwrap();
+		assert_eq!(first, duties[..64]);
+		drop(store);
+
+		let reopened = DiskStore::open(temp.path(), profile(), 1024).unwrap();
+		let inventory = reopened.checkpoint_duty_inventory().unwrap().unwrap();
+		let second = reopened.reserve_checkpoint_replica_duties(&inventory, 64).unwrap();
+		let third = reopened.reserve_checkpoint_replica_duties(&inventory, 64).unwrap();
+		let fourth = reopened.reserve_checkpoint_replica_duties(&inventory, 64).unwrap();
+		assert_eq!(second, duties[64..128]);
+		assert_eq!(third, duties[128..192]);
+		assert_eq!(fourth[..8], duties[192..]);
+		assert_eq!(fourth[8..], duties[..56]);
+	}
+
+	#[test]
+	fn checkpoint_duty_replay_is_idempotent_but_changed_payload_and_regression_fail() {
+		let temp = tempfile::tempdir().unwrap();
+		let store = DiskStore::open(temp.path(), profile(), 1024).unwrap();
+		let original = duty(1, 1, 50);
+		assert!(store
+			.stage_checkpoint_duty_page(page(50, None, None, vec![original.clone()]))
+			.unwrap());
+		assert!(store
+			.stage_checkpoint_duty_page(page(50, None, None, vec![original.clone()]))
+			.unwrap());
+		assert_eq!(store.pending_checkpoint_duties().unwrap(), vec![original.clone()]);
+
+		let mut changed = original;
+		changed.due_at += 1;
+		assert!(store.stage_checkpoint_duty_page(page(50, None, None, vec![changed])).is_err());
+		assert!(store
+			.stage_checkpoint_duty_page(page(49, None, None, vec![duty(2, 2, 49)]))
+			.is_err());
+		assert_eq!(store.pending_checkpoint_duties().unwrap().len(), 1);
+		assert_eq!(store.checkpoint_duty_watermark().unwrap().unwrap().snapshot_checkpoint, 50);
+	}
+
+	#[test]
+	fn invalid_or_unwritable_checkpoint_duty_page_cannot_advance_durable_state() {
+		let temp = tempfile::tempdir().unwrap();
+		let store = DiskStore::open(temp.path(), profile(), 1024).unwrap();
+		let mut invalid = duty(1, 1, 60);
+		invalid.duty_fingerprint = format!("0x{}", "ff".repeat(32));
+		assert!(store
+			.stage_checkpoint_duty_page(page(60, None, Some(cursor(60, 1)), vec![invalid],))
+			.is_err());
+		assert!(store.checkpoint_duty_resume_request().unwrap().is_none());
+
+		let moved = temp.path().with_extension("moved");
+		std::fs::rename(temp.path(), &moved).unwrap();
+		std::fs::write(temp.path(), b"not-a-directory").unwrap();
+		assert!(store
+			.stage_checkpoint_duty_page(page(60, None, Some(cursor(60, 1)), vec![duty(1, 1, 60)],))
+			.is_err());
+		assert!(store.checkpoint_duty_resume_request().unwrap().is_none());
+		std::fs::remove_file(temp.path()).unwrap();
+		std::fs::rename(moved, temp.path()).unwrap();
+	}
+
+	#[test]
+	fn checkpoint_duty_version_cursor_audience_and_service_key_mismatches_fail_closed() {
+		let temp = tempfile::tempdir().unwrap();
+		let store = DiskStore::open(temp.path(), profile(), 1024).unwrap();
+		let base = duty(1, 1, 70);
+
+		let mut wrong_page_provider = page(70, None, None, vec![base.clone()]);
+		wrong_page_provider.provider = format!("0x{}", "09".repeat(32));
+		assert!(store.stage_checkpoint_duty_page(wrong_page_provider).is_err());
+
+		let mut wrong_key = base.clone();
+		wrong_key.service_key = format!("0x{}", "09".repeat(32));
+		assert!(store.stage_checkpoint_duty_page(page(70, None, None, vec![wrong_key])).is_err());
+
+		let mut wrong_cursor = page(
+			70,
+			None,
+			Some(CheckpointDutyScanCursor {
+				snapshot_checkpoint: 70,
+				last_key: format!("0x{}", "09".repeat(32)),
+			}),
+			vec![base.clone()],
+		);
+		assert!(store.stage_checkpoint_duty_page(wrong_cursor.clone()).is_err());
+		wrong_cursor.next_cursor.as_mut().unwrap().snapshot_checkpoint = 71;
+		assert!(store.stage_checkpoint_duty_page(wrong_cursor).is_err());
+
+		let mut wrong_version = base;
+		let mut encoded = hex::decode(wrong_version.encoded_duty.trim_start_matches("0x")).unwrap();
+		encoded[..2].copy_from_slice(&(RESPONSE_VERSION - 1).to_le_bytes());
+		wrong_version.encoded_duty = format!("0x{}", hex::encode(&encoded));
+		wrong_version.duty_fingerprint =
+			format!("0x{}", hex::encode(sp_crypto_hashing::blake2_256(&encoded)));
+		assert!(store
+			.stage_checkpoint_duty_page(page(70, None, None, vec![wrong_version]))
+			.is_err());
+		assert!(store.checkpoint_duty_resume_request().unwrap().is_none());
+		assert!(store.checkpoint_duty_watermark().unwrap().is_none());
 	}
 }

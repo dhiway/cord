@@ -1,0 +1,37 @@
+{
+  "name": "@cord-network/origin-sdk-host",
+  "version": "0.1.0",
+  "description": "Host-owned product identity, permissions, signing, and namespaced storage",
+  "license": "GPL-3.0-or-later",
+  "type": "module",
+  "sideEffects": false,
+  "files": [
+    "dist",
+    "README.md"
+  ],
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "import": "./dist/index.js"
+    },
+    "./testing": {
+      "types": "./dist/testing.d.ts",
+      "import": "./dist/testing.js"
+    }
+  },
+  "main": "./dist/index.js",
+  "module": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "scripts": {
+    "build": "tsc -p tsconfig.json",
+    "check": "tsc -p tsconfig.json --noEmit && node --experimental-strip-types --test tests/*.test.ts"
+  },
+  "dependencies": {
+    "@cord-network/origin-sdk-crypto": "0.1.0",
+    "@cord-network/origin-sdk-result": "0.1.0",
+    "@cord-network/origin-sdk-errors": "0.1.0"
+  },
+  "cord": {
+    "bundleBudgetBytes": 200000
+  }
+}
